@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { MessageSquare, Settings, BarChart3, User } from 'lucide-react'
+import { MessageSquare, Settings, BarChart3, User, Send } from 'lucide-react'
 import WhatsAppChat from './WhatsAppChat'
+import BulkWhatsApp from './BulkWhatsApps'
 import './App.css'
 
 function App() {
@@ -65,6 +66,13 @@ function App() {
             <MessageSquare size={18} />
             <span>WhatsApp Chats</span>
           </button>
+          <button 
+            className={`nav-item ${activeView === 'bulk' ? 'active' : ''}`}
+            onClick={() => setActiveView('bulk')}
+          >
+            <Send size={18} />
+            <span>Bulk Messages</span>
+          </button>
           <button className="nav-item">
             <Settings size={18} />
             <span>Settings</span>
@@ -94,7 +102,8 @@ function App() {
             )}
           </div>
         </div>
-        <WhatsAppChat />
+        {activeView === 'chats' && <WhatsAppChat />}
+        {activeView === 'bulk' && <BulkWhatsApp />}
       </div>
     </div>
   )

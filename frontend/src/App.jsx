@@ -1,12 +1,29 @@
+<<<<<<< HEAD
 import { useState } from 'react'
 import { MessageSquare, Settings, BarChart3, User, Send } from 'lucide-react'
 import WhatsAppChat from './WhatsAppChat'
 import BulkWhatsApp from './BulkWhatsApps'
 import './App.css'
+=======
+import { useState, useEffect } from 'react'
+import { Toaster } from 'react-hot-toast'
+import { MessageSquare, Settings, BarChart3, User, Send } from 'lucide-react'
+import WhatsAppChat from './components/WhatsAppChat'
+import BulkWhatsApp from './components/BulkWhatsApps'
+import Login from './components/Login'
+import Analytics from './components/Analytics'
+import SettingsPanel from './components/Settings'
+import Profile from './components/Profile'
+import './App.css'
+import './styles/Analytics.css'
+import './styles/Settings.css'
+import './styles/Profile.css'
+>>>>>>> baf3b49cb71fbf5f1a645b1bc5194b62e74524d0
 
 function App() {
   const [activeView, setActiveView] = useState('chats')
   const [showProfileMenu, setShowProfileMenu] = useState(false)
+<<<<<<< HEAD
   const [isLoggedIn, setIsLoggedIn] = useState(true)
   const [credentials, setCredentials] = useState({ username: '', password: '' })
 
@@ -54,6 +71,37 @@ function App() {
 
   return (
     <div className="dashboard">
+=======
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [user, setUser] = useState(null)
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      setIsLoggedIn(true);
+    }
+  }, []);
+
+  const handleLogin = (userData) => {
+    setUser(userData);
+    setIsLoggedIn(true);
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setIsLoggedIn(false);
+    setUser(null);
+    setShowProfileMenu(false);
+  }
+
+  return (
+    <>
+      <Toaster position="top-center" />
+      {!isLoggedIn ? (
+        <Login onLogin={handleLogin} />
+      ) : (
+      <div className="dashboard">
+>>>>>>> baf3b49cb71fbf5f1a645b1bc5194b62e74524d0
       <div className="sidebar">
         <div className="sidebar-header">
           <h2>Dashboard</h2>
@@ -73,11 +121,25 @@ function App() {
             <Send size={18} />
             <span>Bulk Messages</span>
           </button>
+<<<<<<< HEAD
           <button className="nav-item">
             <Settings size={18} />
             <span>Settings</span>
           </button>
           <button className="nav-item">
+=======
+          <button 
+            className={`nav-item ${activeView === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveView('settings')}
+          >
+            <Settings size={18} />
+            <span>Settings</span>
+          </button>
+          <button 
+            className={`nav-item ${activeView === 'analytics' ? 'active' : ''}`}
+            onClick={() => setActiveView('analytics')}
+          >
+>>>>>>> baf3b49cb71fbf5f1a645b1bc5194b62e74524d0
             <BarChart3 size={18} />
             <span>Analytics</span>
           </button>
@@ -95,8 +157,29 @@ function App() {
             </button>
             {showProfileMenu && (
               <div className="profile-menu">
+<<<<<<< HEAD
                 <button className="profile-menu-item">My Profile</button>
                 <button className="profile-menu-item">Settings</button>
+=======
+                <button 
+                  className="profile-menu-item" 
+                  onClick={() => {
+                    setActiveView('profile');
+                    setShowProfileMenu(false);
+                  }}
+                >
+                  My Profile
+                </button>
+                <button 
+                  className="profile-menu-item"
+                  onClick={() => {
+                    setActiveView('settings');
+                    setShowProfileMenu(false);
+                  }}
+                >
+                  Settings
+                </button>
+>>>>>>> baf3b49cb71fbf5f1a645b1bc5194b62e74524d0
                 <button className="profile-menu-item" onClick={handleLogout}>Logout</button>
               </div>
             )}
@@ -104,8 +187,18 @@ function App() {
         </div>
         {activeView === 'chats' && <WhatsAppChat />}
         {activeView === 'bulk' && <BulkWhatsApp />}
+<<<<<<< HEAD
       </div>
     </div>
+=======
+        {activeView === 'analytics' && <Analytics />}
+        {activeView === 'settings' && <SettingsPanel />}
+        {activeView === 'profile' && <Profile />}
+      </div>
+    </div>
+      )}
+    </>
+>>>>>>> baf3b49cb71fbf5f1a645b1bc5194b62e74524d0
   )
 }
 

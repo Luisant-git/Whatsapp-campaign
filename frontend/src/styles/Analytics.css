@@ -1,0 +1,148 @@
+.analytics-container {
+  padding: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+  min-height: calc(100vh - 80px);
+}
+
+.analytics-header {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.analytics-header h1 {
+  font-size: clamp(24px, 4vw, 32px);
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.analytics-header p {
+  color: #64748b;
+  font-size: clamp(14px, 2vw, 16px);
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .analytics-container {
+    padding: 24px;
+  }
+  
+  .analytics-grid {
+    gap: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+  
+  .analytics-header {
+    margin-bottom: 32px;
+    text-align: left;
+  }
+}
+
+.stat-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.2s ease;
+  min-height: 80px;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+@media (min-width: 768px) {
+  .stat-card {
+    padding: 24px;
+    gap: 16px;
+    min-height: 100px;
+  }
+}
+
+.stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+@media (min-width: 768px) {
+  .stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+  }
+}
+
+.stat-icon.today {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.stat-icon.success {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.stat-icon.failed {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.stat-icon.contacts {
+  background: #e0e7ff;
+  color: #4f46e5;
+}
+
+.stat-icon.rate {
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.stat-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.stat-content h3 {
+  font-size: clamp(12px, 2vw, 14px);
+  font-weight: 500;
+  color: #64748b;
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+
+.stat-number {
+  font-size: clamp(18px, 4vw, 24px);
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  font-size: clamp(14px, 2vw, 16px);
+  color: #64748b;
+  text-align: center;
+  padding: 20px;
+}

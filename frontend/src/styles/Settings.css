@@ -1,0 +1,140 @@
+.settings-container {
+  padding: 16px;
+  max-width: 900px;
+  margin: 0 auto;
+  min-height: calc(100vh - 80px);
+}
+
+.settings-header {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.settings-header h1 {
+  font-size: clamp(24px, 4vw, 32px);
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.settings-header p {
+  color: #64748b;
+  font-size: clamp(14px, 2vw, 16px);
+}
+
+.settings-content {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .settings-container {
+    padding: 24px;
+  }
+  
+  .settings-content {
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 20px;
+  }
+  
+  .settings-header {
+    margin-bottom: 32px;
+    text-align: left;
+  }
+}
+
+@media (min-width: 1024px) {
+  .settings-content {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+.setting-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  transition: all 0.2s ease;
+  min-height: 80px;
+}
+
+.setting-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+@media (min-width: 768px) {
+  .setting-card {
+    padding: 24px;
+    gap: 16px;
+    align-items: center;
+    min-height: 100px;
+  }
+}
+
+.setting-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0fdf4;
+  color: #25d366;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+@media (min-width: 768px) {
+  .setting-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    margin-top: 0;
+  }
+}
+
+.setting-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.setting-info h3 {
+  font-size: clamp(14px, 2.5vw, 16px);
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+
+.setting-info p {
+  font-size: clamp(12px, 2vw, 14px);
+  color: #64748b;
+  margin: 0;
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+@media (min-width: 768px) {
+  .setting-info p {
+    word-break: break-word;
+  }
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  font-size: clamp(14px, 2vw, 16px);
+  color: #64748b;
+  text-align: center;
+  padding: 20px;
+}

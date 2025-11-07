@@ -6,9 +6,11 @@ import BulkWhatsApp from './components/BulkWhatsApps'
 import Login from './components/Login'
 import Analytics from './components/Analytics'
 import SettingsPanel from './components/Settings'
+import Profile from './components/Profile'
 import './App.css'
 import './styles/Analytics.css'
 import './styles/Settings.css'
+import './styles/Profile.css'
 
 function App() {
   const [activeView, setActiveView] = useState('chats')
@@ -89,8 +91,24 @@ function App() {
             </button>
             {showProfileMenu && (
               <div className="profile-menu">
-                <button className="profile-menu-item">My Profile</button>
-                <button className="profile-menu-item">Settings</button>
+                <button 
+                  className="profile-menu-item" 
+                  onClick={() => {
+                    setActiveView('profile');
+                    setShowProfileMenu(false);
+                  }}
+                >
+                  My Profile
+                </button>
+                <button 
+                  className="profile-menu-item"
+                  onClick={() => {
+                    setActiveView('settings');
+                    setShowProfileMenu(false);
+                  }}
+                >
+                  Settings
+                </button>
                 <button className="profile-menu-item" onClick={handleLogout}>Logout</button>
               </div>
             )}
@@ -100,6 +118,7 @@ function App() {
         {activeView === 'bulk' && <BulkWhatsApp />}
         {activeView === 'analytics' && <Analytics />}
         {activeView === 'settings' && <SettingsPanel />}
+        {activeView === 'profile' && <Profile />}
       </div>
     </div>
       )}

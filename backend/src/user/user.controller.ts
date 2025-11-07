@@ -49,11 +49,11 @@ export class UserController {
     return this.userService.update(+id, updateUserDto);
   }
 
-  @Get('profile')
+  @Get('profile/:id')
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, description: 'User profile retrieved' })
-  getProfile(@Body() body: { userId: number }) {
-    return this.userService.findOne(body.userId);
+  getProfile(@Param('id') id: string) {
+    return this.userService.findOne(+id);
   }
 
   @Delete(':id')

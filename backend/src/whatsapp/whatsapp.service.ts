@@ -2,20 +2,27 @@ import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { PrismaService } from '../prisma.service';
 import { WhatsappSessionService } from '../whatsapp-session/whatsapp-session.service';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class WhatsappService {
   private readonly logger = new Logger(WhatsappService.name);
-  private readonly apiUrl = process.env.WHATSAPP_API_URL;
-  private readonly phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  private readonly accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
 
   constructor(
     private prisma: PrismaService,
-    private sessionService: WhatsappSessionService
+    private sessionService: WhatsappSessionService,
+    private settingsService: SettingsService
   ) {}
 
-  async handleIncomingMessage(message: any) {
+  private async getSettings(userId: number) {
+    const settings = await this.settingsService.getCurrentSettings(userId);
+    if (!settings) {
+      throw new Error('WhatsApp settings not configured. Please configure settings first.');
+    }
+    return settings;
+  }
+
+  async handleIncomingMessage(message: any, userId: number) {
     const from = message.from;
     const messageId = message.id;
     const text = message.text?.body;
@@ -29,51 +36,54 @@ export class WhatsappService {
 
     if (image) {
       mediaType = 'image';
-      mediaUrl = await this.downloadMedia(image.id);
+      mediaUrl = await this.downloadMedia(image.id, userId);
     } else if (video) {
       mediaType = 'video';
-      mediaUrl = await this.downloadMedia(video.id);
+      mediaUrl = await this.downloadMedia(video.id, userId);
     } else if (document) {
       mediaType = 'document';
-      mediaUrl = await this.downloadMedia(document.id);
+      mediaUrl = await this.downloadMedia(document.id, userId);
     } else if (audio) {
       mediaType = 'audio';
-      mediaUrl = await this.downloadMedia(audio.id);
+      mediaUrl = await this.downloadMedia(audio.id, userId);
     }
 
-    await this.prisma.whatsappMessage.create({
+    await this.prisma.whatsAppMessage.create({
       data: {
         messageId,
+        to: from,
         from,
         message: text || (mediaType ? `${mediaType} file` : null),
         mediaType,
         mediaUrl,
         direction: 'incoming',
-        status: 'received'
+        status: 'received',
+        userId
       }
     });
 
     if (text) {
       await this.sessionService.handleInteractiveMenu(from, text, async (to, msg, imageUrl) => {
         if (imageUrl) {
-          return this.sendMediaMessage(to, imageUrl, 'image', msg);
+          return this.sendMediaMessage(to, imageUrl, 'image', userId, msg);
         }
-        return this.sendMessage(to, msg);
+        return this.sendMessage(to, msg, userId);
       });
     }
 
     this.logger.log(`Message from ${from}: ${text || mediaType}`);
   }
 
-  async downloadMedia(mediaId: string): Promise<string | null> {
+  async downloadMedia(mediaId: string, userId: number): Promise<string | null> {
     try {
+      const settings = await this.getSettings(userId);
       this.logger.log(`Downloading media: ${mediaId}`);
      
       const mediaInfoResponse = await axios.get(
-        `${this.apiUrl}/${mediaId}`,
+        `${settings.apiUrl}/${mediaId}`,
         {
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`
+            'Authorization': `Bearer ${settings.accessToken}`
           }
         }
       );
@@ -88,7 +98,7 @@ export class WhatsappService {
      
       const mediaDataResponse = await axios.get(mediaUrl, {
         headers: {
-          'Authorization': `Bearer ${this.accessToken}`
+          'Authorization': `Bearer ${settings.accessToken}`
         },
         responseType: 'arraybuffer'
       });
@@ -113,19 +123,15 @@ export class WhatsappService {
     }
   }
 
-  async sendMessage(to: string, message: string) {
-    // Check configuration
-    if (!this.apiUrl || !this.phoneNumberId || !this.accessToken) {
-      this.logger.error('WhatsApp configuration missing');
-      return { success: false, error: 'WhatsApp API configuration is incomplete' };
-    }
-
-    this.logger.log(`Sending message to ${to}: ${message}`);
-    this.logger.log(`Using API URL: ${this.apiUrl}/${this.phoneNumberId}/messages`);
-
+  async sendMessage(to: string, message: string, userId: number) {
     try {
+      const settings = await this.getSettings(userId);
+      
+      this.logger.log(`Sending message to ${to}: ${message}`);
+      this.logger.log(`Using API URL: ${settings.apiUrl}/${settings.phoneNumberId}/messages`);
+
       const response = await axios.post(
-        `${this.apiUrl}/${this.phoneNumberId}/messages`,
+        `${settings.apiUrl}/${settings.phoneNumberId}/messages`,
         {
           messaging_product: 'whatsapp',
           to,
@@ -134,7 +140,7 @@ export class WhatsappService {
         },
         {
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
+            'Authorization': `Bearer ${settings.accessToken}`,
             'Content-Type': 'application/json'
           }
         }
@@ -142,13 +148,15 @@ export class WhatsappService {
 
       this.logger.log('WhatsApp API Response:', response.data);
 
-      await this.prisma.whatsappMessage.create({
+      await this.prisma.whatsAppMessage.create({
         data: {
           messageId: response.data.messages[0].id,
+          to,
           from: to,
           message,
           direction: 'outgoing',
-          status: 'sent'
+          status: 'sent',
+          userId
         }
       });
 
@@ -163,10 +171,12 @@ export class WhatsappService {
     }
   }
 
-  async sendMediaMessage(to: string, mediaUrl: string, mediaType: string, caption?: string) {
+  async sendMediaMessage(to: string, mediaUrl: string, mediaType: string, userId: number, caption?: string) {
     try {
+      const settings = await this.getSettings(userId);
+      
       const response = await axios.post(
-        `${this.apiUrl}/${this.phoneNumberId}/messages`,
+        `${settings.apiUrl}/${settings.phoneNumberId}/messages`,
         {
           messaging_product: 'whatsapp',
           to,
@@ -175,21 +185,23 @@ export class WhatsappService {
         },
         {
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
+            'Authorization': `Bearer ${settings.accessToken}`,
             'Content-Type': 'application/json'
           }
         }
       );
 
-      await this.prisma.whatsappMessage.create({
+      await this.prisma.whatsAppMessage.create({
         data: {
           messageId: response.data.messages[0].id,
+          to,
           from: to,
           message: caption || `${mediaType} file`,
           mediaType,
           mediaUrl,
           direction: 'outgoing',
-          status: 'sent'
+          status: 'sent',
+          userId
         }
       });
 
@@ -202,7 +214,7 @@ export class WhatsappService {
 
   async updateMessageStatus(messageId: string, status: string) {
     try {
-      await this.prisma.whatsappMessage.updateMany({
+      await this.prisma.whatsAppMessage.updateMany({
         where: { messageId },
         data: { status }
       });
@@ -216,7 +228,7 @@ export class WhatsappService {
 
   async getMessageStatus(messageId: string) {
     try {
-      const message = await this.prisma.whatsappMessage.findFirst({
+      const message = await this.prisma.whatsAppMessage.findFirst({
         where: { messageId }
       });
       return message?.status || 'unknown';
@@ -226,20 +238,21 @@ export class WhatsappService {
     }
   }
 
-  async getMessages(phoneNumber?: string) {
-    return this.prisma.whatsappMessage.findMany({
-      where: phoneNumber ? { from: phoneNumber } : {},
+  async getMessages(userId: number, phoneNumber?: string) {
+    return this.prisma.whatsAppMessage.findMany({
+      where: { userId, ...(phoneNumber && { from: phoneNumber }) },
       orderBy: { createdAt: 'asc' },
     });
   }
 
-  async sendBulkTemplateMessage(phoneNumbers: string[], templateName: string, parameters?: any[]) {
+  async sendBulkTemplateMessage(phoneNumbers: string[], templateName: string, userId: number, parameters?: any[]) {
+    const settings = await this.getSettings(userId);
     const results: Array<{ phoneNumber: string; success: boolean; messageId?: string; error?: string }> = [];
    
     for (const phoneNumber of phoneNumbers) {
       try {
         const response = await axios.post(
-          `${this.apiUrl}/${this.phoneNumberId}/messages`,
+          `${settings.apiUrl}/${settings.phoneNumberId}/messages`,
           {
             messaging_product: 'whatsapp',
             to: phoneNumber,
@@ -257,19 +270,21 @@ export class WhatsappService {
           },
           {
             headers: {
-              'Authorization': `Bearer ${this.accessToken}`,
+              'Authorization': `Bearer ${settings.accessToken}`,
               'Content-Type': 'application/json'
             }
           }
         );
 
-        await this.prisma.whatsappMessage.create({
+        await this.prisma.whatsAppMessage.create({
           data: {
             messageId: response.data.messages[0].id,
+            to: phoneNumber,
             from: phoneNumber,
             message: `Template ${templateName} sent`,
             direction: 'outgoing',
-            status: 'sent'
+            status: 'sent',
+            userId
           }
         });
 
@@ -283,17 +298,8 @@ export class WhatsappService {
     return results;
   }
 
-  async sendBulkTemplateMessageWithNames(contacts: Array<{name: string; phone: string}>, templateName: string) {
-    // Check configuration first
-    if (!this.apiUrl || !this.phoneNumberId || !this.accessToken) {
-      this.logger.error('WhatsApp configuration missing:', {
-        hasApiUrl: !!this.apiUrl,
-        hasPhoneNumberId: !!this.phoneNumberId,
-        hasAccessToken: !!this.accessToken
-      });
-      throw new Error('WhatsApp API configuration is incomplete. Please check environment variables.');
-    }
-
+  async sendBulkTemplateMessageWithNames(contacts: Array<{name: string; phone: string}>, templateName: string, userId: number) {
+    const settings = await this.getSettings(userId);
     const results: Array<{ phoneNumber: string; success: boolean; messageId?: string; error?: string }> = [];
    
     for (const contact of contacts) {
@@ -307,7 +313,7 @@ export class WhatsappService {
         this.logger.log(`Sending message to ${contact.phone} with template ${templateName}`);
         
         const response = await axios.post(
-          `${this.apiUrl}/${this.phoneNumberId}/messages`,
+          `${settings.apiUrl}/${settings.phoneNumberId}/messages`,
           {
             messaging_product: 'whatsapp',
             to: contact.phone,
@@ -315,29 +321,31 @@ export class WhatsappService {
             template: {
               name: templateName,
               language: { code: 'en' },
-              components: contact.name ? [
+              components: contact.name && contact.name.trim() ? [
                 {
                   type: 'body',
-                  parameters: [{ type: 'text', text: contact.name }]
+                  parameters: [{ type: 'text', text: contact.name.trim() }]
                 }
               ] : []
             }
           },
           {
             headers: {
-              'Authorization': `Bearer ${this.accessToken}`,
+              'Authorization': `Bearer ${settings.accessToken}`,
               'Content-Type': 'application/json'
             }
           }
         );
 
-        await this.prisma.whatsappMessage.create({
+        await this.prisma.whatsAppMessage.create({
           data: {
             messageId: response.data.messages[0].id,
+            to: contact.phone,
             from: contact.phone,
             message: `Template ${templateName} sent to ${contact.name}`,
             direction: 'outgoing',
-            status: 'sent'
+            status: 'sent',
+            userId
           }
         });
 
@@ -400,46 +408,14 @@ export class WhatsappService {
     return error.message || 'Failed to send message';
   }
 
-  async getAnalytics() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const [totalMessages, todayMessages, successfulDeliveries, failedMessages, totalContacts] = await Promise.all([
-      this.prisma.whatsappMessage.count(),
-      this.prisma.whatsappMessage.count({
-        where: { createdAt: { gte: today } }
-      }),
-      this.prisma.whatsappMessage.count({
-        where: { status: { in: ['delivered', 'read'] } }
-      }),
-      this.prisma.whatsappMessage.count({
-        where: { status: 'failed' }
-      }),
-      this.prisma.whatsappMessage.groupBy({
-        by: ['from'],
-        _count: { from: true }
-      })
-    ]);
-
-    const deliveryRate = totalMessages > 0 ? (successfulDeliveries / totalMessages) * 100 : 0;
-
-    return {
-      totalMessages,
-      todayMessages,
-      successfulDeliveries,
-      failedMessages,
-      deliveryRate: Math.round(deliveryRate * 100) / 100,
-      totalContacts: totalContacts.length
-    };
-  }
-
-  async sendOrderConfirmation(order: any) {
+  async sendOrderConfirmation(order: any, userId: number) {
+    const settings = await this.getSettings(userId);
     const phoneNumber = order.shippingAddress.mobile;
     const name = order.shippingAddress.fullName;
 
     try {
       const response = await axios.post(
-        `${this.apiUrl}/${this.phoneNumberId}/messages`,
+        `${settings.apiUrl}/${settings.phoneNumberId}/messages`,
         {
           messaging_product: 'whatsapp',
           to: phoneNumber,
@@ -461,19 +437,21 @@ export class WhatsappService {
         },
         {
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
+            'Authorization': `Bearer ${settings.accessToken}`,
             'Content-Type': 'application/json'
           }
         }
       );
 
-      await this.prisma.whatsappMessage.create({
+      await this.prisma.whatsAppMessage.create({
         data: {
           messageId: response.data.messages[0].id,
+          to: phoneNumber,
           from: phoneNumber,
           message: `Order ${order.id} confirmation sent`,
           direction: 'outgoing',
-          status: 'sent'
+          status: 'sent',
+          userId
         }
       });
 

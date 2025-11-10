@@ -12,6 +12,7 @@ export const uploadFile = async (file) => {
 
   const response = await fetch(`${API_BASE_URL}/whatsapp/upload`, {
     method: 'POST',
+    credentials: 'include',
     body: formData,
   });
 
@@ -27,6 +28,7 @@ export const sendMessage = async (to, message) => {
   const response = await fetch(`${API_BASE_URL}/whatsapp/send-message`, {
     method: 'POST',
     headers: getHeaders(),
+    credentials: 'include',
     body: JSON.stringify({ to, message }),
   });
 
@@ -42,6 +44,7 @@ export const sendBulkMessages = async (contacts, templateName) => {
   const response = await fetch(`${API_BASE_URL}/whatsapp/send-bulk`, {
     method: 'POST',
     headers: getHeaders(),
+    credentials: 'include',
     body: JSON.stringify({ contacts, templateName }),
   });
 
@@ -61,6 +64,7 @@ export const sendMediaMessage = async (to, file, caption) => {
 
   const response = await fetch(`${API_BASE_URL}/whatsapp/send-media`, {
     method: 'POST',
+    credentials: 'include',
     body: formData,
   });
 
@@ -77,7 +81,9 @@ export const getMessages = async (phone) => {
     ? `${API_BASE_URL}/whatsapp/messages?phone=${phone}`
     : `${API_BASE_URL}/whatsapp/messages`;
     
-  const response = await fetch(url);
+  const response = await fetch(url, {
+    credentials: 'include',
+  });
 
   if (!response.ok) {
     const error = await response.json();

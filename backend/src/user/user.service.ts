@@ -29,7 +29,6 @@ export class UserService {
         id: true,
         email: true,
         name: true,
-        Role: true,
         isActive: true,
         createdAt: true
       }
@@ -38,7 +37,7 @@ export class UserService {
     return { message: 'User registered successfully', user };
   }
 
-  async login(loginUserDto: LoginUserDto) {
+  async login(loginUserDto: LoginUserDto, session: any) {
     const user = await this.prisma.user.findUnique({
       where: { email: loginUserDto.email }
     });
@@ -51,24 +50,43 @@ export class UserService {
       throw new UnauthorizedException('Account is deactivated');
     }
 
-    // Generate JWT token
-    const jwt = require('jsonwebtoken');
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.Role },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
-    );
+    // Store user data in session
+    session.user = {
+      id: user.id,
+      email: user.email,
+      name: user.name
+    };
+
+    // Log user session
+    console.log(`User logged in: ${user.email} (ID: ${user.id})`);
 
     return {
       message: 'Login successful',
-      token,
       user: {
         id: user.id,
         email: user.email,
-        name: user.name,
-        Role: user.Role
+        name: user.name
       }
     };
+  }
+
+  async logout(session: any) {
+    return new Promise((resolve, reject) => {
+      session.destroy((err: any) => {
+        if (err) {
+          reject(new Error('Could not log out'));
+        } else {
+          resolve({ message: 'Logout successful' });
+        }
+      });
+    });
+  }
+
+  async getCurrentUser(session: any) {
+    if (!session.user) {
+      throw new UnauthorizedException('Not authenticated');
+    }
+    return { user: session.user };
   }
 
   findAll() {
@@ -77,7 +95,6 @@ export class UserService {
         id: true,
         email: true,
         name: true,
-        Role: true,
         isActive: true,
         createdAt: true
       }
@@ -91,7 +108,6 @@ export class UserService {
         id: true,
         email: true,
         name: true,
-        Role: true,
         isActive: true,
         createdAt: true
       }
@@ -106,7 +122,6 @@ export class UserService {
         id: true,
         email: true,
         name: true,
-        Role: true,
         isActive: true,
         updatedAt: true
       }

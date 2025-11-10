@@ -3,9 +3,11 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
 import { WhatsappModule } from './whatsapp/whatsapp.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
-  imports: [UserModule, WhatsappModule],
+  imports: [UserModule, WhatsappModule, AnalyticsModule, SettingsModule],
   controllers: [AppController],
   providers: [AppService],
 })

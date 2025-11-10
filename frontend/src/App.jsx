@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-import { useState } from 'react'
-import { MessageSquare, Settings, BarChart3, User, Send } from 'lucide-react'
-import WhatsAppChat from './WhatsAppChat'
-import BulkWhatsApp from './BulkWhatsApps'
-import './App.css'
-=======
 import { useState, useEffect } from 'react'
 import { Toaster } from 'react-hot-toast'
 import { MessageSquare, Settings, BarChart3, User, Send } from 'lucide-react'
@@ -18,60 +11,10 @@ import './App.css'
 import './styles/Analytics.css'
 import './styles/Settings.css'
 import './styles/Profile.css'
->>>>>>> baf3b49cb71fbf5f1a645b1bc5194b62e74524d0
 
 function App() {
   const [activeView, setActiveView] = useState('chats')
   const [showProfileMenu, setShowProfileMenu] = useState(false)
-<<<<<<< HEAD
-  const [isLoggedIn, setIsLoggedIn] = useState(true)
-  const [credentials, setCredentials] = useState({ username: '', password: '' })
-
-  const handleLogin = (e) => {
-    e.preventDefault()
-    if (credentials.username && credentials.password) {
-      setIsLoggedIn(true)
-    }
-  }
-
-  const handleLogout = () => {
-    setIsLoggedIn(false)
-    setCredentials({ username: '', password: '' })
-    setShowProfileMenu(false)
-  }
-
-  if (!isLoggedIn) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f5f5f5' }}>
-        <form onSubmit={handleLogin} style={{ background: 'white', padding: '2rem', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', width: '300px' }}>
-          <h2 style={{ textAlign: 'center', color: '#075e54', marginBottom: '1.5rem' }}>Login</h2>
-          <input
-            type="text"
-            placeholder="Username"
-            value={credentials.username}
-            onChange={(e) => setCredentials({...credentials, username: e.target.value})}
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' }}
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={credentials.password}
-            onChange={(e) => setCredentials({...credentials, password: e.target.value})}
-            style={{ width: '100%', padding: '0.75rem', marginBottom: '1.5rem', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' }}
-            required
-          />
-          <button type="submit" style={{ width: '100%', padding: '0.75rem', background: '#075e54', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-            Login
-          </button>
-        </form>
-      </div>
-    )
-  }
-
-  return (
-    <div className="dashboard">
-=======
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [user, setUser] = useState(null)
 
@@ -101,7 +44,6 @@ function App() {
         <Login onLogin={handleLogin} />
       ) : (
       <div className="dashboard">
->>>>>>> baf3b49cb71fbf5f1a645b1bc5194b62e74524d0
       <div className="sidebar">
         <div className="sidebar-header">
           <h2>Dashboard</h2>
@@ -121,13 +63,6 @@ function App() {
             <Send size={18} />
             <span>Bulk Messages</span>
           </button>
-<<<<<<< HEAD
-          <button className="nav-item">
-            <Settings size={18} />
-            <span>Settings</span>
-          </button>
-          <button className="nav-item">
-=======
           <button 
             className={`nav-item ${activeView === 'settings' ? 'active' : ''}`}
             onClick={() => setActiveView('settings')}
@@ -139,7 +74,6 @@ function App() {
             className={`nav-item ${activeView === 'analytics' ? 'active' : ''}`}
             onClick={() => setActiveView('analytics')}
           >
->>>>>>> baf3b49cb71fbf5f1a645b1bc5194b62e74524d0
             <BarChart3 size={18} />
             <span>Analytics</span>
           </button>
@@ -157,10 +91,6 @@ function App() {
             </button>
             {showProfileMenu && (
               <div className="profile-menu">
-<<<<<<< HEAD
-                <button className="profile-menu-item">My Profile</button>
-                <button className="profile-menu-item">Settings</button>
-=======
                 <button 
                   className="profile-menu-item" 
                   onClick={() => {
@@ -179,7 +109,6 @@ function App() {
                 >
                   Settings
                 </button>
->>>>>>> baf3b49cb71fbf5f1a645b1bc5194b62e74524d0
                 <button className="profile-menu-item" onClick={handleLogout}>Logout</button>
               </div>
             )}
@@ -187,10 +116,6 @@ function App() {
         </div>
         {activeView === 'chats' && <WhatsAppChat />}
         {activeView === 'bulk' && <BulkWhatsApp />}
-<<<<<<< HEAD
-      </div>
-    </div>
-=======
         {activeView === 'analytics' && <Analytics />}
         {activeView === 'settings' && <SettingsPanel />}
         {activeView === 'profile' && <Profile />}
@@ -198,7 +123,6 @@ function App() {
     </div>
       )}
     </>
->>>>>>> baf3b49cb71fbf5f1a645b1bc5194b62e74524d0
   )
 }
 

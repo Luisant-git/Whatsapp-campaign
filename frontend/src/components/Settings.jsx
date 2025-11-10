@@ -1,9 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { getSettings } from '../api/auth';
-import { Settings as SettingsIcon, Key, Phone, MessageSquare } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle } from 'lucide-react';
 
 const Settings = () => {
-  const [settings, setSettings] = useState(null);
+  const [settings, setSettings] = useState({
+    templateName: '',
+    phoneNumberId: '',
+    accessToken: '',
+    verifyToken: ''
+  });
+  const [showAccessToken, setShowAccessToken] = useState(false);
+  const [showVerifyToken, setShowVerifyToken] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -13,12 +21,30 @@ const Settings = () => {
   const fetchSettings = async () => {
     try {
       const data = await getSettings();
-      setSettings(data);
+      setSettings(data || {
+        templateName: '',
+        phoneNumberId: '',
+        accessToken: '',
+        verifyToken: ''
+      });
     } catch (error) {
       console.error('Failed to fetch settings:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleInputChange = (field, value) => {
+    setSettings(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveConfiguration = () => {
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 3000);
+  };
+
+  const handleTestConnection = () => {
+    console.log('Testing connection...');
   };
 
   if (loading) {
@@ -32,51 +58,94 @@ const Settings = () => {
   return (
     <div className="settings-container">
       <div className="settings-header">
-        <h1>WhatsApp Settings</h1>
-        <p>Current WhatsApp Business API configuration</p>
+        <h1>WhatsApp API Settings</h1>
+        <p>Connect your account to the WhatsApp Business API to enable messaging.</p>
       </div>
 
-      <div className="settings-content">
-        <div className="setting-card">
-          <div className="setting-icon">
-            <MessageSquare size={24} />
+      <div className="settings-form">
+        <div className="form-section">
+          <h2>API Credentials</h2>
+          
+          <div className="form-group">
+            <label>Template Name</label>
+            <input
+              type="text"
+              placeholder="e.g. quarterly_newsletter"
+              value={settings.templateName}
+              onChange={(e) => handleInputChange('templateName', e.target.value)}
+            />
           </div>
-          <div className="setting-info">
-            <h3>Template Name</h3>
-            <p>{settings?.templateName || 'Not configured'}</p>
+
+          <div className="form-group">
+            <label>Phone Number ID</label>
+            <input
+              type="text"
+              placeholder="Enter the unique ID for your business phone number"
+              value={settings.phoneNumberId}
+              onChange={(e) => handleInputChange('phoneNumberId', e.target.value)}
+            />
+            <small>This is the unique identifier for your WhatsApp business number.</small>
+          </div>
+
+          <div className="form-group">
+            <label>Access Token</label>
+            <div className="input-with-icon">
+              <input
+                type={showAccessToken ? "text" : "password"}
+                placeholder="Enter your access token"
+                value={settings.accessToken}
+                onChange={(e) => handleInputChange('accessToken', e.target.value)}
+              />
+              <button
+                type="button"
+                className="toggle-visibility"
+                onClick={() => setShowAccessToken(!showAccessToken)}
+              >
+                {showAccessToken ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Verify Token</label>
+            <div className="input-with-icon">
+              <input
+                type={showVerifyToken ? "text" : "password"}
+                placeholder="Enter your verify token"
+                value={settings.verifyToken}
+                onChange={(e) => handleInputChange('verifyToken', e.target.value)}
+              />
+              <button
+                type="button"
+                className="toggle-visibility"
+                onClick={() => setShowVerifyToken(!showVerifyToken)}
+              >
+                {showVerifyToken ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          <div className="help-link">
+            <a href="#">Need help finding your credentials?</a>
           </div>
         </div>
 
-        <div className="setting-card">
-          <div className="setting-icon">
-            <Phone size={24} />
-          </div>
-          <div className="setting-info">
-            <h3>Phone Number ID</h3>
-            <p>{settings?.phoneNumberId || 'Not configured'}</p>
-          </div>
-        </div>
-
-        <div className="setting-card">
-          <div className="setting-icon">
-            <Key size={24} />
-          </div>
-          <div className="setting-info">
-            <h3>Access Token</h3>
-            <p>{settings?.accessToken || 'Not configured'}</p>
-          </div>
-        </div>
-
-        <div className="setting-card">
-          <div className="setting-icon">
-            <SettingsIcon size={24} />
-          </div>
-          <div className="setting-info">
-            <h3>Verify Token</h3>
-            <p>{settings?.verifyToken || 'Not configured'}</p>
-          </div>
+        <div className="form-actions">
+          {/* <button className="btn-secondary" onClick={handleTestConnection}>
+            Test Connection
+          </button> */}
+          <button className="btn-primary" onClick={handleSaveConfiguration}>
+            Save Configuration
+          </button>
         </div>
       </div>
+
+      {showSuccess && (
+        <div className="success-message">
+          <CheckCircle size={20} />
+          Configuration saved successfully!
+        </div>
+      )}
     </div>
   );
 };

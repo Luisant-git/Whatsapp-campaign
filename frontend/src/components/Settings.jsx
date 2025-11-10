@@ -13,6 +13,7 @@ const Settings = () => {
   const [showVerifyToken, setShowVerifyToken] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -29,6 +30,7 @@ const Settings = () => {
       });
     } catch (error) {
       console.error('Failed to fetch settings:', error);
+      toast.error('Failed to load settings');
     } finally {
       setLoading(false);
     }

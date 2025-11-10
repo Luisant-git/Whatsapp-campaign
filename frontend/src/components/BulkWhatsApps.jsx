@@ -1,27 +1,18 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
-import { IoSettingsOutline, IoCloseOutline, IoCheckmarkOutline, IoCloseSharp, IoCloudUploadOutline, IoSendSharp } from 'react-icons/io5';
-import { FaWhatsapp } from 'react-icons/fa';
-import { API_BASE_URL } from '../api/config';
+import { IoCheckmarkOutline, IoCloseSharp, IoCloudUploadOutline, IoSendSharp, IoCloseOutline } from 'react-icons/io5';
 import { sendBulkMessages } from '../api/whatsapp';
 import '../styles/BulkWhatsApps.scss';
 
 const BulkWhatsApp = () => {
   const [phoneNumbers, setPhoneNumbers] = useState('');
   const [templateName, setTemplateName] = useState('luisant_diwali_website50_v1');
-  const [customerName, setCustomerName] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [uploadedData, setUploadedData] = useState([]);
   const [fileName, setFileName] = useState('');
-  const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState({
-    templateName: 'luisant_diwali_website50_v1',
-    phoneNumberId: '803957376127788',
-    accessToken: 'EAAcMSpblosgBPTKtrvvphW8d8LeaTmookQekua5EzRtuMdOXZC7C7PMZCjeK740u6AaquUYUf7JBtFa0h0y8dXnCdShKlCkG9otefSx1xGNCOG1aCZBIzNI5STmlMYuFu9LrWRIPZCXSQDvdQxrp0V4dJRYuIylhas1VO14OZAbYHzAgrH2WjhqcJcPNSWwOyEwZDZD'
-  });
+
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -60,11 +51,14 @@ const BulkWhatsApp = () => {
     if (uploadedData.length > 0) {
       dataToSend = uploadedData;
     } else if (phoneNumbers.trim()) {
-      const numbers = phoneNumbers.split('\n').map(n => n.trim()).filter(n => n);
-      dataToSend = numbers.map(phone => ({
-        name: customerName,
-        phone
-      }));
+      const lines = phoneNumbers.split('\n').map(n => n.trim()).filter(n => n);
+      dataToSend = lines.map(line => {
+        const [phone, name] = line.split(',').map(s => s.trim());
+        return {
+          name: name || '',
+          phone: phone || ''
+        };
+      }).filter(item => item.phone);
     } else {
       toast.error('Please upload a file or enter phone numbers');
       return;
@@ -105,9 +99,6 @@ const BulkWhatsApp = () => {
           <h1>Bulk WhatsApp Messages</h1>
           <span className="page-subtitle">Send promotional messages to multiple customers</span>
         </div>
-        <button className="settings-btn" onClick={() => setShowSettings(true)} title="Settings">
-          <IoSettingsOutline size={20} />
-        </button>
       </div>
       
       <div className="content-grid">
@@ -167,26 +158,15 @@ const BulkWhatsApp = () => {
 
           <div className="manual-input-section">
             <div className="form-group">
-              <label className="form-label">Customer Name (Optional)</label>
-              <input
-                type="text"
-                className="form-input"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Enter customer name"
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Phone Numbers (one per line)</label>
+              <label className="form-label">Phone Numbers with Customer Names (one per line)</label>
               <textarea
                 rows="8"
                 className="form-textarea"
                 value={phoneNumbers}
                 onChange={(e) => setPhoneNumbers(e.target.value)}
-                placeholder="919876543210&#10;919876543211&#10;919876543212"
+                placeholder="919876543210,John Doe&#10;919876543211,Jane Smith&#10;919876543212,Mike Johnson"
               />
-              <small className="form-hint">Enter phone numbers with country code (e.g., 919876543210)</small>
+              <small className="form-hint">Format: PhoneNumber,CustomerName (e.g., 919876543210,John Doe)</small>
             </div>
           </div>
 
@@ -250,75 +230,7 @@ const BulkWhatsApp = () => {
         )}
       </div>
 
-      {showSettings && (
-        <div className="modal-overlay" onClick={() => setShowSettings(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title-section">
-                <FaWhatsapp size={24} />
-                <h2>WhatsApp Configuration</h2>
-              </div>
-              <button className="close-btn" onClick={() => setShowSettings(false)}>
-                <IoCloseOutline size={22} />
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="settings-form">
-                <div className="form-group">
-                  <label className="form-label">
-                    Template Name
-                  </label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={settings.templateName}
-                    onChange={(e) => setSettings({...settings, templateName: e.target.value})}
-                    placeholder="e.g., luisant_diwali_website50_v1"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">
-                    Phone Number ID
-                  </label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={settings.phoneNumberId}
-                    onChange={(e) => setSettings({...settings, phoneNumberId: e.target.value})}
-                    placeholder="Enter WhatsApp Phone Number ID"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">
-                    WhatsApp Access Token
-                  </label>
-                  <textarea
-                    rows="4"
-                    className="form-textarea"
-                    value={settings.accessToken}
-                    onChange={(e) => setSettings({...settings, accessToken: e.target.value})}
-                    placeholder="Paste your WhatsApp Business API access token"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="cancel-btn" onClick={() => setShowSettings(false)}>
-                <IoCloseOutline size={18} />
-                Cancel
-              </button>
-              <button className="save-btn" onClick={() => {
-                setTemplateName(settings.templateName);
-                setShowSettings(false);
-                toast.success('Settings saved successfully!');
-              }}>
-                <IoCheckmarkOutline size={18} />
-                Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 };

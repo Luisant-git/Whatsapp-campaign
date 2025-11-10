@@ -13,27 +13,42 @@ model User {
   email     String   @unique
   name      String?
   password  String
-  Role      Role
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  messages  WhatsAppMessage[]
+  settings  WhatsAppSettings[]
 }
 
-model WhatsappMessage {
+model WhatsAppMessage {
   id        Int      @id @default(autoincrement())
   messageId String   @unique
+  to        String
   from      String
   message   String?
   mediaType String?
   mediaUrl  String?
   direction String   // 'incoming' or 'outgoing'
   status    String   // 'sent', 'delivered', 'read', 'failed'
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-enum Role {
-  ADMIN
-  SUPERADMIN
+model WhatsAppSettings {
+  id            Int      @id @default(autoincrement())
+  templateName  String
+  phoneNumberId String
+  accessToken   String
+  verifyToken   String?
+  apiUrl        String
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
+
+
 

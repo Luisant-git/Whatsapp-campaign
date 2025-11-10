@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Session, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { SessionGuard } from '../auth/session.guard';
 
 @ApiTags('Users')
 @Controller('user')
@@ -22,11 +23,28 @@ export class UserController {
   @ApiOperation({ summary: 'Login user' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  login(@Body() loginUserDto: LoginUserDto) {
-    return this.userService.login(loginUserDto);
+  login(@Body() loginUserDto: LoginUserDto, @Session() session: Record<string, any>) {
+    return this.userService.login(loginUserDto, session);
+  }
+
+  @Post('logout')
+  @ApiOperation({ summary: 'Logout user' })
+  @ApiResponse({ status: 200, description: 'Logout successful' })
+  logout(@Session() session: Record<string, any>) {
+    return this.userService.logout(session);
+  }
+
+  @Get('me')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({ status: 200, description: 'User profile retrieved' })
+  @ApiResponse({ status: 401, description: 'Not authenticated' })
+  getCurrentUser(@Session() session: Record<string, any>) {
+    return this.userService.getCurrentUser(session);
   }
 
   @Get()
+  @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Get all users' })
   @ApiResponse({ status: 200, description: 'List of all users' })
   findAll() {
@@ -34,6 +52,7 @@ export class UserController {
   }
 
   @Get(':id')
+  @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiResponse({ status: 200, description: 'User found' })
   @ApiResponse({ status: 404, description: 'User not found' })
@@ -42,6 +61,7 @@ export class UserController {
   }
 
   @Patch(':id')
+  @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Update user' })
   @ApiResponse({ status: 200, description: 'User updated successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
@@ -50,6 +70,7 @@ export class UserController {
   }
 
   @Get('profile/:id')
+  @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, description: 'User profile retrieved' })
   getProfile(@Param('id') id: string) {
@@ -57,6 +78,7 @@ export class UserController {
   }
 
   @Delete(':id')
+  @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Delete user' })
   @ApiResponse({ status: 200, description: 'User deleted successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })

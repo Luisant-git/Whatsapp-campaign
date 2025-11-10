@@ -1,0 +1,2 @@
+Run this command in the backend directory:
+npm install express-session @types/express-session

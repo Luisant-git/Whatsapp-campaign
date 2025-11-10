@@ -9,13 +9,16 @@ import {
   UploadedFile,
   UploadedFiles,
   HttpStatus,
-  HttpException
+  HttpException,
+  Session,
+  UseGuards
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiQuery, ApiParam } from '@nestjs/swagger';
 import { WhatsappService } from './whatsapp.service';
 import { SendMessageDto, SendBulkDto, SendMediaDto, MessageResponseDto, BulkMessageResultDto, WhatsAppMessageDto, UploadResponseDto, AnalyticsDto, WhatsAppSettingsDto } from './dto';
+import { SessionGuard } from '../auth/session.guard';
 
 @ApiTags('WhatsApp')
 @Controller('whatsapp')
@@ -55,7 +58,8 @@ export class WhatsappController {
             const message = change.value.messages?.[0];
             if (message) {
               console.log('Processing incoming message:', message);
-              await this.whatsappService.handleIncomingMessage(message);
+              // For webhook, use a default userId or handle differently
+              await this.whatsappService.handleIncomingMessage(message, 1);
             }
             const statuses = change.value.statuses;
             if (statuses) {
@@ -72,35 +76,40 @@ export class WhatsappController {
   }
 
   @Get('messages')
+  @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Get WhatsApp messages' })
   @ApiQuery({ name: 'phone', required: false, description: 'Filter by phone number' })
   @ApiResponse({ status: 200, description: 'Messages retrieved successfully', type: [WhatsAppMessageDto] })
-  async getMessages(@Query('phone') phone?: string) {
-    return this.whatsappService.getMessages(phone);
+  async getMessages(@Session() session: any, @Query('phone') phone?: string) {
+    return this.whatsappService.getMessages(session.user.id, phone);
   }
 
   @Post('send-message')
+  @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Send a WhatsApp message' })
   @ApiResponse({ status: 201, description: 'Message sent successfully', type: MessageResponseDto })
   @ApiResponse({ status: 400, description: 'Bad Request' })
-  async sendMessage(@Body() sendMessageDto: SendMessageDto) {
-    return this.whatsappService.sendMessage(sendMessageDto.to, sendMessageDto.message);
+  async sendMessage(@Session() session: any, @Body() sendMessageDto: SendMessageDto) {
+    return this.whatsappService.sendMessage(sendMessageDto.to, sendMessageDto.message, session.user.id);
   }
 
   @Post('send-bulk')
+  @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Send bulk WhatsApp messages using templates' })
   @ApiResponse({ status: 201, description: 'Bulk messages sent successfully', type: [BulkMessageResultDto] })
   @ApiResponse({ status: 400, description: 'Bad Request' })
-  async sendBulk(@Body() sendBulkDto: SendBulkDto) {
+  async sendBulk(@Session() session: any, @Body() sendBulkDto: SendBulkDto) {
     if (sendBulkDto.contacts) {
       return this.whatsappService.sendBulkTemplateMessageWithNames(
         sendBulkDto.contacts, 
-        sendBulkDto.templateName
+        sendBulkDto.templateName,
+        session.user.id
       );
     }
     return this.whatsappService.sendBulkTemplateMessage(
       sendBulkDto.phoneNumbers || [], 
       sendBulkDto.templateName, 
+      session.user.id,
       sendBulkDto.parameters
     );
   }
@@ -110,6 +119,7 @@ export class WhatsappController {
   @ApiConsumes('multipart/form-data')
   @ApiResponse({ status: 201, description: 'Media message sent successfully', type: MessageResponseDto })
   @ApiResponse({ status: 400, description: 'Bad Request' })
+  @UseGuards(SessionGuard)
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
       destination: './uploads',
@@ -134,6 +144,7 @@ export class WhatsappController {
     }
   }))
   async sendMedia(
+    @Session() session: any,
     @UploadedFile() file: any,
     @Body() sendMediaDto: SendMediaDto
   ) {
@@ -150,6 +161,7 @@ export class WhatsappController {
       sendMediaDto.to, 
       mediaUrl, 
       mediaType, 
+      session.user.id,
       sendMediaDto.caption
     );
   }
@@ -262,35 +274,5 @@ export class WhatsappController {
     return results;
   }
 
-  @Get('analytics')
-  @ApiOperation({ summary: 'Get WhatsApp analytics and statistics' })
-  @ApiResponse({ status: 200, description: 'Analytics retrieved successfully', type: AnalyticsDto })
-  async getAnalytics() {
-    return this.whatsappService.getAnalytics();
-  }
 
-  @Get('settings')
-  @ApiOperation({ summary: 'Get WhatsApp configuration settings' })
-  @ApiResponse({ status: 200, description: 'Settings retrieved successfully' })
-  async getSettings() {
-    return {
-      templateName: process.env.WHATSAPP_DEFAULT_TEMPLATE || 'luisant_diwali_website50_v1',
-      phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
-      accessToken: process.env.WHATSAPP_ACCESS_TOKEN ? '***masked***' : null,
-      verifyToken: process.env.WHATSAPP_VERIFY_TOKEN ? '***masked***' : null,
-      apiUrl: process.env.WHATSAPP_API_URL
-    };
-  }
-
-  @Get('debug')
-  @ApiOperation({ summary: 'Debug WhatsApp configuration' })
-  async debugConfig() {
-    return {
-      hasApiUrl: !!process.env.WHATSAPP_API_URL,
-      hasPhoneNumberId: !!process.env.WHATSAPP_PHONE_NUMBER_ID,
-      hasAccessToken: !!process.env.WHATSAPP_ACCESS_TOKEN,
-      apiUrl: process.env.WHATSAPP_API_URL,
-      phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID
-    };
-  }
 }

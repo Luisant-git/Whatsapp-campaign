@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getProfile } from '../api/auth';
-import { User, Mail, Shield, Calendar, Edit } from 'lucide-react';
+import { User, Mail, Shield, Calendar } from 'lucide-react';
 
 const Profile = () => {
   const [profile, setProfile] = useState(null);
@@ -37,47 +37,48 @@ const Profile = () => {
       </div>
 
       <div className="profile-content">
-        <div className="profile-card">
-          <div className="profile-avatar">
-            <User size={48} />
+        <div className="profile-user-section">
+          <div className="profile-user-info">
+            <div className="profile-avatar">
+              <User size={28} />
+            </div>
+            <div className="profile-user-details">
+              <h2>{profile?.name || 'User'}</h2>
+              <span className="profile-badge">{profile?.Role || 'Admin'}</span>
+            </div>
           </div>
-          <div className="profile-info">
-            <h2>{profile?.name || 'User'}</h2>
-            <p className="profile-role">{profile?.Role || 'Admin'}</p>
-          </div>
-          <button className="edit-btn">
-            <Edit size={16} />
-            Edit
+          <button className="edit-profile-btn">
+            <span>✏️</span> Edit
           </button>
         </div>
 
-        <div className="profile-details">
-          <div className="detail-card">
-            <div className="detail-icon">
-              <Mail size={24} />
+        <div className="profile-info-list">
+          <div className="profile-info-item">
+            <div className="profile-info-icon">
+              <Mail size={20} />
             </div>
-            <div className="detail-info">
-              <h3>Email Address</h3>
+            <div className="profile-info-text">
+              <label>Email Address</label>
               <p>{profile?.email || 'Not provided'}</p>
             </div>
           </div>
 
-          <div className="detail-card">
-            <div className="detail-icon">
-              <Shield size={24} />
+          <div className="profile-info-item">
+            <div className="profile-info-icon">
+              <Shield size={20} />
             </div>
-            <div className="detail-info">
-              <h3>Role</h3>
+            <div className="profile-info-text">
+              <label>Role</label>
               <p>{profile?.Role || 'Admin'}</p>
             </div>
           </div>
 
-          <div className="detail-card">
-            <div className="detail-icon">
-              <Calendar size={24} />
+          <div className="profile-info-item">
+            <div className="profile-info-icon">
+              <Calendar size={20} />
             </div>
-            <div className="detail-info">
-              <h3>Member Since</h3>
+            <div className="profile-info-text">
+              <label>Member Since</label>
               <p>{profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'Unknown'}</p>
             </div>
           </div>

@@ -5,8 +5,8 @@
 }
 
 .analytics-header {
-  margin-bottom: 24px;
-  text-align: center;
+  margin-bottom: 32px;
+  text-align: left;
 }
 
 .analytics-header h1 {
@@ -18,7 +18,7 @@
 
 .analytics-header p {
   color: #64748b;
-  font-size: clamp(14px, 2vw, 16px);
+  font-size: 16px;
 }
 
 .analytics-grid {
@@ -37,10 +37,7 @@
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   }
   
-  .analytics-header {
-    margin-bottom: 32px;
-    text-align: left;
-  }
+
 }
 
 .stat-card {

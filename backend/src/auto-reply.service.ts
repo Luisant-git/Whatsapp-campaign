@@ -24,7 +24,7 @@ export class AutoReplyService {
     if (lowerMessage === 'hi' || lowerMessage === 'hello') {
       const triggers = this.getAvailableTriggers();
       if (triggers) {
-        return `Thank you for your message! Type ${triggers} to see available options or contact our support team for assistance.`;
+        return `Thank you for your message! Type ${triggers} to see available options.`;
       }
     }
     

@@ -9,13 +9,7 @@ export class AutoReplyService {
   }
 
   private initializeDefaultReplies() {
-    this.autoReplies.set('menu', '🤖 *WhatsApp Bot Menu*\n\nReply with:\n• *info* - Get company information\n• *support* - Contact support\n• *menu* - Show this menu again\n\nHow can I help you today?');
-    this.autoReplies.set('help', '🤖 *WhatsApp Bot Menu*\n\nReply with:\n• *info* - Get company information\n• *support* - Contact support\n• *menu* - Show this menu again\n\nHow can I help you today?');
-    this.autoReplies.set('info', 'ℹ️ *Company Information*\n\nWe are a leading WhatsApp campaign management platform.\nVisit our website for more details.\n\nType *menu* to see all options.');
-    this.autoReplies.set('support', '🆘 *Support Contact*\n\nFor technical support, please contact:\n📧 Email: support@company.com\n📞 Phone: +1-234-567-8900\n\nType *menu* to see all options.');
-    this.autoReplies.set('hello', `Thank you for your message! Type ${this.getAvailableTriggers()} to see available options or contact our support team for assistance.`);
-    this.autoReplies.set('hi', `Thank you for your message! Type ${this.getAvailableTriggers()} to see available options or contact our support team for assistance.`);
-    this.autoReplies.set('thanks', 'You\'re welcome! Is there anything else I can help you with?');
+    // No default replies - all managed from frontend
   }
 
   getAutoReply(message: string): string | null {
@@ -24,6 +18,14 @@ export class AutoReplyService {
     
     if (reply) {
       return reply;
+    }
+    
+    // For hi/hello, show available triggers
+    if (lowerMessage === 'hi' || lowerMessage === 'hello') {
+      const triggers = this.getAvailableTriggers();
+      if (triggers) {
+        return `Thank you for your message! Type ${triggers} to see available options or contact our support team for assistance.`;
+      }
     }
     
     return null;

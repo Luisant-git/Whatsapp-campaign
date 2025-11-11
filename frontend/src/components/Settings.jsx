@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getSettings } from '../api/auth';
+import { getSettings, updateSettings } from '../api/auth';
 import { Eye, EyeOff, CheckCircle } from 'lucide-react';
 
 const Settings = () => {
@@ -40,9 +40,17 @@ const Settings = () => {
     setSettings(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSaveConfiguration = () => {
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 3000);
+  const handleSaveConfiguration = async () => {
+    setSaving(true);
+    try {
+      await updateSettings(settings);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleTestConnection = () => {
@@ -136,8 +144,8 @@ const Settings = () => {
           {/* <button className="btn-secondary" onClick={handleTestConnection}>
             Test Connection
           </button> */}
-          <button className="btn-primary" onClick={handleSaveConfiguration}>
-            Save Configuration
+          <button className="btn-primary" onClick={handleSaveConfiguration} disabled={saving}>
+            {saving ? 'Saving...' : 'Save Configuration'}
           </button>
         </div>
       </div>

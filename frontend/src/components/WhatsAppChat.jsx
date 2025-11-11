@@ -60,14 +60,20 @@ const WhatsAppChat = () => {
   const handleSendMessage = async () => {
     if ((!messageText.trim() && !selectedFile) || !selectedChat) return;
 
+    const mediaType = selectedFile ? 
+      (selectedFile.type.startsWith('image') ? 'image' : 
+       selectedFile.type.startsWith('video') ? 'video' : 
+       selectedFile.type.startsWith('audio') ? 'audio' : 'document') : null;
+
     const tempMessage = {
       id: Date.now(),
       from: selectedChat,
-      message: messageText,
+      message: messageText || (mediaType ? `${mediaType} file` : ''),
       direction: 'outgoing',
       status: 'sent',
       createdAt: new Date().toISOString(),
-      mediaType: selectedFile ? (selectedFile.type.startsWith('image') ? 'image' : selectedFile.type.startsWith('video') ? 'video' : 'document') : null
+      mediaType,
+      mediaUrl: selectedFile ? URL.createObjectURL(selectedFile) : null
     };
 
     setMessages(prev => [...prev, tempMessage]);
@@ -138,20 +144,28 @@ const WhatsAppChat = () => {
                 <div key={msg.id} className={`message ${msg.direction}`}>
                   <div className="message-bubble">
                     {msg.mediaType === 'image' && msg.mediaUrl && (
-                      <img src={msg.mediaUrl} alt="media" className="message-media" />
+                      <img src={msg.mediaUrl} alt="media" className="message-media" onError={(e) => {
+                        console.error('Image load error:', msg.mediaUrl);
+                        e.target.style.display = 'none';
+                      }} />
                     )}
                     {msg.mediaType === 'video' && msg.mediaUrl && (
-                      <video src={msg.mediaUrl} controls className="message-media" />
+                      <video src={msg.mediaUrl} controls className="message-media" onError={(e) => {
+                        console.error('Video load error:', msg.mediaUrl);
+                        e.target.style.display = 'none';
+                      }} />
                     )}
                     {msg.mediaType === 'audio' && msg.mediaUrl && (
-                      <audio src={msg.mediaUrl} controls className="message-audio" />
+                      <audio src={msg.mediaUrl} controls className="message-audio" onError={(e) => {
+                        console.error('Audio load error:', msg.mediaUrl);
+                      }} />
                     )}
                     {msg.mediaType === 'document' && msg.mediaUrl && (
                       <a href={msg.mediaUrl} target="_blank" rel="noopener noreferrer" className="message-document">
                         📄 Document
                       </a>
                     )}
-                    {msg.message && msg.message !== 'image file' && msg.message !== 'video file' && msg.message !== 'audio file' && msg.message !== 'document file' && <p>{msg.message}</p>}
+                    {msg.message && !msg.message.endsWith(' file') && <p>{msg.message}</p>}
                     <span className="message-time">
                       {new Date(msg.createdAt).toLocaleTimeString()}
                       {msg.direction === 'outgoing' && (

@@ -19,7 +19,10 @@ export class WhatsappSessionService {
     }
     
     // Default response for unrecognized messages
-    const defaultMessage = `Thank you for your message! Type *menu* to see available options or contact our support team for assistance.`;
+    const triggers = this.autoReplyService.getAvailableTriggers();
+    const defaultMessage = triggers 
+      ? `Thank you for your message! Type ${triggers} to see available options or contact our support team for assistance.`
+      : `Thank you for your message! Contact our support team for assistance.`;
     return await sendCallback(from, defaultMessage);
   }
 }

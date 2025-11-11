@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Toaster } from 'react-hot-toast'
-import { MessageSquare, Settings, BarChart3, User, Send } from 'lucide-react'
+import { MessageSquare, Settings, BarChart3, User, Send, MessageCircle } from 'lucide-react'
 import WhatsAppChat from './components/WhatsAppChat'
 import BulkWhatsApp from './components/BulkWhatsApps'
 import Login from './components/Login'
 import Analytics from './components/Analytics'
 import SettingsPanel from './components/Settings'
 import Profile from './components/Profile'
+import AutoReply from './components/AutoReply'
 import './App.css'
 import './styles/Analytics.css'
 import './styles/Settings.css'
@@ -67,6 +68,13 @@ function App() {
             <span>Bulk Messages</span>
           </button>
           <button 
+            className={`nav-item ${activeView === 'auto-reply' ? 'active' : ''}`}
+            onClick={() => setActiveView('auto-reply')}
+          >
+            <MessageCircle size={18} />
+            <span>Auto Reply</span>
+          </button>
+          <button 
             className={`nav-item ${activeView === 'settings' ? 'active' : ''}`}
             onClick={() => setActiveView('settings')}
           >
@@ -119,6 +127,7 @@ function App() {
         </div>
         {activeView === 'chats' && <WhatsAppChat />}
         {activeView === 'bulk' && <BulkWhatsApp />}
+        {activeView === 'auto-reply' && <AutoReply />}
         {activeView === 'analytics' && <Analytics />}
         {activeView === 'settings' && <SettingsPanel />}
         {activeView === 'profile' && <Profile />}

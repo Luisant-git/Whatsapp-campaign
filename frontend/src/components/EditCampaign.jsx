@@ -8,6 +8,16 @@ const EditCampaign = ({ campaignId, onBack }) => {
   const [editData, setEditData] = useState({});
   const [newContact, setNewContact] = useState({ phone: '', name: '' });
 
+  const daysOfWeek = [
+    { value: 'sunday', label: 'Sunday' },
+    { value: 'monday', label: 'Monday' },
+    { value: 'tuesday', label: 'Tuesday' },
+    { value: 'wednesday', label: 'Wednesday' },
+    { value: 'thursday', label: 'Thursday' },
+    { value: 'friday', label: 'Friday' },
+    { value: 'saturday', label: 'Saturday' }
+  ];
+
   useEffect(() => {
     fetchCampaignDetails();
   }, [campaignId]);
@@ -20,7 +30,10 @@ const EditCampaign = ({ campaignId, onBack }) => {
       setEditData({
         name: data.name,
         templateName: data.templateName,
-        contacts: data.contacts || []
+        contacts: data.contacts || [],
+        scheduleType: data.scheduleType || 'one-time',
+        scheduledDays: data.scheduledDays || [],
+        scheduledTime: data.scheduledTime || '09:00'
       });
     } catch (error) {
       console.error('Error fetching campaign details:', error);
@@ -57,6 +70,15 @@ const EditCampaign = ({ campaignId, onBack }) => {
       ...editData,
       contacts: editData.contacts.filter((_, i) => i !== index)
     });
+  };
+
+  const handleDayToggle = (day) => {
+    setEditData(prev => ({
+      ...prev,
+      scheduledDays: prev.scheduledDays?.includes(day) 
+        ? prev.scheduledDays.filter(d => d !== day)
+        : [...(prev.scheduledDays || []), day]
+    }));
   };
 
   const handleUpdateCampaign = async () => {
@@ -108,6 +130,61 @@ const EditCampaign = ({ campaignId, onBack }) => {
             onChange={(e) => setEditData({...editData, templateName: e.target.value})}
           />
         </div>
+
+        <div className="form-group">
+          <label>Scheduling Type</label>
+          <div className="schedule-type-selector">
+            <label className="radio-option">
+              <input
+                type="radio"
+                value="one-time"
+                checked={editData.scheduleType === 'one-time'}
+                onChange={(e) => setEditData({...editData, scheduleType: e.target.value})}
+              />
+              <span>Send Now (One Time)</span>
+            </label>
+            <label className="radio-option">
+              <input
+                type="radio"
+                value="time-based"
+                checked={editData.scheduleType === 'time-based'}
+                onChange={(e) => setEditData({...editData, scheduleType: e.target.value})}
+              />
+              <span>Time-Based Scheduling</span>
+            </label>
+          </div>
+        </div>
+
+        {editData.scheduleType === 'time-based' && (
+          <>
+            <div className="form-group">
+              <label>Select Days</label>
+              <div className="days-selector">
+                {daysOfWeek.map(day => (
+                  <label key={day.value} className="day-option">
+                    <input
+                      type="checkbox"
+                      checked={editData.scheduledDays?.includes(day.value) || false}
+                      onChange={() => handleDayToggle(day.value)}
+                    />
+                    <span>{day.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Time (IST)</label>
+              <input
+                type="time"
+                className="time-input"
+                value={editData.scheduledTime || '09:00'}
+                onChange={(e) => setEditData({...editData, scheduledTime: e.target.value})}
+              />
+              <small>Time will be in Indian Standard Time (IST)</small>
+            </div>
+          </>
+        )}
 
         <div className="form-group">
           <label>Contacts ({editData.contacts?.length || 0})</label>

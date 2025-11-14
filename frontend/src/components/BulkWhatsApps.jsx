@@ -12,6 +12,19 @@ const BulkWhatsApp = () => {
   const [results, setResults] = useState(null);
   const [uploadedData, setUploadedData] = useState([]);
   const [fileName, setFileName] = useState('');
+  const [scheduleType, setScheduleType] = useState('one-time');
+  const [scheduledDays, setScheduledDays] = useState([]);
+  const [scheduledTime, setScheduledTime] = useState('09:00');
+
+  const daysOfWeek = [
+    { value: 'sunday', label: 'Sunday' },
+    { value: 'monday', label: 'Monday' },
+    { value: 'tuesday', label: 'Tuesday' },
+    { value: 'wednesday', label: 'Wednesday' },
+    { value: 'thursday', label: 'Thursday' },
+    { value: 'friday', label: 'Friday' },
+    { value: 'saturday', label: 'Saturday' }
+  ];
 
 
   const handleFileUpload = (e) => {
@@ -45,6 +58,14 @@ const BulkWhatsApp = () => {
     reader.readAsArrayBuffer(file);
   };
 
+  const handleDayToggle = (day) => {
+    setScheduledDays(prev => 
+      prev.includes(day) 
+        ? prev.filter(d => d !== day)
+        : [...prev, day]
+    );
+  };
+
   const handleSendBulkMessages = async () => {
     let dataToSend = [];
 
@@ -64,9 +85,24 @@ const BulkWhatsApp = () => {
       return;
     }
 
+    if (scheduleType === 'time-based' && scheduledDays.length === 0) {
+      toast.error('Please select at least one day for time-based scheduling');
+      return;
+    }
+
+    const campaignData = {
+      contacts: dataToSend,
+      templateName,
+      scheduleType,
+      ...(scheduleType === 'time-based' && {
+        scheduledDays,
+        scheduledTime
+      })
+    };
+
     setLoading(true);
     try {
-      const response = await sendBulkMessages(dataToSend, templateName);
+      const response = await sendBulkMessages(campaignData);
       
       if (!response || !Array.isArray(response)) {
         throw new Error('Invalid response from server');
@@ -76,13 +112,17 @@ const BulkWhatsApp = () => {
       const successCount = response.filter(r => r.success).length;
       const failedCount = response.filter(r => !r.success).length;
       
-      if (failedCount > 0) {
-        toast.success(`Sent: ${successCount} | Failed: ${failedCount}`, {
-          duration: 4000
-        });
-        toast.error('Some numbers may not be registered on WhatsApp or are invalid.');
+      if (scheduleType === 'time-based') {
+        toast.success(`Campaign scheduled successfully for ${scheduledDays.join(', ')} at ${scheduledTime}`);
       } else {
-        toast.success(`Successfully sent to all ${successCount} contacts!`);
+        if (failedCount > 0) {
+          toast.success(`Sent: ${successCount} | Failed: ${failedCount}`, {
+            duration: 4000
+          });
+          toast.error('Some numbers may not be registered on WhatsApp or are invalid.');
+        } else {
+          toast.success(`Successfully sent to all ${successCount} contacts!`);
+        }
       }
     } catch (error) {
       console.error('Error sending bulk messages:', error);
@@ -115,6 +155,61 @@ const BulkWhatsApp = () => {
               placeholder="luisant_diwali_website50_v1"
             />
           </div>
+
+          <div className="form-group">
+            <label className="form-label">Scheduling Type</label>
+            <div className="schedule-type-selector">
+              <label className="radio-option">
+                <input
+                  type="radio"
+                  value="one-time"
+                  checked={scheduleType === 'one-time'}
+                  onChange={(e) => setScheduleType(e.target.value)}
+                />
+                <span>Send Now (One Time)</span>
+              </label>
+              <label className="radio-option">
+                <input
+                  type="radio"
+                  value="time-based"
+                  checked={scheduleType === 'time-based'}
+                  onChange={(e) => setScheduleType(e.target.value)}
+                />
+                <span>Time-Based Scheduling</span>
+              </label>
+            </div>
+          </div>
+
+          {scheduleType === 'time-based' && (
+            <>
+              <div className="form-group">
+                <label className="form-label">Select Days</label>
+                <div className="days-selector">
+                  {daysOfWeek.map(day => (
+                    <label key={day.value} className="day-option">
+                      <input
+                        type="checkbox"
+                        checked={scheduledDays.includes(day.value)}
+                        onChange={() => handleDayToggle(day.value)}
+                      />
+                      <span>{day.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Time (IST)</label>
+                <input
+                  type="time"
+                  className="form-input time-input"
+                  value={scheduledTime}
+                  onChange={(e) => setScheduledTime(e.target.value)}
+                />
+                <small className="form-hint">Time will be in Indian Standard Time (IST)</small>
+              </div>
+            </>
+          )}
 
           <div className="form-group">
             <label className="form-label">Upload Excel/CSV File</label>

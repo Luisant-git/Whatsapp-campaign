@@ -24,6 +24,21 @@ export class CreateCampaignDto {
   @IsOptional()
   @IsArray()
   parameters?: any[];
+
+  @ApiPropertyOptional({ description: 'Schedule type', enum: ['one-time', 'time-based'], default: 'one-time' })
+  @IsOptional()
+  @IsString()
+  scheduleType?: string;
+
+  @ApiPropertyOptional({ description: 'Scheduled days for time-based campaigns', type: [String] })
+  @IsOptional()
+  @IsArray()
+  scheduledDays?: string[];
+
+  @ApiPropertyOptional({ description: 'Scheduled time in HH:mm format', example: '09:00' })
+  @IsOptional()
+  @IsString()
+  scheduledTime?: string;
 }
 
 export class UpdateCampaignDto {
@@ -48,6 +63,21 @@ export class UpdateCampaignDto {
   @IsOptional()
   @IsArray()
   parameters?: any[];
+
+  @ApiPropertyOptional({ description: 'Schedule type', enum: ['one-time', 'time-based'] })
+  @IsOptional()
+  @IsString()
+  scheduleType?: string;
+
+  @ApiPropertyOptional({ description: 'Scheduled days for time-based campaigns', type: [String] })
+  @IsOptional()
+  @IsArray()
+  scheduledDays?: string[];
+
+  @ApiPropertyOptional({ description: 'Scheduled time in HH:mm format', example: '09:00' })
+  @IsOptional()
+  @IsString()
+  scheduledTime?: string;
 }
 
 export class CampaignResponseDto {
@@ -77,6 +107,15 @@ export class CampaignResponseDto {
 
   @ApiProperty()
   updatedAt: Date;
+
+  @ApiProperty()
+  scheduleType: string;
+
+  @ApiProperty()
+  scheduledDays: string[];
+
+  @ApiProperty()
+  scheduledTime?: string;
 }
 
 export class CampaignMessageDto {

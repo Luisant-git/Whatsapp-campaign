@@ -5,3 +5,4 @@ export * from './api-responses.dto';
 export * from './upload.dto';
 export * from './analytics.dto';
 export * from './settings.dto';
+export * from './campaign.dto';

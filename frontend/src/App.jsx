@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast'
 import { MessageSquare, Settings, BarChart3, User, Send, MessageCircle } from 'lucide-react'
 import WhatsAppChat from './components/WhatsAppChat'
 import BulkWhatsApp from './components/BulkWhatsApps'
+import Campaigns from './components/Campaigns'
 import Login from './components/Login'
 import Analytics from './components/Analytics'
 import SettingsPanel from './components/Settings'
@@ -68,6 +69,13 @@ function App() {
             <span>Bulk Messages</span>
           </button>
           <button 
+            className={`nav-item ${activeView === 'campaigns' ? 'active' : ''}`}
+            onClick={() => setActiveView('campaigns')}
+          >
+            <BarChart3 size={18} />
+            <span>Campaigns</span>
+          </button>
+          <button 
             className={`nav-item ${activeView === 'auto-reply' ? 'active' : ''}`}
             onClick={() => setActiveView('auto-reply')}
           >
@@ -127,6 +135,7 @@ function App() {
         </div>
         {activeView === 'chats' && <WhatsAppChat />}
         {activeView === 'bulk' && <BulkWhatsApp />}
+        {activeView === 'campaigns' && <Campaigns />}
         {activeView === 'auto-reply' && <AutoReply />}
         {activeView === 'analytics' && <Analytics />}
         {activeView === 'settings' && <SettingsPanel />}

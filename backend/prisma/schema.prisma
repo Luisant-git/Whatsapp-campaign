@@ -19,6 +19,7 @@ model User {
   
   messages  WhatsAppMessage[]
   settings  WhatsAppSettings[]
+  campaigns Campaign[]
 }
 
 model WhatsAppMessage {
@@ -50,5 +51,42 @@ model WhatsAppSettings {
   updatedAt     DateTime @updatedAt
 }
 
+model Campaign {
+  id           Int      @id @default(autoincrement())
+  name         String
+  templateName String
+  parameters   Json?
+  status       String   @default("draft") // draft, running, completed, failed
+  totalCount   Int      @default(0)
+  successCount Int      @default(0)
+  failedCount  Int      @default(0)
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  contacts     CampaignContact[]
+  messages     CampaignMessage[]
+}
 
+model CampaignContact {
+  id         Int      @id @default(autoincrement())
+  name       String?
+  phone      String
+  campaignId Int
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+}
 
+model CampaignMessage {
+  id         Int      @id @default(autoincrement())
+  messageId  String?
+  phone      String
+  name       String?
+  status     String   // sent, delivered, read, failed
+  error      String?
+  campaignId Int
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}

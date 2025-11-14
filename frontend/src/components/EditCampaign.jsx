@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import toast from 'react-hot-toast';
+import { getCampaignById, updateCampaign } from '../api/campaign';
 import '../styles/EditCampaign.scss';
 
 const EditCampaign = ({ campaignId, onBack }) => {
@@ -15,14 +15,12 @@ const EditCampaign = ({ campaignId, onBack }) => {
   const fetchCampaignDetails = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`http://localhost:3010/whatsapp/campaigns/${campaignId}`, {
-        withCredentials: true
-      });
+      const data = await getCampaignById(campaignId);
       
       setEditData({
-        name: response.data.name,
-        templateName: response.data.templateName,
-        contacts: response.data.contacts || []
+        name: data.name,
+        templateName: data.templateName,
+        contacts: data.contacts || []
       });
     } catch (error) {
       console.error('Error fetching campaign details:', error);
@@ -64,9 +62,7 @@ const EditCampaign = ({ campaignId, onBack }) => {
   const handleUpdateCampaign = async () => {
     setLoading(true);
     try {
-      await axios.put(`http://localhost:3010/whatsapp/campaigns/${campaignId}`, editData, {
-        withCredentials: true
-      });
+      await updateCampaign(campaignId, editData);
       toast.success('Campaign updated successfully!');
       onBack();
     } catch (error) {

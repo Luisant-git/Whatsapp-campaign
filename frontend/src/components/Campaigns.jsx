@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import toast, { Toaster } from 'react-hot-toast';
+import { getAllCampaigns, rerunCampaign, deleteCampaign } from '../api/campaign';
 import EditCampaign from './EditCampaign';
 import '../styles/Campaign.scss';
 
@@ -15,10 +15,8 @@ const Campaigns = () => {
 
   const fetchCampaigns = async () => {
     try {
-      const response = await axios.get('http://localhost:3010/whatsapp/campaigns', {
-        withCredentials: true
-      });
-      setCampaigns(Array.isArray(response.data) ? response.data : []);
+      const data = await getAllCampaigns();
+      setCampaigns(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching campaigns:', error);
       setCampaigns([]);
@@ -28,9 +26,7 @@ const Campaigns = () => {
   const handleRerunCampaign = async (campaignId) => {
     setLoading(true);
     try {
-      await axios.post(`http://localhost:3010/whatsapp/campaigns/${campaignId}/run`, {}, {
-        withCredentials: true
-      });
+      await rerunCampaign(campaignId);
       toast.success('Campaign rerun successfully!');
       fetchCampaigns();
     } catch (error) {
@@ -53,9 +49,7 @@ const Campaigns = () => {
   const handleDeleteCampaign = async (campaignId) => {
     if (window.confirm('Are you sure you want to delete this campaign?')) {
       try {
-        await axios.delete(`http://localhost:3010/whatsapp/campaigns/${campaignId}`, {
-          withCredentials: true
-        });
+        await deleteCampaign(campaignId);
         toast.success('Campaign deleted successfully!');
         fetchCampaigns();
       } catch (error) {

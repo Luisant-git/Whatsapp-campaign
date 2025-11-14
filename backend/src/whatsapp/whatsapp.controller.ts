@@ -2,6 +2,8 @@ import {
   Controller, 
   Post, 
   Get, 
+  Put,
+  Delete,
   Body, 
   Query, 
   Param,
@@ -17,13 +19,17 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiQuery, ApiParam } from '@nestjs/swagger';
 import { WhatsappService } from './whatsapp.service';
-import { SendMessageDto, SendBulkDto, SendMediaDto, MessageResponseDto, BulkMessageResultDto, WhatsAppMessageDto, UploadResponseDto, AnalyticsDto, WhatsAppSettingsDto } from './dto';
+import { CampaignService } from './campaign.service';
+import { SendMessageDto, SendBulkDto, SendMediaDto, MessageResponseDto, BulkMessageResultDto, WhatsAppMessageDto, UploadResponseDto, AnalyticsDto, WhatsAppSettingsDto, CreateCampaignDto, UpdateCampaignDto, CampaignResponseDto } from './dto';
 import { SessionGuard } from '../auth/session.guard';
 
 @ApiTags('WhatsApp')
 @Controller('whatsapp')
 export class WhatsappController {
-  constructor(private readonly whatsappService: WhatsappService) {}
+  constructor(
+    private readonly whatsappService: WhatsappService,
+    private readonly campaignService: CampaignService
+  ) {}
 
   @Get('webhook')
   @ApiOperation({ summary: 'Verify WhatsApp webhook' })
@@ -95,23 +101,29 @@ export class WhatsappController {
 
   @Post('send-bulk')
   @UseGuards(SessionGuard)
-  @ApiOperation({ summary: 'Send bulk WhatsApp messages using templates' })
+  @ApiOperation({ summary: 'Send bulk WhatsApp messages using templates and create campaign' })
   @ApiResponse({ status: 201, description: 'Bulk messages sent successfully', type: [BulkMessageResultDto] })
   @ApiResponse({ status: 400, description: 'Bad Request' })
   async sendBulk(@Session() session: any, @Body() sendBulkDto: SendBulkDto) {
-    if (sendBulkDto.contacts) {
-      return this.whatsappService.sendBulkTemplateMessageWithNames(
-        sendBulkDto.contacts, 
-        sendBulkDto.templateName,
-        session.user.id
-      );
-    }
-    return this.whatsappService.sendBulkTemplateMessage(
-      sendBulkDto.phoneNumbers || [], 
-      sendBulkDto.templateName, 
-      session.user.id,
-      sendBulkDto.parameters
-    );
+    // Create campaign first
+    const contacts = sendBulkDto.contacts || 
+      (sendBulkDto.phoneNumbers || []).map(phone => ({ name: '', phone }));
+    
+    const campaignName = `Bulk Campaign - ${new Date().toLocaleDateString()}`;
+    const campaign = await this.campaignService.createCampaign({
+      name: campaignName,
+      templateName: sendBulkDto.templateName,
+      contacts,
+      parameters: sendBulkDto.parameters
+    }, session.user.id);
+
+    // Run the campaign
+    const result = await this.campaignService.runCampaign(campaign.id, session.user.id);
+    
+    return {
+      campaignName,
+      ...result
+    };
   }
 
   @Post('send-media')
@@ -274,5 +286,57 @@ export class WhatsappController {
     return results;
   }
 
+  // Campaign endpoints
+  @Post('campaigns')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Create a new campaign' })
+  @ApiResponse({ status: 201, description: 'Campaign created successfully', type: CampaignResponseDto })
+  async createCampaign(@Session() session: any, @Body() createCampaignDto: CreateCampaignDto) {
+    return this.campaignService.createCampaign(createCampaignDto, session.user.id);
+  }
+
+  @Get('campaigns')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Get all campaigns' })
+  @ApiResponse({ status: 200, description: 'Campaigns retrieved successfully', type: [CampaignResponseDto] })
+  async getCampaigns(@Session() session: any) {
+    return this.campaignService.getCampaigns(session.user.id);
+  }
+
+  @Get('campaigns/:id')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Get campaign by ID' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiResponse({ status: 200, description: 'Campaign retrieved successfully', type: CampaignResponseDto })
+  async getCampaign(@Session() session: any, @Param('id') id: string) {
+    return this.campaignService.getCampaign(parseInt(id), session.user.id);
+  }
+
+  @Put('campaigns/:id')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Update campaign' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiResponse({ status: 200, description: 'Campaign updated successfully', type: CampaignResponseDto })
+  async updateCampaign(@Session() session: any, @Param('id') id: string, @Body() updateCampaignDto: UpdateCampaignDto) {
+    return this.campaignService.updateCampaign(parseInt(id), updateCampaignDto, session.user.id);
+  }
+
+  @Post('campaigns/:id/run')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Run/Rerun campaign' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiResponse({ status: 200, description: 'Campaign executed successfully' })
+  async runCampaign(@Session() session: any, @Param('id') id: string) {
+    return this.campaignService.runCampaign(parseInt(id), session.user.id);
+  }
+
+  @Delete('campaigns/:id')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Delete campaign' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiResponse({ status: 200, description: 'Campaign deleted successfully' })
+  async deleteCampaign(@Session() session: any, @Param('id') id: string) {
+    return this.campaignService.deleteCampaign(parseInt(id), session.user.id);
+  }
 
 }

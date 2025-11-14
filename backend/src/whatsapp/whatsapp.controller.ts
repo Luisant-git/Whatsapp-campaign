@@ -104,26 +104,48 @@ export class WhatsappController {
   @ApiOperation({ summary: 'Send bulk WhatsApp messages using templates and create campaign' })
   @ApiResponse({ status: 201, description: 'Bulk messages sent successfully', type: [BulkMessageResultDto] })
   @ApiResponse({ status: 400, description: 'Bad Request' })
-  async sendBulk(@Session() session: any, @Body() sendBulkDto: SendBulkDto) {
-    // Create campaign first
-    const contacts = sendBulkDto.contacts || 
-      (sendBulkDto.phoneNumbers || []).map(phone => ({ name: '', phone }));
+  async sendBulk(@Session() session: any, @Body() body: any) {
+    // Handle nested structure from frontend
+    const sendBulkDto = body.contacts || body;
+    
+    let contacts = [];
+    
+    if (Array.isArray(sendBulkDto.contacts)) {
+      contacts = sendBulkDto.contacts;
+    } else if (Array.isArray(sendBulkDto.phoneNumbers)) {
+      contacts = sendBulkDto.phoneNumbers.map(phone => ({ name: '', phone }));
+    } else {
+      throw new Error('No valid contacts provided');
+    }
     
     const campaignName = `Bulk Campaign - ${new Date().toLocaleDateString()}`;
     const campaign = await this.campaignService.createCampaign({
       name: campaignName,
       templateName: sendBulkDto.templateName,
       contacts,
-      parameters: sendBulkDto.parameters
+      parameters: sendBulkDto.parameters,
+      scheduleType: sendBulkDto.scheduleType || 'one-time',
+      scheduledDays: sendBulkDto.scheduledDays || [],
+      scheduledTime: sendBulkDto.scheduledTime
     }, session.user.id);
 
-    // Run the campaign
-    const result = await this.campaignService.runCampaign(campaign.id, session.user.id);
-    
-    return {
-      campaignName,
-      ...result
-    };
+    // If one-time, run immediately; if time-based, just return campaign info
+    if (sendBulkDto.scheduleType === 'time-based') {
+      return {
+        campaignName,
+        campaignId: campaign.id,
+        status: 'scheduled',
+        message: 'Campaign scheduled successfully'
+      };
+    } else {
+      // Run the campaign immediately
+      const result = await this.campaignService.runCampaign(campaign.id, session.user.id);
+      
+      return {
+        campaignName,
+        ...result
+      };
+    }
   }
 
   @Post('send-media')
@@ -337,6 +359,16 @@ export class WhatsappController {
   @ApiResponse({ status: 200, description: 'Campaign deleted successfully' })
   async deleteCampaign(@Session() session: any, @Param('id') id: string) {
     return this.campaignService.deleteCampaign(parseInt(id), session.user.id);
+  }
+
+  @Get('campaigns/scheduled')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Get scheduled campaigns' })
+  @ApiResponse({ status: 200, description: 'Scheduled campaigns retrieved successfully' })
+  async getScheduledCampaigns(@Session() session: any) {
+    return this.campaignService.getCampaigns(session.user.id).then(campaigns => 
+      campaigns.filter(c => c.status === 'scheduled')
+    );
   }
 
 }

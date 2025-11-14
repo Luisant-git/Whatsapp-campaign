@@ -56,10 +56,13 @@ model Campaign {
   name         String
   templateName String
   parameters   Json?
-  status       String   @default("draft") // draft, running, completed, failed
+  status       String   @default("draft") // draft, running, completed, failed, scheduled
   totalCount   Int      @default(0)
   successCount Int      @default(0)
   failedCount  Int      @default(0)
+  scheduleType String   @default("one-time") // one-time, time-based
+  scheduledDays String[] @default([])
+  scheduledTime String?
   userId       Int
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt    DateTime @default(now())

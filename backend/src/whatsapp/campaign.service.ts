@@ -13,12 +13,19 @@ export class CampaignService {
   ) {}
 
   async createCampaign(createCampaignDto: CreateCampaignDto, userId: number) {
+    const scheduleType = createCampaignDto.scheduleType || 'one-time';
+    const status = scheduleType === 'time-based' ? 'scheduled' : 'draft';
+
     const campaign = await this.prisma.campaign.create({
       data: {
         name: createCampaignDto.name,
         templateName: createCampaignDto.templateName,
         parameters: createCampaignDto.parameters || undefined,
         totalCount: createCampaignDto.contacts.length,
+        scheduleType,
+        scheduledDays: createCampaignDto.scheduledDays || [],
+        scheduledTime: createCampaignDto.scheduledTime,
+        status,
         userId,
         contacts: {
           create: createCampaignDto.contacts.map(contact => ({
@@ -78,6 +85,9 @@ export class CampaignService {
     }
 
     // Update campaign details
+    const scheduleType = updateCampaignDto.scheduleType || campaign.scheduleType;
+    const status = scheduleType === 'time-based' ? 'scheduled' : 'draft';
+
     const updatedCampaign = await this.prisma.campaign.update({
       where: { id },
       data: {
@@ -85,7 +95,10 @@ export class CampaignService {
         templateName: updateCampaignDto.templateName || campaign.templateName,
         parameters: updateCampaignDto.parameters !== undefined ? updateCampaignDto.parameters : (campaign.parameters || undefined),
         totalCount: updateCampaignDto.contacts ? updateCampaignDto.contacts.length : campaign.totalCount,
-        status: 'draft' // Reset status when editing
+        scheduleType,
+        scheduledDays: updateCampaignDto.scheduledDays !== undefined ? updateCampaignDto.scheduledDays : campaign.scheduledDays,
+        scheduledTime: updateCampaignDto.scheduledTime !== undefined ? updateCampaignDto.scheduledTime : campaign.scheduledTime,
+        status
       }
     });
 

@@ -14,7 +14,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ChatbotService } from './chatbot.service';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { ChatMessageDto } from './dto/chat-message.dto';
-import * as pdfParse from 'pdf-parse';
+const pdfParse = require('pdf-parse');
 import * as mammoth from 'mammoth';
 
 @Controller('chatbot')
@@ -35,8 +35,12 @@ export class ChatbotController {
     let content = '';
     
     if (file.mimetype === 'application/pdf') {
-      const pdfData = await (pdfParse as any)(file.buffer);
-      content = pdfData.text;
+      try {
+        const pdfData = await pdfParse.default ? pdfParse.default(file.buffer) : pdfParse(file.buffer);
+        content = pdfData.text;
+      } catch (error) {
+        throw new Error('Failed to parse PDF file');
+      }
     } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
       const result = await mammoth.extractRawText({ buffer: file.buffer });
       content = result.value;

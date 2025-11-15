@@ -3,6 +3,7 @@ import axios from 'axios';
 import { PrismaService } from '../prisma.service';
 import { WhatsappSessionService } from '../whatsapp-session/whatsapp-session.service';
 import { SettingsService } from '../settings/settings.service';
+import { ChatbotService } from '../chatbot/chatbot.service';
 
 @Injectable()
 export class WhatsappService {
@@ -11,7 +12,8 @@ export class WhatsappService {
   constructor(
     private prisma: PrismaService,
     private sessionService: WhatsappSessionService,
-    private settingsService: SettingsService
+    private settingsService: SettingsService,
+    private chatbotService: ChatbotService
   ) {}
 
   private async getSettings(userId: number) {
@@ -69,6 +71,20 @@ export class WhatsappService {
         }
         return this.sendMessage(to, msg, userId);
       });
+
+      // Process with chatbot
+      try {
+        const chatResponse = await this.chatbotService.processMessage(userId, {
+          message: text,
+          phone: from
+        });
+        
+        if (chatResponse.response) {
+          await this.sendMessage(from, chatResponse.response, userId);
+        }
+      } catch (error) {
+        this.logger.error('Chatbot error:', error);
+      }
     }
 
     this.logger.log(`Message from ${from}: ${text || mediaType}`);

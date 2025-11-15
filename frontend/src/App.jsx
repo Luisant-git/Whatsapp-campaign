@@ -9,6 +9,7 @@ import Analytics from './components/Analytics'
 import SettingsPanel from './components/Settings'
 import Profile from './components/Profile'
 import AutoReply from './components/AutoReply'
+import Chatbot from './components/Chatbot'
 import './App.css'
 import './styles/Analytics.css'
 import './styles/Settings.css'
@@ -83,6 +84,13 @@ function App() {
             <span>Auto Reply</span>
           </button>
           <button 
+            className={`nav-item ${activeView === 'chatbot' ? 'active' : ''}`}
+            onClick={() => setActiveView('chatbot')}
+          >
+            <MessageCircle size={18} />
+            <span>AI Chatbot</span>
+          </button>
+          <button 
             className={`nav-item ${activeView === 'settings' ? 'active' : ''}`}
             onClick={() => setActiveView('settings')}
           >
@@ -137,6 +145,7 @@ function App() {
         {activeView === 'bulk' && <BulkWhatsApp />}
         {activeView === 'campaigns' && <Campaigns />}
         {activeView === 'auto-reply' && <AutoReply />}
+        {activeView === 'chatbot' && <Chatbot />}
         {activeView === 'analytics' && <Analytics />}
         {activeView === 'settings' && <SettingsPanel />}
         {activeView === 'profile' && <Profile />}

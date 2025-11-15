@@ -7,6 +7,7 @@ import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { SettingsModule } from './settings/settings.module';
 import { AutoReplyModule } from './auto-reply.module';
+import { ChatbotModule } from './chatbot/chatbot.module';
 
 @Module({
   imports: [
@@ -15,7 +16,8 @@ import { AutoReplyModule } from './auto-reply.module';
     WhatsappModule, 
     AnalyticsModule, 
     SettingsModule, 
-    AutoReplyModule
+    AutoReplyModule,
+    ChatbotModule
   ],
   controllers: [AppController],
   providers: [AppService],

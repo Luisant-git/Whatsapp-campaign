@@ -6,11 +6,12 @@ import { WhatsappController } from './whatsapp.controller';
 import { PrismaService } from '../prisma.service';
 import { WhatsappSessionModule } from '../whatsapp-session/whatsapp-session.module';
 import { SettingsModule } from '../settings/settings.module';
+import { ChatbotService } from '../chatbot/chatbot.service';
 
 @Module({
   imports: [WhatsappSessionModule, SettingsModule],
   controllers: [WhatsappController],
-  providers: [WhatsappService, CampaignService, SchedulerService, PrismaService],
+  providers: [WhatsappService, CampaignService, SchedulerService, PrismaService, ChatbotService],
   exports: [WhatsappService, CampaignService, SchedulerService]
 })
 export class WhatsappModule {}

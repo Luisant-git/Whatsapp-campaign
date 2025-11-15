@@ -48,13 +48,28 @@ export class ChatbotService {
       select: { content: true, filename: true },
     });
 
+    // If no documents uploaded, return fallback message
+    if (documents.length === 0) {
+      const fallbackResponse = 'I don\'t have any documents to reference. Please contact our support team for assistance.';
+      
+      await this.prisma.chatMessage.create({
+        data: {
+          message: fallbackResponse,
+          isFromUser: false,
+          sessionId: session.id,
+        },
+      });
+      
+      return { response: fallbackResponse };
+    }
+
     const context = documents.map(doc => `Document: ${doc.filename}\n${doc.content}`).join('\n\n');
 
     const completion = await this.groq.chat.completions.create({
       messages: [
         {
           role: 'system',
-          content: `You are a helpful assistant. Answer questions based on the following documents:\n\n${context}\n\nIf the question cannot be answered from the documents, politely say you don't have that information.`,
+          content: `You are a helpful customer support assistant. Answer questions based ONLY on the following documents:\n\n${context}\n\nIf the question cannot be answered from the documents, respond with: "I don't have information about that in my knowledge base. Please contact our support team at [support contact] for further assistance."`,
         },
         {
           role: 'user',
@@ -62,11 +77,11 @@ export class ChatbotService {
         },
       ],
       model: 'llama-3.1-8b-instant',
-      temperature: 0.7,
+      temperature: 0.3,
       max_tokens: 1024,
     });
 
-    const aiResponse = completion.choices[0]?.message?.content || 'Sorry, I could not generate a response.';
+    const aiResponse = completion.choices[0]?.message?.content || 'I\'m having technical difficulties. Please contact our support team for assistance.';
 
     await this.prisma.chatMessage.create({
       data: {
@@ -96,6 +111,12 @@ export class ChatbotService {
     return this.prisma.document.findMany({
       where: { userId },
       select: { id: true, filename: true, createdAt: true },
+    });
+  }
+
+  async deleteDocument(userId: number, documentId: number) {
+    return this.prisma.document.delete({
+      where: { id: documentId, userId },
     });
   }
 }

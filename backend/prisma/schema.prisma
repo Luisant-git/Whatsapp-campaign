@@ -20,6 +20,8 @@ model User {
   messages  WhatsAppMessage[]
   settings  WhatsAppSettings[]
   campaigns Campaign[]
+  documents Document[]
+  chatSessions ChatSession[]
 }
 
 model WhatsAppMessage {
@@ -92,4 +94,34 @@ model CampaignMessage {
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+model Document {
+  id        Int      @id @default(autoincrement())
+  filename  String
+  content   String   @db.Text
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ChatSession {
+  id        Int      @id @default(autoincrement())
+  phone     String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  messages  ChatMessage[]
+}
+
+model ChatMessage {
+  id            Int         @id @default(autoincrement())
+  message       String
+  isFromUser    Boolean
+  sessionId     Int
+  session       ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
 }

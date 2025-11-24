@@ -22,6 +22,11 @@ export class WhatsAppSettingsDto {
   @ApiProperty({ description: 'WhatsApp API URL' })
   @IsUrl()
   apiUrl: string;
+
+  @ApiProperty({ description: 'Template language code', required: false })
+  @IsOptional()
+  @IsString()
+  language?: string;
 }
 
 export class UpdateSettingsDto {
@@ -49,6 +54,11 @@ export class UpdateSettingsDto {
   @IsOptional()
   @IsUrl()
   apiUrl?: string;
+
+  @ApiProperty({ description: 'Template language code', required: false })
+  @IsOptional()
+  @IsString()
+  language?: string;
 }
 
 export class SettingsResponseDto {
@@ -66,4 +76,7 @@ export class SettingsResponseDto {
 
   @ApiProperty({ description: 'WhatsApp API URL' })
   apiUrl: string;
+
+  @ApiProperty({ description: 'Template language code' })
+  language: string;
 }

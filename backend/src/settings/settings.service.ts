@@ -19,7 +19,8 @@ export class SettingsService {
         phoneNumberId: '',
         accessToken: '',
         verifyToken: '',
-        apiUrl: 'https://graph.facebook.com/v18.0'
+        apiUrl: 'https://graph.facebook.com/v18.0',
+        language: 'en'
       };
     }
 
@@ -28,7 +29,8 @@ export class SettingsService {
       phoneNumberId: settings.phoneNumberId,
       accessToken: settings.accessToken || '',
       verifyToken: settings.verifyToken || '',
-      apiUrl: settings.apiUrl
+      apiUrl: settings.apiUrl,
+      language: settings.language
     };
   }
 
@@ -55,6 +57,7 @@ export class SettingsService {
           accessToken: updateSettingsDto.accessToken || '',
           verifyToken: updateSettingsDto.verifyToken || '',
           apiUrl: updateSettingsDto.apiUrl || 'https://graph.facebook.com/v18.0',
+          language: updateSettingsDto.language || 'en',
           userId
         }
       });
@@ -65,7 +68,8 @@ export class SettingsService {
       phoneNumberId: settings.phoneNumberId,
       accessToken: settings.accessToken || '',
       verifyToken: settings.verifyToken || '',
-      apiUrl: settings.apiUrl
+      apiUrl: settings.apiUrl,
+      language: settings.language
     };
   }
 
@@ -79,7 +83,8 @@ export class SettingsService {
       phoneNumberId: settings.phoneNumberId,
       accessToken: settings.accessToken || '',
       verifyToken: settings.verifyToken || '',
-      apiUrl: settings.apiUrl
+      apiUrl: settings.apiUrl,
+      language: settings.language
     };
   }
 
@@ -94,7 +99,8 @@ export class SettingsService {
       phoneNumberId: settings.phoneNumberId,
       accessToken: settings.accessToken,
       verifyToken: settings.verifyToken || undefined,
-      apiUrl: settings.apiUrl
+      apiUrl: settings.apiUrl,
+      language: settings.language
     } : null;
   }
 }

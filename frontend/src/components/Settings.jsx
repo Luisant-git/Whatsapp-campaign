@@ -7,7 +7,8 @@ const Settings = () => {
     templateName: '',
     phoneNumberId: '',
     accessToken: '',
-    verifyToken: ''
+    verifyToken: '',
+    language: 'en'
   });
   const [showAccessToken, setShowAccessToken] = useState(false);
   const [showVerifyToken, setShowVerifyToken] = useState(false);
@@ -26,7 +27,8 @@ const Settings = () => {
         templateName: '',
         phoneNumberId: '',
         accessToken: '',
-        verifyToken: ''
+        verifyToken: '',
+        language: 'en'
       });
     } catch (error) {
       console.error('Failed to fetch settings:', error);
@@ -84,6 +86,24 @@ const Settings = () => {
               value={settings.templateName}
               onChange={(e) => handleInputChange('templateName', e.target.value)}
             />
+          </div>
+
+          <div className="form-group">
+            <label>Template Language</label>
+            <select
+              value={settings.language}
+              onChange={(e) => handleInputChange('language', e.target.value)}
+            >
+              <option value="en">English</option>
+              <option value="hi">Hindi</option>
+              <option value="ta">Tamil</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="pt">Portuguese</option>
+              <option value="ar">Arabic</option>
+            </select>
+            <small>Select the language for your WhatsApp templates.</small>
           </div>
 
           <div className="form-group">

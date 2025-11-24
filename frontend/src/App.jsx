@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Toaster } from 'react-hot-toast'
-import { MessageSquare, Settings, BarChart3, User, Send, MessageCircle } from 'lucide-react'
+import { MessageSquare, Settings, BarChart3, User, Send, MessageCircle, Bot, Megaphone } from 'lucide-react'
 import WhatsAppChat from './components/WhatsAppChat'
 import BulkWhatsApp from './components/BulkWhatsApps'
 import Campaigns from './components/Campaigns'
@@ -73,7 +73,7 @@ function App() {
             className={`nav-item ${activeView === 'campaigns' ? 'active' : ''}`}
             onClick={() => setActiveView('campaigns')}
           >
-            <BarChart3 size={18} />
+            <Megaphone size={18} />
             <span>Campaigns</span>
           </button>
           <button 
@@ -87,7 +87,7 @@ function App() {
             className={`nav-item ${activeView === 'chatbot' ? 'active' : ''}`}
             onClick={() => setActiveView('chatbot')}
           >
-            <MessageCircle size={18} />
+            <Bot size={18} />
             <span>AI Chatbot</span>
           </button>
           <button 

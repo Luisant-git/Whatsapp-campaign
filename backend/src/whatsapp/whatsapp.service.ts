@@ -275,7 +275,7 @@ export class WhatsappService {
             type: 'template',
             template: {
               name: templateName,
-              language: { code: 'en' },
+              language: { code: settings.language || 'en' },
               components: parameters ? [
                 {
                   type: 'body',
@@ -336,7 +336,7 @@ export class WhatsappService {
             type: 'template',
             template: {
               name: templateName,
-              language: { code: 'en' },
+              language: { code: settings.language || 'en' },
               components: contact.name && contact.name.trim() ? [
                 {
                   type: 'body',
@@ -438,7 +438,7 @@ export class WhatsappService {
           type: 'template',
           template: {
             name: 'order_received_v1',
-            language: { code: 'en' },
+            language: { code: settings.language || 'en' },
             components: [
               {
                 type: 'body',

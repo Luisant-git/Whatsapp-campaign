@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import { IoCheckmarkOutline, IoCloseSharp, IoCloudUploadOutline, IoSendSharp, IoCloseOutline } from 'react-icons/io5';
 import { sendBulkMessages } from '../api/whatsapp';
+import { getSettings } from '../api/auth';
 import '../styles/BulkWhatsApps.scss';
 
 const BulkWhatsApp = () => {
   const [phoneNumbers, setPhoneNumbers] = useState('');
-  const [templateName, setTemplateName] = useState('luisant_diwali_website50_v1');
+  const [templateName, setTemplateName] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [uploadedData, setUploadedData] = useState([]);
@@ -25,6 +26,20 @@ const BulkWhatsApp = () => {
     { value: 'friday', label: 'Friday' },
     { value: 'saturday', label: 'Saturday' }
   ];
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const settings = await getSettings();
+        if (settings?.templateName) {
+          setTemplateName(settings.templateName);
+        }
+      } catch (error) {
+        console.error('Failed to fetch settings:', error);
+      }
+    };
+    fetchSettings();
+  }, []);
 
 
   const handleFileUpload = (e) => {
@@ -151,8 +166,8 @@ const BulkWhatsApp = () => {
               type="text"
               className="form-input"
               value={templateName}
-              onChange={(e) => setTemplateName(e.target.value)}
-              placeholder="luisant_diwali_website50_v1"
+              disabled
+              placeholder="Template name from settings"
             />
           </div>
 

@@ -8,6 +8,8 @@ const Campaigns = () => {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(5);
 
   useEffect(() => {
     fetchCampaigns();
@@ -72,6 +74,12 @@ const Campaigns = () => {
     return <EditCampaign campaignId={editingCampaign} onBack={handleBackToCampaigns} />;
   }
 
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentCampaigns = campaigns.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(campaigns.length / itemsPerPage);
+
   return (
     <div className="campaigns-container">
       <div className="campaigns-header">
@@ -80,8 +88,6 @@ const Campaigns = () => {
           Refresh
         </button>
       </div>
-
-
 
       <div className="campaigns-table">
         <table>
@@ -96,7 +102,7 @@ const Campaigns = () => {
             </tr>
           </thead>
           <tbody>
-            {Array.isArray(campaigns) && campaigns.map((campaign) => (
+            {Array.isArray(currentCampaigns) && currentCampaigns.map((campaign) => (
               <tr key={campaign.id}>
                 <td className="campaign-name">{campaign.name}</td>
                 <td>{campaign.templateName}</td>
@@ -141,6 +147,28 @@ const Campaigns = () => {
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button 
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="pagination-btn"
+          >
+            Previous
+          </button>
+          <span className="pagination-info">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button 
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            className="pagination-btn"
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {campaigns.length === 0 && (
         <div className="no-campaigns">

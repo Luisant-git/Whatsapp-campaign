@@ -42,16 +42,20 @@ model WhatsAppMessage {
 
 model WhatsAppSettings {
   id            Int      @id @default(autoincrement())
+  name          String   // Configuration name
   templateName  String
   phoneNumberId String
   accessToken   String
   verifyToken   String?
   apiUrl        String
   language      String   @default("en")
+  isDefault     Boolean  @default(false)
   userId        Int
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  
+  @@unique([userId, name])
 }
 
 model Campaign {

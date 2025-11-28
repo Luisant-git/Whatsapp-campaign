@@ -2,6 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsOptional, IsUrl } from 'class-validator';
 
 export class WhatsAppSettingsDto {
+  @ApiProperty({ description: 'Configuration name' })
+  @IsString()
+  name: string;
+
   @ApiProperty({ description: 'WhatsApp template name' })
   @IsString()
   templateName: string;
@@ -27,9 +31,18 @@ export class WhatsAppSettingsDto {
   @IsOptional()
   @IsString()
   language?: string;
+
+  @ApiProperty({ description: 'Set as default configuration', required: false })
+  @IsOptional()
+  isDefault?: boolean;
 }
 
 export class UpdateSettingsDto {
+  @ApiProperty({ description: 'Configuration name', required: false })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
   @ApiProperty({ description: 'WhatsApp template name', required: false })
   @IsOptional()
   @IsString()
@@ -59,9 +72,19 @@ export class UpdateSettingsDto {
   @IsOptional()
   @IsString()
   language?: string;
+
+  @ApiProperty({ description: 'Set as default configuration', required: false })
+  @IsOptional()
+  isDefault?: boolean;
 }
 
 export class SettingsResponseDto {
+  @ApiProperty({ description: 'Configuration ID' })
+  id: number;
+
+  @ApiProperty({ description: 'Configuration name' })
+  name: string;
+
   @ApiProperty({ description: 'WhatsApp template name' })
   templateName: string;
 
@@ -79,4 +102,7 @@ export class SettingsResponseDto {
 
   @ApiProperty({ description: 'Template language code' })
   language: string;
+
+  @ApiProperty({ description: 'Is default configuration' })
+  isDefault: boolean;
 }

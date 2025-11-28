@@ -110,94 +110,134 @@ const Chatbot = () => {
   return (
     <div className="chatbot-container">
       <div className="chatbot-header">
-        <MessageCircle className="header-icon" />
-        <h2>Document-Based Chatbot</h2>
+        <div className="header-title">
+          <MessageCircle className="header-icon" />
+          <div>
+            <h1>Document-Based Chatbot</h1>
+            <p>Upload documents and test AI-powered responses</p>
+          </div>
+        </div>
       </div>
 
       <div className="chatbot-content">
         <div className="upload-section">
-          <h3><FileText className="section-icon" /> Document Management</h3>
+          <div className="section-header">
+            <FileText className="section-icon" />
+            <h2>Document Management</h2>
+          </div>
           
-          <div className="upload-area">
-            <input
-              type="file"
-              id="file-input"
-              accept=".pdf,.docx,.txt"
-              onChange={handleFileSelect}
-              style={{ display: 'none' }}
-            />
-            <label htmlFor="file-input" className="upload-button">
-              <Upload className="upload-icon" />
-              Choose Document
-            </label>
-            
-            {selectedFile && (
-              <div className="selected-file">
-                <span>{selectedFile.name}</span>
-                <button 
-                  onClick={handleUpload} 
-                  disabled={uploading}
-                  className="upload-confirm-btn"
-                >
-                  {uploading ? 'Uploading...' : 'Upload'}
-                </button>
-              </div>
-            )}
+          <div className="upload-card">
+            <div className="upload-area">
+              <input
+                type="file"
+                id="file-input"
+                accept=".pdf,.docx,.txt"
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+              />
+              <label htmlFor="file-input" className="upload-button">
+                <Upload className="upload-icon" />
+                Choose Document
+              </label>
+              
+              {selectedFile && (
+                <div className="selected-file">
+                  <FileText className="file-icon" />
+                  <span className="file-name">{selectedFile.name}</span>
+                  <button 
+                    onClick={handleUpload} 
+                    disabled={uploading}
+                    className="btn-primary"
+                  >
+                    {uploading ? 'Uploading...' : 'Upload'}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="documents-list">
-            <h4>Uploaded Documents ({documents.length})</h4>
-            {documents.map((doc) => (
-              <div key={doc.id} className="document-item">
-                <FileText className="doc-icon" />
-                <span>{doc.filename}</span>
-                <small>{new Date(doc.createdAt).toLocaleDateString()}</small>
-                <button 
-                  onClick={() => handleDeleteDocument(doc.id, doc.filename)}
-                  className="delete-btn"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
+          <div className="documents-card">
+            <div className="documents-header">
+              <h3>Uploaded Documents</h3>
+              <span className="document-count">{documents.length} files</span>
+            </div>
+            <div className="documents-list">
+              {documents.length === 0 ? (
+                <div className="empty-state">
+                  <FileText className="empty-icon" />
+                  <p>No documents uploaded yet</p>
+                </div>
+              ) : (
+                documents.map((doc) => (
+                  <div key={doc.id} className="document-item">
+                    <FileText className="doc-icon" />
+                    <div className="doc-info">
+                      <span className="doc-name">{doc.filename}</span>
+                      <small className="doc-date">{new Date(doc.createdAt).toLocaleDateString()}</small>
+                    </div>
+                    <button 
+                      onClick={() => handleDeleteDocument(doc.id, doc.filename)}
+                      className="btn-danger-small"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
 
         <div className="test-section">
-          <h3><MessageCircle className="section-icon" /> Test Chatbot</h3>
+          <div className="section-header">
+            <MessageCircle className="section-icon" />
+            <h2>Test Chatbot</h2>
+          </div>
           
-          <div className="test-inputs">
-            <input
-              type="text"
-              placeholder="Phone number (e.g., 1234567890)"
-              value={testPhone}
-              onChange={(e) => setTestPhone(e.target.value)}
-              className="phone-input"
-            />
-            
-            <div className="message-input-area">
-              <input
-                type="text"
-                placeholder="Type your message..."
-                value={testMessage}
-                onChange={(e) => setTestMessage(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleTestMessage()}
-                className="message-input"
-              />
-              <button onClick={handleTestMessage} className="send-button">
-                <Send className="send-icon" />
+          <div className="test-card">
+            <div className="test-inputs">
+              <div className="input-group">
+                <label>Phone Number</label>
+                <input
+                  type="text"
+                  placeholder="e.g., 1234567890"
+                  value={testPhone}
+                  onChange={(e) => setTestPhone(e.target.value)}
+                  className="form-input"
+                />
+              </div>
+              
+              <div className="input-group">
+                <label>Test Message</label>
+                <div className="message-input-area">
+                  <input
+                    type="text"
+                    placeholder="Type your message..."
+                    value={testMessage}
+                    onChange={(e) => setTestMessage(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleTestMessage()}
+                    className="form-input"
+                  />
+                  <button onClick={handleTestMessage} className="btn-primary">
+                    <Send size={16} />
+                    Send
+                  </button>
+                </div>
+              </div>
+
+              <button onClick={fetchChatHistory} className="btn-secondary">
+                Load Chat History
               </button>
             </div>
-
-            <button onClick={fetchChatHistory} className="history-button">
-              Load Chat History
-            </button>
           </div>
 
           {chatHistory.length > 0 && (
-            <div className="chat-history">
-              <h4>Chat History</h4>
-              <div className="messages">
+            <div className="chat-history-card">
+              <div className="chat-header">
+                <h3>Chat History</h3>
+                <span className="message-count">{chatHistory.length} messages</span>
+              </div>
+              <div className="messages-container">
                 {chatHistory.map((msg, index) => (
                   <div 
                     key={index} 

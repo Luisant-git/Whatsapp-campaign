@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, FileText, MessageCircle, Send } from 'lucide-react';
-import toast from 'react-hot-toast';
 import { chatbotAPI } from '../api/chatbot';
+import { useToast } from '../contexts/ToastContext';
 import '../styles/Chatbot.css';
 
 const Chatbot = () => {
+  const { showSuccess, showError, showConfirm } = useToast();
   const [documents, setDocuments] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -32,40 +33,41 @@ const Chatbot = () => {
       if (allowedTypes.includes(file.type)) {
         setSelectedFile(file);
       } else {
-        toast.error('Please select a PDF, Word document, or text file');
+        showError('Please select a PDF, Word document, or text file');
       }
     }
   };
 
   const handleDeleteDocument = async (id, filename) => {
-    if (window.confirm(`Are you sure you want to delete "${filename}"?`)) {
+    const confirmed = await showConfirm(`Are you sure you want to delete "${filename}"?`);
+    if (confirmed) {
       try {
         await chatbotAPI.deleteDocument(id);
-        toast.success('Document deleted successfully!');
+        showSuccess('Document deleted successfully!');
         fetchDocuments();
       } catch (error) {
         console.error('Delete error:', error);
-        toast.error('Error deleting document');
+        showError('Error deleting document');
       }
     }
   };
 
   const handleUpload = async () => {
     if (!selectedFile) {
-      toast.error('Please select a file first');
+      showError('Please select a file first');
       return;
     }
 
     setUploading(true);
 
     try {
-      await chatbotAPI.uploadDocument(selectedFile);
-      toast.success('Document uploaded successfully!');
+      const result = await chatbotAPI.uploadDocument(selectedFile);
+      showSuccess(result.message || 'Document uploaded successfully!');
       setSelectedFile(null);
       fetchDocuments();
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error('Error uploading document');
+      showError(error.message || 'Error uploading document');
     } finally {
       setUploading(false);
     }
@@ -73,13 +75,13 @@ const Chatbot = () => {
 
   const handleTestMessage = async () => {
     if (!testPhone || !testMessage) {
-      toast.error('Please enter both phone number and message');
+      showError('Please enter both phone number and message');
       return;
     }
 
     try {
       const data = await chatbotAPI.sendMessage(testPhone, testMessage);
-      toast.success('Message processed successfully!');
+      showSuccess('Message processed successfully!');
       setTestMessage('');
       
       setChatHistory(prev => [
@@ -89,13 +91,13 @@ const Chatbot = () => {
       ]);
     } catch (error) {
       console.error('Message error:', error);
-      toast.error('Error processing message');
+      showError('Error processing message');
     }
   };
 
   const fetchChatHistory = async () => {
     if (!testPhone) {
-      toast.error('Please enter a phone number');
+      showError('Please enter a phone number');
       return;
     }
 

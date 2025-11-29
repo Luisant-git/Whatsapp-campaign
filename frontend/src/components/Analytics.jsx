@@ -1,18 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { getAnalytics } from '../api/auth';
+import { getAnalytics, getAllSettings } from '../api/auth';
 import { BarChart3, MessageSquare, CheckCircle, XCircle, Users, TrendingUp } from 'lucide-react';
 
 const Analytics = () => {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [phoneNumbers, setPhoneNumbers] = useState([]);
+  const [selectedSettingsName, setSelectedSettingsName] = useState('');
 
   useEffect(() => {
+    fetchPhoneNumbers();
     fetchAnalytics();
   }, []);
 
+  useEffect(() => {
+    fetchAnalytics();
+  }, [selectedSettingsName]);
+
+  const fetchPhoneNumbers = async () => {
+    try {
+      const data = await getAllSettings();
+      setPhoneNumbers(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching phone numbers:', error);
+    }
+  };
+
   const fetchAnalytics = async () => {
     try {
-      const data = await getAnalytics();
+      const data = await getAnalytics(selectedSettingsName || null);
       setAnalytics(data);
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
@@ -32,8 +48,24 @@ const Analytics = () => {
   return (
     <div className="analytics-container">
       <div className="analytics-header">
-        <h1>Analytics Dashboard</h1>
-        <p>WhatsApp campaign performance overview</p>
+        <div className="analytics-title">
+          <h1>Analytics Dashboard</h1>
+          <p>WhatsApp campaign performance overview</p>
+        </div>
+        <div className="analytics-controls">
+          <select 
+            value={selectedSettingsName} 
+            onChange={(e) => setSelectedSettingsName(e.target.value)}
+            className="phone-filter"
+          >
+            <option value="">All Phone Numbers</option>
+            {phoneNumbers.map((phone, index) => (
+              <option key={`phone-${phone.id}-${index}`} value={phone.name}>
+                {phone.name} ({phone.phoneNumberId})
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="analytics-grid">

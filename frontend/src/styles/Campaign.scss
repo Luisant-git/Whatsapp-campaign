@@ -16,16 +16,39 @@
     margin: 0;
   }
 
-  .refresh-btn {
-    background-color: #3b82f6;
-    color: white;
-    padding: 8px 16px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
+  .campaigns-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
 
-    &:hover {
-      background-color: #2563eb;
+    .phone-filter {
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 14px;
+      color: #374151;
+      background-color: white;
+      cursor: pointer;
+      min-width: 200px;
+
+      &:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 1px #3b82f6;
+      }
+    }
+
+    .refresh-btn {
+      background-color: #3b82f6;
+      color: white;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+
+      &:hover {
+        background-color: #2563eb;
+      }
     }
   }
 }

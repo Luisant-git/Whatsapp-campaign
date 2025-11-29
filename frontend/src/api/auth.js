@@ -43,8 +43,12 @@ export const getProfile = async () => {
   return await response.json();
 };
 
-export const getAnalytics = async () => {
-  const response = await fetch(`${API_BASE_URL}/analytics`, {
+export const getAnalytics = async (settingsName = null) => {
+  const url = settingsName 
+    ? `${API_BASE_URL}/analytics?settingsName=${settingsName}`
+    : `${API_BASE_URL}/analytics`;
+    
+  const response = await fetch(url, {
     credentials: 'include',
   });
 

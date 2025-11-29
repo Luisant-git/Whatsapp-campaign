@@ -27,35 +27,55 @@ export class ChatbotController {
     @UploadedFile() file: Express.Multer.File,
     @Session() session: any,
   ) {
-    const userId = session.user?.id;
-    if (!userId) {
-      throw new Error('User not authenticated');
-    }
-
-    let content = '';
-    
-    if (file.mimetype === 'application/pdf') {
-      try {
-        const pdfData = await pdfParse.default ? pdfParse.default(file.buffer) : pdfParse(file.buffer);
-        content = pdfData.text;
-      } catch (error) {
-        throw new Error('Failed to parse PDF file');
+    try {
+      const userId = session.user?.id;
+      if (!userId) {
+        return { success: false, message: 'User not authenticated' };
       }
-    } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-      const result = await mammoth.extractRawText({ buffer: file.buffer });
-      content = result.value;
-    } else if (file.mimetype === 'text/plain') {
-      content = file.buffer.toString('utf-8');
-    } else {
-      throw new Error('Unsupported file type');
+
+      if (!file) {
+        return { success: false, message: 'No file uploaded' };
+      }
+
+      let content = '';
+      
+      if (file.mimetype === 'application/pdf') {
+        try {
+          const pdfData = await pdfParse(file.buffer);
+          content = pdfData?.text || '';
+        } catch (pdfError) {
+          console.log('PDF parsing error:', pdfError);
+          return { success: false, message: 'Failed to extract text from PDF. The PDF might be password-protected or corrupted.' };
+        }
+      } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        try {
+          const result = await mammoth.extractRawText({ buffer: file.buffer });
+          content = result.value || '';
+        } catch (docxError) {
+          return { success: false, message: 'Failed to extract text from DOCX file.' };
+        }
+      } else if (file.mimetype === 'text/plain') {
+        content = file.buffer.toString('utf-8');
+      } else {
+        return { success: false, message: 'Unsupported file type. Please upload PDF, DOCX, or TXT files.' };
+      }
+
+      content = content.trim();
+      if (!content) {
+        return { success: false, message: `Could not extract text from ${file.originalname}. The document might be image-based or empty.` };
+      }
+
+      const uploadDocumentDto: UploadDocumentDto = {
+        filename: file.originalname,
+        content,
+      };
+
+      const result = await this.chatbotService.uploadDocument(userId, uploadDocumentDto);
+      return { success: true, message: 'Document uploaded successfully', data: result };
+    } catch (error) {
+      console.error('Upload error:', error);
+      return { success: false, message: error.message || 'Failed to upload document' };
     }
-
-    const uploadDocumentDto: UploadDocumentDto = {
-      filename: file.originalname,
-      content,
-    };
-
-    return this.chatbotService.uploadDocument(userId, uploadDocumentDto);
   }
 
   @Post('message')

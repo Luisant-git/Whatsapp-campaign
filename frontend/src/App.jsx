@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Toaster } from 'react-hot-toast'
 import { MessageSquare, Settings, BarChart3, User, Send, MessageCircle, Bot, Megaphone } from 'lucide-react'
+import { ToastProvider } from './contexts/ToastContext'
 import WhatsAppChat from './components/WhatsAppChat'
 import BulkWhatsApp from './components/BulkWhatsApps'
 import Campaigns from './components/Campaigns'
@@ -41,8 +41,7 @@ function App() {
   }
 
   return (
-    <>
-      <Toaster position="top-center" />
+    <ToastProvider>
       {!isLoggedIn ? (
         <Login onLogin={handleLogin} />
       ) : (
@@ -152,7 +151,7 @@ function App() {
       </div>
     </div>
       )}
-    </>
+    </ToastProvider>
   )
 }
 

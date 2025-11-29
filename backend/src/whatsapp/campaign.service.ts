@@ -42,9 +42,25 @@ export class CampaignService {
     return campaign;
   }
 
-  async getCampaigns(userId: number) {
+  async getCampaigns(userId: number, settingsName?: string) {
+    const whereClause: any = { userId };
+    
+    // If settingsName is provided, find the associated template and filter by it
+    if (settingsName) {
+      const settings = await this.prisma.whatsAppSettings.findFirst({
+        where: { name: settingsName }
+      });
+      
+      if (settings) {
+        whereClause.templateName = settings.templateName;
+      } else {
+        // Return empty if no settings found for this name
+        return [];
+      }
+    }
+    
     return this.prisma.campaign.findMany({
-      where: { userId },
+      where: whereClause,
       include: {
         _count: {
           select: {

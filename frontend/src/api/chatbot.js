@@ -10,11 +10,13 @@ export const chatbotAPI = {
       credentials: 'include'
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to upload document');
+    const result = await response.json();
+    
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || 'Failed to upload document');
     }
 
-    return response.json();
+    return result;
   },
 
   getDocuments: async () => {

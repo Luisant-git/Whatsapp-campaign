@@ -118,7 +118,7 @@ export class WhatsappController {
       throw new Error('No valid contacts provided');
     }
     
-    const campaignName = `Bulk Campaign - ${new Date().toLocaleDateString()}`;
+    const campaignName = body.name || sendBulkDto.name || `Bulk Campaign - ${new Date().toLocaleDateString()}`;
     const campaign = await this.campaignService.createCampaign({
       name: campaignName,
       templateName: sendBulkDto.templateName,

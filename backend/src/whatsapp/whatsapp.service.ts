@@ -373,26 +373,34 @@ export class WhatsappService {
         continue;
       }
 
+      const formattedPhone = this.formatPhoneNumber(contact.phone);
+
       try {
-        this.logger.log(`Sending message to ${contact.phone} with template ${templateName}`);
+        this.logger.log(`Sending message to ${formattedPhone} with template ${templateName}`);
+        this.logger.log(`API URL: ${settings.apiUrl}/${settings.phoneNumberId}/messages`);
+        this.logger.log(`Template: ${templateName}, Language: ${settings.language}`);
+        
+        const requestBody = {
+          messaging_product: 'whatsapp',
+          to: formattedPhone,
+          type: 'template',
+          template: {
+            name: templateName,
+            language: { code: settings.language || 'en' },
+            components: contact.name && contact.name.trim() ? [
+              {
+                type: 'body',
+                parameters: [{ type: 'text', text: contact.name.trim() }]
+              }
+            ] : []
+          }
+        };
+        
+        this.logger.log('Request body:', JSON.stringify(requestBody, null, 2));
         
         const response = await axios.post(
           `${settings.apiUrl}/${settings.phoneNumberId}/messages`,
-          {
-            messaging_product: 'whatsapp',
-            to: contact.phone,
-            type: 'template',
-            template: {
-              name: templateName,
-              language: { code: settings.language || 'en' },
-              components: contact.name && contact.name.trim() ? [
-                {
-                  type: 'body',
-                  parameters: [{ type: 'text', text: contact.name.trim() }]
-                }
-              ] : []
-            }
-          },
+          requestBody,
           {
             headers: {
               'Authorization': `Bearer ${settings.accessToken}`,
@@ -400,12 +408,14 @@ export class WhatsappService {
             }
           }
         );
+        
+        this.logger.log('WhatsApp API Response:', JSON.stringify(response.data, null, 2));
 
         await this.prisma.whatsAppMessage.create({
           data: {
             messageId: response.data.messages[0].id,
-            to: contact.phone,
-            from: contact.phone,
+            to: formattedPhone,
+            from: formattedPhone,
             message: `Template ${templateName} sent to ${contact.name}`,
             direction: 'outgoing',
             status: 'sent',
@@ -413,7 +423,7 @@ export class WhatsappService {
           }
         });
 
-        results.push({ phoneNumber: contact.phone, success: true, messageId: response.data.messages[0].id });
+        results.push({ phoneNumber: formattedPhone, success: true, messageId: response.data.messages[0].id });
       } catch (error) {
         const errorMsg = this.getErrorMessage(error);
         this.logger.error(`Failed to send to ${contact.phone}:`, {
@@ -421,7 +431,7 @@ export class WhatsappService {
           response: error.response?.data,
           status: error.response?.status
         });
-        results.push({ phoneNumber: contact.phone, success: false, error: errorMsg });
+        results.push({ phoneNumber: formattedPhone, success: false, error: errorMsg });
       }
     }
 
@@ -453,6 +463,18 @@ export class WhatsappService {
     }
    
     return null;
+  }
+
+  private formatPhoneNumber(phone: string): string {
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    
+    // If phone number is 10 digits and starts with 6-9, add India country code
+    if (cleanPhone.length === 10 && /^[6-9]/.test(cleanPhone)) {
+      return `91${cleanPhone}`;
+    }
+    
+    // If already has country code, return as is
+    return cleanPhone;
   }
 
   private getErrorMessage(error: any): string {

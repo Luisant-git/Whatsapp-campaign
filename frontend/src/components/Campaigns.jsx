@@ -167,13 +167,13 @@ const Campaigns = () => {
                   >
                     Edit
                   </button>
-                  <button
+                  {/* <button
                     onClick={() => handleDeleteCampaign(campaign.id)}
                     disabled={campaign.status === 'running'}
                     className="delete-btn"
                   >
                     Delete
-                  </button>
+                  </button> */}
                 </td>
               </tr>
             ))}

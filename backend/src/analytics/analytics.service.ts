@@ -14,10 +14,10 @@ export class AnalyticsService {
     let campaignFilter: any = { campaign: { userId } };
     if (settingsName) {
       const settings = await this.prisma.whatsAppSettings.findFirst({
-        where: { name: settingsName }
+        where: { name: settingsName, userId }
       });
       if (settings) {
-        campaignFilter.campaign = { userId, templateName: settings.templateName };
+        campaignFilter.campaign = { userId, settingsId: settings.id };
       }
     }
 

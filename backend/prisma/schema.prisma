@@ -52,6 +52,7 @@ model WhatsAppSettings {
   isDefault     Boolean  @default(false)
   userId        Int
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaigns     Campaign[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
@@ -71,7 +72,9 @@ model Campaign {
   scheduledDays String[] @default([])
   scheduledTime String?
   userId       Int
+  settingsId   Int?
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  settings     WhatsAppSettings? @relation(fields: [settingsId], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   

@@ -217,6 +217,7 @@ const Settings = () => {
                   placeholder="e.g. Production, Testing, Campaign A"
                   value={currentSettings.name}
                   onChange={(e) => handleInputChange("name", e.target.value)}
+                  disabled={editingId !== null}
                 />
               </div>
 

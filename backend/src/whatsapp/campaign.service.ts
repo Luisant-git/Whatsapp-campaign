@@ -16,6 +16,18 @@ export class CampaignService {
     const scheduleType = createCampaignDto.scheduleType || 'one-time';
     const status = scheduleType === 'time-based' ? 'scheduled' : 'draft';
 
+    // Find settings by template name to get settingsId
+    const settings = await this.prisma.whatsAppSettings.findFirst({
+      where: {
+        templateName: createCampaignDto.templateName,
+        userId
+      }
+    });
+
+    if (!settings) {
+      throw new Error(`No WhatsApp settings found for template: ${createCampaignDto.templateName}`);
+    }
+
     const campaign = await this.prisma.campaign.create({
       data: {
         name: createCampaignDto.name,
@@ -27,6 +39,7 @@ export class CampaignService {
         scheduledTime: createCampaignDto.scheduledTime,
         status,
         userId,
+        settingsId: settings.id,
         contacts: {
           create: createCampaignDto.contacts.map(contact => ({
             name: contact.name,

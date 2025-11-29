@@ -180,7 +180,8 @@ export class CampaignService {
         const result = await this.whatsappService.sendBulkTemplateMessageWithNames(
           [{ name: contact.name || '', phone: contact.phone }],
           campaign.templateName,
-          userId
+          userId,
+          campaign.settingsId
         );
 
         const messageResult = result[0];
@@ -268,5 +269,132 @@ export class CampaignService {
     });
 
     return { message: 'Campaign deleted successfully' };
+  }
+
+  async getCampaignResults(id: number, userId: number) {
+    const campaign = await this.prisma.campaign.findFirst({
+      where: { id, userId },
+      include: {
+        messages: {
+          orderBy: { createdAt: 'desc' }
+        }
+      }
+    });
+
+    if (!campaign) {
+      throw new NotFoundException('Campaign not found');
+    }
+
+    // Get response data for each contact
+    const results = await Promise.all(
+      campaign.messages.map(async (message) => {
+        // Check if customer responded after the campaign message was sent
+        // Try different phone number formats to handle potential mismatches
+        const phoneVariations = [
+          message.phone,
+          message.phone.replace(/^\+/, ''), // Remove + prefix
+          `+${message.phone}`, // Add + prefix
+          message.phone.replace(/[^0-9]/g, '') // Remove all non-digits
+        ];
+
+        this.logger.log(`Checking responses for campaign message to ${message.phone}, variations: ${phoneVariations.join(', ')}`);
+
+        const responses = await this.prisma.whatsAppMessage.findMany({
+          where: {
+            from: { in: phoneVariations },
+            userId,
+            direction: 'incoming',
+            createdAt: {
+              gte: message.createdAt
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        });
+
+        this.logger.log(`Found ${responses.length} responses for ${message.phone}`);
+        if (responses.length > 0) {
+          this.logger.log(`Response from: ${responses[0].from}, message: ${responses[0].message}`);
+        }
+
+        const lastResponse = responses[0] || null;
+
+        return {
+          name: message.name,
+          phone: message.phone,
+          status: message.status,
+          createdAt: message.createdAt,
+          hasResponse: !!lastResponse,
+          lastResponse: lastResponse ? {
+            message: lastResponse.message,
+            createdAt: lastResponse.createdAt
+          } : null
+        };
+      })
+    );
+
+    return {
+      campaign: {
+        id: campaign.id,
+        name: campaign.name,
+        templateName: campaign.templateName,
+        createdAt: campaign.createdAt,
+        status: campaign.status
+      },
+      results
+    };
+  }
+
+  async downloadCampaignResults(id: number, userId: number, format: 'csv' | 'xlsx') {
+    const { campaign, results } = await this.getCampaignResults(id, userId);
+    
+    const data = results.map(result => ({
+      'Contact Name': result.name || 'N/A',
+      'Phone Number': result.phone,
+      'Status': result.status,
+      'Sent At': result.createdAt.toISOString(),
+      'Has Response': result.hasResponse ? 'Yes' : 'No',
+      'Last Response': result.lastResponse?.message || 'No response',
+      'Response Time': result.lastResponse?.createdAt?.toISOString() || 'N/A'
+    }));
+
+    if (format === 'csv') {
+      const csv = this.convertToCSV(data);
+      return {
+        data: csv,
+        filename: `campaign-${campaign.name}-results.csv`,
+        contentType: 'text/csv'
+      };
+    } else {
+      // For Excel format, you would need to install xlsx package
+      // For now, return CSV format
+      const csv = this.convertToCSV(data);
+      return {
+        data: csv,
+        filename: `campaign-${campaign.name}-results.csv`,
+        contentType: 'text/csv'
+      };
+    }
+  }
+
+  private convertToCSV(data: any[]): string {
+    if (data.length === 0) return '';
+    
+    const headers = Object.keys(data[0]);
+    const csvContent = [
+      headers.join(','),
+      ...data.map(row => 
+        headers.map(header => {
+          const value = row[header];
+          // Escape commas and quotes in CSV
+          if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+            return `"${value.replace(/"/g, '""')}"`;
+          }
+          return value;
+        }).join(',')
+      )
+    ].join('\n');
+    
+    return csvContent;
   }
 }

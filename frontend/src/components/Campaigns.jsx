@@ -3,6 +3,7 @@ import { getAllCampaigns, rerunCampaign, deleteCampaign } from '../api/campaign'
 import { getAllSettings } from '../api/auth';
 import { useToast } from '../contexts/ToastContext';
 import EditCampaign from './EditCampaign';
+import CampaignResults from './CampaignResults';
 import '../styles/Campaign.scss';
 
 const Campaigns = () => {
@@ -14,6 +15,7 @@ const Campaigns = () => {
   const [itemsPerPage] = useState(5);
   const [phoneNumbers, setPhoneNumbers] = useState([]);
   const [selectedSettingsName, setSelectedSettingsName] = useState('');
+  const [viewingResults, setViewingResults] = useState(null);
 
   useEffect(() => {
     fetchPhoneNumbers();
@@ -63,7 +65,12 @@ const Campaigns = () => {
 
   const handleBackToCampaigns = () => {
     setEditingCampaign(null);
+    setViewingResults(null);
     fetchCampaigns();
+  };
+
+  const handleViewResults = (campaign) => {
+    setViewingResults(campaign.id);
   };
 
   const handleDeleteCampaign = async (campaignId) => {
@@ -91,6 +98,10 @@ const Campaigns = () => {
 
   if (editingCampaign) {
     return <EditCampaign campaignId={editingCampaign} onBack={handleBackToCampaigns} />;
+  }
+
+  if (viewingResults) {
+    return <CampaignResults campaignId={viewingResults} onBack={handleBackToCampaigns} />;
   }
 
   // Pagination logic
@@ -159,6 +170,12 @@ const Campaigns = () => {
                     className="rerun-btn"
                   >
                     {campaign.status === 'running' ? 'Running...' : 'Rerun'}
+                  </button>
+                  <button
+                    onClick={() => handleViewResults(campaign)}
+                    className="results-btn"
+                  >
+                    Results
                   </button>
                   <button
                     onClick={() => handleEditCampaign(campaign)}

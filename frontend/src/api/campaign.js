@@ -70,3 +70,27 @@ export const rerunCampaign = async (id) => {
 
   return await response.json();
 };
+
+export const getCampaignResults = async (id) => {
+  const response = await fetch(`${API_BASE_URL}/whatsapp/campaigns/${id}/results`, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch campaign results');
+  }
+
+  return await response.json();
+};
+
+export const downloadCampaignResults = async (id, format) => {
+  const response = await fetch(`${API_BASE_URL}/whatsapp/campaigns/${id}/results/download?format=${format}`, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to download campaign results');
+  }
+
+  return await response.blob();
+};

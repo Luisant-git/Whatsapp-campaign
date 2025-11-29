@@ -1,23 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
 import { getAllCampaigns, rerunCampaign, deleteCampaign } from '../api/campaign';
+import { getAllSettings } from '../api/auth';
+import { useToast } from '../contexts/ToastContext';
 import EditCampaign from './EditCampaign';
 import '../styles/Campaign.scss';
 
 const Campaigns = () => {
+  const { showSuccess, showError, showConfirm } = useToast();
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(5);
+  const [phoneNumbers, setPhoneNumbers] = useState([]);
+  const [selectedSettingsName, setSelectedSettingsName] = useState('');
 
   useEffect(() => {
+    fetchPhoneNumbers();
     fetchCampaigns();
   }, []);
 
+  useEffect(() => {
+    fetchCampaigns();
+  }, [selectedSettingsName]);
+
+  const fetchPhoneNumbers = async () => {
+    try {
+      const data = await getAllSettings();
+      setPhoneNumbers(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching phone numbers:', error);
+    }
+  };
+
   const fetchCampaigns = async () => {
     try {
-      const data = await getAllCampaigns();
+      const data = await getAllCampaigns(selectedSettingsName || null);
       setCampaigns(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching campaigns:', error);
@@ -29,11 +47,11 @@ const Campaigns = () => {
     setLoading(true);
     try {
       await rerunCampaign(campaignId);
-      toast.success('Campaign rerun successfully!');
+      showSuccess('Campaign rerun successfully!');
       fetchCampaigns();
     } catch (error) {
       console.error('Error rerunning campaign:', error);
-      toast.error('Failed to rerun campaign');
+      showError('Failed to rerun campaign');
     } finally {
       setLoading(false);
     }
@@ -49,14 +67,15 @@ const Campaigns = () => {
   };
 
   const handleDeleteCampaign = async (campaignId) => {
-    if (window.confirm('Are you sure you want to delete this campaign?')) {
+    const confirmed = await showConfirm('Are you sure you want to delete this campaign?');
+    if (confirmed) {
       try {
         await deleteCampaign(campaignId);
-        toast.success('Campaign deleted successfully!');
+        showSuccess('Campaign deleted successfully!');
         fetchCampaigns();
       } catch (error) {
         console.error('Error deleting campaign:', error);
-        toast.error('Failed to delete campaign');
+        showError('Failed to delete campaign');
       }
     }
   };
@@ -84,9 +103,23 @@ const Campaigns = () => {
     <div className="campaigns-container">
       <div className="campaigns-header">
         <h2>Campaigns</h2>
-        <button onClick={fetchCampaigns} className="refresh-btn">
-          Refresh
-        </button>
+        <div className="campaigns-controls">
+          <select 
+            value={selectedSettingsName} 
+            onChange={(e) => setSelectedSettingsName(e.target.value)}
+            className="phone-filter"
+          >
+            <option value="">All Phone Numbers</option>
+            {phoneNumbers.map((phone, index) => (
+              <option key={`phone-${phone.id}-${index}`} value={phone.name}>
+                {phone.name} ({phone.phoneNumberId})
+              </option>
+            ))}
+          </select>
+          <button onClick={fetchCampaigns} className="refresh-btn">
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="campaigns-table">
@@ -176,7 +209,7 @@ const Campaigns = () => {
         </div>
       )}
 
-      <Toaster position="top-center" />
+
     </div>
   );
 };

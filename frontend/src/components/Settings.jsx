@@ -1,21 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { getAllSettings, createSettings, updateSettings, deleteSettings, setDefaultSettings } from '../api/auth';
-import { Eye, EyeOff, CheckCircle, Plus, Trash2, Star } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import {
+  getAllSettings,
+  createSettings,
+  updateSettings,
+  deleteSettings,
+  setDefaultSettings,
+} from "../api/auth";
+import { useToast } from '../contexts/ToastContext';
+import { Eye, EyeOff, Plus, Trash2, Star } from "lucide-react";
 
 const Settings = () => {
+  const { showSuccess, showError, showConfirm } = useToast();
   const [allSettings, setAllSettings] = useState([]);
   const [currentSettings, setCurrentSettings] = useState({
-    name: '',
-    templateName: '',
-    phoneNumberId: '',
-    accessToken: '',
-    verifyToken: '',
-    language: 'en',
-    isDefault: false
+    name: "",
+    templateName: "",
+    phoneNumberId: "",
+    accessToken: "",
+    verifyToken: "",
+    language: "en",
+    isDefault: false,
   });
   const [showAccessToken, setShowAccessToken] = useState(false);
   const [showVerifyToken, setShowVerifyToken] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -30,7 +38,7 @@ const Settings = () => {
       const data = await getAllSettings();
       setAllSettings(data || []);
     } catch (error) {
-      console.error('Failed to fetch settings:', error);
+      console.error("Failed to fetch settings:", error);
     } finally {
       setLoading(false);
     }
@@ -38,20 +46,20 @@ const Settings = () => {
 
   const resetForm = () => {
     setCurrentSettings({
-      name: '',
-      templateName: '',
-      phoneNumberId: '',
-      accessToken: '',
-      verifyToken: '',
-      language: 'en',
-      isDefault: false
+      name: "",
+      templateName: "",
+      phoneNumberId: "",
+      accessToken: "",
+      verifyToken: "",
+      language: "en",
+      isDefault: false,
     });
     setEditingId(null);
     setShowForm(false);
   };
 
   const handleInputChange = (field, value) => {
-    setCurrentSettings(prev => ({ ...prev, [field]: value }));
+    setCurrentSettings((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSaveConfiguration = async () => {
@@ -59,15 +67,16 @@ const Settings = () => {
     try {
       if (editingId) {
         await updateSettings(editingId, currentSettings);
+        showSuccess('Configuration updated successfully!');
       } else {
         await createSettings(currentSettings);
+        showSuccess('Configuration created successfully!');
       }
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
       resetForm();
       fetchAllSettings();
     } catch (error) {
-      console.error('Failed to save settings:', error);
+      console.error("Failed to save settings:", error);
+      showError('Failed to save configuration');
     } finally {
       setSaving(false);
     }
@@ -81,19 +90,22 @@ const Settings = () => {
       accessToken: settings.accessToken,
       verifyToken: settings.verifyToken,
       language: settings.language,
-      isDefault: settings.isDefault
+      isDefault: settings.isDefault,
     });
     setEditingId(settings.id);
     setShowForm(true);
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this configuration?')) {
+    const confirmed = await showConfirm('Are you sure you want to delete this configuration?');
+    if (confirmed) {
       try {
         await deleteSettings(id);
+        showSuccess('Configuration deleted successfully!');
         fetchAllSettings();
       } catch (error) {
-        console.error('Failed to delete settings:', error);
+        console.error("Failed to delete settings:", error);
+        showError('Failed to delete configuration');
       }
     }
   };
@@ -101,9 +113,11 @@ const Settings = () => {
   const handleSetDefault = async (id) => {
     try {
       await setDefaultSettings(id);
+      showSuccess('Default configuration updated!');
       fetchAllSettings();
     } catch (error) {
-      console.error('Failed to set default settings:', error);
+      console.error("Failed to set default settings:", error);
+      showError('Failed to set default configuration');
     }
   };
 
@@ -122,10 +136,7 @@ const Settings = () => {
           <h1>WhatsApp API Settings</h1>
           <p>Manage multiple WhatsApp Business API configurations.</p>
         </div>
-        <button 
-          className="btn-primary" 
-          onClick={() => setShowForm(true)}
-        >
+        <button className="btn-primary" onClick={() => setShowForm(true)}>
           <Plus size={16} /> Add Configuration
         </button>
       </div>
@@ -137,26 +148,46 @@ const Settings = () => {
         ) : (
           <div className="configurations-grid">
             {allSettings.map((config) => (
-              <div key={config.id} className={`config-card ${config.isDefault ? 'default' : ''}`}>
+              <div
+                key={config.id}
+                className={`config-card ${config.isDefault ? "default" : ""}`}
+              >
                 <div className="config-header">
                   <h3>{config.name}</h3>
-                  {config.isDefault && <Star size={16} className="default-icon" />}
+                  {config.isDefault && (
+                    <Star size={16} className="default-icon" />
+                  )}
                 </div>
                 <div className="config-details">
-                  <p><strong>Template:</strong> {config.templateName}</p>
-                  <p><strong>Language:</strong> {config.language}</p>
-                  <p><strong>Phone ID:</strong> {config.phoneNumberId}</p>
+                  <p>
+                    <strong>Template:</strong> {config.templateName}
+                  </p>
+                  <p>
+                    <strong>Language:</strong> {config.language}
+                  </p>
+                  <p>
+                    <strong>Phone ID:</strong> {config.phoneNumberId}
+                  </p>
                 </div>
                 <div className="config-actions">
-                  <button onClick={() => handleEdit(config)} className="btn-secondary">
+                  <button
+                    onClick={() => handleEdit(config)}
+                    className="btn-secondary"
+                  >
                     Edit
                   </button>
                   {!config.isDefault && (
-                    <button onClick={() => handleSetDefault(config.id)} className="btn-outline">
+                    <button
+                      onClick={() => handleSetDefault(config.id)}
+                      className="btn-outline"
+                    >
                       Set Default
                     </button>
                   )}
-                  <button onClick={() => handleDelete(config.id)} className="btn-danger">
+                  <button
+                    onClick={() => handleDelete(config.id)}
+                    className="btn-danger"
+                  >
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -170,8 +201,12 @@ const Settings = () => {
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
-              <h2>{editingId ? 'Edit Configuration' : 'Add New Configuration'}</h2>
-              <button onClick={resetForm} className="close-btn">×</button>
+              <h2>
+                {editingId ? "Edit Configuration" : "Add New Configuration"}
+              </h2>
+              <button onClick={resetForm} className="close-btn">
+                ×
+              </button>
             </div>
 
             <div className="settings-form">
@@ -181,7 +216,7 @@ const Settings = () => {
                   type="text"
                   placeholder="e.g. Production, Testing, Campaign A"
                   value={currentSettings.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  onChange={(e) => handleInputChange("name", e.target.value)}
                 />
               </div>
 
@@ -191,7 +226,9 @@ const Settings = () => {
                   type="text"
                   placeholder="e.g. quarterly_newsletter"
                   value={currentSettings.templateName}
-                  onChange={(e) => handleInputChange('templateName', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("templateName", e.target.value)
+                  }
                 />
               </div>
 
@@ -199,7 +236,9 @@ const Settings = () => {
                 <label>Template Language</label>
                 <select
                   value={currentSettings.language}
-                  onChange={(e) => handleInputChange('language', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("language", e.target.value)
+                  }
                 >
                   <option value="en">English</option>
                   <option value="hi">Hindi</option>
@@ -218,7 +257,9 @@ const Settings = () => {
                   type="text"
                   placeholder="Enter the unique ID for your business phone number"
                   value={currentSettings.phoneNumberId}
-                  onChange={(e) => handleInputChange('phoneNumberId', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("phoneNumberId", e.target.value)
+                  }
                 />
               </div>
 
@@ -229,7 +270,9 @@ const Settings = () => {
                     type={showAccessToken ? "text" : "password"}
                     placeholder="Enter your access token"
                     value={currentSettings.accessToken}
-                    onChange={(e) => handleInputChange('accessToken', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("accessToken", e.target.value)
+                    }
                   />
                   <button
                     type="button"
@@ -248,7 +291,9 @@ const Settings = () => {
                     type={showVerifyToken ? "text" : "password"}
                     placeholder="Enter your verify token"
                     value={currentSettings.verifyToken}
-                    onChange={(e) => handleInputChange('verifyToken', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("verifyToken", e.target.value)
+                    }
                   />
                   <button
                     type="button"
@@ -265,7 +310,9 @@ const Settings = () => {
                   <input
                     type="checkbox"
                     checked={currentSettings.isDefault}
-                    onChange={(e) => handleInputChange('isDefault', e.target.checked)}
+                    onChange={(e) =>
+                      handleInputChange("isDefault", e.target.checked)
+                    }
                   />
                   Set as default configuration
                 </label>
@@ -275,8 +322,16 @@ const Settings = () => {
                 <button className="btn-secondary" onClick={resetForm}>
                   Cancel
                 </button>
-                <button className="btn-primary" onClick={handleSaveConfiguration} disabled={saving}>
-                  {saving ? 'Saving...' : editingId ? 'Update Configuration' : 'Save Configuration'}
+                <button
+                  className="btn-primary"
+                  onClick={handleSaveConfiguration}
+                  disabled={saving}
+                >
+                  {saving
+                    ? "Saving..."
+                    : editingId
+                    ? "Update Configuration"
+                    : "Save Configuration"}
                 </button>
               </div>
             </div>
@@ -284,12 +339,7 @@ const Settings = () => {
         </div>
       )}
 
-      {showSuccess && (
-        <div className="success-message">
-          <CheckCircle size={20} />
-          Configuration saved successfully!
-        </div>
-      )}
+
     </div>
   );
 };

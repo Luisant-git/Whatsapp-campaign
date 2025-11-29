@@ -320,9 +320,10 @@ export class WhatsappController {
   @Get('campaigns')
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Get all campaigns' })
+  @ApiQuery({ name: 'settingsName', required: false, description: 'Filter by settings name' })
   @ApiResponse({ status: 200, description: 'Campaigns retrieved successfully', type: [CampaignResponseDto] })
-  async getCampaigns(@Session() session: any) {
-    return this.campaignService.getCampaigns(session.user.id);
+  async getCampaigns(@Session() session: any, @Query('settingsName') settingsName?: string) {
+    return this.campaignService.getCampaigns(session.user.id, settingsName);
   }
 
   @Get('campaigns/:id')

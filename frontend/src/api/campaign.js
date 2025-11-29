@@ -1,7 +1,11 @@
 import { API_BASE_URL } from './config';
 
-export const getAllCampaigns = async () => {
-  const response = await fetch(`${API_BASE_URL}/whatsapp/campaigns`, {
+export const getAllCampaigns = async (settingsName = null) => {
+  const url = settingsName 
+    ? `${API_BASE_URL}/whatsapp/campaigns?settingsName=${settingsName}`
+    : `${API_BASE_URL}/whatsapp/campaigns`;
+    
+  const response = await fetch(url, {
     credentials: 'include',
   });
 

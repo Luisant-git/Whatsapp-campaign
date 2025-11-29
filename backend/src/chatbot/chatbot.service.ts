@@ -15,13 +15,25 @@ export class ChatbotService {
   }
 
   async uploadDocument(userId: number, uploadDocumentDto: UploadDocumentDto) {
-    return this.prisma.document.create({
-      data: {
-        filename: uploadDocumentDto.filename,
-        content: uploadDocumentDto.content,
-        userId,
-      },
-    });
+    if (!uploadDocumentDto.content || uploadDocumentDto.content.trim() === '') {
+      throw new Error('Document content is required and cannot be empty');
+    }
+
+    if (!uploadDocumentDto.filename) {
+      throw new Error('Document filename is required');
+    }
+    
+    try {
+      return await this.prisma.document.create({
+        data: {
+          filename: uploadDocumentDto.filename,
+          content: uploadDocumentDto.content.trim(),
+          userId,
+        },
+      });
+    } catch (error) {
+      throw new Error(`Failed to save document: ${error.message}`);
+    }
   }
 
   async processMessage(userId: number, chatMessageDto: ChatMessageDto) {

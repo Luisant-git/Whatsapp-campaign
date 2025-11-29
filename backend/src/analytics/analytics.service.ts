@@ -6,9 +6,20 @@ import { AnalyticsDto } from './dto/analytics.dto';
 export class AnalyticsService {
   constructor(private prisma: PrismaService) {}
 
-  async getAnalytics(): Promise<AnalyticsDto> {
+  async getAnalytics(userId: number, settingsName?: string): Promise<AnalyticsDto> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    // Build campaign filter
+    let campaignFilter: any = { campaign: { userId } };
+    if (settingsName) {
+      const settings = await this.prisma.whatsAppSettings.findFirst({
+        where: { name: settingsName }
+      });
+      if (settings) {
+        campaignFilter.campaign = { userId, templateName: settings.templateName };
+      }
+    }
 
     const [
       totalMessages,
@@ -19,13 +30,13 @@ export class AnalyticsService {
       messagesByStatus,
       dailyStats
     ] = await Promise.all([
-      this.getTotalMessages(),
-      this.getTodayMessages(today),
-      this.getSuccessfulDeliveries(),
-      this.getFailedMessages(),
-      this.getTotalContacts(),
-      this.getMessagesByStatus(),
-      this.getDailyStats()
+      this.getTotalMessages(campaignFilter),
+      this.getTodayMessages(today, campaignFilter),
+      this.getSuccessfulDeliveries(campaignFilter),
+      this.getFailedMessages(campaignFilter),
+      this.getTotalContacts(campaignFilter),
+      this.getMessagesByStatus(campaignFilter),
+      this.getDailyStats(campaignFilter)
     ]);
 
     const deliveryRate = totalMessages > 0 ? (successfulDeliveries / totalMessages) * 100 : 0;
@@ -42,13 +53,14 @@ export class AnalyticsService {
     };
   }
 
-  private async getTotalMessages(): Promise<number> {
-    return this.prisma.whatsAppMessage.count();
+  private async getTotalMessages(filter: any = {}): Promise<number> {
+    return this.prisma.campaignMessage.count({ where: filter });
   }
 
-  private async getTodayMessages(today: Date): Promise<number> {
-    return this.prisma.whatsAppMessage.count({
+  private async getTodayMessages(today: Date, filter: any = {}): Promise<number> {
+    return this.prisma.campaignMessage.count({
       where: {
+        ...filter,
         createdAt: {
           gte: today
         }
@@ -56,35 +68,39 @@ export class AnalyticsService {
     });
   }
 
-  private async getSuccessfulDeliveries(): Promise<number> {
-    return this.prisma.whatsAppMessage.count({
+  private async getSuccessfulDeliveries(filter: any = {}): Promise<number> {
+    return this.prisma.campaignMessage.count({
       where: {
+        ...filter,
         status: {
-          in: ['delivered', 'read']
+          in: ['delivered', 'read', 'sent']
         }
       }
     });
   }
 
-  private async getFailedMessages(): Promise<number> {
-    return this.prisma.whatsAppMessage.count({
+  private async getFailedMessages(filter: any = {}): Promise<number> {
+    return this.prisma.campaignMessage.count({
       where: {
+        ...filter,
         status: 'failed'
       }
     });
   }
 
-  private async getTotalContacts(): Promise<number> {
-    const result = await this.prisma.whatsAppMessage.findMany({
-      select: { to: true },
-      distinct: ['to']
+  private async getTotalContacts(filter: any = {}): Promise<number> {
+    const result = await this.prisma.campaignMessage.findMany({
+      where: filter,
+      select: { phone: true },
+      distinct: ['phone']
     });
     return result.length;
   }
 
-  private async getMessagesByStatus() {
-    const statusCounts = await this.prisma.whatsAppMessage.groupBy({
+  private async getMessagesByStatus(filter: any = {}) {
+    const statusCounts = await this.prisma.campaignMessage.groupBy({
       by: ['status'],
+      where: filter,
       _count: {
         status: true
       }
@@ -98,12 +114,13 @@ export class AnalyticsService {
     };
   }
 
-  private async getDailyStats() {
+  private async getDailyStats(filter: any = {}) {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const messages = await this.prisma.whatsAppMessage.findMany({
+    const messages = await this.prisma.campaignMessage.findMany({
       where: {
+        ...filter,
         createdAt: {
           gte: sevenDaysAgo
         }
@@ -128,7 +145,7 @@ export class AnalyticsService {
       const dayStats = dailyMap.get(dateStr);
       if (dayStats) {
         dayStats.sent++;
-        if (message.status === 'delivered' || message.status === 'read') {
+        if (message.status === 'delivered' || message.status === 'read' || message.status === 'sent') {
           dayStats.delivered++;
         } else if (message.status === 'failed') {
           dayStats.failed++;

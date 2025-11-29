@@ -50,11 +50,13 @@ export class WhatsappService {
       mediaUrl = await this.downloadMedia(audio.id, userId);
     }
 
+    this.logger.log(`Storing incoming message: from=${from}, to=${from}, message=${text}`);
+    
     await this.prisma.whatsAppMessage.create({
       data: {
         messageId,
-        to: from,
-        from,
+        to: from, // This should be the business number, but we're setting it to customer number
+        from, // This is the customer's number
         message: text || (mediaType ? `${mediaType} file` : null),
         mediaType,
         mediaUrl,
@@ -254,6 +256,44 @@ export class WhatsappService {
     }
   }
 
+  async findUserByPhoneNumberId(phoneNumberId: string): Promise<number | null> {
+    try {
+      const settings = await this.prisma.whatsAppSettings.findFirst({
+        where: { phoneNumberId },
+        select: { userId: true }
+      });
+      return settings?.userId || null;
+    } catch (error) {
+      this.logger.error('Error finding user by phone number ID:', error);
+      return null;
+    }
+  }
+
+  async findFirstActiveUser(): Promise<number | null> {
+    try {
+      const user = await this.prisma.user.findFirst({
+        where: { isActive: true },
+        select: { id: true }
+      });
+      return user?.id || null;
+    } catch (error) {
+      this.logger.error('Error finding first active user:', error);
+      return null;
+    }
+  }
+
+  async validateVerifyToken(token: string): Promise<boolean> {
+    try {
+      const settings = await this.prisma.whatsAppSettings.findFirst({
+        where: { verifyToken: token }
+      });
+      return !!settings;
+    } catch (error) {
+      this.logger.error('Error validating verify token:', error);
+      return false;
+    }
+  }
+
   async getMessages(userId: number, phoneNumber?: string) {
     return this.prisma.whatsAppMessage.findMany({
       where: { userId, ...(phoneNumber && { from: phoneNumber }) },
@@ -314,8 +354,16 @@ export class WhatsappService {
     return results;
   }
 
-  async sendBulkTemplateMessageWithNames(contacts: Array<{name: string; phone: string}>, templateName: string, userId: number) {
-    const settings = await this.getSettings(userId);
+  async sendBulkTemplateMessageWithNames(contacts: Array<{name: string; phone: string}>, templateName: string, userId: number, settingsId?: number) {
+    let settings;
+    if (settingsId) {
+      settings = await this.prisma.whatsAppSettings.findUnique({ where: { id: settingsId } });
+      if (!settings) {
+        throw new Error('Specified settings not found');
+      }
+    } else {
+      settings = await this.getSettings(userId);
+    }
     const results: Array<{ phoneNumber: string; success: boolean; messageId?: string; error?: string }> = [];
    
     for (const contact of contacts) {

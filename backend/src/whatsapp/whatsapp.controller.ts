@@ -13,7 +13,8 @@ import {
   HttpStatus,
   HttpException,
   Session,
-  UseGuards
+  UseGuards,
+  Res
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -38,14 +39,18 @@ export class WhatsappController {
   @ApiQuery({ name: 'hub.challenge', required: true })
   @ApiResponse({ status: 200, description: 'Webhook verified successfully' })
   @ApiResponse({ status: 403, description: 'Forbidden - Invalid token' })
-  verifyWebhook(@Query() query: any) {
+  async verifyWebhook(@Query() query: any) {
     const mode = query['hub.mode'];
     const token = query['hub.verify_token'];
     const challenge = query['hub.challenge'];
 
-    if (mode === 'subscribe' && token === process.env.WHATSAPP_VERIFY_TOKEN) {
-      console.log('Webhook verified');
-      return parseInt(challenge);
+    if (mode === 'subscribe') {
+      // Check if token matches any user's verify token
+      const isValidToken = await this.whatsappService.validateVerifyToken(token);
+      if (isValidToken) {
+        console.log('Webhook verified');
+        return parseInt(challenge);
+      }
     }
     throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);
   }
@@ -64,8 +69,20 @@ export class WhatsappController {
             const message = change.value.messages?.[0];
             if (message) {
               console.log('Processing incoming message:', message);
-              // For webhook, use a default userId or handle differently
-              await this.whatsappService.handleIncomingMessage(message, 1);
+              // Find the user based on phone number ID from webhook metadata
+              const phoneNumberId = change.value.metadata?.phone_number_id;
+              let userId = await this.whatsappService.findUserByPhoneNumberId(phoneNumberId);
+              
+              // Fallback: if no user found, try to find by any active user (for single-user setups)
+              if (!userId) {
+                userId = await this.whatsappService.findFirstActiveUser();
+              }
+              
+              if (userId) {
+                await this.whatsappService.handleIncomingMessage(message, userId);
+              } else {
+                console.log('No user found for phone number ID:', phoneNumberId);
+              }
             }
             const statuses = change.value.statuses;
             if (statuses) {
@@ -370,6 +387,34 @@ export class WhatsappController {
     return this.campaignService.getCampaigns(session.user.id).then(campaigns => 
       campaigns.filter(c => c.status === 'scheduled')
     );
+  }
+
+  @Get('campaigns/:id/results')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Get campaign results with response tracking' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiResponse({ status: 200, description: 'Campaign results retrieved successfully' })
+  async getCampaignResults(@Session() session: any, @Param('id') id: string) {
+    return this.campaignService.getCampaignResults(parseInt(id), session.user.id);
+  }
+
+  @Get('campaigns/:id/results/download')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Download campaign results as CSV or Excel' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiQuery({ name: 'format', enum: ['csv', 'xlsx'], description: 'Download format' })
+  @ApiResponse({ status: 200, description: 'Campaign results file downloaded' })
+  async downloadCampaignResults(
+    @Session() session: any, 
+    @Param('id') id: string,
+    @Query('format') format: 'csv' | 'xlsx' = 'csv',
+    @Res() res: any
+  ) {
+    const result = await this.campaignService.downloadCampaignResults(parseInt(id), session.user.id, format);
+    
+    res.setHeader('Content-Type', result.contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.send(result.data);
   }
 
 }

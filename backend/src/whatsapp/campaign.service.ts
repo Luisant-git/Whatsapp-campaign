@@ -193,11 +193,12 @@ export class CampaignService {
           failedCount++;
         }
 
-        // Store campaign message result
+        // Store campaign message result with formatted phone number
+        const formattedPhone = messageResult.phoneNumber || contact.phone;
         await this.prisma.campaignMessage.create({
           data: {
             messageId: messageResult.messageId || null,
-            phone: contact.phone,
+            phone: formattedPhone,
             name: contact.name,
             status,
             error: messageResult.error || null,
@@ -206,7 +207,7 @@ export class CampaignService {
         });
 
         results.push({
-          phone: contact.phone,
+          phone: formattedPhone,
           name: contact.name,
           success: messageResult.success,
           messageId: messageResult.messageId,
@@ -217,9 +218,11 @@ export class CampaignService {
         failedCount++;
         this.logger.error(`Failed to send to ${contact.phone}:`, error);
         
+        // Use formatted phone for failed messages too
+        const formattedPhone = this.formatPhoneNumber(contact.phone);
         await this.prisma.campaignMessage.create({
           data: {
-            phone: contact.phone,
+            phone: formattedPhone,
             name: contact.name,
             status: 'failed',
             error: error.message,
@@ -228,7 +231,7 @@ export class CampaignService {
         });
 
         results.push({
-          phone: contact.phone,
+          phone: formattedPhone,
           name: contact.name,
           success: false,
           error: error.message
@@ -290,14 +293,29 @@ export class CampaignService {
       campaign.messages.map(async (message) => {
         // Check if customer responded after the campaign message was sent
         // Try different phone number formats to handle potential mismatches
+        const cleanPhone = message.phone.replace(/[^0-9]/g, '');
         const phoneVariations = [
-          message.phone,
-          message.phone.replace(/^\+/, ''), // Remove + prefix
-          `+${message.phone}`, // Add + prefix
-          message.phone.replace(/[^0-9]/g, '') // Remove all non-digits
-        ];
+          message.phone, // Original format
+          cleanPhone, // Digits only
+          `+${cleanPhone}`, // With + prefix
+          cleanPhone.length === 10 && /^[6-9]/.test(cleanPhone) ? `91${cleanPhone}` : cleanPhone, // Add India code if 10 digits
+          cleanPhone.startsWith('91') ? cleanPhone.substring(2) : cleanPhone // Remove India code if present
+        ].filter((phone, index, arr) => arr.indexOf(phone) === index); // Remove duplicates
 
         this.logger.log(`Checking responses for campaign message to ${message.phone}, variations: ${phoneVariations.join(', ')}`);
+
+        // Debug: Check all incoming messages for this user
+        const allIncoming = await this.prisma.whatsAppMessage.findMany({
+          where: {
+            userId,
+            direction: 'incoming',
+            createdAt: {
+              gte: message.createdAt
+            }
+          },
+          select: { from: true, message: true, createdAt: true }
+        });
+        this.logger.log(`All incoming messages since campaign: ${JSON.stringify(allIncoming)}`);
 
         const responses = await this.prisma.whatsAppMessage.findMany({
           where: {
@@ -375,6 +393,18 @@ export class CampaignService {
         contentType: 'text/csv'
       };
     }
+  }
+
+  private formatPhoneNumber(phone: string): string {
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    
+    // If phone number is 10 digits and starts with 6-9, add India country code
+    if (cleanPhone.length === 10 && /^[6-9]/.test(cleanPhone)) {
+      return `91${cleanPhone}`;
+    }
+    
+    // If already has country code, return as is
+    return cleanPhone;
   }
 
   private convertToCSV(data: any[]): string {

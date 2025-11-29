@@ -23,6 +23,7 @@ const BulkWhatsApp = () => {
   const [scheduleType, setScheduleType] = useState("one-time");
   const [scheduledDays, setScheduledDays] = useState([]);
   const [scheduledTime, setScheduledTime] = useState("09:00");
+  const [campaignName, setCampaignName] = useState("");
 
   const daysOfWeek = [
     { value: "sunday", label: "Sunday" },
@@ -113,12 +114,23 @@ const BulkWhatsApp = () => {
       return;
     }
 
+    if (!campaignName.trim()) {
+      showError("Please enter a campaign name");
+      return;
+    }
+
+    if (!templateName.trim()) {
+      showError("Template name is required. Please check your settings.");
+      return;
+    }
+
     if (scheduleType === "time-based" && scheduledDays.length === 0) {
       showError("Please select at least one day for time-based scheduling");
       return;
     }
 
     const campaignData = {
+      name: campaignName,
       contacts: dataToSend,
       templateName,
       scheduleType,
@@ -185,6 +197,19 @@ const BulkWhatsApp = () => {
 
       <div className="content-grid">
         <div className="form-section">
+          <div className="form-group">
+            <label className="form-label">
+              Campaign Name <span className="required">*</span>
+            </label>
+            <input
+              type="text"
+              className="form-input"
+              value={campaignName}
+              onChange={(e) => setCampaignName(e.target.value)}
+              placeholder="Enter campaign name (e.g., Black Friday Sale, New Year Offer)"
+            />
+          </div>
+
           <div className="form-group">
             <label className="form-label">
               Template Name <span className="required">*</span>

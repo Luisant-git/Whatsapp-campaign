@@ -4,18 +4,13 @@ import { API_BASE_URL } from '../api/config';
 import { getMessages, sendMessage, sendMediaMessage } from '../api/whatsapp';
 import '../styles/WhatsAppChat.scss';
 
-// Lucide Icons as SVG components
+// Simple play/pause icons
 const PlayIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <polygon points="5,3 19,12 5,21" />
-  </svg>
+  <span style={{ fontSize: '16px', color: 'inherit' }}>▶</span>
 );
 
 const PauseIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <rect x="6" y="4" width="4" height="16" />
-    <rect x="14" y="4" width="4" height="16" />
-  </svg>
+  <span style={{ fontSize: '16px', color: 'inherit' }}>⏸</span>
 );
 
 const MicIcon = () => (
@@ -42,7 +37,7 @@ const WhatsAppChat = () => {
   });
   const [playingAudio, setPlayingAudio] = useState(null);
   const [audioDurations, setAudioDurations] = useState({});
-  const [audioProgress, setAudioProgress] = useState({});
+  const [audioCurrentTime, setAudioCurrentTime] = useState({});
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const audioRefs = useRef({});
@@ -256,12 +251,14 @@ const WhatsAppChat = () => {
     const duration = audioElement.duration;
     if (!isNaN(currentTime) && !isNaN(duration)) {
       setAudioProgress(prev => ({ ...prev, [audioId]: (currentTime / duration) * 100 }));
+      setAudioCurrentTime(prev => ({ ...prev, [audioId]: currentTime }));
     }
   };
 
   const handleAudioEnded = (audioId) => {
     setPlayingAudio(null);
     setAudioProgress(prev => ({ ...prev, [audioId]: 0 }));
+    setAudioCurrentTime(prev => ({ ...prev, [audioId]: 0 }));
   };
 
   const formatAudioTime = (seconds) => {
@@ -371,14 +368,15 @@ const WhatsAppChat = () => {
                           const isPlaying = playingAudio === audioId;
                           const progress = audioProgress[audioId] || 0;
                           const duration = audioDurations[audioId] || 0;
+                          const currentTime = audioCurrentTime[audioId] || 0;
                           
                           return (
                             <div className="whatsapp-audio-message">
                               <div className="audio-icon">
                                 <MicIcon />
                               </div>
-                              <button 
-                                className="audio-play-button"
+                              <div 
+                                className="audio-play-icon"
                                 onClick={() => {
                                   const audioElement = audioRefs.current[audioId];
                                   if (audioElement) {
@@ -387,7 +385,7 @@ const WhatsAppChat = () => {
                                 }}
                               >
                                 {isPlaying ? <PauseIcon /> : <PlayIcon />}
-                              </button>
+                              </div>
                               <div className="audio-progress-container">
                                 <div className="audio-progress-bar">
                                   <div 
@@ -398,7 +396,7 @@ const WhatsAppChat = () => {
                                 </div>
                               </div>
                               <span className="audio-time">
-                                {formatAudioTime(duration)}
+                                {isPlaying ? formatAudioTime(currentTime) : formatAudioTime(duration)}
                               </span>
                               <audio 
                                 ref={(el) => {

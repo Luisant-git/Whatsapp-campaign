@@ -37,6 +37,7 @@ const WhatsAppChat = () => {
   });
   const [playingAudio, setPlayingAudio] = useState(null);
   const [audioDurations, setAudioDurations] = useState({});
+  const [audioProgress, setAudioProgress] = useState({});
   const [audioCurrentTime, setAudioCurrentTime] = useState({});
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);

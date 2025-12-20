@@ -11,12 +11,18 @@ const WhatsAppChat = () => {
   const [chats, setChats] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [dateFilter, setDateFilter] = useState('all');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState('');
   const [readMessages, setReadMessages] = useState(() => {
     const saved = localStorage.getItem('readMessages');
     return saved ? JSON.parse(saved) : {};
   });
+  const [playingAudio, setPlayingAudio] = useState(null);
+  const [audioDurations, setAudioDurations] = useState({});
+  const [audioProgress, setAudioProgress] = useState({});
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const audioRefs = useRef({});
  
   useEffect(() => {
     if (API_BASE_URL) {
@@ -110,6 +116,12 @@ const WhatsAppChat = () => {
     return groups;
   };
 
+  const handleDateFilter = (date) => {
+    setSelectedDate(date);
+    setDateFilter('custom');
+    setShowDatePicker(false);
+  };
+
   const filterMessagesByDate = (messages) => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -126,6 +138,13 @@ const WhatsAppChat = () => {
       if (dateFilter === 'yesterday') return msgDate >= yesterday && msgDate < today;
       if (dateFilter === 'week') return msgDate >= lastWeek;
       if (dateFilter === 'month') return msgDate >= lastMonth;
+      if (dateFilter === 'custom' && selectedDate) {
+        const selected = new Date(selectedDate);
+        const selectedStart = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate());
+        const selectedEnd = new Date(selectedStart);
+        selectedEnd.setDate(selectedEnd.getDate() + 1);
+        return msgDate >= selectedStart && msgDate < selectedEnd;
+      }
       return true;
     });
   };
@@ -141,15 +160,92 @@ const WhatsAppChat = () => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const getFileIcon = (mediaType, fileName) => {
-    if (mediaType === 'document') {
-      const ext = fileName?.split('.').pop()?.toLowerCase();
-      if (ext === 'pdf') return '📕';
-      if (['doc', 'docx'].includes(ext)) return '📘';
-      if (['xls', 'xlsx'].includes(ext)) return '📗';
-      return '📄';
+  const getFileIcon = (fileName) => {
+    const ext = fileName?.split('.').pop()?.toLowerCase();
+    if (ext === 'pdf') return (
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+        <rect width="40" height="40" rx="8" fill="#DC4C3E"/>
+        <path d="M12 28V12h6c2.2 0 4 1.8 4 4s-1.8 4-4 4h-2v8h-4zm4-12v4h2c1.1 0 2-.9 2-2s-.9-2-2-2h-2z" fill="white"/>
+      </svg>
+    );
+    if (['doc', 'docx'].includes(ext)) return (
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+        <rect width="40" height="40" rx="8" fill="#2B579A"/>
+        <path d="M12 28V12h4l2 8 2-8h4v16h-3v-10l-2 6h-2l-2-6v10h-3z" fill="white"/>
+      </svg>
+    );
+    if (['xls', 'xlsx'].includes(ext)) return (
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+        <rect width="40" height="40" rx="8" fill="#217346"/>
+        <path d="M12 28V12h4v6h4v-6h4v16h-4v-6h-4v6h-4z" fill="white"/>
+      </svg>
+    );
+    if (['ppt', 'pptx'].includes(ext)) return (
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+        <rect width="40" height="40" rx="8" fill="#D24726"/>
+        <path d="M12 28V12h6c2.2 0 4 1.8 4 4s-1.8 4-4 4h-2v8h-4zm4-12v4h2c1.1 0 2-.9 2-2s-.9-2-2-2h-2z" fill="white"/>
+      </svg>
+    );
+    return (
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+        <rect width="40" height="40" rx="8" fill="#8696A0"/>
+        <path d="M20 12l6 6v10c0 1.1-.9 2-2 2H16c-1.1 0-2-.9-2-2V14c0-1.1.9-2 2-2h4z" fill="white"/>
+        <path d="M20 12v6h6" fill="none" stroke="#8696A0" strokeWidth="2"/>
+      </svg>
+    );
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  const handleAudioPlay = (audioId, audioElement) => {
+    if (playingAudio && playingAudio !== audioId) {
+      const prevAudio = audioRefs.current[playingAudio];
+      if (prevAudio) {
+        prevAudio.pause();
+        prevAudio.currentTime = 0;
+      }
     }
-    return '📄';
+
+    if (playingAudio === audioId) {
+      audioElement.pause();
+      setPlayingAudio(null);
+    } else {
+      audioElement.play();
+      setPlayingAudio(audioId);
+    }
+  };
+
+  const handleAudioLoadedMetadata = (audioId, audioElement) => {
+    const duration = audioElement.duration;
+    if (!isNaN(duration)) {
+      setAudioDurations(prev => ({ ...prev, [audioId]: duration }));
+    }
+  };
+
+  const handleAudioTimeUpdate = (audioId, audioElement) => {
+    const currentTime = audioElement.currentTime;
+    const duration = audioElement.duration;
+    if (!isNaN(currentTime) && !isNaN(duration)) {
+      setAudioProgress(prev => ({ ...prev, [audioId]: (currentTime / duration) * 100 }));
+    }
+  };
+
+  const handleAudioEnded = (audioId) => {
+    setPlayingAudio(null);
+    setAudioProgress(prev => ({ ...prev, [audioId]: 0 }));
+  };
+
+  const formatAudioTime = (seconds) => {
+    if (isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const filteredMessages = selectedChat
@@ -193,14 +289,37 @@ const WhatsAppChat = () => {
           <>
             <div className="chat-header">
               <h3>{selectedChat}</h3>
-              <div className="date-filter">
-                <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}>
-                  <option value="all">All Messages</option>
-                  <option value="today">Today</option>
-                  <option value="yesterday">Yesterday</option>
-                  <option value="week">Last 7 Days</option>
-                  <option value="month">Last 30 Days</option>
-                </select>
+              <div className="header-actions">
+                <div className="date-filter">
+                  <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}>
+                    <option value="all">All Messages</option>
+                    <option value="today">Today</option>
+                    <option value="yesterday">Yesterday</option>
+                    <option value="week">Last 7 Days</option>
+                    <option value="month">Last 30 Days</option>
+                    {selectedDate && <option value="custom">Selected Date</option>}
+                  </select>
+                </div>
+                <div className="calendar-picker">
+                  <button 
+                    className="calendar-btn"
+                    onClick={() => setShowDatePicker(!showDatePicker)}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+                    </svg>
+                  </button>
+                  {showDatePicker && (
+                    <div className="date-picker-dropdown">
+                      <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => handleDateFilter(e.target.value)}
+                        max={new Date().toISOString().split('T')[0]}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             <div className="chat-messages">
@@ -224,35 +343,92 @@ const WhatsAppChat = () => {
                             e.target.style.display = 'none';
                           }} />
                         )}
-                        {msg.mediaType === 'audio' && msg.mediaUrl && (
-                          <div className="audio-message">
-                            <button className="audio-play-btn">
-                              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M8 5v14l11-7z"/>
-                              </svg>
-                            </button>
-                            <div className="audio-waveform">
-                              <div className="waveform-bar"></div>
-                              <div className="waveform-bar"></div>
-                              <div className="waveform-bar"></div>
-                              <div className="waveform-bar"></div>
-                              <div className="waveform-bar"></div>
-                              <div className="waveform-bar"></div>
-                              <div className="waveform-bar"></div>
-                              <div className="waveform-bar"></div>
-                              <div className="waveform-bar"></div>
-                              <div className="waveform-bar"></div>
+                        {msg.mediaType === 'audio' && msg.mediaUrl && (() => {
+                          const audioId = `audio-${msg.id}`;
+                          const isPlaying = playingAudio === audioId;
+                          const progress = audioProgress[audioId] || 0;
+                          const duration = audioDurations[audioId] || 0;
+                          
+                          return (
+                            <div className="audio-message">
+                              <button 
+                                className="audio-play-btn"
+                                onClick={() => {
+                                  const audioElement = audioRefs.current[audioId];
+                                  if (audioElement) {
+                                    handleAudioPlay(audioId, audioElement);
+                                  }
+                                }}
+                              >
+                                {isPlaying ? (
+                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                                  </svg>
+                                ) : (
+                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M8 5v14l11-7z"/>
+                                  </svg>
+                                )}
+                              </button>
+                              <div className="audio-waveform">
+                                <div className="waveform-progress" style={{ width: `${progress}%` }}></div>
+                                <div className="waveform-bar"></div>
+                                <div className="waveform-bar"></div>
+                                <div className="waveform-bar"></div>
+                                <div className="waveform-bar"></div>
+                                <div className="waveform-bar"></div>
+                                <div className="waveform-bar"></div>
+                                <div className="waveform-bar"></div>
+                                <div className="waveform-bar"></div>
+                                <div className="waveform-bar"></div>
+                                <div className="waveform-bar"></div>
+                              </div>
+                              <span className="audio-duration">
+                                {formatAudioTime(duration)}
+                              </span>
+                              <audio 
+                                ref={(el) => {
+                                  if (el) {
+                                    audioRefs.current[audioId] = el;
+                                  }
+                                }}
+                                src={msg.mediaUrl}
+                                onLoadedMetadata={(e) => handleAudioLoadedMetadata(audioId, e.target)}
+                                onTimeUpdate={(e) => handleAudioTimeUpdate(audioId, e.target)}
+                                onEnded={() => handleAudioEnded(audioId)}
+                                style={{display: 'none'}} 
+                              />
                             </div>
-                            <span className="audio-duration">0:00</span>
-                            <audio src={msg.mediaUrl} style={{display: 'none'}} />
-                          </div>
-                        )}
+                          );
+                        })()}
                         {msg.mediaType === 'document' && msg.mediaUrl && (
-                          <a href={msg.mediaUrl} target="_blank" rel="noopener noreferrer" className="message-document">
-                            <span className="doc-icon">{getFileIcon(msg.mediaType, msg.mediaUrl)}</span>
-                            <span className="doc-name">{msg.mediaUrl.split('/').pop() || 'Document'}</span>
-                            <span className="doc-download">⬇</span>
-                          </a>
+                          <div className="document-message">
+                            <div className="document-icon">
+                              {getFileIcon(msg.mediaUrl)}
+                            </div>
+                            <div className="document-info">
+                              <div className="document-name">
+                                {msg.mediaUrl.split('/').pop()?.split('.')[0] || 'Document'}
+                              </div>
+                              <div className="document-details">
+                                <span className="document-type">
+                                  {msg.mediaUrl.split('.').pop()?.toUpperCase() || 'FILE'}
+                                </span>
+                                <span className="document-size">•</span>
+                                <span className="document-size">{formatFileSize(1024)}</span>
+                              </div>
+                            </div>
+                            <a 
+                              href={msg.mediaUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="document-download"
+                            >
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                              </svg>
+                            </a>
+                          </div>
                         )}
                         {msg.message && !msg.message.endsWith(' file') && <p>{msg.message}</p>}
                         <span className="message-time">

@@ -3,6 +3,29 @@ import toast from 'react-hot-toast';
 import { API_BASE_URL } from '../api/config';
 import { getMessages, sendMessage, sendMediaMessage } from '../api/whatsapp';
 import '../styles/WhatsAppChat.scss';
+
+// Lucide Icons as SVG components
+const PlayIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polygon points="5,3 19,12 5,21" />
+  </svg>
+);
+
+const PauseIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="6" y="4" width="4" height="16" />
+    <rect x="14" y="4" width="4" height="16" />
+  </svg>
+);
+
+const MicIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+    <path d="M19 10v1a7 7 0 0 1-14 0v-1" fill="none" stroke="currentColor" strokeWidth="2" />
+    <line x1="12" x2="12" y1="19" y2="23" stroke="currentColor" strokeWidth="2" />
+    <line x1="8" x2="16" y1="23" y2="23" stroke="currentColor" strokeWidth="2" />
+  </svg>
+);
  
 const WhatsAppChat = () => {
   const [messages, setMessages] = useState([]);
@@ -350,9 +373,12 @@ const WhatsAppChat = () => {
                           const duration = audioDurations[audioId] || 0;
                           
                           return (
-                            <div className="audio-message">
+                            <div className="whatsapp-audio-message">
+                              <div className="audio-icon">
+                                <MicIcon />
+                              </div>
                               <button 
-                                className="audio-play-btn"
+                                className="audio-play-button"
                                 onClick={() => {
                                   const audioElement = audioRefs.current[audioId];
                                   if (audioElement) {
@@ -360,30 +386,18 @@ const WhatsAppChat = () => {
                                   }
                                 }}
                               >
-                                {isPlaying ? (
-                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
-                                  </svg>
-                                ) : (
-                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M8 5v14l11-7z"/>
-                                  </svg>
-                                )}
+                                {isPlaying ? <PauseIcon /> : <PlayIcon />}
                               </button>
-                              <div className="audio-waveform">
-                                <div className="waveform-progress" style={{ width: `${progress}%` }}></div>
-                                <div className="waveform-bar"></div>
-                                <div className="waveform-bar"></div>
-                                <div className="waveform-bar"></div>
-                                <div className="waveform-bar"></div>
-                                <div className="waveform-bar"></div>
-                                <div className="waveform-bar"></div>
-                                <div className="waveform-bar"></div>
-                                <div className="waveform-bar"></div>
-                                <div className="waveform-bar"></div>
-                                <div className="waveform-bar"></div>
+                              <div className="audio-progress-container">
+                                <div className="audio-progress-bar">
+                                  <div 
+                                    className="audio-progress-fill" 
+                                    style={{ width: `${progress}%` }}
+                                  ></div>
+                                  <div className="audio-progress-dot" style={{ left: `${progress}%` }}></div>
+                                </div>
                               </div>
-                              <span className="audio-duration">
+                              <span className="audio-time">
                                 {formatAudioTime(duration)}
                               </span>
                               <audio 

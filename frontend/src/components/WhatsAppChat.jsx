@@ -449,7 +449,7 @@ const WhatsAppChat = () => {
                               <div className="document-header">
                                 {getFileIcon(msg.mediaUrl)}
                                 <div className="document-title">
-                                  {msg.mediaUrl.split('/').pop()?.replace(/\.[^/.]+$/, '') || '20000-Leagues-Under-the-Sea-...'}
+                                  {msg.mediaUrl ? (msg.mediaUrl.split('/').pop()?.replace(/\.[^/.]+$/, '') || msg.fileName || 'Document') : (msg.fileName || 'Document')}
                                 </div>
                                 <a 
                                   href={msg.mediaUrl} 

@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import toast from 'react-hot-toast'
 import { loginUser } from '../api/auth'
+import { useToast } from '../contexts/ToastContext'
 import '../styles/Login.css'
 
 function Login({ onLogin }) {
+  const { showSuccess, showError } = useToast()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -16,11 +17,11 @@ function Login({ onLogin }) {
     try {
       const result = await loginUser(email, password)
       localStorage.setItem('token', result.token)
-      toast.success('Login successful!')
+      showSuccess('Login successful!')
       onLogin(result.user)
     } catch (err) {
       console.error('Login error:', err);
-      toast.error(err.message || 'Login failed')
+      showError(err.message || 'Login failed')
     } finally {
       setLoading(false)
     }

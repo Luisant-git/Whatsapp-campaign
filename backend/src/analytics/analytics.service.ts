@@ -6,10 +6,57 @@ import { AnalyticsDto } from './dto/analytics.dto';
 export class AnalyticsService {
   constructor(private prisma: PrismaService) {}
 
-  async getAnalytics(): Promise<AnalyticsDto> {
+  async getAnalytics(
+    userId: number,
+    settingsName?: string,
+  ): Promise<AnalyticsDto> {
+    // Start of Today (UTC Safe)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // Base filter: all campaigns of user
+    let campaignFilter: any = {
+      campaign: {
+        userId,
+      },
+    };
+
+    // Filter by settingsName (Fixed)
+    if (settingsName) {
+      const settings = await this.prisma.whatsAppSettings.findFirst({
+        where: { name: settingsName, userId },
+      });
+
+      // If settings not found: return empty safely
+      if (!settings) {
+        return {
+          totalMessages: 0,
+          todayMessages: 0,
+          successfulDeliveries: 0,
+          failedMessages: 0,
+          deliveryRate: 0,
+          totalContacts: 0,
+          messagesByStatus: {
+            sent: 0,
+            delivered: 0,
+            read: 0,
+            failed: 0,
+          },
+          dailyStats: this.getEmptyDailyStats(),
+        };
+      }
+
+      // Corrected filter ✅
+      campaignFilter.campaign = {
+        userId,
+        OR: [
+          { settingsId: settings.id },
+          { templateName: settings.templateName },
+        ],
+      };
+    }
+
+    // Run all queries in parallel
     const [
       totalMessages,
       todayMessages,
@@ -17,18 +64,19 @@ export class AnalyticsService {
       failedMessages,
       totalContacts,
       messagesByStatus,
-      dailyStats
+      dailyStats,
     ] = await Promise.all([
-      this.getTotalMessages(),
-      this.getTodayMessages(today),
-      this.getSuccessfulDeliveries(),
-      this.getFailedMessages(),
-      this.getTotalContacts(),
-      this.getMessagesByStatus(),
-      this.getDailyStats()
+      this.getTotalMessages(campaignFilter),
+      this.getTodayMessages(today, campaignFilter),
+      this.getSuccessfulDeliveries(campaignFilter),
+      this.getFailedMessages(campaignFilter),
+      this.getTotalContacts(campaignFilter),
+      this.getMessagesByStatus(campaignFilter),
+      this.getDailyStats(campaignFilter),
     ]);
 
-    const deliveryRate = totalMessages > 0 ? (successfulDeliveries / totalMessages) * 100 : 0;
+    const deliveryRate =
+      totalMessages > 0 ? (successfulDeliveries / totalMessages) * 100 : 0;
 
     return {
       totalMessages,
@@ -38,104 +86,138 @@ export class AnalyticsService {
       deliveryRate: Math.round(deliveryRate * 100) / 100,
       totalContacts,
       messagesByStatus,
-      dailyStats
+      dailyStats,
     };
   }
 
-  private async getTotalMessages(): Promise<number> {
-    return this.prisma.whatsAppMessage.count();
+  // ---------------- HELPERS ----------------
+
+  private async getTotalMessages(filter: any = {}): Promise<number> {
+    return this.prisma.campaignMessage.count({ where: filter });
   }
 
-  private async getTodayMessages(today: Date): Promise<number> {
-    return this.prisma.whatsAppMessage.count({
+  private async getTodayMessages(
+    today: Date,
+    filter: any = {},
+  ): Promise<number> {
+    return this.prisma.campaignMessage.count({
       where: {
-        createdAt: {
-          gte: today
-        }
-      }
+        ...filter,
+        createdAt: { gte: today },
+      },
     });
   }
 
-  private async getSuccessfulDeliveries(): Promise<number> {
-    return this.prisma.whatsAppMessage.count({
+  private async getSuccessfulDeliveries(filter: any = {}): Promise<number> {
+    return this.prisma.campaignMessage.count({
       where: {
-        status: {
-          in: ['delivered', 'read']
-        }
-      }
+        ...filter,
+        status: { in: ['sent', 'delivered', 'read'] },
+      },
     });
   }
 
-  private async getFailedMessages(): Promise<number> {
-    return this.prisma.whatsAppMessage.count({
-      where: {
-        status: 'failed'
-      }
+  private async getFailedMessages(filter: any = {}): Promise<number> {
+    return this.prisma.campaignMessage.count({
+      where: { ...filter, status: 'failed' },
     });
   }
 
-  private async getTotalContacts(): Promise<number> {
-    const result = await this.prisma.whatsAppMessage.findMany({
-      select: { to: true },
-      distinct: ['to']
+  private async getTotalContacts(filter: any = {}): Promise<number> {
+    const contacts = await this.prisma.campaignMessage.findMany({
+      where: filter,
+      select: { phone: true },
+      distinct: ['phone'],
     });
-    return result.length;
+    return contacts.length;
   }
 
-  private async getMessagesByStatus() {
-    const statusCounts = await this.prisma.whatsAppMessage.groupBy({
+  private async getMessagesByStatus(filter: any = {}) {
+    const result = await this.prisma.campaignMessage.groupBy({
       by: ['status'],
-      _count: {
-        status: true
-      }
+      where: filter,
+      _count: { status: true },
     });
 
     return {
-      sent: statusCounts.find(s => s.status === 'sent')?._count.status || 0,
-      delivered: statusCounts.find(s => s.status === 'delivered')?._count.status || 0,
-      read: statusCounts.find(s => s.status === 'read')?._count.status || 0,
-      failed: statusCounts.find(s => s.status === 'failed')?._count.status || 0
+      sent: result.find((r) => r.status === 'sent')?._count.status || 0,
+      delivered:
+        result.find((r) => r.status === 'delivered')?._count.status || 0,
+      read: result.find((r) => r.status === 'read')?._count.status || 0,
+      failed: result.find((r) => r.status === 'failed')?._count.status || 0,
     };
   }
 
-  private async getDailyStats() {
+  private async getDailyStats(filter: any = {}) {
     const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
 
-    const messages = await this.prisma.whatsAppMessage.findMany({
+    const rows = await this.prisma.campaignMessage.findMany({
       where: {
-        createdAt: {
-          gte: sevenDaysAgo
-        }
+        ...filter,
+        createdAt: { gte: sevenDaysAgo },
       },
       select: {
         createdAt: true,
-        status: true
-      }
+        status: true,
+      },
     });
 
-    const dailyMap = new Map();
-    
+    const dailyMap = new Map<string, any>();
+
     for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      dailyMap.set(dateStr, { date: dateStr, sent: 0, delivered: 0, failed: 0 });
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      dailyMap.set(dateStr, {
+        date: dateStr,
+        sent: 0,
+        delivered: 0,
+        failed: 0,
+      });
     }
 
-    messages.forEach(message => {
-      const dateStr = message.createdAt.toISOString().split('T')[0];
-      const dayStats = dailyMap.get(dateStr);
-      if (dayStats) {
-        dayStats.sent++;
-        if (message.status === 'delivered' || message.status === 'read') {
-          dayStats.delivered++;
-        } else if (message.status === 'failed') {
-          dayStats.failed++;
+    for (const row of rows) {
+      const dateStr = row.createdAt.toISOString().split('T')[0];
+      const day = dailyMap.get(dateStr);
+      if (day) {
+        day.sent++;
+        if (['sent', 'delivered', 'read'].includes(row.status)) {
+          day.delivered++;
+        } else if (row.status === 'failed') {
+          day.failed++;
         }
       }
-    });
+    }
 
     return Array.from(dailyMap.values());
+  }
+
+  private getEmptyDailyStats(): {
+    date: string;
+    sent: number;
+    delivered: number;
+    failed: number;
+  }[] {
+    const daily: {
+      date: string;
+      sent: number;
+      delivered: number;
+      failed: number;
+    }[] = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      daily.push({
+        date: d.toISOString().split('T')[0],
+        sent: 0,
+        delivered: 0,
+        failed: 0,
+      });
+    }
+
+    return daily;
   }
 }

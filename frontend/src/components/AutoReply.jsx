@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { API_BASE_URL } from '../api/config';
+import { useToast } from '../contexts/ToastContext';
 import '../styles/AutoReply.css';
 
 const AutoReply = () => {
+  const { showSuccess, showError, showConfirm } = useToast();
   const [replies, setReplies] = useState([]);
   const [newTrigger, setNewTrigger] = useState('');
   const [newResponse, setNewResponse] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
     fetchReplies();
@@ -47,27 +48,36 @@ const AutoReply = () => {
         setNewTrigger('');
         setNewResponse('');
         fetchReplies();
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 3000);
+        showSuccess('Auto-reply added successfully!');
+      } else {
+        showError('Failed to add auto-reply');
       }
     } catch (error) {
       console.error('Failed to add auto-reply:', error);
+      showError('Failed to add auto-reply');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (trigger) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/auto-reply/${trigger}`, {
-        method: 'DELETE'
-      });
-      
-      if (response.ok) {
-        fetchReplies();
+    const confirmed = await showConfirm('Are you sure you want to delete this auto-reply?');
+    if (confirmed) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/auto-reply/${trigger}`, {
+          method: 'DELETE'
+        });
+        
+        if (response.ok) {
+          fetchReplies();
+          showSuccess('Auto-reply deleted successfully!');
+        } else {
+          showError('Failed to delete auto-reply');
+        }
+      } catch (error) {
+        console.error('Failed to delete auto-reply:', error);
+        showError('Failed to delete auto-reply');
       }
-    } catch (error) {
-      console.error('Failed to delete auto-reply:', error);
     }
   };
 
@@ -141,12 +151,7 @@ const AutoReply = () => {
         </div>
       </div>
 
-      {showSuccess && (
-        <div className="success-message">
-          <CheckCircle size={20} />
-          Auto-reply updated successfully!
-        </div>
-      )}
+
     </div>
   );
 };

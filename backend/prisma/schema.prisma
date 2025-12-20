@@ -19,6 +19,9 @@ model User {
   
   messages  WhatsAppMessage[]
   settings  WhatsAppSettings[]
+  campaigns Campaign[]
+  documents Document[]
+  chatSessions ChatSession[]
 }
 
 model WhatsAppMessage {
@@ -39,16 +42,94 @@ model WhatsAppMessage {
 
 model WhatsAppSettings {
   id            Int      @id @default(autoincrement())
+  name          String   // Configuration name
   templateName  String
   phoneNumberId String
   accessToken   String
   verifyToken   String?
   apiUrl        String
+  language      String   @default("en")
+  isDefault     Boolean  @default(false)
   userId        Int
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaigns     Campaign[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  
+  @@unique([name])
 }
 
+model Campaign {
+  id           Int      @id @default(autoincrement())
+  name         String
+  templateName String
+  parameters   Json?
+  status       String   @default("draft") // draft, running, completed, failed, scheduled
+  totalCount   Int      @default(0)
+  successCount Int      @default(0)
+  failedCount  Int      @default(0)
+  scheduleType String   @default("one-time") // one-time, time-based
+  scheduledDays String[] @default([])
+  scheduledTime String?
+  userId       Int
+  settingsId   Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  settings     WhatsAppSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  contacts     CampaignContact[]
+  messages     CampaignMessage[]
+}
 
+model CampaignContact {
+  id         Int      @id @default(autoincrement())
+  name       String?
+  phone      String
+  campaignId Int
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+}
 
+model CampaignMessage {
+  id         Int      @id @default(autoincrement())
+  messageId  String?
+  phone      String
+  name       String?
+  status     String   // sent, delivered, read, failed
+  error      String?
+  campaignId Int
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Document {
+  id        Int      @id @default(autoincrement())
+  filename  String
+  content   String   @db.Text
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ChatSession {
+  id        Int      @id @default(autoincrement())
+  phone     String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  messages  ChatMessage[]
+}
+
+model ChatMessage {
+  id            Int         @id @default(autoincrement())
+  message       String
+  isFromUser    Boolean
+  sessionId     Int
+  session       ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+}

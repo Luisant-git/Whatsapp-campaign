@@ -86,7 +86,11 @@ export class UserService {
     if (!session.user) {
       throw new UnauthorizedException('Not authenticated');
     }
-    return { user: session.user };
+    const data = await this.findOne(Number(session.user.id));
+    return {
+      message: 'Current user retrieved successfully',
+      user: data
+    };
   }
 
   findAll() {

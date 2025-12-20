@@ -1,0 +1,289 @@
+.edit-campaign-container {
+  padding: 24px;
+  background-color: #f5f5f5;
+  min-height: 100vh;
+}
+
+.edit-campaign-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+
+  h2 {
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+    margin: 0;
+  }
+
+  .back-btn {
+    background-color: #6b7280;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+
+    &:hover {
+      background-color: #4b5563;
+    }
+  }
+}
+
+.edit-campaign-form {
+  background-color: white;
+  border-radius: 8px;
+  padding: 32px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  max-width: 800px;
+
+  .form-group {
+    margin-bottom: 24px;
+
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: #374151;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 14px;
+      color: #111827;
+      box-sizing: border-box;
+
+      &:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+      }
+    }
+
+    .schedule-type-selector {
+      display: flex;
+      gap: 16px;
+      
+      .radio-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        
+        input[type="radio"] {
+          width: auto;
+          margin: 0;
+        }
+        
+        span {
+          font-size: 14px;
+          color: #374151;
+          font-weight: 500;
+        }
+      }
+    }
+
+    .days-selector {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px;
+      
+      .day-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        
+        input[type="checkbox"] {
+          width: auto;
+          margin: 0;
+        }
+        
+        span {
+          font-size: 13px;
+          color: #374151;
+          font-weight: 500;
+        }
+        
+        &:hover {
+          border-color: #25d366;
+          background-color: #f0fdf4;
+        }
+        
+        &:has(input:checked) {
+          border-color: #25d366;
+          background-color: #dcfce7;
+          color: #166534;
+          
+          span {
+            color: #166534;
+          }
+        }
+      }
+    }
+
+    .time-input {
+      max-width: 200px;
+    }
+
+    small {
+      display: block;
+      color: #6b7280;
+      font-size: 12px;
+      margin-top: 6px;
+      font-style: italic;
+    }
+  }
+
+  .contact-input {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+
+    input {
+      flex: 1;
+    }
+
+    input:first-child {
+      flex: 1.2;
+    }
+
+    .add-contact-btn {
+      background-color: #3b82f6;
+      color: white;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      flex-shrink: 0;
+
+      &:hover {
+        background-color: #2563eb;
+      }
+    }
+  }
+
+  .contacts-list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    padding: 12px;
+
+    .contact-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background-color: #f9fafb;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      font-size: 14px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      .contact-info {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+
+        .contact-name {
+          font-weight: 500;
+          color: #333;
+          margin-bottom: 4px;
+        }
+
+        .contact-phone {
+          font-size: 12px;
+          color: #666;
+        }
+      }
+
+      .remove-contact-btn {
+        background-color: #ef4444;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin-left: 12px;
+
+        &:hover {
+          background-color: #dc2626;
+        }
+      }
+    }
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid #e5e7eb;
+
+    .update-btn {
+      background-color: #10b981;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      &:hover:not(:disabled) {
+        background-color: #059669;
+      }
+    }
+
+    .cancel-btn {
+      background-color: #6b7280;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+
+      &:hover {
+        background-color: #4b5563;
+      }
+    }
+  }
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  font-size: 16px;
+  color: #666;
+}

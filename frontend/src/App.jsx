@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
-import { Toaster } from 'react-hot-toast'
-import { MessageSquare, Settings, BarChart3, User, Send, MessageCircle } from 'lucide-react'
+import { MessageSquare, Settings, BarChart3, User, Send, MessageCircle, Bot, Megaphone } from 'lucide-react'
+import { ToastProvider } from './contexts/ToastContext'
 import WhatsAppChat from './components/WhatsAppChat'
 import BulkWhatsApp from './components/BulkWhatsApps'
+import Campaigns from './components/Campaigns'
 import Login from './components/Login'
 import Analytics from './components/Analytics'
 import SettingsPanel from './components/Settings'
 import Profile from './components/Profile'
 import AutoReply from './components/AutoReply'
+import Chatbot from './components/Chatbot'
 import './App.css'
 import './styles/Analytics.css'
 import './styles/Settings.css'
@@ -39,8 +41,7 @@ function App() {
   }
 
   return (
-    <>
-      <Toaster position="top-center" />
+    <ToastProvider>
       {!isLoggedIn ? (
         <Login onLogin={handleLogin} />
       ) : (
@@ -68,11 +69,25 @@ function App() {
             <span>Bulk Messages</span>
           </button>
           <button 
+            className={`nav-item ${activeView === 'campaigns' ? 'active' : ''}`}
+            onClick={() => setActiveView('campaigns')}
+          >
+            <Megaphone size={18} />
+            <span>Campaigns</span>
+          </button>
+          <button 
             className={`nav-item ${activeView === 'auto-reply' ? 'active' : ''}`}
             onClick={() => setActiveView('auto-reply')}
           >
             <MessageCircle size={18} />
             <span>Auto Reply</span>
+          </button>
+          <button 
+            className={`nav-item ${activeView === 'chatbot' ? 'active' : ''}`}
+            onClick={() => setActiveView('chatbot')}
+          >
+            <Bot size={18} />
+            <span>AI Chatbot</span>
           </button>
           <button 
             className={`nav-item ${activeView === 'settings' ? 'active' : ''}`}
@@ -127,14 +142,16 @@ function App() {
         </div>
         {activeView === 'chats' && <WhatsAppChat />}
         {activeView === 'bulk' && <BulkWhatsApp />}
+        {activeView === 'campaigns' && <Campaigns />}
         {activeView === 'auto-reply' && <AutoReply />}
+        {activeView === 'chatbot' && <Chatbot />}
         {activeView === 'analytics' && <Analytics />}
         {activeView === 'settings' && <SettingsPanel />}
         {activeView === 'profile' && <Profile />}
       </div>
     </div>
       )}
-    </>
+    </ToastProvider>
   )
 }
 

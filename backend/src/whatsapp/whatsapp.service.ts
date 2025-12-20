@@ -3,6 +3,7 @@ import axios from 'axios';
 import { PrismaService } from '../prisma.service';
 import { WhatsappSessionService } from '../whatsapp-session/whatsapp-session.service';
 import { SettingsService } from '../settings/settings.service';
+import { ChatbotService } from '../chatbot/chatbot.service';
 
 @Injectable()
 export class WhatsappService {
@@ -11,7 +12,8 @@ export class WhatsappService {
   constructor(
     private prisma: PrismaService,
     private sessionService: WhatsappSessionService,
-    private settingsService: SettingsService
+    private settingsService: SettingsService,
+    private chatbotService: ChatbotService
   ) {}
 
   private async getSettings(userId: number) {
@@ -48,11 +50,13 @@ export class WhatsappService {
       mediaUrl = await this.downloadMedia(audio.id, userId);
     }
 
+    this.logger.log(`Storing incoming message: from=${from}, to=${from}, message=${text}`);
+    
     await this.prisma.whatsAppMessage.create({
       data: {
         messageId,
-        to: from,
-        from,
+        to: from, // This should be the business number, but we're setting it to customer number
+        from, // This is the customer's number
         message: text || (mediaType ? `${mediaType} file` : null),
         mediaType,
         mediaUrl,
@@ -69,6 +73,20 @@ export class WhatsappService {
         }
         return this.sendMessage(to, msg, userId);
       });
+
+      // Process with chatbot
+      try {
+        const chatResponse = await this.chatbotService.processMessage(userId, {
+          message: text,
+          phone: from
+        });
+        
+        if (chatResponse.response) {
+          await this.sendMessage(from, chatResponse.response, userId);
+        }
+      } catch (error) {
+        this.logger.error('Chatbot error:', error);
+      }
     }
 
     this.logger.log(`Message from ${from}: ${text || mediaType}`);
@@ -238,6 +256,44 @@ export class WhatsappService {
     }
   }
 
+  async findUserByPhoneNumberId(phoneNumberId: string): Promise<number | null> {
+    try {
+      const settings = await this.prisma.whatsAppSettings.findFirst({
+        where: { phoneNumberId },
+        select: { userId: true }
+      });
+      return settings?.userId || null;
+    } catch (error) {
+      this.logger.error('Error finding user by phone number ID:', error);
+      return null;
+    }
+  }
+
+  async findFirstActiveUser(): Promise<number | null> {
+    try {
+      const user = await this.prisma.user.findFirst({
+        where: { isActive: true },
+        select: { id: true }
+      });
+      return user?.id || null;
+    } catch (error) {
+      this.logger.error('Error finding first active user:', error);
+      return null;
+    }
+  }
+
+  async validateVerifyToken(token: string): Promise<boolean> {
+    try {
+      const settings = await this.prisma.whatsAppSettings.findFirst({
+        where: { verifyToken: token }
+      });
+      return !!settings;
+    } catch (error) {
+      this.logger.error('Error validating verify token:', error);
+      return false;
+    }
+  }
+
   async getMessages(userId: number, phoneNumber?: string) {
     return this.prisma.whatsAppMessage.findMany({
       where: { userId, ...(phoneNumber && { from: phoneNumber }) },
@@ -259,7 +315,7 @@ export class WhatsappService {
             type: 'template',
             template: {
               name: templateName,
-              language: { code: 'en' },
+              language: { code: settings.language || 'en' },
               components: parameters ? [
                 {
                   type: 'body',
@@ -298,8 +354,16 @@ export class WhatsappService {
     return results;
   }
 
-  async sendBulkTemplateMessageWithNames(contacts: Array<{name: string; phone: string}>, templateName: string, userId: number) {
-    const settings = await this.getSettings(userId);
+  async sendBulkTemplateMessageWithNames(contacts: Array<{name: string; phone: string}>, templateName: string, userId: number, settingsId?: number) {
+    let settings;
+    if (settingsId) {
+      settings = await this.prisma.whatsAppSettings.findUnique({ where: { id: settingsId } });
+      if (!settings) {
+        throw new Error('Specified settings not found');
+      }
+    } else {
+      settings = await this.getSettings(userId);
+    }
     const results: Array<{ phoneNumber: string; success: boolean; messageId?: string; error?: string }> = [];
    
     for (const contact of contacts) {
@@ -309,26 +373,34 @@ export class WhatsappService {
         continue;
       }
 
+      const formattedPhone = this.formatPhoneNumber(contact.phone);
+
       try {
-        this.logger.log(`Sending message to ${contact.phone} with template ${templateName}`);
+        this.logger.log(`Sending message to ${formattedPhone} with template ${templateName}`);
+        this.logger.log(`API URL: ${settings.apiUrl}/${settings.phoneNumberId}/messages`);
+        this.logger.log(`Template: ${templateName}, Language: ${settings.language}`);
+        
+        const requestBody = {
+          messaging_product: 'whatsapp',
+          to: formattedPhone,
+          type: 'template',
+          template: {
+            name: templateName,
+            language: { code: settings.language || 'en' },
+            components: contact.name && contact.name.trim() ? [
+              {
+                type: 'body',
+                parameters: [{ type: 'text', text: contact.name.trim() }]
+              }
+            ] : []
+          }
+        };
+        
+        this.logger.log('Request body:', JSON.stringify(requestBody, null, 2));
         
         const response = await axios.post(
           `${settings.apiUrl}/${settings.phoneNumberId}/messages`,
-          {
-            messaging_product: 'whatsapp',
-            to: contact.phone,
-            type: 'template',
-            template: {
-              name: templateName,
-              language: { code: 'en' },
-              components: contact.name && contact.name.trim() ? [
-                {
-                  type: 'body',
-                  parameters: [{ type: 'text', text: contact.name.trim() }]
-                }
-              ] : []
-            }
-          },
+          requestBody,
           {
             headers: {
               'Authorization': `Bearer ${settings.accessToken}`,
@@ -336,12 +408,14 @@ export class WhatsappService {
             }
           }
         );
+        
+        this.logger.log('WhatsApp API Response:', JSON.stringify(response.data, null, 2));
 
         await this.prisma.whatsAppMessage.create({
           data: {
             messageId: response.data.messages[0].id,
-            to: contact.phone,
-            from: contact.phone,
+            to: formattedPhone,
+            from: formattedPhone,
             message: `Template ${templateName} sent to ${contact.name}`,
             direction: 'outgoing',
             status: 'sent',
@@ -349,7 +423,7 @@ export class WhatsappService {
           }
         });
 
-        results.push({ phoneNumber: contact.phone, success: true, messageId: response.data.messages[0].id });
+        results.push({ phoneNumber: formattedPhone, success: true, messageId: response.data.messages[0].id });
       } catch (error) {
         const errorMsg = this.getErrorMessage(error);
         this.logger.error(`Failed to send to ${contact.phone}:`, {
@@ -357,7 +431,7 @@ export class WhatsappService {
           response: error.response?.data,
           status: error.response?.status
         });
-        results.push({ phoneNumber: contact.phone, success: false, error: errorMsg });
+        results.push({ phoneNumber: formattedPhone, success: false, error: errorMsg });
       }
     }
 
@@ -391,6 +465,18 @@ export class WhatsappService {
     return null;
   }
 
+  private formatPhoneNumber(phone: string): string {
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    
+    // If phone number is 10 digits and starts with 6-9, add India country code
+    if (cleanPhone.length === 10 && /^[6-9]/.test(cleanPhone)) {
+      return `91${cleanPhone}`;
+    }
+    
+    // If already has country code, return as is
+    return cleanPhone;
+  }
+
   private getErrorMessage(error: any): string {
     if (error.response?.data?.error) {
       const apiError = error.response.data.error;
@@ -422,7 +508,7 @@ export class WhatsappService {
           type: 'template',
           template: {
             name: 'order_received_v1',
-            language: { code: 'en' },
+            language: { code: settings.language || 'en' },
             components: [
               {
                 type: 'body',

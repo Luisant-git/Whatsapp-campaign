@@ -2,6 +2,8 @@ import {
   Controller, 
   Post, 
   Get, 
+  Put,
+  Delete,
   Body, 
   Query, 
   Param,
@@ -11,19 +13,24 @@ import {
   HttpStatus,
   HttpException,
   Session,
-  UseGuards
+  UseGuards,
+  Res
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiQuery, ApiParam } from '@nestjs/swagger';
 import { WhatsappService } from './whatsapp.service';
-import { SendMessageDto, SendBulkDto, SendMediaDto, MessageResponseDto, BulkMessageResultDto, WhatsAppMessageDto, UploadResponseDto, AnalyticsDto, WhatsAppSettingsDto } from './dto';
+import { CampaignService } from './campaign.service';
+import { SendMessageDto, SendBulkDto, SendMediaDto, MessageResponseDto, BulkMessageResultDto, WhatsAppMessageDto, UploadResponseDto, AnalyticsDto, WhatsAppSettingsDto, CreateCampaignDto, UpdateCampaignDto, CampaignResponseDto } from './dto';
 import { SessionGuard } from '../auth/session.guard';
 
 @ApiTags('WhatsApp')
 @Controller('whatsapp')
 export class WhatsappController {
-  constructor(private readonly whatsappService: WhatsappService) {}
+  constructor(
+    private readonly whatsappService: WhatsappService,
+    private readonly campaignService: CampaignService
+  ) {}
 
   @Get('webhook')
   @ApiOperation({ summary: 'Verify WhatsApp webhook' })
@@ -32,14 +39,18 @@ export class WhatsappController {
   @ApiQuery({ name: 'hub.challenge', required: true })
   @ApiResponse({ status: 200, description: 'Webhook verified successfully' })
   @ApiResponse({ status: 403, description: 'Forbidden - Invalid token' })
-  verifyWebhook(@Query() query: any) {
+  async verifyWebhook(@Query() query: any) {
     const mode = query['hub.mode'];
     const token = query['hub.verify_token'];
     const challenge = query['hub.challenge'];
 
-    if (mode === 'subscribe' && token === process.env.WHATSAPP_VERIFY_TOKEN) {
-      console.log('Webhook verified');
-      return parseInt(challenge);
+    if (mode === 'subscribe') {
+      // Check if token matches any user's verify token
+      const isValidToken = await this.whatsappService.validateVerifyToken(token);
+      if (isValidToken) {
+        console.log('Webhook verified');
+        return parseInt(challenge);
+      }
     }
     throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);
   }
@@ -58,8 +69,20 @@ export class WhatsappController {
             const message = change.value.messages?.[0];
             if (message) {
               console.log('Processing incoming message:', message);
-              // For webhook, use a default userId or handle differently
-              await this.whatsappService.handleIncomingMessage(message, 1);
+              // Find the user based on phone number ID from webhook metadata
+              const phoneNumberId = change.value.metadata?.phone_number_id;
+              let userId = await this.whatsappService.findUserByPhoneNumberId(phoneNumberId);
+              
+              // Fallback: if no user found, try to find by any active user (for single-user setups)
+              if (!userId) {
+                userId = await this.whatsappService.findFirstActiveUser();
+              }
+              
+              if (userId) {
+                await this.whatsappService.handleIncomingMessage(message, userId);
+              } else {
+                console.log('No user found for phone number ID:', phoneNumberId);
+              }
             }
             const statuses = change.value.statuses;
             if (statuses) {
@@ -95,23 +118,51 @@ export class WhatsappController {
 
   @Post('send-bulk')
   @UseGuards(SessionGuard)
-  @ApiOperation({ summary: 'Send bulk WhatsApp messages using templates' })
+  @ApiOperation({ summary: 'Send bulk WhatsApp messages using templates and create campaign' })
   @ApiResponse({ status: 201, description: 'Bulk messages sent successfully', type: [BulkMessageResultDto] })
   @ApiResponse({ status: 400, description: 'Bad Request' })
-  async sendBulk(@Session() session: any, @Body() sendBulkDto: SendBulkDto) {
-    if (sendBulkDto.contacts) {
-      return this.whatsappService.sendBulkTemplateMessageWithNames(
-        sendBulkDto.contacts, 
-        sendBulkDto.templateName,
-        session.user.id
-      );
+  async sendBulk(@Session() session: any, @Body() body: any) {
+    // Handle nested structure from frontend
+    const sendBulkDto = body.contacts || body;
+    
+    let contacts = [];
+    
+    if (Array.isArray(sendBulkDto.contacts)) {
+      contacts = sendBulkDto.contacts;
+    } else if (Array.isArray(sendBulkDto.phoneNumbers)) {
+      contacts = sendBulkDto.phoneNumbers.map(phone => ({ name: '', phone }));
+    } else {
+      throw new Error('No valid contacts provided');
     }
-    return this.whatsappService.sendBulkTemplateMessage(
-      sendBulkDto.phoneNumbers || [], 
-      sendBulkDto.templateName, 
-      session.user.id,
-      sendBulkDto.parameters
-    );
+    
+    const campaignName = body.name || sendBulkDto.name || `Bulk Campaign - ${new Date().toLocaleDateString()}`;
+    const campaign = await this.campaignService.createCampaign({
+      name: campaignName,
+      templateName: sendBulkDto.templateName,
+      contacts,
+      parameters: sendBulkDto.parameters,
+      scheduleType: sendBulkDto.scheduleType || 'one-time',
+      scheduledDays: sendBulkDto.scheduledDays || [],
+      scheduledTime: sendBulkDto.scheduledTime
+    }, session.user.id);
+
+    // If one-time, run immediately; if time-based, just return campaign info
+    if (sendBulkDto.scheduleType === 'time-based') {
+      return {
+        campaignName,
+        campaignId: campaign.id,
+        status: 'scheduled',
+        message: 'Campaign scheduled successfully'
+      };
+    } else {
+      // Run the campaign immediately
+      const result = await this.campaignService.runCampaign(campaign.id, session.user.id);
+      
+      return {
+        campaignName,
+        ...result
+      };
+    }
   }
 
   @Post('send-media')
@@ -283,5 +334,96 @@ export class WhatsappController {
     return results;
   }
 
+  // Campaign endpoints
+  @Post('campaigns')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Create a new campaign' })
+  @ApiResponse({ status: 201, description: 'Campaign created successfully', type: CampaignResponseDto })
+  async createCampaign(@Session() session: any, @Body() createCampaignDto: CreateCampaignDto) {
+    return this.campaignService.createCampaign(createCampaignDto, session.user.id);
+  }
+
+  @Get('campaigns')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Get all campaigns' })
+  @ApiQuery({ name: 'settingsName', required: false, description: 'Filter by settings name' })
+  @ApiResponse({ status: 200, description: 'Campaigns retrieved successfully', type: [CampaignResponseDto] })
+  async getCampaigns(@Session() session: any, @Query('settingsName') settingsName?: string) {
+    return this.campaignService.getCampaigns(session.user.id, settingsName);
+  }
+
+  @Get('campaigns/:id')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Get campaign by ID' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiResponse({ status: 200, description: 'Campaign retrieved successfully', type: CampaignResponseDto })
+  async getCampaign(@Session() session: any, @Param('id') id: string) {
+    return this.campaignService.getCampaign(parseInt(id), session.user.id);
+  }
+
+  @Put('campaigns/:id')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Update campaign' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiResponse({ status: 200, description: 'Campaign updated successfully', type: CampaignResponseDto })
+  async updateCampaign(@Session() session: any, @Param('id') id: string, @Body() updateCampaignDto: UpdateCampaignDto) {
+    return this.campaignService.updateCampaign(parseInt(id), updateCampaignDto, session.user.id);
+  }
+
+  @Post('campaigns/:id/run')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Run/Rerun campaign' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiResponse({ status: 200, description: 'Campaign executed successfully' })
+  async runCampaign(@Session() session: any, @Param('id') id: string) {
+    return this.campaignService.runCampaign(parseInt(id), session.user.id);
+  }
+
+  @Delete('campaigns/:id')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Delete campaign' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiResponse({ status: 200, description: 'Campaign deleted successfully' })
+  async deleteCampaign(@Session() session: any, @Param('id') id: string) {
+    return this.campaignService.deleteCampaign(parseInt(id), session.user.id);
+  }
+
+  @Get('campaigns/scheduled')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Get scheduled campaigns' })
+  @ApiResponse({ status: 200, description: 'Scheduled campaigns retrieved successfully' })
+  async getScheduledCampaigns(@Session() session: any) {
+    return this.campaignService.getCampaigns(session.user.id).then(campaigns => 
+      campaigns.filter(c => c.status === 'scheduled')
+    );
+  }
+
+  @Get('campaigns/:id/results')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Get campaign results with response tracking' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiResponse({ status: 200, description: 'Campaign results retrieved successfully' })
+  async getCampaignResults(@Session() session: any, @Param('id') id: string) {
+    return this.campaignService.getCampaignResults(parseInt(id), session.user.id);
+  }
+
+  @Get('campaigns/:id/results/download')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Download campaign results as CSV or Excel' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiQuery({ name: 'format', enum: ['csv', 'xlsx'], description: 'Download format' })
+  @ApiResponse({ status: 200, description: 'Campaign results file downloaded' })
+  async downloadCampaignResults(
+    @Session() session: any, 
+    @Param('id') id: string,
+    @Query('format') format: 'csv' | 'xlsx' = 'csv',
+    @Res() res: any
+  ) {
+    const result = await this.campaignService.downloadCampaignResults(parseInt(id), session.user.id, format);
+    
+    res.setHeader('Content-Type', result.contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.send(result.data);
+  }
 
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, UseGuards, Session } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, UseGuards, Session, Param, ParseIntPipe } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SettingsService } from './settings.service';
 import { WhatsAppSettingsDto, UpdateSettingsDto, SettingsResponseDto } from './dto/settings.dto';
@@ -11,10 +11,26 @@ export class SettingsController {
 
   @Get()
   @UseGuards(SessionGuard)
-  @ApiOperation({ summary: 'Get WhatsApp configuration settings' })
+  @ApiOperation({ summary: 'Get default WhatsApp configuration settings' })
   @ApiResponse({ status: 200, description: 'Settings retrieved successfully', type: SettingsResponseDto })
   async getSettings(@Session() session: any): Promise<SettingsResponseDto> {
     return this.settingsService.getSettings(session.user.id);
+  }
+
+  @Get('all')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Get all WhatsApp configuration settings' })
+  @ApiResponse({ status: 200, description: 'All settings retrieved successfully', type: [SettingsResponseDto] })
+  async getAllSettings(@Session() session: any): Promise<SettingsResponseDto[]> {
+    return this.settingsService.getAllSettings(session.user.id);
+  }
+
+  @Get(':id')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Get WhatsApp settings by ID' })
+  @ApiResponse({ status: 200, description: 'Settings retrieved successfully', type: SettingsResponseDto })
+  async getSettingsById(@Session() session: any, @Param('id', ParseIntPipe) id: number): Promise<SettingsResponseDto> {
+    return this.settingsService.getSettingsById(session.user.id, id);
   }
 
   @Post()
@@ -25,11 +41,27 @@ export class SettingsController {
     return this.settingsService.createSettings(session.user.id, whatsAppSettingsDto);
   }
 
-  @Put()
+  @Put(':id')
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Update WhatsApp settings' })
   @ApiResponse({ status: 200, description: 'Settings updated successfully', type: SettingsResponseDto })
-  async updateSettings(@Session() session: any, @Body() updateSettingsDto: UpdateSettingsDto): Promise<SettingsResponseDto> {
-    return this.settingsService.updateSettings(session.user.id, updateSettingsDto);
+  async updateSettings(@Session() session: any, @Param('id', ParseIntPipe) id: number, @Body() updateSettingsDto: UpdateSettingsDto): Promise<SettingsResponseDto> {
+    return this.settingsService.updateSettings(session.user.id, id, updateSettingsDto);
+  }
+
+  @Delete(':id')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Delete WhatsApp settings' })
+  @ApiResponse({ status: 200, description: 'Settings deleted successfully' })
+  async deleteSettings(@Session() session: any, @Param('id', ParseIntPipe) id: number): Promise<void> {
+    return this.settingsService.deleteSettings(session.user.id, id);
+  }
+
+  @Put(':id/default')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Set settings as default' })
+  @ApiResponse({ status: 200, description: 'Default settings updated successfully', type: SettingsResponseDto })
+  async setDefaultSettings(@Session() session: any, @Param('id', ParseIntPipe) id: number): Promise<SettingsResponseDto> {
+    return this.settingsService.setDefaultSettings(session.user.id, id);
   }
 }

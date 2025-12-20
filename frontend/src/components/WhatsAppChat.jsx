@@ -200,21 +200,47 @@ const WhatsAppChat = () => {
 
   const getFileIcon = (fileName) => {
     const ext = fileName?.split('.').pop()?.toLowerCase();
+    
+    if (ext === 'pdf') return (
+      <div className="file-type-icon pdf">
+        <span className="file-text">PDF</span>
+      </div>
+    );
+    
+    if (['doc', 'docx'].includes(ext)) return (
+      <div className="file-type-icon doc">
+        <span className="file-text">DOC</span>
+      </div>
+    );
+    
+    if (['xls', 'xlsx'].includes(ext)) return (
+      <div className="file-type-icon xls">
+        <span className="file-text">XLS</span>
+      </div>
+    );
+    
+    if (['ppt', 'pptx'].includes(ext)) return (
+      <div className="file-type-icon ppt">
+        <span className="file-text">PPT</span>
+      </div>
+    );
+    
     return (
-      <div className="pdf-icon">
-        <span className="pdf-text">PDF</span>
+      <div className="file-type-icon default">
+        <span className="file-text">FILE</span>
       </div>
     );
   };
 
-  const getFileSize = (fileName) => {
-    // Mock file size - in real app, get from file metadata
-    return '171 kB';
-  };
-
-  const getPageCount = (fileName) => {
-    // Mock page count - in real app, get from file metadata  
-    return '30 pages';
+  const getFileTypeInfo = (fileName) => {
+    const ext = fileName?.split('.').pop()?.toLowerCase();
+    
+    if (ext === 'pdf') return { type: 'PDF', pages: '30 pages' };
+    if (['doc', 'docx'].includes(ext)) return { type: 'DOC', pages: '15 pages' };
+    if (['xls', 'xlsx'].includes(ext)) return { type: 'XLS', pages: '5 sheets' };
+    if (['ppt', 'pptx'].includes(ext)) return { type: 'PPT', pages: '20 slides' };
+    
+    return { type: 'FILE', pages: '1 file' };
   };
 
   const formatFileSize = (bytes) => {
@@ -435,8 +461,8 @@ const WhatsAppChat = () => {
                                 </a>
                               </div>
                               <div className="document-footer">
-                                <span className="document-pages">{getPageCount(msg.mediaUrl)}</span>
-                                <span className="document-type">PDF</span>
+                                <span className="document-pages">{getFileTypeInfo(msg.mediaUrl).pages}</span>
+                                <span className="document-type">{getFileTypeInfo(msg.mediaUrl).type}</span>
                                 <span className="document-size">{getFileSize(msg.mediaUrl)}</span>
                               </div>
                             </div>
@@ -502,3 +528,7 @@ const WhatsAppChat = () => {
 };
  
 export default WhatsAppChat;
+  const getFileSize = (fileName) => {
+    // Mock file size - in real app, get from file metadata
+    return '171 kB';
+  };

@@ -340,71 +340,87 @@
             }
           }
 
-          .document-message {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
-            background: rgba(0, 0, 0, 0.03);
-            border-radius: 8px;
+          .whatsapp-document-message {
             margin-bottom: 5px;
             max-width: 280px;
-            border: 1px solid rgba(0, 0, 0, 0.05);
 
-            .document-icon {
-              flex-shrink: 0;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-            }
+            .document-content {
+              background: rgba(0, 0, 0, 0.03);
+              border-radius: 8px;
+              overflow: hidden;
 
-            .document-info {
-              flex: 1;
-              min-width: 0;
-
-              .document-name {
-                font-size: 14px;
-                font-weight: 500;
-                color: #111b21;
-                margin-bottom: 2px;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                line-height: 1.2;
-              }
-
-              .document-details {
+              .document-header {
                 display: flex;
                 align-items: center;
-                gap: 4px;
+                padding: 12px 16px 8px 16px;
+                gap: 12px;
+
+                .pdf-icon {
+                  width: 32px;
+                  height: 32px;
+                  background: #dc4c3e;
+                  border-radius: 4px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  flex-shrink: 0;
+
+                  .pdf-text {
+                    color: white;
+                    font-size: 10px;
+                    font-weight: 600;
+                    letter-spacing: 0.5px;
+                  }
+                }
+
+                .document-title {
+                  flex: 1;
+                  font-size: 14px;
+                  font-weight: 400;
+                  color: #111b21;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  white-space: nowrap;
+                  line-height: 1.2;
+                }
+
+                .document-download-btn {
+                  color: #8696a0;
+                  text-decoration: none;
+                  padding: 4px;
+                  border-radius: 50%;
+                  transition: all 0.2s;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  flex-shrink: 0;
+
+                  &:hover {
+                    background: rgba(0, 0, 0, 0.05);
+                    color: #25d366;
+                  }
+                }
+              }
+
+              .document-footer {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 0 16px 12px 60px;
                 font-size: 12px;
                 color: #667781;
-                line-height: 1;
+
+                .document-pages {
+                  font-weight: 400;
+                }
 
                 .document-type {
-                  font-weight: 500;
+                  font-weight: 400;
                 }
 
                 .document-size {
-                  font-size: 11px;
+                  font-weight: 400;
                 }
-              }
-            }
-
-            .document-download {
-              flex-shrink: 0;
-              color: #8696a0;
-              text-decoration: none;
-              padding: 4px;
-              border-radius: 50%;
-              transition: all 0.2s;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-
-              &:hover {
-                background: rgba(0, 0, 0, 0.05);
-                color: #25d366;
               }
             }
           }

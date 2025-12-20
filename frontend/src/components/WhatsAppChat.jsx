@@ -21,6 +21,25 @@ const MicIcon = () => (
     <line x1="8" x2="16" y1="23" y2="23" stroke="currentColor" strokeWidth="2" />
   </svg>
 );
+
+// Document icons
+const FileTextIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <polyline points="14,2 14,8 20,8"/>
+    <line x1="16" y1="13" x2="8" y2="13"/>
+    <line x1="16" y1="17" x2="8" y2="17"/>
+    <polyline points="10,9 9,9 8,9"/>
+  </svg>
+);
+
+const DownloadIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+    <polyline points="7,10 12,15 17,10"/>
+    <line x1="12" y1="15" x2="12" y2="3"/>
+  </svg>
+);
  
 const WhatsAppChat = () => {
   const [messages, setMessages] = useState([]);
@@ -181,37 +200,21 @@ const WhatsAppChat = () => {
 
   const getFileIcon = (fileName) => {
     const ext = fileName?.split('.').pop()?.toLowerCase();
-    if (ext === 'pdf') return (
-      <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="8" fill="#DC4C3E"/>
-        <path d="M12 28V12h6c2.2 0 4 1.8 4 4s-1.8 4-4 4h-2v8h-4zm4-12v4h2c1.1 0 2-.9 2-2s-.9-2-2-2h-2z" fill="white"/>
-      </svg>
-    );
-    if (['doc', 'docx'].includes(ext)) return (
-      <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="8" fill="#2B579A"/>
-        <path d="M12 28V12h4l2 8 2-8h4v16h-3v-10l-2 6h-2l-2-6v10h-3z" fill="white"/>
-      </svg>
-    );
-    if (['xls', 'xlsx'].includes(ext)) return (
-      <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="8" fill="#217346"/>
-        <path d="M12 28V12h4v6h4v-6h4v16h-4v-6h-4v6h-4z" fill="white"/>
-      </svg>
-    );
-    if (['ppt', 'pptx'].includes(ext)) return (
-      <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="8" fill="#D24726"/>
-        <path d="M12 28V12h6c2.2 0 4 1.8 4 4s-1.8 4-4 4h-2v8h-4zm4-12v4h2c1.1 0 2-.9 2-2s-.9-2-2-2h-2z" fill="white"/>
-      </svg>
-    );
     return (
-      <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="8" fill="#8696A0"/>
-        <path d="M20 12l6 6v10c0 1.1-.9 2-2 2H16c-1.1 0-2-.9-2-2V14c0-1.1.9-2 2-2h4z" fill="white"/>
-        <path d="M20 12v6h6" fill="none" stroke="#8696A0" strokeWidth="2"/>
-      </svg>
+      <div className="pdf-icon">
+        <span className="pdf-text">PDF</span>
+      </div>
     );
+  };
+
+  const getFileSize = (fileName) => {
+    // Mock file size - in real app, get from file metadata
+    return '171 kB';
+  };
+
+  const getPageCount = (fileName) => {
+    // Mock page count - in real app, get from file metadata  
+    return '30 pages';
   };
 
   const formatFileSize = (bytes) => {
@@ -415,32 +418,28 @@ const WhatsAppChat = () => {
                           );
                         })()}
                         {msg.mediaType === 'document' && msg.mediaUrl && (
-                          <div className="document-message">
-                            <div className="document-icon">
-                              {getFileIcon(msg.mediaUrl)}
-                            </div>
-                            <div className="document-info">
-                              <div className="document-name">
-                                {msg.mediaUrl.split('/').pop()?.split('.')[0] || 'Document'}
+                          <div className="whatsapp-document-message">
+                            <div className="document-content">
+                              <div className="document-header">
+                                {getFileIcon(msg.mediaUrl)}
+                                <div className="document-title">
+                                  {msg.mediaUrl.split('/').pop()?.replace(/\.[^/.]+$/, '') || '20000-Leagues-Under-the-Sea-...'}
+                                </div>
+                                <a 
+                                  href={msg.mediaUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="document-download-btn"
+                                >
+                                  <DownloadIcon />
+                                </a>
                               </div>
-                              <div className="document-details">
-                                <span className="document-type">
-                                  {msg.mediaUrl.split('.').pop()?.toUpperCase() || 'FILE'}
-                                </span>
-                                <span className="document-size">•</span>
-                                <span className="document-size">{formatFileSize(1024)}</span>
+                              <div className="document-footer">
+                                <span className="document-pages">{getPageCount(msg.mediaUrl)}</span>
+                                <span className="document-type">PDF</span>
+                                <span className="document-size">{getFileSize(msg.mediaUrl)}</span>
                               </div>
                             </div>
-                            <a 
-                              href={msg.mediaUrl} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="document-download"
-                            >
-                              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-                              </svg>
-                            </a>
                           </div>
                         )}
                         {msg.message && !msg.message.endsWith(' file') && <p>{msg.message}</p>}

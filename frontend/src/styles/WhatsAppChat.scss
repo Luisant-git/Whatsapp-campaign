@@ -281,23 +281,20 @@
               flex-shrink: 0;
             }
 
-            .audio-play-button {
-              width: 32px;
-              height: 32px;
-              border-radius: 50%;
-              background: #25d366;
-              border: none;
-              cursor: pointer;
+            .audio-play-icon {
+              width: 24px;
+              height: 24px;
               display: flex;
               align-items: center;
               justify-content: center;
-              color: white;
+              color: #54656f;
+              cursor: pointer;
               flex-shrink: 0;
-              transition: background 0.2s;
               margin-left: 4px;
+              transition: color 0.2s;
 
               &:hover {
-                background: #20ba5a;
+                color: #25d366;
               }
             }
 

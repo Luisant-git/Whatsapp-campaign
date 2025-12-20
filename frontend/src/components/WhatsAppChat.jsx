@@ -10,6 +10,7 @@ const WhatsAppChat = () => {
   const [messageText, setMessageText] = useState('');
   const [chats, setChats] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [dateFilter, setDateFilter] = useState('all');
   const [readMessages, setReadMessages] = useState(() => {
     const saved = localStorage.getItem('readMessages');
     return saved ? JSON.parse(saved) : {};
@@ -99,9 +100,63 @@ const WhatsAppChat = () => {
     }
   };
  
+  const groupMessagesByDate = (messages) => {
+    const groups = {};
+    messages.forEach(msg => {
+      const date = new Date(msg.createdAt).toDateString();
+      if (!groups[date]) groups[date] = [];
+      groups[date].push(msg);
+    });
+    return groups;
+  };
+
+  const filterMessagesByDate = (messages) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const lastWeek = new Date(today);
+    lastWeek.setDate(lastWeek.getDate() - 7);
+    const lastMonth = new Date(today);
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+
+    return messages.filter(msg => {
+      const msgDate = new Date(msg.createdAt);
+      if (dateFilter === 'today') return msgDate >= today;
+      if (dateFilter === 'yesterday') return msgDate >= yesterday && msgDate < today;
+      if (dateFilter === 'week') return msgDate >= lastWeek;
+      if (dateFilter === 'month') return msgDate >= lastMonth;
+      return true;
+    });
+  };
+
+  const getDateLabel = (dateStr) => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) return 'Today';
+    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const getFileIcon = (mediaType, fileName) => {
+    if (mediaType === 'document') {
+      const ext = fileName?.split('.').pop()?.toLowerCase();
+      if (ext === 'pdf') return '📕';
+      if (['doc', 'docx'].includes(ext)) return '📘';
+      if (['xls', 'xlsx'].includes(ext)) return '📗';
+      return '📄';
+    }
+    return '📄';
+  };
+
   const filteredMessages = selectedChat
-    ? messages.filter(m => m.from === selectedChat)
+    ? filterMessagesByDate(messages.filter(m => m.from === selectedChat))
     : [];
+
+  const groupedMessages = groupMessagesByDate(filteredMessages);
  
   return (
     <div className="whatsapp-chat">
@@ -138,46 +193,82 @@ const WhatsAppChat = () => {
           <>
             <div className="chat-header">
               <h3>{selectedChat}</h3>
+              <div className="date-filter">
+                <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}>
+                  <option value="all">All Messages</option>
+                  <option value="today">Today</option>
+                  <option value="yesterday">Yesterday</option>
+                  <option value="week">Last 7 Days</option>
+                  <option value="month">Last 30 Days</option>
+                </select>
+              </div>
             </div>
             <div className="chat-messages">
-              {filteredMessages.map(msg => (
-                <div key={msg.id} className={`message ${msg.direction}`}>
-                  <div className="message-bubble">
-                    {msg.mediaType === 'image' && msg.mediaUrl && (
-                      <img src={msg.mediaUrl} alt="media" className="message-media" onError={(e) => {
-                        console.error('Image load error:', msg.mediaUrl);
-                        e.target.style.display = 'none';
-                      }} />
-                    )}
-                    {msg.mediaType === 'video' && msg.mediaUrl && (
-                      <video src={msg.mediaUrl} controls className="message-media" onError={(e) => {
-                        console.error('Video load error:', msg.mediaUrl);
-                        e.target.style.display = 'none';
-                      }} />
-                    )}
-                    {msg.mediaType === 'audio' && msg.mediaUrl && (
-                      <audio src={msg.mediaUrl} controls className="message-audio" onError={(e) => {
-                        console.error('Audio load error:', msg.mediaUrl);
-                      }} />
-                    )}
-                    {msg.mediaType === 'document' && msg.mediaUrl && (
-                      <a href={msg.mediaUrl} target="_blank" rel="noopener noreferrer" className="message-document">
-                        📄 Document
-                      </a>
-                    )}
-                    {msg.message && !msg.message.endsWith(' file') && <p>{msg.message}</p>}
-                    <span className="message-time">
-                      {new Date(msg.createdAt).toLocaleTimeString()}
-                      {msg.direction === 'outgoing' && (
-                        <span className={`tick-mark ${msg.status}`}>
-                          {msg.status === 'sent' && '✓'}
-                          {msg.status === 'delivered' && '✓✓'}
-                          {msg.status === 'read' && '✓✓'}
-                        </span>
-                      )}
-                    </span>
+              {Object.entries(groupedMessages).map(([date, msgs]) => (
+                <React.Fragment key={date}>
+                  <div className="date-divider">
+                    <span>{getDateLabel(date)}</span>
                   </div>
-                </div>
+                  {msgs.map(msg => (
+                    <div key={msg.id} className={`message ${msg.direction}`}>
+                      <div className="message-bubble">
+                        {msg.mediaType === 'image' && msg.mediaUrl && (
+                          <img src={msg.mediaUrl} alt="media" className="message-media" onError={(e) => {
+                            console.error('Image load error:', msg.mediaUrl);
+                            e.target.style.display = 'none';
+                          }} />
+                        )}
+                        {msg.mediaType === 'video' && msg.mediaUrl && (
+                          <video src={msg.mediaUrl} controls className="message-media" onError={(e) => {
+                            console.error('Video load error:', msg.mediaUrl);
+                            e.target.style.display = 'none';
+                          }} />
+                        )}
+                        {msg.mediaType === 'audio' && msg.mediaUrl && (
+                          <div className="audio-message">
+                            <button className="audio-play-btn">
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M8 5v14l11-7z"/>
+                              </svg>
+                            </button>
+                            <div className="audio-waveform">
+                              <div className="waveform-bar"></div>
+                              <div className="waveform-bar"></div>
+                              <div className="waveform-bar"></div>
+                              <div className="waveform-bar"></div>
+                              <div className="waveform-bar"></div>
+                              <div className="waveform-bar"></div>
+                              <div className="waveform-bar"></div>
+                              <div className="waveform-bar"></div>
+                              <div className="waveform-bar"></div>
+                              <div className="waveform-bar"></div>
+                            </div>
+                            <span className="audio-duration">0:00</span>
+                            <audio src={msg.mediaUrl} style={{display: 'none'}} />
+                          </div>
+                        )}
+                        {msg.mediaType === 'document' && msg.mediaUrl && (
+                          <a href={msg.mediaUrl} target="_blank" rel="noopener noreferrer" className="message-document">
+                            <span className="doc-icon">{getFileIcon(msg.mediaType, msg.mediaUrl)}</span>
+                            <span className="doc-name">{msg.mediaUrl.split('/').pop() || 'Document'}</span>
+                            <span className="doc-download">⬇</span>
+                          </a>
+                        )}
+                        {msg.message && !msg.message.endsWith(' file') && <p>{msg.message}</p>}
+                        <span className="message-time">
+                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {msg.direction === 'outgoing' && (
+                            <span className={`tick-mark ${msg.status}`}>
+                              {msg.status === 'sent' && '✓'}
+                              {msg.status === 'delivered' && '✓✓'}
+                              {msg.status === 'read' && '✓✓'}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </React.Fragment>
               ))}
               <div ref={messagesEndRef} />
             </div>
@@ -187,7 +278,7 @@ const WhatsAppChat = () => {
                 ref={fileInputRef}
                 style={{ display: 'none' }}
                 onChange={(e) => setSelectedFile(e.target.files[0])}
-                accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
+                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
               />
               {selectedFile && (
                 <div className="file-preview">

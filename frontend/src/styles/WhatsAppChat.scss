@@ -94,9 +94,33 @@
       background: white;
       padding: 15px 20px;
       border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
 
       h3 {
         margin: 0;
+      }
+
+      .date-filter {
+        select {
+          padding: 8px 12px;
+          border: 1px solid #ddd;
+          border-radius: 6px;
+          background: white;
+          color: #333;
+          font-size: 14px;
+          cursor: pointer;
+          outline: none;
+
+          &:hover {
+            border-color: #25d366;
+          }
+
+          &:focus {
+            border-color: #25d366;
+          }
+        }
       }
     }
 
@@ -136,6 +160,7 @@
 
           p {
             margin: 0 0 5px 0;
+            word-wrap: break-word;
           }
 
           .message-time {
@@ -171,24 +196,124 @@
             display: block;
           }
 
-          .message-audio {
-            width: 100%;
+          .audio-message {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.03);
+            border-radius: 20px;
+            min-width: 250px;
             margin-bottom: 5px;
+
+            .audio-play-btn {
+              width: 36px;
+              height: 36px;
+              border-radius: 50%;
+              background: #25d366;
+              border: none;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              flex-shrink: 0;
+              transition: background 0.2s;
+
+              &:hover {
+                background: #20ba5a;
+              }
+
+              svg {
+                margin-left: 2px;
+              }
+            }
+
+            .audio-waveform {
+              flex: 1;
+              display: flex;
+              align-items: center;
+              gap: 2px;
+              height: 24px;
+
+              .waveform-bar {
+                width: 3px;
+                background: #8696a0;
+                border-radius: 2px;
+                transition: all 0.2s;
+
+                &:nth-child(1) { height: 8px; }
+                &:nth-child(2) { height: 16px; }
+                &:nth-child(3) { height: 12px; }
+                &:nth-child(4) { height: 20px; }
+                &:nth-child(5) { height: 10px; }
+                &:nth-child(6) { height: 18px; }
+                &:nth-child(7) { height: 14px; }
+                &:nth-child(8) { height: 22px; }
+                &:nth-child(9) { height: 12px; }
+                &:nth-child(10) { height: 16px; }
+              }
+            }
+
+            .audio-duration {
+              font-size: 12px;
+              color: #667781;
+              font-weight: 500;
+              flex-shrink: 0;
+            }
           }
 
           .message-document {
-            display: inline-block;
-            padding: 8px 12px;
-            background: #f0f0f0;
-            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
             text-decoration: none;
             color: #333;
             margin-bottom: 5px;
+            transition: background 0.2s;
 
             &:hover {
-              background: #e0e0e0;
+              background: rgba(0, 0, 0, 0.1);
+            }
+
+            .doc-icon {
+              font-size: 24px;
+            }
+
+            .doc-name {
+              flex: 1;
+              font-size: 14px;
+              font-weight: 500;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+
+            .doc-download {
+              font-size: 18px;
+              color: #25d366;
             }
           }
+        }
+      }
+
+      .date-divider {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 20px 0;
+
+        span {
+          background: rgba(255, 255, 255, 0.9);
+          padding: 6px 12px;
+          border-radius: 8px;
+          font-size: 12px;
+          color: #667781;
+          font-weight: 500;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
       }
     }

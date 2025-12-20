@@ -129,14 +129,17 @@ export class WhatsappController {
       }
     }),
     fileFilter: (req, file, cb) => {
-      const allowedTypes = /jpeg|jpg|png|gif|mp4|avi|mov|pdf|doc|docx|mp3|wav/;
+      const allowedTypes = /jpeg|jpg|png|gif|webp|mp4|avi|mov|mkv|pdf|doc|docx|xls|xlsx|ppt|pptx|mp3|wav|ogg|aac|m4a/;
       const extname = allowedTypes.test(file.originalname.toLowerCase());
-      const mimetype = allowedTypes.test(file.mimetype);
+      const mimetype = allowedTypes.test(file.mimetype) || 
+                       file.mimetype.includes('document') || 
+                       file.mimetype.includes('spreadsheet') || 
+                       file.mimetype.includes('presentation');
       
-      if (mimetype && extname) {
+      if (mimetype || extname) {
         return cb(null, true);
       } else {
-        cb(new Error('Invalid file type'), false);
+        cb(new Error('Invalid file type. Supported: images, videos, audio, PDF, DOC, XLS, PPT'), false);
       }
     },
     limits: {
@@ -187,14 +190,17 @@ export class WhatsappController {
       }
     }),
     fileFilter: (req, file, cb) => {
-      const allowedTypes = /jpeg|jpg|png|gif|mp4|avi|mov|pdf|doc|docx|mp3|wav|webp/;
+      const allowedTypes = /jpeg|jpg|png|gif|webp|mp4|avi|mov|mkv|pdf|doc|docx|xls|xlsx|ppt|pptx|mp3|wav|ogg|aac|m4a/;
       const extname = allowedTypes.test(file.originalname.toLowerCase());
-      const mimetype = allowedTypes.test(file.mimetype);
+      const mimetype = allowedTypes.test(file.mimetype) || 
+                       file.mimetype.includes('document') || 
+                       file.mimetype.includes('spreadsheet') || 
+                       file.mimetype.includes('presentation');
       
-      if (mimetype && extname) {
+      if (mimetype || extname) {
         return cb(null, true);
       } else {
-        cb(new Error('Invalid file type'), false);
+        cb(new Error('Invalid file type. Supported: images, videos, audio, PDF, DOC, XLS, PPT'), false);
       }
     },
     limits: {
@@ -235,14 +241,17 @@ export class WhatsappController {
       }
     }),
     fileFilter: (req, file, cb) => {
-      const allowedTypes = /jpeg|jpg|png|gif|mp4|avi|mov|pdf|doc|docx|mp3|wav|webp/;
+      const allowedTypes = /jpeg|jpg|png|gif|webp|mp4|avi|mov|mkv|pdf|doc|docx|xls|xlsx|ppt|pptx|mp3|wav|ogg|aac|m4a/;
       const extname = allowedTypes.test(file.originalname.toLowerCase());
-      const mimetype = allowedTypes.test(file.mimetype);
+      const mimetype = allowedTypes.test(file.mimetype) || 
+                       file.mimetype.includes('document') || 
+                       file.mimetype.includes('spreadsheet') || 
+                       file.mimetype.includes('presentation');
       
-      if (mimetype && extname) {
+      if (mimetype || extname) {
         return cb(null, true);
       } else {
-        cb(new Error('Invalid file type'), false);
+        cb(new Error('Invalid file type. Supported: images, videos, audio, PDF, DOC, XLS, PPT'), false);
       }
     },
     limits: {

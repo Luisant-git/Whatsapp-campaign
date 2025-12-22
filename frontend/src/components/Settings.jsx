@@ -346,11 +346,39 @@ const Settings = () => {
                   )}
                 </div>
                 {currentSettings.headerImageUrl && (
-                  <img 
-                    src={currentSettings.headerImageUrl} 
-                    alt="Preview" 
-                    style={{marginTop: '10px', maxWidth: '200px', borderRadius: '4px'}}
-                  />
+                  <div style={{marginTop: '10px'}}>
+                    <img 
+                      src={currentSettings.headerImageUrl} 
+                      alt="Header preview" 
+                      style={{
+                        maxWidth: '200px', 
+                        maxHeight: '150px',
+                        borderRadius: '4px',
+                        border: '1px solid #ddd',
+                        objectFit: 'cover'
+                      }}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'block';
+                      }}
+                      onLoad={(e) => {
+                        e.target.style.display = 'block';
+                        e.target.nextSibling.style.display = 'none';
+                      }}
+                    />
+                    <div style={{
+                      display: 'none',
+                      padding: '20px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      backgroundColor: '#f5f5f5',
+                      color: '#666',
+                      textAlign: 'center',
+                      maxWidth: '200px'
+                    }}>
+                      Image preview unavailable
+                    </div>
+                  </div>
                 )}
               </div>
 

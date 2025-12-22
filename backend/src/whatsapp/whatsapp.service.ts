@@ -389,13 +389,7 @@ export class WhatsappService {
         const imageUrl = headerImageUrl || settings.headerImageUrl;
         const components: any[] = [];
         
-        if (imageUrl) {
-          // Validate that the image URL is HTTPS and not localhost
-          if (!imageUrl.startsWith('https://')) {
-            this.logger.warn(`Invalid image URL (must be HTTPS): ${imageUrl}`);
-            throw new Error('Header image URL must be a publicly accessible HTTPS URL');
-          }
-          
+        if (imageUrl && imageUrl.startsWith('https://') && !imageUrl.includes('localhost')) {
           this.logger.log(`Adding header image: ${imageUrl}`);
           components.push({
             type: 'header',
@@ -408,6 +402,8 @@ export class WhatsappService {
               }
             ]
           });
+        } else if (imageUrl) {
+          this.logger.warn(`Skipping invalid image URL: ${imageUrl} (must be public HTTPS)`);
         }
         
         const requestBody = {

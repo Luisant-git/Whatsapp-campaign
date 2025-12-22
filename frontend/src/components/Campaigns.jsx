@@ -4,6 +4,7 @@ import { getAllSettings } from '../api/auth';
 import { useToast } from '../contexts/ToastContext';
 import EditCampaign from './EditCampaign';
 import CampaignResults from './CampaignResults';
+import { RotateCw, BarChart3, Edit2, RefreshCw } from 'lucide-react';
 import '../styles/Campaign.scss';
 
 const Campaigns = () => {
@@ -128,6 +129,7 @@ const Campaigns = () => {
             ))}
           </select>
           <button onClick={fetchCampaigns} className="refresh-btn">
+            <RefreshCw size={18} />
             Refresh
           </button>
         </div>
@@ -168,29 +170,25 @@ const Campaigns = () => {
                     onClick={() => handleRerunCampaign(campaign.id)}
                     disabled={loading || campaign.status === 'running'}
                     className="rerun-btn"
+                    title="Rerun Campaign"
                   >
-                    {campaign.status === 'running' ? 'Running...' : 'Rerun'}
+                    <RotateCw size={16} />
                   </button>
                   <button
                     onClick={() => handleViewResults(campaign)}
                     className="results-btn"
+                    title="View Results"
                   >
-                    Results
+                    <BarChart3 size={16} />
                   </button>
                   <button
                     onClick={() => handleEditCampaign(campaign)}
                     disabled={campaign.status === 'running'}
                     className="edit-btn"
+                    title="Edit Campaign"
                   >
-                    Edit
+                    <Edit2 size={16} />
                   </button>
-                  {/* <button
-                    onClick={() => handleDeleteCampaign(campaign.id)}
-                    disabled={campaign.status === 'running'}
-                    className="delete-btn"
-                  >
-                    Delete
-                  </button> */}
                 </td>
               </tr>
             ))}

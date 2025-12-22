@@ -58,4 +58,12 @@ export class SendBulkDto {
   @IsOptional()
   @IsArray()
   parameters?: any[];
+
+  @ApiPropertyOptional({ 
+    description: 'Header image URL for template',
+    example: 'https://example.com/image.jpg'
+  })
+  @IsOptional()
+  @IsString()
+  headerImageUrl?: string;
 }

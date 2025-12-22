@@ -21,6 +21,7 @@ export class SettingsService {
       verifyToken: s.verifyToken || '',
       apiUrl: s.apiUrl,
       language: s.language,
+      headerImageUrl: s.headerImageUrl || undefined,
       isDefault: s.isDefault
     }));
   }
@@ -49,6 +50,7 @@ export class SettingsService {
         verifyToken: firstSettings.verifyToken || '',
         apiUrl: firstSettings.apiUrl,
         language: firstSettings.language,
+        headerImageUrl: firstSettings.headerImageUrl || undefined,
         isDefault: firstSettings.isDefault
       };
     }
@@ -62,6 +64,7 @@ export class SettingsService {
       verifyToken: settings.verifyToken || '',
       apiUrl: settings.apiUrl,
       language: settings.language,
+      headerImageUrl: settings.headerImageUrl || undefined,
       isDefault: settings.isDefault
     };
   }
@@ -84,6 +87,7 @@ export class SettingsService {
       verifyToken: settings.verifyToken || '',
       apiUrl: settings.apiUrl,
       language: settings.language,
+      headerImageUrl: settings.headerImageUrl || undefined,
       isDefault: settings.isDefault
     };
   }
@@ -121,6 +125,7 @@ export class SettingsService {
       verifyToken: settings.verifyToken || '',
       apiUrl: settings.apiUrl,
       language: settings.language,
+      headerImageUrl: settings.headerImageUrl || undefined,
       isDefault: settings.isDefault
     };
   }
@@ -164,6 +169,7 @@ export class SettingsService {
       verifyToken: settings.verifyToken || '',
       apiUrl: settings.apiUrl,
       language: settings.language,
+      headerImageUrl: settings.headerImageUrl || undefined,
       isDefault: settings.isDefault
     };
   }
@@ -221,6 +227,7 @@ export class SettingsService {
       verifyToken: updatedSettings.verifyToken || '',
       apiUrl: updatedSettings.apiUrl,
       language: updatedSettings.language,
+      headerImageUrl: updatedSettings.headerImageUrl || undefined,
       isDefault: updatedSettings.isDefault
     };
   }

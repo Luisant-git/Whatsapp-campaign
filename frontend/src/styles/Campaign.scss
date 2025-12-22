@@ -39,15 +39,21 @@
     }
 
     .refresh-btn {
-      background-color: #3b82f6;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background-color: #075e54;
       color: white;
       padding: 8px 16px;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.2s;
 
       &:hover {
-        background-color: #2563eb;
+        background-color: #064d44;
       }
     }
   }
@@ -309,19 +315,28 @@
             }
           }
 
-          .actions {
-            display: flex;
-            gap: 8px;
-
+          &.actions {
             button {
-              padding: 4px 8px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              width: 32px;
+              height: 32px;
+              padding: 0;
               border: none;
-              border-radius: 4px;
-              font-size: 12px;
+              border-radius: 6px;
               cursor: pointer;
+              transition: all 0.2s;
+              background: transparent;
+              color: #555;
+
+              &:hover:not(:disabled) {
+                background: #f5f5f5;
+                transform: translateY(-1px);
+              }
 
               &:disabled {
-                opacity: 0.5;
+                opacity: 0.4;
                 cursor: not-allowed;
               }
             }
@@ -332,34 +347,45 @@
   }
 }
 
-// Specific button styles with higher specificity
-.campaigns-table .actions .rerun-btn {
-  background-color: #2563eb !important;
-  color: white !important;
-  border: none !important;
+.campaigns-table .actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
 
-  &:hover:not(:disabled) {
-    background-color: #1d4ed8 !important;
+  .rerun-btn {
+    color: #2563eb;
+
+    &:hover:not(:disabled) {
+      background: #eff6ff !important;
+      color: #1d4ed8;
+    }
   }
-}
 
-.campaigns-table .actions .edit-btn {
-  background-color: #10b981 !important;
-  color: white !important;
-  border: none !important;
+  .results-btn {
+    color: #8b5cf6;
 
-  &:hover:not(:disabled) {
-    background-color: #059669 !important;
+    &:hover:not(:disabled) {
+      background: #f5f3ff !important;
+      color: #7c3aed;
+    }
   }
-}
 
-.campaigns-table .actions .delete-btn {
-  background-color: #ef4444 !important;
-  color: white !important;
-  border: none !important;
+  .edit-btn {
+    color: #10b981;
 
-  &:hover:not(:disabled) {
-    background-color: #dc2626 !important;
+    &:hover:not(:disabled) {
+      background: #ecfdf5 !important;
+      color: #059669;
+    }
+  }
+
+  .delete-btn {
+    color: #ef4444;
+
+    &:hover:not(:disabled) {
+      background: #fef2f2 !important;
+      color: #dc2626;
+    }
   }
 }
 

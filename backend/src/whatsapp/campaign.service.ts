@@ -173,6 +173,11 @@ export class CampaignService {
     let successCount = 0;
     let failedCount = 0;
 
+    // Get settings to access headerImageUrl
+    const settings = await this.prisma.whatsAppSettings.findUnique({ 
+      where: { id: campaign.settingsId } 
+    });
+
     for (const contact of campaign.contacts) {
       try {
         this.logger.log(`Sending campaign message to ${contact.phone}`);
@@ -181,7 +186,8 @@ export class CampaignService {
           [{ name: contact.name || '', phone: contact.phone }],
           campaign.templateName,
           userId,
-          campaign.settingsId
+          campaign.settingsId,
+          settings?.headerImageUrl || undefined
         );
 
         const messageResult = result[0];

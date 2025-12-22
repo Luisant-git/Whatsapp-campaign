@@ -25,6 +25,11 @@ export class CreateCampaignDto {
   @IsArray()
   parameters?: any[];
 
+  @ApiPropertyOptional({ description: 'Header image URL for template', example: 'https://example.com/image.jpg' })
+  @IsOptional()
+  @IsString()
+  headerImageUrl?: string;
+
   @ApiPropertyOptional({ description: 'Schedule type', enum: ['one-time', 'time-based'], default: 'one-time' })
   @IsOptional()
   @IsString()
@@ -63,6 +68,11 @@ export class UpdateCampaignDto {
   @IsOptional()
   @IsArray()
   parameters?: any[];
+
+  @ApiPropertyOptional({ description: 'Header image URL for template', example: 'https://example.com/image.jpg' })
+  @IsOptional()
+  @IsString()
+  headerImageUrl?: string;
 
   @ApiPropertyOptional({ description: 'Schedule type', enum: ['one-time', 'time-based'] })
   @IsOptional()

@@ -360,7 +360,7 @@ export class WhatsappService {
     return results;
   }
 
-  async sendBulkTemplateMessageWithNames(contacts: Array<{name: string; phone: string}>, templateName: string, userId: number, settingsId?: number) {
+  async sendBulkTemplateMessageWithNames(contacts: Array<{name: string; phone: string}>, templateName: string, userId: number, settingsId?: number, headerImageUrl?: string) {
     let settings;
     if (settingsId) {
       settings = await this.prisma.whatsAppSettings.findUnique({ where: { id: settingsId } });
@@ -386,6 +386,23 @@ export class WhatsappService {
         this.logger.log(`API URL: ${settings.apiUrl}/${settings.phoneNumberId}/messages`);
         this.logger.log(`Template: ${templateName}, Language: ${settings.language}`);
         
+        const imageUrl = headerImageUrl || settings.headerImageUrl;
+        const components: any[] = [];
+        
+        if (imageUrl) {
+          components.push({
+            type: 'header',
+            parameters: [
+              {
+                type: 'image',
+                image: {
+                  link: imageUrl
+                }
+              }
+            ]
+          });
+        }
+        
         const requestBody = {
           messaging_product: 'whatsapp',
           to: formattedPhone,
@@ -393,19 +410,7 @@ export class WhatsappService {
           template: {
             name: templateName,
             language: { code: settings.language || 'en' },
-            components: [
-              {
-                type: 'header',
-                parameters: [
-                  {
-                    type: 'image',
-                    image: {
-                      link: 'https://via.placeholder.com/300x200.png'
-                    }
-                  }
-                ]
-              }
-            ]
+            components: components.length > 0 ? components : undefined
           }
         };
         

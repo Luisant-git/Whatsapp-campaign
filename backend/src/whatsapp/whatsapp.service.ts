@@ -386,17 +386,13 @@ export class WhatsappService {
         this.logger.log(`API URL: ${settings.apiUrl}/${settings.phoneNumberId}/messages`);
         this.logger.log(`Template: ${templateName}, Language: ${settings.language}`);
         
-        // Build template components - skip all components to avoid format mismatch errors
-        const components: any[] = [];
-        
         const requestBody = {
           messaging_product: 'whatsapp',
           to: formattedPhone,
           type: 'template',
           template: {
             name: templateName,
-            language: { code: settings.language || 'en' },
-            components: components
+            language: { code: settings.language || 'en' }
           }
         };
         

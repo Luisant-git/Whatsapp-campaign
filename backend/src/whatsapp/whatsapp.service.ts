@@ -389,8 +389,9 @@ export class WhatsappService {
         // Build template components
         const components: any[] = [];
         
-        // Add body parameters if name is provided
-        if (contact.name && contact.name.trim()) {
+        // Only add body parameters if name is provided and template expects parameters
+        // Skip parameters if template has no placeholders to avoid error #132000
+        if (contact.name && contact.name.trim() && templateName.includes('{{')) {
           components.push({
             type: 'body',
             parameters: [{ type: 'text', text: contact.name.trim() }]

@@ -1,8 +1,11 @@
-import { Controller, Get, Post, Put, Delete, Body, UseGuards, Session, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, UseGuards, Session, Param, ParseIntPipe, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SettingsService } from './settings.service';
 import { WhatsAppSettingsDto, UpdateSettingsDto, SettingsResponseDto } from './dto/settings.dto';
 import { SessionGuard } from '../auth/session.guard';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 
 @ApiTags('Settings')
 @Controller('settings')
@@ -39,6 +42,30 @@ export class SettingsController {
   @ApiResponse({ status: 201, description: 'Settings created successfully', type: SettingsResponseDto })
   async createSettings(@Session() session: any, @Body() whatsAppSettingsDto: WhatsAppSettingsDto): Promise<SettingsResponseDto> {
     return this.settingsService.createSettings(session.user.id, whatsAppSettingsDto);
+  }
+
+  @Post('upload-image')
+  @UseGuards(SessionGuard)
+  @UseInterceptors(FileInterceptor('image', {
+    storage: diskStorage({
+      destination: './uploads',
+      filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, `header-${uniqueSuffix}${extname(file.originalname)}`);
+      }
+    }),
+    fileFilter: (req, file, cb) => {
+      if (!file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
+        return cb(new Error('Only image files are allowed!'), false);
+      }
+      cb(null, true);
+    },
+    limits: { fileSize: 5 * 1024 * 1024 }
+  }))
+  @ApiOperation({ summary: 'Upload header image' })
+  async uploadImage(@UploadedFile() file: Express.Multer.File) {
+    const imageUrl = `${process.env.BACKEND_URL || 'http://localhost:3000'}/uploads/${file.filename}`;
+    return { url: imageUrl };
   }
 
   @Put(':id')

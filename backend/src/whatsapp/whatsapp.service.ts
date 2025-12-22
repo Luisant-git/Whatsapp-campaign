@@ -386,17 +386,8 @@ export class WhatsappService {
         this.logger.log(`API URL: ${settings.apiUrl}/${settings.phoneNumberId}/messages`);
         this.logger.log(`Template: ${templateName}, Language: ${settings.language}`);
         
-        // Build template components
+        // Build template components - skip all components to avoid format mismatch errors
         const components: any[] = [];
-        
-        // Only add body parameters if name is provided and template expects parameters
-        // Skip parameters if template has no placeholders to avoid error #132000
-        if (contact.name && contact.name.trim() && templateName.includes('{{')) {
-          components.push({
-            type: 'body',
-            parameters: [{ type: 'text', text: contact.name.trim() }]
-          });
-        }
         
         const requestBody = {
           messaging_product: 'whatsapp',

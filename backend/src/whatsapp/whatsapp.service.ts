@@ -400,7 +400,7 @@ export class WhatsappService {
                   {
                     type: 'image',
                     image: {
-                      link: 'YOUR_ACTUAL_IMAGE_URL_HERE'
+                      link: 'https://via.placeholder.com/300x200.png'
                     }
                   }
                 ]

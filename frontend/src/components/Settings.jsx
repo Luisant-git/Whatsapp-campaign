@@ -5,9 +5,10 @@ import {
   updateSettings,
   deleteSettings,
   setDefaultSettings,
+  uploadHeaderImage,
 } from "../api/auth";
 import { useToast } from '../contexts/ToastContext';
-import { Eye, EyeOff, Plus, Trash2, Star } from "lucide-react";
+import { Eye, EyeOff, Plus, Trash2, Star, Upload } from "lucide-react";
 
 const Settings = () => {
   const { showSuccess, showError, showConfirm } = useToast();
@@ -24,6 +25,7 @@ const Settings = () => {
   });
   const [showAccessToken, setShowAccessToken] = useState(false);
   const [showVerifyToken, setShowVerifyToken] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -62,6 +64,23 @@ const Settings = () => {
 
   const handleInputChange = (field, value) => {
     setCurrentSettings((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const result = await uploadHeaderImage(file);
+      handleInputChange('headerImageUrl', result.url);
+      showSuccess('Image uploaded successfully!');
+    } catch (error) {
+      console.error('Failed to upload image:', error);
+      showError('Failed to upload image');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSaveConfiguration = async () => {
@@ -310,16 +329,29 @@ const Settings = () => {
               </div>
 
               <div className="form-group">
-                <label>Header Image URL (HTTPS)</label>
-                <input
-                  type="text"
-                  placeholder="https://i.imgbb.com/xxxxx/image.jpg"
-                  value={currentSettings.headerImageUrl}
-                  onChange={(e) =>
-                    handleInputChange("headerImageUrl", e.target.value)
-                  }
-                />
-                <small style={{color: '#666', fontSize: '12px'}}>Upload your template image to imgbb.com and paste the direct link here</small>
+                <label>Header Image</label>
+                <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
+                  <label className="btn-secondary" style={{cursor: 'pointer', margin: 0}}>
+                    <Upload size={16} /> {uploading ? 'Uploading...' : 'Upload Image'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={uploading}
+                      style={{display: 'none'}}
+                    />
+                  </label>
+                  {currentSettings.headerImageUrl && (
+                    <span style={{fontSize: '12px', color: '#666'}}>✓ Image uploaded</span>
+                  )}
+                </div>
+                {currentSettings.headerImageUrl && (
+                  <img 
+                    src={currentSettings.headerImageUrl} 
+                    alt="Preview" 
+                    style={{marginTop: '10px', maxWidth: '200px', borderRadius: '4px'}}
+                  />
+                )}
               </div>
 
               <div className="form-group">

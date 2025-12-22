@@ -308,7 +308,7 @@ export class WhatsappService {
     for (const phoneNumber of phoneNumbers) {
       try {
         // Build template components
-        const components = [];
+        const components: any[] = [];
         
         // Add header image if available
         if (settings.headerImageUrl) {
@@ -400,7 +400,7 @@ export class WhatsappService {
         this.logger.log(`Template: ${templateName}, Language: ${settings.language}`);
         
         // Build template components
-        const components = [];
+        const components: any[] = [];
         
         // Add header image if available
         if (settings.headerImageUrl) {

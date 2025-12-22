@@ -392,7 +392,20 @@ export class WhatsappService {
           type: 'template',
           template: {
             name: templateName,
-            language: { code: settings.language || 'en' }
+            language: { code: settings.language || 'en' },
+            components: [
+              {
+                type: 'header',
+                parameters: [
+                  {
+                    type: 'image',
+                    image: {
+                      link: 'YOUR_ACTUAL_IMAGE_URL_HERE'
+                    }
+                  }
+                ]
+              }
+            ]
           }
         };
         

@@ -307,6 +307,30 @@ export class WhatsappService {
    
     for (const phoneNumber of phoneNumbers) {
       try {
+        // Build template components
+        const components = [];
+        
+        // Add header image if available
+        if (settings.headerImageUrl) {
+          components.push({
+            type: 'header',
+            parameters: [{
+              type: 'image',
+              image: {
+                link: settings.headerImageUrl
+              }
+            }]
+          });
+        }
+        
+        // Add body parameters if provided
+        if (parameters && parameters.length > 0) {
+          components.push({
+            type: 'body',
+            parameters: parameters.map(param => ({ type: 'text', text: param }))
+          });
+        }
+        
         const response = await axios.post(
           `${settings.apiUrl}/${settings.phoneNumberId}/messages`,
           {
@@ -316,12 +340,7 @@ export class WhatsappService {
             template: {
               name: templateName,
               language: { code: settings.language || 'en' },
-              components: parameters ? [
-                {
-                  type: 'body',
-                  parameters: parameters.map(param => ({ type: 'text', text: param }))
-                }
-              ] : []
+              components: components
             }
           },
           {
@@ -380,6 +399,30 @@ export class WhatsappService {
         this.logger.log(`API URL: ${settings.apiUrl}/${settings.phoneNumberId}/messages`);
         this.logger.log(`Template: ${templateName}, Language: ${settings.language}`);
         
+        // Build template components
+        const components = [];
+        
+        // Add header image if available
+        if (settings.headerImageUrl) {
+          components.push({
+            type: 'header',
+            parameters: [{
+              type: 'image',
+              image: {
+                link: settings.headerImageUrl
+              }
+            }]
+          });
+        }
+        
+        // Add body parameters if name is provided
+        if (contact.name && contact.name.trim()) {
+          components.push({
+            type: 'body',
+            parameters: [{ type: 'text', text: contact.name.trim() }]
+          });
+        }
+        
         const requestBody = {
           messaging_product: 'whatsapp',
           to: formattedPhone,
@@ -387,12 +430,7 @@ export class WhatsappService {
           template: {
             name: templateName,
             language: { code: settings.language || 'en' },
-            components: contact.name && contact.name.trim() ? [
-              {
-                type: 'body',
-                parameters: [{ type: 'text', text: contact.name.trim() }]
-              }
-            ] : []
+            components: components
           }
         };
         

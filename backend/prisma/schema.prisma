@@ -49,6 +49,7 @@ model WhatsAppSettings {
   verifyToken   String?
   apiUrl        String
   language      String   @default("en")
+  headerImageUrl String?
   isDefault     Boolean  @default(false)
   userId        Int
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)

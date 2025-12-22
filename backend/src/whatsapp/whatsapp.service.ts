@@ -386,25 +386,28 @@ export class WhatsappService {
         this.logger.log(`API URL: ${settings.apiUrl}/${settings.phoneNumberId}/messages`);
         this.logger.log(`Template: ${templateName}, Language: ${settings.language}`);
         
-        const imageUrl = headerImageUrl || settings.headerImageUrl;
+        let imageUrl = headerImageUrl || settings.headerImageUrl;
+        
+        // If no valid image URL, use a placeholder for templates that require images
+        if (!imageUrl || !imageUrl.startsWith('https://') || imageUrl.includes('localhost')) {
+          this.logger.warn(`Invalid or missing image URL, using placeholder`);
+          imageUrl = 'https://www.indifi.com/blog/wp-content/uploads/2020/03/Offers-To-Give-To-Customers-For-e-Commerce-Sellers-e1583318138529.jpg'; // Fallback placeholder
+        }
+        
         const components: any[] = [];
         
-        if (imageUrl && imageUrl.startsWith('https://') && !imageUrl.includes('localhost')) {
-          this.logger.log(`Adding header image: ${imageUrl}`);
-          components.push({
-            type: 'header',
-            parameters: [
-              {
-                type: 'image',
-                image: {
-                  link: imageUrl
-                }
+        this.logger.log(`Adding header image: ${imageUrl}`);
+        components.push({
+          type: 'header',
+          parameters: [
+            {
+              type: 'image',
+              image: {
+                link: imageUrl
               }
-            ]
-          });
-        } else if (imageUrl) {
-          this.logger.warn(`Skipping invalid image URL: ${imageUrl} (must be public HTTPS)`);
-        }
+            }
+          ]
+        });
         
         const requestBody = {
           messaging_product: 'whatsapp',

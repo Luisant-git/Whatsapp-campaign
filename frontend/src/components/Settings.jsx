@@ -19,6 +19,7 @@ const Settings = () => {
     accessToken: "",
     verifyToken: "",
     language: "en",
+    headerImageUrl: "",
     isDefault: false,
   });
   const [showAccessToken, setShowAccessToken] = useState(false);
@@ -52,6 +53,7 @@ const Settings = () => {
       accessToken: "",
       verifyToken: "",
       language: "en",
+      headerImageUrl: "",
       isDefault: false,
     });
     setEditingId(null);
@@ -90,6 +92,7 @@ const Settings = () => {
       accessToken: settings.accessToken,
       verifyToken: settings.verifyToken,
       language: settings.language,
+      headerImageUrl: settings.headerImageUrl || "",
       isDefault: settings.isDefault,
     });
     setEditingId(settings.id);
@@ -304,6 +307,19 @@ const Settings = () => {
                     {showVerifyToken ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+              </div>
+
+              <div className="form-group">
+                <label>Header Image URL (HTTPS)</label>
+                <input
+                  type="text"
+                  placeholder="https://i.imgbb.com/xxxxx/image.jpg"
+                  value={currentSettings.headerImageUrl}
+                  onChange={(e) =>
+                    handleInputChange("headerImageUrl", e.target.value)
+                  }
+                />
+                <small style={{color: '#666', fontSize: '12px'}}>Upload your template image to imgbb.com and paste the direct link here</small>
               </div>
 
               <div className="form-group">

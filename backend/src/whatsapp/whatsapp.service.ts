@@ -386,12 +386,10 @@ export class WhatsappService {
         this.logger.log(`API URL: ${settings.apiUrl}/${settings.phoneNumberId}/messages`);
         this.logger.log(`Template: ${templateName}, Language: ${settings.language}`);
         
-        let imageUrl = headerImageUrl || settings.headerImageUrl;
+        const imageUrl = headerImageUrl || settings.headerImageUrl;
         
-        // If no valid image URL, use a placeholder for templates that require images
         if (!imageUrl || !imageUrl.startsWith('https://') || imageUrl.includes('localhost')) {
-          this.logger.warn(`Invalid or missing image URL, using placeholder`);
-          imageUrl = 'https://www.indifi.com/blog/wp-content/uploads/2020/03/Offers-To-Give-To-Customers-For-e-Commerce-Sellers-e1583318138529.jpg'; // Fallback placeholder
+          throw new Error('Please set a valid HTTPS image URL in WhatsApp Settings');
         }
         
         const components: any[] = [];

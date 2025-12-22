@@ -32,6 +32,11 @@ export class WhatsAppSettingsDto {
   @IsString()
   language?: string;
 
+  @ApiProperty({ description: 'Template header image URL', required: false })
+  @IsOptional()
+  @IsString()
+  headerImageUrl?: string;
+
   @ApiProperty({ description: 'Set as default configuration', required: false })
   @IsOptional()
   isDefault?: boolean;
@@ -73,6 +78,11 @@ export class UpdateSettingsDto {
   @IsString()
   language?: string;
 
+  @ApiProperty({ description: 'Template header image URL', required: false })
+  @IsOptional()
+  @IsString()
+  headerImageUrl?: string;
+
   @ApiProperty({ description: 'Set as default configuration', required: false })
   @IsOptional()
   isDefault?: boolean;
@@ -102,6 +112,9 @@ export class SettingsResponseDto {
 
   @ApiProperty({ description: 'Template language code' })
   language: string;
+
+  @ApiProperty({ description: 'Template header image URL', required: false })
+  headerImageUrl?: string;
 
   @ApiProperty({ description: 'Is default configuration' })
   isDefault: boolean;

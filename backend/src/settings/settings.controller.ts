@@ -64,7 +64,7 @@ export class SettingsController {
   }))
   @ApiOperation({ summary: 'Upload header image' })
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
-    const imageUrl = `${process.env.BACKEND_URL || 'http://localhost:3000'}/uploads/${file.filename}`;
+    const imageUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
     return { url: imageUrl };
   }
 

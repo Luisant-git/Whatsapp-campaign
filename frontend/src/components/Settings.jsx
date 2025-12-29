@@ -7,12 +7,14 @@ import {
   setDefaultSettings,
   uploadHeaderImage,
 } from "../api/auth";
+import { getMasterConfigs, createMasterConfig, updateMasterConfig, deleteMasterConfig } from "../api/masterConfig";
 import { useToast } from '../contexts/ToastContext';
 import { Eye, EyeOff, Plus, Trash2, Star, Upload } from "lucide-react";
 
 const Settings = () => {
   const { showSuccess, showError, showConfirm } = useToast();
   const [allSettings, setAllSettings] = useState([]);
+  const [masterConfigs, setMasterConfigs] = useState([]);
   const [currentSettings, setCurrentSettings] = useState({
     name: "",
     templateName: "",
@@ -22,6 +24,7 @@ const Settings = () => {
     language: "en",
     headerImageUrl: "",
     isDefault: false,
+    masterConfigId: "",
   });
   const [showAccessToken, setShowAccessToken] = useState(false);
   const [showVerifyToken, setShowVerifyToken] = useState(false);
@@ -31,10 +34,29 @@ const Settings = () => {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [showMasterConfigForm, setShowMasterConfigForm] = useState(false);
+  const [editingMasterConfigId, setEditingMasterConfigId] = useState(null);
+  const [currentMasterConfig, setCurrentMasterConfig] = useState({
+    name: "",
+    phoneNumberId: "",
+    accessToken: "",
+    verifyToken: "",
+  });
+  const [selectedMasterConfig, setSelectedMasterConfig] = useState(null);
 
   useEffect(() => {
     fetchAllSettings();
+    fetchMasterConfigs();
   }, []);
+
+  const fetchMasterConfigs = async () => {
+    try {
+      const data = await getMasterConfigs();
+      setMasterConfigs(data || []);
+    } catch (error) {
+      console.error("Failed to fetch master configs:", error);
+    }
+  };
 
   const fetchAllSettings = async () => {
     try {
@@ -57,6 +79,7 @@ const Settings = () => {
       language: "en",
       headerImageUrl: "",
       isDefault: false,
+      masterConfigId: "",
     });
     setEditingId(null);
     setShowForm(false);
@@ -104,15 +127,31 @@ const Settings = () => {
   };
 
   const handleEdit = (settings) => {
+    // If the settings use a master config, get the values from master config
+    let phoneNumberId = settings.phoneNumberId;
+    let accessToken = settings.accessToken;
+    let verifyToken = settings.verifyToken;
+    let masterConfigId = settings.masterConfigId || "";
+    
+    if (settings.masterConfigId) {
+      const masterConfig = masterConfigs.find(mc => mc.id === settings.masterConfigId);
+      if (masterConfig) {
+        phoneNumberId = masterConfig.phoneNumberId;
+        accessToken = masterConfig.accessToken;
+        verifyToken = masterConfig.verifyToken;
+      }
+    }
+    
     setCurrentSettings({
       name: settings.name,
       templateName: settings.templateName,
-      phoneNumberId: settings.phoneNumberId,
-      accessToken: settings.accessToken,
-      verifyToken: settings.verifyToken,
+      phoneNumberId: phoneNumberId,
+      accessToken: accessToken,
+      verifyToken: verifyToken,
       language: settings.language,
       headerImageUrl: settings.headerImageUrl || "",
       isDefault: settings.isDefault,
+      masterConfigId: masterConfigId,
     });
     setEditingId(settings.id);
     setShowForm(true);
@@ -143,6 +182,54 @@ const Settings = () => {
     }
   };
 
+  const handleSaveMasterConfig = async () => {
+    setSaving(true);
+    try {
+      console.log('Saving master config:', currentMasterConfig);
+      if (editingMasterConfigId) {
+        await updateMasterConfig(editingMasterConfigId, currentMasterConfig);
+        showSuccess('Master config updated successfully!');
+      } else {
+        await createMasterConfig(currentMasterConfig);
+        showSuccess('Master config created successfully!');
+      }
+      setShowMasterConfigForm(false);
+      setEditingMasterConfigId(null);
+      setCurrentMasterConfig({ name: "", phoneNumberId: "", accessToken: "", verifyToken: "" });
+      fetchMasterConfigs();
+    } catch (error) {
+      console.error("Failed to save master config:", error);
+      showError(`Failed to save master config: ${error.response?.data?.message || error.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEditMasterConfig = (config) => {
+    setCurrentMasterConfig({
+      name: config.name,
+      phoneNumberId: config.phoneNumberId,
+      accessToken: config.accessToken,
+      verifyToken: config.verifyToken,
+    });
+    setEditingMasterConfigId(config.id);
+    setShowMasterConfigForm(true);
+  };
+
+  const handleDeleteMasterConfig = async (id) => {
+    const confirmed = await showConfirm('Are you sure you want to delete this master config?');
+    if (confirmed) {
+      try {
+        await deleteMasterConfig(id);
+        showSuccess('Master config deleted successfully!');
+        fetchMasterConfigs();
+      } catch (error) {
+        console.error("Failed to delete master config:", error);
+        showError('Failed to delete master config');
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="settings-container">
@@ -161,6 +248,39 @@ const Settings = () => {
         <button className="btn-primary" onClick={() => setShowForm(true)}>
           <Plus size={16} /> Add Configuration
         </button>
+      </div>
+
+      <div className="settings-list">
+        <h2>Master Configurations</h2>
+        <div style={{marginBottom: '20px'}}>
+          <button className="btn-secondary" onClick={() => setShowMasterConfigForm(true)}>
+            <Plus size={16} /> Add Master Config
+          </button>
+        </div>
+        {masterConfigs.length === 0 ? (
+          <p>No master configurations found.</p>
+        ) : (
+          <div className="configurations-grid">
+            {masterConfigs.map((config) => (
+              <div key={config.id} className="config-card">
+                <div className="config-header">
+                  <h3>{config.name}</h3>
+                </div>
+                <div className="config-details">
+                  <p><strong>Phone ID:</strong> {config.phoneNumberId}</p>
+                </div>
+                <div className="config-actions">
+                  <button onClick={() => handleEditMasterConfig(config)} className="btn-secondary">
+                    Edit
+                  </button>
+                  <button onClick={() => handleDeleteMasterConfig(config.id)} className="btn-danger">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="settings-list">
@@ -187,9 +307,15 @@ const Settings = () => {
                   <p>
                     <strong>Language:</strong> {config.language}
                   </p>
-                  <p>
-                    <strong>Phone ID:</strong> {config.phoneNumberId}
-                  </p>
+                  {config.masterConfigId ? (
+                    <p>
+                      <strong>Master Config:</strong> {masterConfigs.find(mc => mc.id === config.masterConfigId)?.name || 'Unknown'}
+                    </p>
+                  ) : (
+                    <p>
+                      <strong>Phone ID:</strong> {config.phoneNumberId}
+                    </p>
+                  )}
                 </div>
                 <div className="config-actions">
                   <button
@@ -198,6 +324,14 @@ const Settings = () => {
                   >
                     Edit
                   </button>
+                  {!config.masterConfigId && (
+                    <button
+                      onClick={() => setSelectedMasterConfig(config)}
+                      className="btn-outline"
+                    >
+                      <Eye size={16} /> View Details
+                    </button>
+                  )}
                   {!config.isDefault && (
                     <button
                       onClick={() => handleSetDefault(config.id)}
@@ -244,6 +378,32 @@ const Settings = () => {
               </div>
 
               <div className="form-group">
+                <label>Master Configuration</label>
+                <select
+                  value={currentSettings.masterConfigId}
+                  onChange={(e) => {
+                    const configId = e.target.value;
+                    handleInputChange("masterConfigId", configId);
+                    if (configId) {
+                      const config = masterConfigs.find(c => c.id.toString() === configId);
+                      if (config) {
+                        handleInputChange("phoneNumberId", config.phoneNumberId);
+                        handleInputChange("accessToken", config.accessToken);
+                        handleInputChange("verifyToken", config.verifyToken);
+                      }
+                    }
+                  }}
+                >
+                  <option value="">Select Master Config</option>
+                  {masterConfigs.map((config) => (
+                    <option key={config.id} value={config.id}>
+                      {config.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
                 <label>Template Name</label>
                 <input
                   type="text"
@@ -283,7 +443,11 @@ const Settings = () => {
                   onChange={(e) =>
                     handleInputChange("phoneNumberId", e.target.value)
                   }
+                  disabled={currentSettings.masterConfigId}
                 />
+                {currentSettings.masterConfigId && (
+                  <small style={{color: '#666', fontSize: '12px'}}>Auto-filled from master config</small>
+                )}
               </div>
 
               <div className="form-group">
@@ -296,6 +460,7 @@ const Settings = () => {
                     onChange={(e) =>
                       handleInputChange("accessToken", e.target.value)
                     }
+                    disabled={currentSettings.masterConfigId}
                   />
                   <button
                     type="button"
@@ -305,6 +470,9 @@ const Settings = () => {
                     {showAccessToken ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+                {currentSettings.masterConfigId && (
+                  <small style={{color: '#666', fontSize: '12px'}}>Auto-filled from master config</small>
+                )}
               </div>
 
               <div className="form-group">
@@ -317,6 +485,7 @@ const Settings = () => {
                     onChange={(e) =>
                       handleInputChange("verifyToken", e.target.value)
                     }
+                    disabled={currentSettings.masterConfigId}
                   />
                   <button
                     type="button"
@@ -326,6 +495,9 @@ const Settings = () => {
                     {showVerifyToken ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+                {currentSettings.masterConfigId && (
+                  <small style={{color: '#666', fontSize: '12px'}}>Auto-filled from master config</small>
+                )}
               </div>
 
               <div className="form-group">
@@ -409,6 +581,94 @@ const Settings = () => {
                     : editingId
                     ? "Update Configuration"
                     : "Save Configuration"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {selectedMasterConfig && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Configuration Details</h2>
+              <button onClick={() => setSelectedMasterConfig(null)} className="close-btn">×</button>
+            </div>
+            <div className="settings-form">
+              <div className="form-group">
+                <label>Phone Number ID</label>
+                <p style={{padding: '12px', background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '4px', margin: '8px 0'}}>
+                  {selectedMasterConfig.phoneNumberId}
+                </p>
+              </div>
+              <div className="form-group">
+                <label>Access Token</label>
+                <p style={{padding: '12px', background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '4px', margin: '8px 0', fontFamily: 'monospace', wordBreak: 'break-all'}}>
+                  {selectedMasterConfig.accessToken}
+                </p>
+              </div>
+              <div className="form-group">
+                <label>Verify Token</label>
+                <p style={{padding: '12px', background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '4px', margin: '8px 0', fontFamily: 'monospace'}}>
+                  {selectedMasterConfig.verifyToken}
+                </p>
+              </div>
+              <div className="form-actions">
+                <button className="btn-secondary" onClick={() => setSelectedMasterConfig(null)}>Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showMasterConfigForm && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>{editingMasterConfigId ? "Edit Master Config" : "Add Master Config"}</h2>
+              <button onClick={() => setShowMasterConfigForm(false)} className="close-btn">×</button>
+            </div>
+            <div className="settings-form">
+              <div className="form-group">
+                <label>Config Name *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Production API, Test API"
+                  value={currentMasterConfig.name}
+                  onChange={(e) => setCurrentMasterConfig({...currentMasterConfig, name: e.target.value})}
+                />
+              </div>
+              <div className="form-group">
+                <label>Phone Number ID *</label>
+                <input
+                  type="text"
+                  placeholder="Enter Phone Number ID"
+                  value={currentMasterConfig.phoneNumberId}
+                  onChange={(e) => setCurrentMasterConfig({...currentMasterConfig, phoneNumberId: e.target.value})}
+                />
+              </div>
+              <div className="form-group">
+                <label>Access Token *</label>
+                <input
+                  type="password"
+                  placeholder="Enter Access Token"
+                  value={currentMasterConfig.accessToken}
+                  onChange={(e) => setCurrentMasterConfig({...currentMasterConfig, accessToken: e.target.value})}
+                />
+              </div>
+              <div className="form-group">
+                <label>Verify Token *</label>
+                <input
+                  type="password"
+                  placeholder="Enter Verify Token"
+                  value={currentMasterConfig.verifyToken}
+                  onChange={(e) => setCurrentMasterConfig({...currentMasterConfig, verifyToken: e.target.value})}
+                />
+              </div>
+              <div className="form-actions">
+                <button className="btn-secondary" onClick={() => setShowMasterConfigForm(false)}>Cancel</button>
+                <button className="btn-primary" onClick={handleSaveMasterConfig} disabled={saving}>
+                  {saving ? "Saving..." : editingMasterConfigId ? "Update" : "Save"}
                 </button>
               </div>
             </div>

@@ -8,6 +8,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { SettingsModule } from './settings/settings.module';
 import { AutoReplyModule } from './auto-reply.module';
 import { ChatbotModule } from './chatbot/chatbot.module';
+import { MasterConfigModule } from './master-config/master-config.module';
 
 @Module({
   imports: [
@@ -17,7 +18,8 @@ import { ChatbotModule } from './chatbot/chatbot.module';
     AnalyticsModule, 
     SettingsModule, 
     AutoReplyModule,
-    ChatbotModule
+    ChatbotModule,
+    MasterConfigModule
   ],
   controllers: [AppController],
   providers: [AppService],

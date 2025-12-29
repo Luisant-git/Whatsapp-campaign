@@ -9,6 +9,7 @@ export class SettingsService {
   async getAllSettings(userId: number): Promise<SettingsResponseDto[]> {
     const settings = await this.prisma.whatsAppSettings.findMany({
       where: { userId },
+      include: { masterConfig: true },
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }]
     });
 
@@ -16,24 +17,27 @@ export class SettingsService {
       id: s.id,
       name: s.name,
       templateName: s.templateName,
-      phoneNumberId: s.phoneNumberId,
-      accessToken: s.accessToken || '',
-      verifyToken: s.verifyToken || '',
+      phoneNumberId: s.masterConfig ? s.masterConfig.phoneNumberId : s.phoneNumberId,
+      accessToken: s.masterConfig ? s.masterConfig.accessToken : (s.accessToken || ''),
+      verifyToken: s.masterConfig ? s.masterConfig.verifyToken : (s.verifyToken || ''),
       apiUrl: s.apiUrl,
       language: s.language,
       headerImageUrl: s.headerImageUrl || undefined,
-      isDefault: s.isDefault
+      isDefault: s.isDefault,
+      masterConfigId: s.masterConfigId || undefined
     }));
   }
 
   async getSettings(userId: number): Promise<SettingsResponseDto> {
     const settings = await this.prisma.whatsAppSettings.findFirst({
-      where: { userId, isDefault: true }
+      where: { userId, isDefault: true },
+      include: { masterConfig: true }
     });
 
     if (!settings) {
       const firstSettings = await this.prisma.whatsAppSettings.findFirst({
         where: { userId },
+        include: { masterConfig: true },
         orderBy: { createdAt: 'desc' }
       });
 
@@ -45,13 +49,14 @@ export class SettingsService {
         id: firstSettings.id,
         name: firstSettings.name,
         templateName: firstSettings.templateName,
-        phoneNumberId: firstSettings.phoneNumberId,
-        accessToken: firstSettings.accessToken || '',
-        verifyToken: firstSettings.verifyToken || '',
+        phoneNumberId: firstSettings.masterConfig ? firstSettings.masterConfig.phoneNumberId : firstSettings.phoneNumberId,
+        accessToken: firstSettings.masterConfig ? firstSettings.masterConfig.accessToken : (firstSettings.accessToken || ''),
+        verifyToken: firstSettings.masterConfig ? firstSettings.masterConfig.verifyToken : (firstSettings.verifyToken || ''),
         apiUrl: firstSettings.apiUrl,
         language: firstSettings.language,
         headerImageUrl: firstSettings.headerImageUrl || undefined,
-        isDefault: firstSettings.isDefault
+        isDefault: firstSettings.isDefault,
+        masterConfigId: firstSettings.masterConfigId || undefined
       };
     }
 
@@ -59,19 +64,21 @@ export class SettingsService {
       id: settings.id,
       name: settings.name,
       templateName: settings.templateName,
-      phoneNumberId: settings.phoneNumberId,
-      accessToken: settings.accessToken || '',
-      verifyToken: settings.verifyToken || '',
+      phoneNumberId: settings.masterConfig ? settings.masterConfig.phoneNumberId : settings.phoneNumberId,
+      accessToken: settings.masterConfig ? settings.masterConfig.accessToken : (settings.accessToken || ''),
+      verifyToken: settings.masterConfig ? settings.masterConfig.verifyToken : (settings.verifyToken || ''),
       apiUrl: settings.apiUrl,
       language: settings.language,
       headerImageUrl: settings.headerImageUrl || undefined,
-      isDefault: settings.isDefault
+      isDefault: settings.isDefault,
+      masterConfigId: settings.masterConfigId || undefined
     };
   }
 
   async getSettingsById(userId: number, id: number): Promise<SettingsResponseDto> {
     const settings = await this.prisma.whatsAppSettings.findFirst({
-      where: { id, userId }
+      where: { id, userId },
+      include: { masterConfig: true }
     });
 
     if (!settings) {
@@ -82,13 +89,14 @@ export class SettingsService {
       id: settings.id,
       name: settings.name,
       templateName: settings.templateName,
-      phoneNumberId: settings.phoneNumberId,
-      accessToken: settings.accessToken || '',
-      verifyToken: settings.verifyToken || '',
+      phoneNumberId: settings.masterConfig ? settings.masterConfig.phoneNumberId : settings.phoneNumberId,
+      accessToken: settings.masterConfig ? settings.masterConfig.accessToken : (settings.accessToken || ''),
+      verifyToken: settings.masterConfig ? settings.masterConfig.verifyToken : (settings.verifyToken || ''),
       apiUrl: settings.apiUrl,
       language: settings.language,
       headerImageUrl: settings.headerImageUrl || undefined,
-      isDefault: settings.isDefault
+      isDefault: settings.isDefault,
+      masterConfigId: settings.masterConfigId || undefined
     };
   }
 
@@ -108,12 +116,17 @@ export class SettingsService {
       });
     }
 
+    const createData = { 
+      ...whatsAppSettingsDto, 
+      userId,
+      apiUrl: whatsAppSettingsDto.apiUrl || 'https://graph.facebook.com/v18.0'
+    };
+    if (createData.masterConfigId && typeof createData.masterConfigId === 'string') {
+      createData.masterConfigId = parseInt(createData.masterConfigId);
+    }
+
     const settings = await this.prisma.whatsAppSettings.create({
-      data: {
-        ...whatsAppSettingsDto,
-        userId,
-        apiUrl: whatsAppSettingsDto.apiUrl || 'https://graph.facebook.com/v18.0'
-      }
+      data: createData
     });
 
     return {
@@ -126,7 +139,8 @@ export class SettingsService {
       apiUrl: settings.apiUrl,
       language: settings.language,
       headerImageUrl: settings.headerImageUrl || undefined,
-      isDefault: settings.isDefault
+      isDefault: settings.isDefault,
+      masterConfigId: settings.masterConfigId || undefined
     };
   }
 
@@ -155,9 +169,14 @@ export class SettingsService {
       });
     }
 
+    const updateData = { ...updateSettingsDto };
+    if (updateData.masterConfigId && typeof updateData.masterConfigId === 'string') {
+      updateData.masterConfigId = parseInt(updateData.masterConfigId);
+    }
+
     const settings = await this.prisma.whatsAppSettings.update({
       where: { id },
-      data: updateSettingsDto
+      data: updateData
     });
 
     return {
@@ -170,7 +189,8 @@ export class SettingsService {
       apiUrl: settings.apiUrl,
       language: settings.language,
       headerImageUrl: settings.headerImageUrl || undefined,
-      isDefault: settings.isDefault
+      isDefault: settings.isDefault,
+      masterConfigId: settings.masterConfigId || undefined
     };
   }
 
@@ -228,7 +248,8 @@ export class SettingsService {
       apiUrl: updatedSettings.apiUrl,
       language: updatedSettings.language,
       headerImageUrl: updatedSettings.headerImageUrl || undefined,
-      isDefault: updatedSettings.isDefault
+      isDefault: updatedSettings.isDefault,
+      masterConfigId: updatedSettings.masterConfigId || undefined
     };
   }
 

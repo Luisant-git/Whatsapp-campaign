@@ -40,6 +40,10 @@ export class WhatsAppSettingsDto {
   @ApiProperty({ description: 'Set as default configuration', required: false })
   @IsOptional()
   isDefault?: boolean;
+
+  @ApiProperty({ description: 'Master configuration ID', required: false })
+  @IsOptional()
+  masterConfigId?: number;
 }
 
 export class UpdateSettingsDto {
@@ -86,6 +90,10 @@ export class UpdateSettingsDto {
   @ApiProperty({ description: 'Set as default configuration', required: false })
   @IsOptional()
   isDefault?: boolean;
+
+  @ApiProperty({ description: 'Master configuration ID', required: false })
+  @IsOptional()
+  masterConfigId?: number;
 }
 
 export class SettingsResponseDto {
@@ -118,4 +126,7 @@ export class SettingsResponseDto {
 
   @ApiProperty({ description: 'Is default configuration' })
   isDefault: boolean;
+
+  @ApiProperty({ description: 'Master configuration ID', required: false })
+  masterConfigId?: number;
 }

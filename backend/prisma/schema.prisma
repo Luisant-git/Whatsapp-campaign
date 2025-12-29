@@ -22,6 +22,23 @@ model User {
   campaigns Campaign[]
   documents Document[]
   chatSessions ChatSession[]
+  masterConfigs MasterConfig[]
+}
+
+model MasterConfig {
+  id            Int      @id @default(autoincrement())
+  name          String
+  phoneNumberId String
+  accessToken   String
+  verifyToken   String
+  isActive      Boolean  @default(true)
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  settings      WhatsAppSettings[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@unique([name, userId])
 }
 
 model WhatsAppMessage {
@@ -52,7 +69,9 @@ model WhatsAppSettings {
   headerImageUrl String?
   isDefault     Boolean  @default(false)
   userId        Int
+  masterConfigId Int?
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  masterConfig  MasterConfig? @relation(fields: [masterConfigId], references: [id], onDelete: SetNull)
   campaigns     Campaign[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

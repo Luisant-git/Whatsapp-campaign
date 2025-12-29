@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { MessageSquare, Settings, BarChart3, User, Send, MessageCircle, Bot, Megaphone } from 'lucide-react'
+import { MessageSquare, Settings, BarChart3, User, Send, MessageCircle, Bot, Megaphone, Database } from 'lucide-react'
 import { ToastProvider } from './contexts/ToastContext'
 import WhatsAppChat from './components/WhatsAppChat'
 import BulkWhatsApp from './components/BulkWhatsApps'
@@ -7,6 +7,7 @@ import Campaigns from './components/Campaigns'
 import Login from './components/Login'
 import Analytics from './components/Analytics'
 import SettingsPanel from './components/Settings'
+import MasterConfig from './components/MasterConfig'
 import Profile from './components/Profile'
 import AutoReply from './components/AutoReply'
 import Chatbot from './components/Chatbot'
@@ -97,6 +98,13 @@ function App() {
             <span>Settings</span>
           </button>
           <button 
+            className={`nav-item ${activeView === 'master-config' ? 'active' : ''}`}
+            onClick={() => setActiveView('master-config')}
+          >
+            <Database size={18} />
+            <span>Configurations</span>
+          </button>
+          <button 
             className={`nav-item ${activeView === 'analytics' ? 'active' : ''}`}
             onClick={() => setActiveView('analytics')}
           >
@@ -147,6 +155,7 @@ function App() {
         {activeView === 'chatbot' && <Chatbot />}
         {activeView === 'analytics' && <Analytics />}
         {activeView === 'settings' && <SettingsPanel />}
+        {activeView === 'master-config' && <MasterConfig />}
         {activeView === 'profile' && <Profile />}
       </div>
     </div>

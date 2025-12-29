@@ -7,7 +7,7 @@ import {
   setDefaultSettings,
   uploadHeaderImage,
 } from "../api/auth";
-import { getMasterConfigs, createMasterConfig, updateMasterConfig, deleteMasterConfig } from "../api/masterConfig";
+import { getMasterConfigs } from "../api/masterConfig";
 import { useToast } from '../contexts/ToastContext';
 import { Eye, EyeOff, Plus, Trash2, Star, Upload } from "lucide-react";
 
@@ -34,14 +34,6 @@ const Settings = () => {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [showMasterConfigForm, setShowMasterConfigForm] = useState(false);
-  const [editingMasterConfigId, setEditingMasterConfigId] = useState(null);
-  const [currentMasterConfig, setCurrentMasterConfig] = useState({
-    name: "",
-    phoneNumberId: "",
-    accessToken: "",
-    verifyToken: "",
-  });
   const [selectedMasterConfig, setSelectedMasterConfig] = useState(null);
 
   useEffect(() => {
@@ -182,54 +174,6 @@ const Settings = () => {
     }
   };
 
-  const handleSaveMasterConfig = async () => {
-    setSaving(true);
-    try {
-      console.log('Saving master config:', currentMasterConfig);
-      if (editingMasterConfigId) {
-        await updateMasterConfig(editingMasterConfigId, currentMasterConfig);
-        showSuccess('Master config updated successfully!');
-      } else {
-        await createMasterConfig(currentMasterConfig);
-        showSuccess('Master config created successfully!');
-      }
-      setShowMasterConfigForm(false);
-      setEditingMasterConfigId(null);
-      setCurrentMasterConfig({ name: "", phoneNumberId: "", accessToken: "", verifyToken: "" });
-      fetchMasterConfigs();
-    } catch (error) {
-      console.error("Failed to save master config:", error);
-      showError(`Failed to save master config: ${error.response?.data?.message || error.message}`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleEditMasterConfig = (config) => {
-    setCurrentMasterConfig({
-      name: config.name,
-      phoneNumberId: config.phoneNumberId,
-      accessToken: config.accessToken,
-      verifyToken: config.verifyToken,
-    });
-    setEditingMasterConfigId(config.id);
-    setShowMasterConfigForm(true);
-  };
-
-  const handleDeleteMasterConfig = async (id) => {
-    const confirmed = await showConfirm('Are you sure you want to delete this master config?');
-    if (confirmed) {
-      try {
-        await deleteMasterConfig(id);
-        showSuccess('Master config deleted successfully!');
-        fetchMasterConfigs();
-      } catch (error) {
-        console.error("Failed to delete master config:", error);
-        showError('Failed to delete master config');
-      }
-    }
-  };
-
   if (loading) {
     return (
       <div className="settings-container">
@@ -248,39 +192,6 @@ const Settings = () => {
         <button className="btn-primary" onClick={() => setShowForm(true)}>
           <Plus size={16} /> Add Configuration
         </button>
-      </div>
-
-      <div className="settings-list">
-        <h2>Master Configurations</h2>
-        <div style={{marginBottom: '20px'}}>
-          <button className="btn-secondary" onClick={() => setShowMasterConfigForm(true)}>
-            <Plus size={16} /> Add Master Config
-          </button>
-        </div>
-        {masterConfigs.length === 0 ? (
-          <p>No master configurations found.</p>
-        ) : (
-          <div className="configurations-grid">
-            {masterConfigs.map((config) => (
-              <div key={config.id} className="config-card">
-                <div className="config-header">
-                  <h3>{config.name}</h3>
-                </div>
-                <div className="config-details">
-                  <p><strong>Phone ID:</strong> {config.phoneNumberId}</p>
-                </div>
-                <div className="config-actions">
-                  <button onClick={() => handleEditMasterConfig(config)} className="btn-secondary">
-                    Edit
-                  </button>
-                  <button onClick={() => handleDeleteMasterConfig(config.id)} className="btn-danger">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="settings-list">
@@ -309,7 +220,7 @@ const Settings = () => {
                   </p>
                   {config.masterConfigId ? (
                     <p>
-                      <strong>Master Config:</strong> {masterConfigs.find(mc => mc.id === config.masterConfigId)?.name || 'Unknown'}
+                      <strong>Config:</strong> {masterConfigs.find(mc => mc.id === config.masterConfigId)?.name || 'Unknown'}
                     </p>
                   ) : (
                     <p>
@@ -378,7 +289,7 @@ const Settings = () => {
               </div>
 
               <div className="form-group">
-                <label>Master Configuration</label>
+                <label>Configuration</label>
                 <select
                   value={currentSettings.masterConfigId}
                   onChange={(e) => {
@@ -394,7 +305,7 @@ const Settings = () => {
                     }
                   }}
                 >
-                  <option value="">Select Master Config</option>
+                  <option value="">Select Configuration</option>
                   {masterConfigs.map((config) => (
                     <option key={config.id} value={config.id}>
                       {config.name}
@@ -446,7 +357,7 @@ const Settings = () => {
                   disabled={currentSettings.masterConfigId}
                 />
                 {currentSettings.masterConfigId && (
-                  <small style={{color: '#666', fontSize: '12px'}}>Auto-filled from master config</small>
+                  <small style={{color: '#666', fontSize: '12px'}}>Auto-filled from configuration</small>
                 )}
               </div>
 
@@ -471,7 +382,7 @@ const Settings = () => {
                   </button>
                 </div>
                 {currentSettings.masterConfigId && (
-                  <small style={{color: '#666', fontSize: '12px'}}>Auto-filled from master config</small>
+                  <small style={{color: '#666', fontSize: '12px'}}>Auto-filled from configuration</small>
                 )}
               </div>
 
@@ -496,7 +407,7 @@ const Settings = () => {
                   </button>
                 </div>
                 {currentSettings.masterConfigId && (
-                  <small style={{color: '#666', fontSize: '12px'}}>Auto-filled from master config</small>
+                  <small style={{color: '#666', fontSize: '12px'}}>Auto-filled from configuration</small>
                 )}
               </div>
 
@@ -620,62 +531,6 @@ const Settings = () => {
           </div>
         </div>
       )}
-
-      {showMasterConfigForm && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h2>{editingMasterConfigId ? "Edit Master Config" : "Add Master Config"}</h2>
-              <button onClick={() => setShowMasterConfigForm(false)} className="close-btn">×</button>
-            </div>
-            <div className="settings-form">
-              <div className="form-group">
-                <label>Config Name *</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Production API, Test API"
-                  value={currentMasterConfig.name}
-                  onChange={(e) => setCurrentMasterConfig({...currentMasterConfig, name: e.target.value})}
-                />
-              </div>
-              <div className="form-group">
-                <label>Phone Number ID *</label>
-                <input
-                  type="text"
-                  placeholder="Enter Phone Number ID"
-                  value={currentMasterConfig.phoneNumberId}
-                  onChange={(e) => setCurrentMasterConfig({...currentMasterConfig, phoneNumberId: e.target.value})}
-                />
-              </div>
-              <div className="form-group">
-                <label>Access Token *</label>
-                <input
-                  type="password"
-                  placeholder="Enter Access Token"
-                  value={currentMasterConfig.accessToken}
-                  onChange={(e) => setCurrentMasterConfig({...currentMasterConfig, accessToken: e.target.value})}
-                />
-              </div>
-              <div className="form-group">
-                <label>Verify Token *</label>
-                <input
-                  type="password"
-                  placeholder="Enter Verify Token"
-                  value={currentMasterConfig.verifyToken}
-                  onChange={(e) => setCurrentMasterConfig({...currentMasterConfig, verifyToken: e.target.value})}
-                />
-              </div>
-              <div className="form-actions">
-                <button className="btn-secondary" onClick={() => setShowMasterConfigForm(false)}>Cancel</button>
-                <button className="btn-primary" onClick={handleSaveMasterConfig} disabled={saving}>
-                  {saving ? "Saving..." : editingMasterConfigId ? "Update" : "Save"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
 
     </div>
   );

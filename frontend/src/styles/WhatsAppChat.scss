@@ -9,6 +9,82 @@
     border-right: 1px solid #e0e0e0;
     overflow-y: auto;
 
+    .sidebar-header {
+      position: sticky;
+      top: 0;
+      background: white;
+      z-index: 10;
+      border-bottom: 1px solid #e0e0e0;
+
+      h2 {
+        padding: 16px 20px;
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+      }
+
+      .search-box {
+        position: relative;
+        padding: 0 20px 16px 20px;
+
+        .search-icon {
+          position: absolute;
+          left: 32px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #8696a0;
+          pointer-events: none;
+        }
+
+        input {
+          width: 100%;
+          padding: 10px 40px 10px 40px;
+          border: 1px solid #e0e0e0;
+          border-radius: 8px;
+          outline: none;
+          font-size: 14px;
+          color: #333;
+          background: #f0f2f5;
+          transition: all 0.2s;
+
+          &::placeholder {
+            color: #8696a0;
+          }
+
+          &:focus {
+            background: white;
+            border-color: #25d366;
+          }
+        }
+
+        .clear-search {
+          position: absolute;
+          right: 28px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: transparent;
+          border: none;
+          color: #8696a0;
+          font-size: 20px;
+          cursor: pointer;
+          padding: 0;
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          transition: all 0.2s;
+
+          &:hover {
+            background: #e0e0e0;
+            color: #333;
+          }
+        }
+      }
+    }
+
     h2 {
       padding: 16px 20px;
       margin: 0;

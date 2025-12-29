@@ -50,6 +50,7 @@ const WhatsAppChat = () => {
   const [dateFilter, setDateFilter] = useState('all');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [readMessages, setReadMessages] = useState(() => {
     const saved = localStorage.getItem('readMessages');
     return saved ? JSON.parse(saved) : {};
@@ -298,6 +299,11 @@ const WhatsAppChat = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const filteredChats = chats.filter(chat => 
+    chat.phone.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    chat.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const filteredMessages = selectedChat
     ? filterMessagesByDate(messages.filter(m => m.from === selectedChat))
     : [];
@@ -307,8 +313,27 @@ const WhatsAppChat = () => {
   return (
     <div className="whatsapp-chat">
       <div className="chat-sidebar">
-        <h2>WhatsApp Chats</h2>
-        {chats.map(chat => (
+        <div className="sidebar-header">
+          <h2>WhatsApp Chats</h2>
+          <div className="search-box">
+            <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input
+              type="text"
+              placeholder="Search chats or numbers..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button className="clear-search" onClick={() => setSearchQuery('')}>
+                ×
+              </button>
+            )}
+          </div>
+        </div>
+        {filteredChats.map(chat => (
           <div
             key={chat.phone}
             className={`chat-item ${selectedChat === chat.phone ? 'active' : ''} ${chat.unreadCount > 0 ? 'unread' : ''}`}

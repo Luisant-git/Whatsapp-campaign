@@ -23,6 +23,7 @@ model User {
   documents Document[]
   chatSessions ChatSession[]
   masterConfigs MasterConfig[]
+  autoReplies AutoReply[]
 }
 
 model MasterConfig {
@@ -152,4 +153,15 @@ model ChatMessage {
   sessionId     Int
   session       ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   createdAt     DateTime    @default(now())
+}
+
+model AutoReply {
+  id        Int      @id @default(autoincrement())
+  triggers  String[] // Array of trigger words
+  response  String   @db.Text
+  isActive  Boolean  @default(true)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

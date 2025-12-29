@@ -1,56 +1,62 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from './prisma.service';
 
 @Injectable()
 export class AutoReplyService {
-  private autoReplies = new Map<string, string>();
+  constructor(private prisma: PrismaService) {}
 
-  constructor() {
-    this.initializeDefaultReplies();
-  }
-
-  private initializeDefaultReplies() {
-    // No default replies - all managed from frontend
-  }
-
-  getAutoReply(message: string): string | null {
+  async getAutoReply(message: string, userId: number): Promise<string | null> {
     const lowerMessage = message.toLowerCase().trim();
-    const reply = this.autoReplies.get(lowerMessage);
     
-    if (reply) {
-      return reply;
-    }
+    const autoReplies = await this.prisma.autoReply.findMany({
+      where: { userId, isActive: true }
+    });
     
-    // For hi/hello, show available triggers
-    if (lowerMessage === 'hi' || lowerMessage === 'hello') {
-      const triggers = this.getAvailableTriggers();
-      if (triggers) {
-        return `Thank you for your message! Type ${triggers} to see available options.`;
+    for (const autoReply of autoReplies) {
+      const matchedTrigger = autoReply.triggers.find(trigger => 
+        lowerMessage.includes(trigger.toLowerCase())
+      );
+      
+      if (matchedTrigger) {
+        return autoReply.response;
       }
     }
     
     return null;
   }
 
-  getAvailableTriggers(): string {
-    const triggers = Array.from(this.autoReplies.keys())
-      .filter(t => !['hi', 'hello', 'thanks'].includes(t))
-      .map(t => `*${t}*`)
-      .join(', ');
-    return triggers;
+  async addAutoReply(userId: number, triggers: string[], response: string) {
+    return this.prisma.autoReply.create({
+      data: {
+        triggers,
+        response,
+        userId
+      }
+    });
   }
 
-  addAutoReply(trigger: string, response: string): void {
-    this.autoReplies.set(trigger.toLowerCase(), response);
+  async updateAutoReply(id: number, userId: number, triggers: string[], response: string, isActive: boolean) {
+    return this.prisma.autoReply.update({
+      where: { id },
+      data: { triggers, response, isActive }
+    });
   }
 
-  removeAutoReply(trigger: string): boolean {
-    return this.autoReplies.delete(trigger.toLowerCase());
+  async removeAutoReply(id: number, userId: number): Promise<boolean> {
+    try {
+      await this.prisma.autoReply.delete({
+        where: { id }
+      });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
-  getAllAutoReplies(): Array<{trigger: string, response: string}> {
-    return Array.from(this.autoReplies.entries()).map(([trigger, response]) => ({
-      trigger,
-      response
-    }));
+  async getAllAutoReplies(userId: number) {
+    return this.prisma.autoReply.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
   }
 }

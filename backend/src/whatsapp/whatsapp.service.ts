@@ -67,7 +67,7 @@ export class WhatsappService {
     });
 
     if (text) {
-      await this.sessionService.handleInteractiveMenu(from, text, async (to, msg, imageUrl) => {
+      await this.sessionService.handleInteractiveMenu(from, text, userId, async (to, msg, imageUrl) => {
         if (imageUrl) {
           return this.sendMediaMessage(to, imageUrl, 'image', userId, msg);
         }

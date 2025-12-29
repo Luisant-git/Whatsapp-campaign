@@ -50,7 +50,6 @@ const WhatsAppChat = () => {
   const [dateFilter, setDateFilter] = useState('all');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
   const [readMessages, setReadMessages] = useState(() => {
     const saved = localStorage.getItem('readMessages');
     return saved ? JSON.parse(saved) : {};
@@ -59,6 +58,7 @@ const WhatsAppChat = () => {
   const [audioDurations, setAudioDurations] = useState({});
   const [audioProgress, setAudioProgress] = useState({});
   const [audioCurrentTime, setAudioCurrentTime] = useState({});
+  const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const audioRefs = useRef({});
@@ -299,22 +299,21 @@ const WhatsAppChat = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const filteredChats = chats.filter(chat => 
-    chat.phone.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    chat.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   const filteredMessages = selectedChat
     ? filterMessagesByDate(messages.filter(m => m.from === selectedChat))
     : [];
 
   const groupedMessages = groupMessagesByDate(filteredMessages);
+
+  const filteredChats = chats.filter(chat => 
+    chat.phone.toLowerCase().includes(searchQuery.toLowerCase())
+  );
  
   return (
     <div className="whatsapp-chat">
       <div className="chat-sidebar">
         <div className="sidebar-header">
-          <h2>WhatsApp Chats</h2>
+          <h2>Chats</h2>
           <div className="search-box">
             <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8"/>
@@ -322,7 +321,7 @@ const WhatsAppChat = () => {
             </svg>
             <input
               type="text"
-              placeholder="Search chats or numbers..."
+              placeholder="Search number..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />

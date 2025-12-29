@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { MessageSquare, Settings, BarChart3, User, Send, MessageCircle, Bot, Megaphone, Database } from 'lucide-react'
+import { MessageSquare, Settings, BarChart3, User, Send, MessageCircle, Bot, Megaphone, Sliders } from 'lucide-react'
 import { ToastProvider } from './contexts/ToastContext'
 import WhatsAppChat from './components/WhatsAppChat'
 import BulkWhatsApp from './components/BulkWhatsApps'
@@ -101,7 +101,7 @@ function App() {
             className={`nav-item ${activeView === 'master-config' ? 'active' : ''}`}
             onClick={() => setActiveView('master-config')}
           >
-            <Database size={18} />
+            <Sliders size={18} />
             <span>Configurations</span>
           </button>
           <button 

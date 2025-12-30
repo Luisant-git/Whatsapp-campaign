@@ -10,6 +10,7 @@ import {
 import { getMasterConfigs } from "../api/masterConfig";
 import { useToast } from '../contexts/ToastContext';
 import { Eye, EyeOff, Plus, Trash2, Star, Upload } from "lucide-react";
+import '../styles/QuickReply.css';
 
 const Settings = () => {
   const { showSuccess, showError, showConfirm } = useToast();
@@ -357,7 +358,7 @@ const Settings = () => {
                   disabled={currentSettings.masterConfigId}
                 />
                 {currentSettings.masterConfigId && (
-                  <small style={{color: '#666', fontSize: '12px'}}>Auto-filled from configuration</small>
+                  <small style={{color: '#28a745', fontSize: '12px', fontWeight: '500'}}>Auto-filled from configuration</small>
                 )}
               </div>
 
@@ -382,7 +383,7 @@ const Settings = () => {
                   </button>
                 </div>
                 {currentSettings.masterConfigId && (
-                  <small style={{color: '#666', fontSize: '12px'}}>Auto-filled from configuration</small>
+                  <small style={{color: '#28a745', fontSize: '12px', fontWeight: '500'}}>Auto-filled from configuration</small>
                 )}
               </div>
 
@@ -407,7 +408,7 @@ const Settings = () => {
                   </button>
                 </div>
                 {currentSettings.masterConfigId && (
-                  <small style={{color: '#666', fontSize: '12px'}}>Auto-filled from configuration</small>
+                  <small style={{color: '#28a745', fontSize: '12px', fontWeight: '500'}}>Auto-filled from configuration</small>
                 )}
               </div>
 

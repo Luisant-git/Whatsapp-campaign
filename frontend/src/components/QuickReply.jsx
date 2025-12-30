@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit } from 'lucide-react';
 import { API_BASE_URL } from '../api/config';
 import { useToast } from '../contexts/ToastContext';
+import '../styles/QuickReply.css';
 
 const QuickReply = () => {
   const { showSuccess, showError, showConfirm } = useToast();
@@ -124,11 +125,11 @@ const QuickReply = () => {
   if (loading) return <div className="loading">Loading...</div>;
 
   return (
-    <div className="auto-reply-container">
-      <div className="page-header">
-        <div className="page-title">
+    <div className="settings-container">
+      <div className="settings-header">
+        <div>
           <h1>Quick Reply Buttons</h1>
-          <span className="page-subtitle">Create interactive button menus for WhatsApp</span>
+          <p>Create interactive button menus for WhatsApp</p>
         </div>
         <button className="btn-primary" onClick={() => setShowForm(true)}>
           <Plus size={16} /> Add Quick Reply
@@ -136,6 +137,7 @@ const QuickReply = () => {
       </div>
 
       <div className="replies-list">
+        <h2>Quick Replies</h2>
         {quickReplies.length === 0 ? (
           <p className="no-replies">No quick replies configured yet.</p>
         ) : (
@@ -150,9 +152,14 @@ const QuickReply = () => {
                     <strong>Buttons:</strong>
                     <div className="button-list">
                       {reply.buttons.map((btn, i) => (
-                        <span key={i} className="button-preview">
-                          {btn.title} → {btn.payload}
-                        </span>
+                        <div key={i} className="button-item">
+                          <div className="button-title">
+                            <span className="button-label">Title:</span> {btn.title}
+                          </div>
+                          <div className="button-payload">
+                            <span className="payload-label">Payload:</span> {btn.payload}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>

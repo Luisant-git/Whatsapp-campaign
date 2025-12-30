@@ -19,6 +19,13 @@ export class WhatsappSessionService {
     const lowerText = text.toLowerCase().trim();
     console.log('Processing message:', lowerText);
     
+    // Check if this is a button payload (skip auto/quick replies for button responses)
+    const isButtonPayload = await this.isButtonPayload(lowerText, userId);
+    if (isButtonPayload) {
+      console.log('Button payload detected, skipping to chatbot');
+      return false; // Let chatbot handle button payloads
+    }
+    
     // Check for quick reply buttons first
     const quickReply = await this.quickReplyService.getQuickReply(lowerText, userId);
     console.log('Quick reply found:', quickReply);
@@ -37,5 +44,20 @@ export class WhatsappSessionService {
     }
     
     return false; // Not handled, let chatbot try
+  }
+
+  private async isButtonPayload(message: string, userId: number): Promise<boolean> {
+    // Check if this message matches any button payload from quick replies
+    const quickReplies = await this.quickReplyService.getAllQuickReplies(userId);
+    
+    for (const quickReply of quickReplies) {
+      const buttons = quickReply.buttons as Array<{title: string, payload: string}>;
+      const isPayload = buttons.some(btn => btn.payload.toLowerCase() === message.toLowerCase());
+      if (isPayload) {
+        return true;
+      }
+    }
+    
+    return false;
   }
 }

@@ -27,11 +27,33 @@ export class WhatsappService {
   async handleIncomingMessage(message: any, userId: number) {
     const from = message.from;
     const messageId = message.id;
-    const text = message.text?.body;
+    let text = message.text?.body;
     const image = message.image;
     const video = message.video;
     const document = message.document;
     const audio = message.audio;
+    
+    // Handle interactive button clicks
+    if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
+      const buttonId = message.interactive.button_reply.id;
+      const buttonTitle = message.interactive.button_reply.title;
+      
+      // Find the corresponding payload for this button
+      const quickReplies = await this.prisma.quickReply.findMany({
+        where: { userId, isActive: true }
+      });
+      
+      for (const quickReply of quickReplies) {
+        const buttons = quickReply.buttons as Array<{title: string, payload: string}>;
+        const matchedButton = buttons.find(btn => btn.title === buttonTitle);
+        if (matchedButton) {
+          text = matchedButton.payload; // Use the payload as the message text
+          break;
+        }
+      }
+      
+      this.logger.log(`Button clicked: ${buttonTitle}, payload: ${text}`);
+    }
 
     let mediaType: string | null = null;
     let mediaUrl: string | null = null;
@@ -50,14 +72,14 @@ export class WhatsappService {
       mediaUrl = await this.downloadMedia(audio.id, userId);
     }
 
-    this.logger.log(`Storing incoming message: from=${from}, to=${from}, message=${text}`);
+    this.logger.log(`Storing incoming message: from=${from}, to=${from}, message=${text || (mediaType ? `${mediaType} file` : 'button click')}`);
     
     await this.prisma.whatsAppMessage.create({
       data: {
         messageId,
-        to: from, // This should be the business number, but we're setting it to customer number
-        from, // This is the customer's number
-        message: text || (mediaType ? `${mediaType} file` : null),
+        to: from,
+        from,
+        message: text || (mediaType ? `${mediaType} file` : 'button interaction'),
         mediaType,
         mediaUrl,
         direction: 'incoming',

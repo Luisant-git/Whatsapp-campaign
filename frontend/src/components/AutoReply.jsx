@@ -7,7 +7,7 @@ import '../styles/AutoReply.css';
 const AutoReply = () => {
   const { showSuccess, showError, showConfirm } = useToast();
   const [replies, setReplies] = useState([]);
-  const [newTrigger, setNewTrigger] = useState('');
+  const [newTriggers, setNewTriggers] = useState('');
   const [newResponse, setNewResponse] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -34,18 +34,19 @@ const AutoReply = () => {
   };
 
   const handleAdd = async () => {
-    if (!newTrigger.trim() || !newResponse.trim()) return;
+    if (!newTriggers.trim() || !newResponse.trim()) return;
     
     setSaving(true);
     try {
+      const triggersArray = newTriggers.split(',').map(t => t.trim()).filter(t => t);
       const response = await fetch(`${API_BASE_URL}/auto-reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trigger: newTrigger, response: newResponse })
+        body: JSON.stringify({ triggers: triggersArray, response: newResponse })
       });
       
       if (response.ok) {
-        setNewTrigger('');
+        setNewTriggers('');
         setNewResponse('');
         fetchReplies();
         showSuccess('Auto-reply added successfully!');
@@ -60,11 +61,11 @@ const AutoReply = () => {
     }
   };
 
-  const handleDelete = async (trigger) => {
+  const handleDelete = async (id) => {
     const confirmed = await showConfirm('Are you sure you want to delete this auto-reply?');
     if (confirmed) {
       try {
-        const response = await fetch(`${API_BASE_URL}/auto-reply/${trigger}`, {
+        const response = await fetch(`${API_BASE_URL}/auto-reply/${id}`, {
           method: 'DELETE'
         });
         
@@ -97,11 +98,11 @@ const AutoReply = () => {
           <h3>Add New Auto-Reply</h3>
           <div className="form-row">
             <div className="form-group">
-              <label>Trigger Word</label>
+              <label>Trigger Words (comma-separated)</label>
               <input
                 type="text"
-                value={newTrigger}
-                onChange={(e) => setNewTrigger(e.target.value)}
+                value={newTriggers}
+                onChange={(e) => setNewTriggers(e.target.value)}
                 placeholder="e.g., hello, help, info"
               />
             </div>
@@ -115,7 +116,7 @@ const AutoReply = () => {
               />
             </div>
           </div>
-          <button className="btn-add" onClick={handleAdd} disabled={saving || !newTrigger.trim() || !newResponse.trim()}>
+          <button className="btn-add" onClick={handleAdd} disabled={saving || !newTriggers.trim() || !newResponse.trim()}>
             <Plus size={16} />
             {saving ? 'Adding...' : 'Add Reply'}
           </button>
@@ -131,7 +132,7 @@ const AutoReply = () => {
                 <div key={index} className="reply-item">
                   <div className="reply-content">
                     <div className="trigger-text">
-                      <strong>Trigger:</strong> {reply.trigger}
+                      <strong>Triggers:</strong> {Array.isArray(reply.triggers) ? reply.triggers.join(', ') : reply.triggers}
                     </div>
                     <div className="response-text">
                       <strong>Response:</strong> {reply.response}
@@ -139,7 +140,7 @@ const AutoReply = () => {
                   </div>
                   <button 
                     className="btn-delete" 
-                    onClick={() => handleDelete(reply.trigger)}
+                    onClick={() => handleDelete(reply.id)}
                     title="Delete this auto-reply"
                   >
                     <Trash2 size={16} />

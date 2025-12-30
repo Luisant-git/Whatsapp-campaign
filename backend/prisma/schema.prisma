@@ -24,6 +24,7 @@ model User {
   chatSessions ChatSession[]
   masterConfigs MasterConfig[]
   autoReplies AutoReply[]
+  quickReplies QuickReply[]
 }
 
 model MasterConfig {
@@ -159,6 +160,17 @@ model AutoReply {
   id        Int      @id @default(autoincrement())
   triggers  String[] // Array of trigger words
   response  String   @db.Text
+  isActive  Boolean  @default(true)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model QuickReply {
+  id        Int      @id @default(autoincrement())
+  trigger   String   // Trigger word that shows buttons
+  buttons   Json[]   // Array of button objects {title, payload}
   isActive  Boolean  @default(true)
   userId    Int
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)

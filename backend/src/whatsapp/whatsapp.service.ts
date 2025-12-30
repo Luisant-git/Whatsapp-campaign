@@ -67,12 +67,17 @@ export class WhatsappService {
     });
 
     if (text) {
-      await this.sessionService.handleInteractiveMenu(from, text, userId, async (to, msg, imageUrl) => {
-        if (imageUrl) {
-          return this.sendMediaMessage(to, imageUrl, 'image', userId, msg);
+      await this.sessionService.handleInteractiveMenu(from, text, userId, 
+        async (to, msg, imageUrl) => {
+          if (imageUrl) {
+            return this.sendMediaMessage(to, imageUrl, 'image', userId, msg);
+          }
+          return this.sendMessage(to, msg, userId);
+        },
+        async (to, msg, buttons) => {
+          return this.sendButtonsMessage(to, msg, buttons, userId);
         }
-        return this.sendMessage(to, msg, userId);
-      });
+      );
 
       // Process with chatbot
       try {
@@ -138,6 +143,59 @@ export class WhatsappService {
     } catch (error) {
       this.logger.error('Media download error:', error.response?.data || error.message);
       return null;
+    }
+  }
+
+  async sendButtonsMessage(to: string, text: string, buttons: Array<{title: string, payload: string}>, userId: number) {
+    try {
+      const settings = await this.getSettings(userId);
+      
+      const interactiveButtons = buttons.map((button, index) => ({
+        type: 'reply',
+        reply: {
+          id: `btn_${index}`,
+          title: button.title
+        }
+      }));
+      
+      const response = await axios.post(
+        `${settings.apiUrl}/${settings.phoneNumberId}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          to,
+          type: 'interactive',
+          interactive: {
+            type: 'button',
+            body: { text },
+            action: {
+              buttons: interactiveButtons
+            }
+          }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${settings.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      await this.prisma.whatsAppMessage.create({
+        data: {
+          messageId: response.data.messages[0].id,
+          to,
+          from: to,
+          message: `Interactive buttons: ${text}`,
+          direction: 'outgoing',
+          status: 'sent',
+          userId
+        }
+      });
+
+      return { success: true, messageId: response.data.messages[0].id };
+    } catch (error) {
+      this.logger.error('WhatsApp Buttons API Error:', error.response?.data || error.message);
+      return { success: false, error: error.message };
     }
   }
 

@@ -26,8 +26,14 @@ export class WhatsappSessionService {
       return false; // Let chatbot handle button payloads
     }
     
-    // Check for quick reply buttons first
-    const quickReply = await this.quickReplyService.getQuickReply(lowerText, userId);
+    // Check for exact quick reply match first
+    let quickReply = await this.quickReplyService.getQuickReply(lowerText, userId);
+    
+    // If no exact match, try fuzzy matching for quick replies
+    if (!quickReply) {
+      quickReply = await this.findSimilarQuickReply(lowerText, userId);
+    }
+    
     console.log('Quick reply found:', quickReply);
     if (quickReply) {
       const buttons = quickReply.buttons as Array<{title: string, payload: string}>;
@@ -35,8 +41,14 @@ export class WhatsappSessionService {
       return true; // Handled
     }
     
-    // Check for auto-reply
-    const autoReply = await this.autoReplyService.getAutoReply(lowerText, userId);
+    // Check for exact auto-reply match
+    let autoReply = await this.autoReplyService.getAutoReply(lowerText, userId);
+    
+    // If no exact match, try fuzzy matching for auto replies
+    if (!autoReply) {
+      autoReply = await this.findSimilarAutoReply(lowerText, userId);
+    }
+    
     console.log('Auto reply found:', autoReply);
     if (autoReply) {
       await sendCallback(from, autoReply);
@@ -44,6 +56,58 @@ export class WhatsappSessionService {
     }
     
     return false; // Not handled, let chatbot try
+  }
+
+  private async findSimilarQuickReply(message: string, userId: number) {
+    const quickReplies = await this.quickReplyService.getAllQuickReplies(userId);
+    
+    for (const quickReply of quickReplies) {
+      const trigger = quickReply.trigger.toLowerCase();
+      
+      // Check if message contains the trigger or trigger contains message
+      if (message.includes(trigger) || trigger.includes(message)) {
+        return quickReply;
+      }
+      
+      // Check for word-based similarity
+      const messageWords = message.split(' ');
+      const triggerWords = trigger.split(' ');
+      
+      for (const word of messageWords) {
+        if (word.length > 2 && triggerWords.some(tw => tw.includes(word) || word.includes(tw))) {
+          return quickReply;
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  private async findSimilarAutoReply(message: string, userId: number) {
+    const autoReplies = await this.autoReplyService.getAllAutoReplies(userId);
+    
+    for (const autoReply of autoReplies) {
+      for (const trigger of autoReply.triggers) {
+        const lowerTrigger = trigger.toLowerCase();
+        
+        // Check if message contains the trigger or trigger contains message
+        if (message.includes(lowerTrigger) || lowerTrigger.includes(message)) {
+          return autoReply.response;
+        }
+        
+        // Check for word-based similarity
+        const messageWords = message.split(' ');
+        const triggerWords = lowerTrigger.split(' ');
+        
+        for (const word of messageWords) {
+          if (word.length > 2 && triggerWords.some(tw => tw.includes(word) || word.includes(tw))) {
+            return autoReply.response;
+          }
+        }
+      }
+    }
+    
+    return null;
   }
 
   private async isButtonPayload(message: string, userId: number): Promise<boolean> {

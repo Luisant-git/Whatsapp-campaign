@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '../api/config';
 import { getMessages, sendMessage, sendMediaMessage } from '../api/whatsapp';
+import { MoreVertical } from 'lucide-react';
 import '../styles/WhatsAppChat.scss';
 
 // Simple play/pause icons
@@ -299,6 +300,11 @@ const WhatsAppChat = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const getFileSize = (fileName) => {
+    // Mock file size - in real app, get from file metadata
+    return '171 kB';
+  };
+
   const filteredMessages = selectedChat
     ? filterMessagesByDate(messages.filter(m => m.from === selectedChat))
     : [];
@@ -552,7 +558,3 @@ const WhatsAppChat = () => {
 };
  
 export default WhatsAppChat;
-  const getFileSize = (fileName) => {
-    // Mock file size - in real app, get from file metadata
-    return '171 kB';
-  };

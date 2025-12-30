@@ -157,7 +157,7 @@ export class WhatsappService {
         type: 'reply',
         reply: {
           id: `btn_${index}`,
-          title: button.title
+          title: button.title.length > 20 ? button.title.substring(0, 20) : button.title
         }
       }));
       

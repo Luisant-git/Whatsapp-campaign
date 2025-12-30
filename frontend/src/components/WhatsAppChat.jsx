@@ -317,7 +317,7 @@ const WhatsAppChat = () => {
  
   return (
     <div className="whatsapp-chat">
-      <div className="chat-sidebar">
+      <div className={`chat-sidebar ${selectedChat ? 'hide-mobile' : ''}`}>
         <div className="sidebar-header">
           <h2>Chats</h2>
           <div className="search-box">
@@ -364,10 +364,15 @@ const WhatsAppChat = () => {
         ))}
       </div>
  
-      <div className="chat-main">
+      <div className={`chat-main ${selectedChat ? 'show-mobile' : ''}`}>
         {selectedChat ? (
           <>
             <div className="chat-header">
+              <button className="back-btn" onClick={() => setSelectedChat(null)}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+              </button>
               <h3>{selectedChat}</h3>
               <div className="header-actions">
                 <div className="date-filter">

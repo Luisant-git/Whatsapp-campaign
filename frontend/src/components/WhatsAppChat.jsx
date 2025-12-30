@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '../api/config';
 import { getMessages, sendMessage, sendMediaMessage } from '../api/whatsapp';
+import { MoreVertical } from 'lucide-react';
 import '../styles/WhatsAppChat.scss';
 
 // Simple play/pause icons
@@ -58,6 +59,7 @@ const WhatsAppChat = () => {
   const [audioDurations, setAudioDurations] = useState({});
   const [audioProgress, setAudioProgress] = useState({});
   const [audioCurrentTime, setAudioCurrentTime] = useState({});
+  const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const audioRefs = useRef({});
@@ -298,17 +300,45 @@ const WhatsAppChat = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const getFileSize = (fileName) => {
+    // Mock file size - in real app, get from file metadata
+    return '171 kB';
+  };
+
   const filteredMessages = selectedChat
     ? filterMessagesByDate(messages.filter(m => m.from === selectedChat))
     : [];
 
   const groupedMessages = groupMessagesByDate(filteredMessages);
+
+  const filteredChats = chats.filter(chat => 
+    chat.phone.toLowerCase().includes(searchQuery.toLowerCase())
+  );
  
   return (
     <div className="whatsapp-chat">
-      <div className="chat-sidebar">
-        <h2>WhatsApp Chats</h2>
-        {chats.map(chat => (
+      <div className={`chat-sidebar ${selectedChat ? 'hide-mobile' : ''}`}>
+        <div className="sidebar-header">
+          <h2>Chats</h2>
+          <div className="search-box">
+            <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input
+              type="text"
+              placeholder="Search number..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button className="clear-search" onClick={() => setSearchQuery('')}>
+                ×
+              </button>
+            )}
+          </div>
+        </div>
+        {filteredChats.map(chat => (
           <div
             key={chat.phone}
             className={`chat-item ${selectedChat === chat.phone ? 'active' : ''} ${chat.unreadCount > 0 ? 'unread' : ''}`}
@@ -319,7 +349,7 @@ const WhatsAppChat = () => {
                 setReadMessages(newReadMessages);
                 localStorage.setItem('readMessages', JSON.stringify(newReadMessages));
               }
-              setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 50);
+              setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 100);
             }}
           >
             <div className="chat-avatar">{chat.phone.slice(-4)}</div>
@@ -334,10 +364,15 @@ const WhatsAppChat = () => {
         ))}
       </div>
  
-      <div className="chat-main">
+      <div className={`chat-main ${selectedChat ? 'show-mobile' : ''}`}>
         {selectedChat ? (
           <>
             <div className="chat-header">
+              <button className="back-btn" onClick={() => setSelectedChat(null)}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+              </button>
               <h3>{selectedChat}</h3>
               <div className="header-actions">
                 <div className="date-filter">
@@ -528,7 +563,3 @@ const WhatsAppChat = () => {
 };
  
 export default WhatsAppChat;
-  const getFileSize = (fileName) => {
-    // Mock file size - in real app, get from file metadata
-    return '171 kB';
-  };

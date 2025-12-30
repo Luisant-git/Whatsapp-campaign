@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { MessageSquare, Settings, BarChart3, User, Send, MessageCircle, Bot, Megaphone, Sliders } from 'lucide-react'
+import { MessageSquare, Settings, BarChart3, User, Send, MessageCircle, Bot, Megaphone, Sliders, Zap } from 'lucide-react'
 import { ToastProvider } from './contexts/ToastContext'
 import WhatsAppChat from './components/WhatsAppChat'
 import BulkWhatsApp from './components/BulkWhatsApps'
@@ -10,6 +10,7 @@ import SettingsPanel from './components/Settings'
 import MasterConfig from './components/MasterConfig'
 import Profile from './components/Profile'
 import AutoReply from './components/AutoReply'
+import QuickReply from './components/QuickReply'
 import Chatbot from './components/Chatbot'
 import './App.css'
 import './styles/Analytics.css'
@@ -84,6 +85,13 @@ function App() {
             <span>Auto Reply</span>
           </button>
           <button 
+            className={`nav-item ${activeView === 'quick-reply' ? 'active' : ''}`}
+            onClick={() => setActiveView('quick-reply')}
+          >
+            <Zap size={18} />
+            <span>Quick Reply</span>
+          </button>
+          <button 
             className={`nav-item ${activeView === 'chatbot' ? 'active' : ''}`}
             onClick={() => setActiveView('chatbot')}
           >
@@ -152,6 +160,7 @@ function App() {
         {activeView === 'bulk' && <BulkWhatsApp />}
         {activeView === 'campaigns' && <Campaigns />}
         {activeView === 'auto-reply' && <AutoReply />}
+        {activeView === 'quick-reply' && <QuickReply />}
         {activeView === 'chatbot' && <Chatbot />}
         {activeView === 'analytics' && <Analytics />}
         {activeView === 'settings' && <SettingsPanel />}

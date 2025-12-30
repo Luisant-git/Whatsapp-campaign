@@ -7,6 +7,7 @@ export class QuickReplyService {
 
   async getQuickReply(message: string, userId: number) {
     const lowerMessage = message.toLowerCase().trim();
+    console.log('Looking for quick reply with trigger:', lowerMessage);
     
     const quickReply = await this.prisma.quickReply.findFirst({
       where: { 
@@ -16,6 +17,7 @@ export class QuickReplyService {
       }
     });
     
+    console.log('Quick reply result:', quickReply);
     return quickReply;
   }
 

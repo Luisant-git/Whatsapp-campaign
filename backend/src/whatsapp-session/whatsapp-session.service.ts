@@ -15,24 +15,24 @@ export class WhatsappSessionService {
     userId: number,
     sendCallback: (to: string, message: string, imageUrl?: string) => Promise<any>,
     sendButtonsCallback: (to: string, text: string, buttons: Array<{title: string, payload: string}>) => Promise<any>
-  ) {
+  ): Promise<boolean> {
     const lowerText = text.toLowerCase().trim();
     
     // Check for quick reply buttons first
     const quickReply = await this.quickReplyService.getQuickReply(lowerText, userId);
     if (quickReply) {
       const buttons = quickReply.buttons as Array<{title: string, payload: string}>;
-      return await sendButtonsCallback(from, `Please select an option:`, buttons);
+      await sendButtonsCallback(from, `Please select an option:`, buttons);
+      return true; // Handled
     }
     
     // Check for auto-reply
     const autoReply = await this.autoReplyService.getAutoReply(lowerText, userId);
     if (autoReply) {
-      return await sendCallback(from, autoReply);
+      await sendCallback(from, autoReply);
+      return true; // Handled
     }
     
-    // Default response
-    const defaultMessage = `Thank you for your message! Contact our support team for assistance.`;
-    return await sendCallback(from, defaultMessage);
+    return false; // Not handled, let chatbot try
   }
 }

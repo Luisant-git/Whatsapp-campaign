@@ -67,7 +67,8 @@ export class WhatsappService {
     });
 
     if (text) {
-      await this.sessionService.handleInteractiveMenu(from, text, userId, 
+      // Try session service first (auto-reply, quick-reply)
+      const sessionHandled = await this.sessionService.handleInteractiveMenu(from, text, userId, 
         async (to, msg, imageUrl) => {
           if (imageUrl) {
             return this.sendMediaMessage(to, imageUrl, 'image', userId, msg);
@@ -79,18 +80,20 @@ export class WhatsappService {
         }
       );
 
-      // Process with chatbot
-      try {
-        const chatResponse = await this.chatbotService.processMessage(userId, {
-          message: text,
-          phone: from
-        });
-        
-        if (chatResponse.response) {
-          await this.sendMessage(from, chatResponse.response, userId);
+      // Only try chatbot if session service didn't handle it
+      if (!sessionHandled) {
+        try {
+          const chatResponse = await this.chatbotService.processMessage(userId, {
+            message: text,
+            phone: from
+          });
+          
+          if (chatResponse.response) {
+            await this.sendMessage(from, chatResponse.response, userId);
+          }
+        } catch (error) {
+          this.logger.error('Chatbot error:', error);
         }
-      } catch (error) {
-        this.logger.error('Chatbot error:', error);
       }
     }
 

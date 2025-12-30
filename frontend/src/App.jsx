@@ -55,6 +55,13 @@ function App() {
     setShowProfileMenu(false);
   }
 
+  const handleMenuClick = (view) => {
+    setActiveView(view);
+    if (window.innerWidth <= 768) {
+      setSidebarOpen(false);
+    }
+  }
+
   return (
     <ToastProvider>
       {!isLoggedIn ? (
@@ -74,56 +81,56 @@ function App() {
         <nav className="sidebar-nav">
           <button 
             className={`nav-item ${activeView === 'chats' ? 'active' : ''}`}
-            onClick={() => setActiveView('chats')}
+            onClick={() => handleMenuClick('chats')}
           >
             <MessageSquare size={18} />
             <span>WhatsApp Chats</span>
           </button>
           <button 
             className={`nav-item ${activeView === 'bulk' ? 'active' : ''}`}
-            onClick={() => setActiveView('bulk')}
+            onClick={() => handleMenuClick('bulk')}
           >
             <Send size={18} />
             <span>Bulk Messages</span>
           </button>
           <button 
             className={`nav-item ${activeView === 'campaigns' ? 'active' : ''}`}
-            onClick={() => setActiveView('campaigns')}
+            onClick={() => handleMenuClick('campaigns')}
           >
             <Megaphone size={18} />
             <span>Campaigns</span>
           </button>
           <button 
             className={`nav-item ${activeView === 'auto-reply' ? 'active' : ''}`}
-            onClick={() => setActiveView('auto-reply')}
+            onClick={() => handleMenuClick('auto-reply')}
           >
             <MessageCircle size={18} />
             <span>Auto Reply</span>
           </button>
           <button 
             className={`nav-item ${activeView === 'chatbot' ? 'active' : ''}`}
-            onClick={() => setActiveView('chatbot')}
+            onClick={() => handleMenuClick('chatbot')}
           >
             <Bot size={18} />
             <span>AI Chatbot</span>
           </button>
           <button 
             className={`nav-item ${activeView === 'settings' ? 'active' : ''}`}
-            onClick={() => setActiveView('settings')}
+            onClick={() => handleMenuClick('settings')}
           >
             <Settings size={18} />
             <span>Settings</span>
           </button>
           <button 
             className={`nav-item ${activeView === 'master-config' ? 'active' : ''}`}
-            onClick={() => setActiveView('master-config')}
+            onClick={() => handleMenuClick('master-config')}
           >
             <Sliders size={18} />
             <span>Configurations</span>
           </button>
           <button 
             className={`nav-item ${activeView === 'analytics' ? 'active' : ''}`}
-            onClick={() => setActiveView('analytics')}
+            onClick={() => handleMenuClick('analytics')}
           >
             <BarChart3 size={18} />
             <span>Analytics</span>

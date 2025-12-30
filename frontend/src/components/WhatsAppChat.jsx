@@ -349,7 +349,7 @@ const WhatsAppChat = () => {
                 setReadMessages(newReadMessages);
                 localStorage.setItem('readMessages', JSON.stringify(newReadMessages));
               }
-              setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 50);
+              setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 100);
             }}
           >
             <div className="chat-avatar">{chat.phone.slice(-4)}</div>

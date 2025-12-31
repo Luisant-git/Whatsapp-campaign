@@ -9,6 +9,7 @@ import {
 } from "react-icons/io5";
 import { sendBulkMessages } from "../api/whatsapp";
 import { getSettings } from "../api/auth";
+import { contactAPI } from "../api/contact";
 import { useToast } from "../contexts/ToastContext";
 import "../styles/BulkWhatsApps.scss";
 
@@ -159,6 +160,17 @@ const BulkWhatsApp = () => {
       setResults(resultsArray);
       const successCount = resultsArray.filter((r) => r.success).length;
       const failedCount = resultsArray.filter((r) => !r.success).length;
+
+      // Update delivery status for each contact
+      for (const result of resultsArray) {
+        try {
+          const status = result.success ? 'delivered' : 'failed';
+          const phone = result.phoneNumber || result.phone || result.to;
+          await contactAPI.updateDeliveryStatus(phone, status, campaignName);
+        } catch (error) {
+          console.error('Failed to update delivery status:', error);
+        }
+      }
 
       if (scheduleType === "time-based") {
         showSuccess(

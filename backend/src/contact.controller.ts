@@ -35,9 +35,19 @@ export class ContactController {
     return this.contactService.findAll(session.userId);
   }
 
+  @Get('delivery-stats')
+  getDeliveryStats(@Session() session: Record<string, any>) {
+    return this.contactService.getDeliveryStats(session.userId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @Session() session: Record<string, any>) {
     return this.contactService.findOne(+id, session.userId);
+  }
+
+  @Patch('delivery-status')
+  updateDeliveryStatus(@Body() body: { phone: string; status: string; campaignName: string }, @Session() session: Record<string, any>) {
+    return this.contactService.updateDeliveryStatus(body.phone, body.status, body.campaignName, session.userId);
   }
 
   @Patch(':id')
@@ -48,15 +58,5 @@ export class ContactController {
   @Delete(':id')
   remove(@Param('id') id: string, @Session() session: Record<string, any>) {
     return this.contactService.remove(+id, session.userId);
-  }
-
-  @Get('delivery-stats')
-  getDeliveryStats(@Session() session: Record<string, any>) {
-    return this.contactService.getDeliveryStats(session.userId);
-  }
-
-  @Patch('delivery-status')
-  updateDeliveryStatus(@Body() body: { phone: string; status: string; campaignName: string }, @Session() session: Record<string, any>) {
-    return this.contactService.updateDeliveryStatus(body.phone, body.status, body.campaignName, session.userId);
   }
 }

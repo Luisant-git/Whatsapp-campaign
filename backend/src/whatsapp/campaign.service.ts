@@ -212,6 +212,28 @@ export class CampaignService {
           }
         });
 
+        // Auto-create or update contact
+        await this.prisma.contact.upsert({
+          where: {
+            phone_userId: {
+              phone: formattedPhone,
+              userId
+            }
+          },
+          update: {
+            name: contact.name || 'Unknown',
+            lastMessageDate: new Date(),
+            lastCampaignName: campaign.name
+          },
+          create: {
+            phone: formattedPhone,
+            name: contact.name || 'Unknown',
+            lastMessageDate: new Date(),
+            lastCampaignName: campaign.name,
+            userId
+          }
+        });
+
         results.push({
           phone: formattedPhone,
           name: contact.name,

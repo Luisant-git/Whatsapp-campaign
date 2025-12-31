@@ -74,7 +74,7 @@ export default function Contact() {
                   <th>S.No</th>
                   <th>Name</th>
                   <th>Phone</th>
-                  <th>Campaign</th>
+                  <th>Last Campaign</th>
                   <th>Last Message</th>
                 </tr>
               </thead>

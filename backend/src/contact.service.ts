@@ -11,11 +11,35 @@ export class ContactService {
     });
   }
 
-  async findAll(userId: number) {
-    return this.prisma.contact.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' }
-    });
+  async findAll(userId: number, page: number = 1, limit: number = 10, search: string = '') {
+    const skip = (page - 1) * limit;
+    
+    const where: any = { userId };
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search } },
+        { lastCampaignName: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    const [contacts, total] = await Promise.all([
+      this.prisma.contact.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' }
+      }),
+      this.prisma.contact.count({ where })
+    ]);
+
+    return {
+      data: contacts,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    };
   }
 
   async findOne(id: number, userId: number) {

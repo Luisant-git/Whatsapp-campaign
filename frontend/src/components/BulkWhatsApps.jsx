@@ -166,7 +166,8 @@ const BulkWhatsApp = () => {
         try {
           const status = result.success ? 'delivered' : 'failed';
           const phone = result.phoneNumber || result.phone || result.to;
-          await contactAPI.updateDeliveryStatus(phone, status, campaignName);
+          const name = result.name || phone; // Use name if available, otherwise phone
+          await contactAPI.updateDeliveryStatus(phone, status, campaignName, name);
         } catch (error) {
           console.error('Failed to update delivery status:', error);
         }

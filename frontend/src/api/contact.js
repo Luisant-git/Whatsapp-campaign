@@ -8,6 +8,6 @@ export const contactAPI = {
   update: (id, data) => axios.patch(`${API_BASE_URL}/contact/${id}`, data, { withCredentials: true }),
   delete: (id) => axios.delete(`${API_BASE_URL}/contact/${id}`, { withCredentials: true }),
   getDeliveryStats: () => axios.get(`${API_BASE_URL}/contact/delivery-stats`, { withCredentials: true }),
-  updateDeliveryStatus: (phone, status, campaignName) => 
-    axios.patch(`${API_BASE_URL}/contact/delivery-status`, { phone, status, campaignName }, { withCredentials: true })
+  updateDeliveryStatus: (phone, status, campaignName, name) => 
+    axios.patch(`${API_BASE_URL}/contact/delivery-status`, { phone, status, campaignName, name }, { withCredentials: true })
 };

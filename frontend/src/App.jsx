@@ -12,19 +12,6 @@ import {
   Menu,
   X,
   Zap,
-} from "lucide-react";
-import {
-  MessageSquare,
-  Settings,
-  BarChart3,
-  User,
-  Send,
-  MessageCircle,
-  Bot,
-  Megaphone,
-  Sliders,
-  Menu,
-  X,
   Users,
 } from "lucide-react";
 import { ToastProvider } from "./contexts/ToastContext";

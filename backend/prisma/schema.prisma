@@ -180,17 +180,20 @@ model QuickReply {
 }
 
 model Contact {
-  id        Int      @id @default(autoincrement())
-  name      String
-  phone     String
-  email     String?
-  company   String?
-  tags      String[] @default([])
-  notes     String?  @db.Text
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  Int      @id @default(autoincrement())
+  name                String
+  phone               String
+  email               String?
+  company             String?
+  tags                String[] @default([])
+  notes               String?  @db.Text
+  lastDeliveryStatus  String?  // 'delivered', 'failed', 'pending'
+  lastCampaignName    String?
+  lastDeliveryTime    DateTime?
+  userId              Int
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
   
   @@unique([phone, userId])
 }

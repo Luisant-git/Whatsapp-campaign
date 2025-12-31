@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Plus, Search, Edit2, Trash2, X, Tag } from 'lucide-react';
+import { Users, Plus, Search, Edit2, Trash2, X, Tag, MessageSquare, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { contactAPI } from '../api/contact';
 import { useToast } from '../contexts/ToastContext';
 import '../styles/Contact.css';
@@ -17,11 +17,14 @@ export default function Contact() {
     tags: [],
     notes: ''
   });
+  const [showDeliveryFilter, setShowDeliveryFilter] = useState('all');
+  const [deliveryStats, setDeliveryStats] = useState({ delivered: 0, failed: 0, pending: 0 });
   const [tagInput, setTagInput] = useState('');
   const { showToast } = useToast();
 
   useEffect(() => {
     loadContacts();
+    loadDeliveryStats();
   }, []);
 
   const loadContacts = async () => {
@@ -30,6 +33,15 @@ export default function Contact() {
       setContacts(response.data);
     } catch (error) {
       showToast('Failed to load contacts', 'error');
+    }
+  };
+
+  const loadDeliveryStats = async () => {
+    try {
+      const response = await contactAPI.getDeliveryStats();
+      setDeliveryStats(response.data);
+    } catch (error) {
+      console.error('Failed to load delivery stats:', error);
     }
   };
 
@@ -98,12 +110,27 @@ export default function Contact() {
     setFormData({ ...formData, tags: formData.tags.filter(t => t !== tag) });
   };
 
-  const filteredContacts = contacts.filter(contact =>
-    contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    contact.phone.includes(searchQuery) ||
-    contact.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    contact.company?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredContacts = contacts.filter(contact => {
+    const matchesSearch = contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contact.phone.includes(searchQuery) ||
+      contact.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contact.company?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (showDeliveryFilter === 'all') return matchesSearch;
+    if (showDeliveryFilter === 'delivered') return matchesSearch && contact.lastDeliveryStatus === 'delivered';
+    if (showDeliveryFilter === 'failed') return matchesSearch && contact.lastDeliveryStatus === 'failed';
+    if (showDeliveryFilter === 'pending') return matchesSearch && contact.lastDeliveryStatus === 'pending';
+    return matchesSearch;
+  });
+
+  const getDeliveryStatusIcon = (status) => {
+    switch (status) {
+      case 'delivered': return <CheckCircle size={16} className="status-delivered" />;
+      case 'failed': return <XCircle size={16} className="status-failed" />;
+      case 'pending': return <Clock size={16} className="status-pending" />;
+      default: return null;
+    }
+  };
 
   return (
     <div className="contact-container">
@@ -118,14 +145,44 @@ export default function Contact() {
         </button>
       </div>
 
-      <div className="search-bar">
-        <Search size={20} />
-        <input
-          type="text"
-          placeholder="Search contacts..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+      <div className="filters-section">
+        <div className="search-bar">
+          <Search size={20} />
+          <input
+            type="text"
+            placeholder="Search contacts..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        
+        <div className="delivery-stats">
+          <div className="stat-item delivered">
+            <CheckCircle size={16} />
+            <span>{deliveryStats.delivered} Delivered</span>
+          </div>
+          <div className="stat-item failed">
+            <XCircle size={16} />
+            <span>{deliveryStats.failed} Failed</span>
+          </div>
+          <div className="stat-item pending">
+            <Clock size={16} />
+            <span>{deliveryStats.pending} Pending</span>
+          </div>
+        </div>
+        
+        <div className="delivery-filter">
+          <select 
+            value={showDeliveryFilter} 
+            onChange={(e) => setShowDeliveryFilter(e.target.value)}
+            className="filter-select"
+          >
+            <option value="all">All Contacts</option>
+            <option value="delivered">Delivered Messages</option>
+            <option value="failed">Failed Messages</option>
+            <option value="pending">Pending Messages</option>
+          </select>
+        </div>
       </div>
 
       <div className="contacts-grid">
@@ -146,12 +203,33 @@ export default function Contact() {
                   ))}
                 </div>
               )}
+              {contact.lastDeliveryStatus && (
+                <div className="delivery-info">
+                  <div className="delivery-status">
+                    {getDeliveryStatusIcon(contact.lastDeliveryStatus)}
+                    <span className={`status-text ${contact.lastDeliveryStatus}`}>
+                      {contact.lastDeliveryStatus.charAt(0).toUpperCase() + contact.lastDeliveryStatus.slice(1)}
+                    </span>
+                  </div>
+                  {contact.lastCampaignName && (
+                    <div className="campaign-info">
+                      <MessageSquare size={14} />
+                      <span>{contact.lastCampaignName}</span>
+                    </div>
+                  )}
+                  {contact.lastDeliveryTime && (
+                    <div className="delivery-time">
+                      {new Date(contact.lastDeliveryTime).toLocaleDateString()}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div className="contact-actions">
-              <button onClick={() => openModal(contact)} className="btn-icon">
+              <button onClick={() => openModal(contact)} className="btn-icon" title="Edit Contact">
                 <Edit2 size={16} />
               </button>
-              <button onClick={() => handleDelete(contact.id)} className="btn-icon btn-danger">
+              <button onClick={() => handleDelete(contact.id)} className="btn-icon btn-danger" title="Delete Contact">
                 <Trash2 size={16} />
               </button>
             </div>

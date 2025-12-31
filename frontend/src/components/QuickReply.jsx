@@ -160,7 +160,7 @@ const QuickReply = () => {
         
         {/* Hardcoded System Quick Reply */}
         <div className="system-reply">
-          <h3>System Quick Reply (Hardcoded)</h3>
+          <h3>System Quick Reply</h3>
           <div className="reply-item system">
             <div className="reply-content">
               <div className="trigger-text">

@@ -40,4 +40,28 @@ export class ContactService {
       where: { id }
     });
   }
+
+  async getDeliveryStats(userId: number) {
+    const delivered = await this.prisma.contact.count({
+      where: { userId, lastDeliveryStatus: 'delivered' }
+    });
+    const failed = await this.prisma.contact.count({
+      where: { userId, lastDeliveryStatus: 'failed' }
+    });
+    const pending = await this.prisma.contact.count({
+      where: { userId, lastDeliveryStatus: 'pending' }
+    });
+    return { delivered, failed, pending };
+  }
+
+  async updateDeliveryStatus(phone: string, status: string, campaignName: string, userId: number) {
+    return this.prisma.contact.updateMany({
+      where: { phone, userId },
+      data: {
+        lastDeliveryStatus: status,
+        lastCampaignName: campaignName,
+        lastDeliveryTime: new Date()
+      }
+    });
+  }
 }

@@ -19,11 +19,26 @@ export class WhatsappSessionService {
     const lowerText = text.toLowerCase().trim();
     console.log('Processing message:', lowerText);
     
-    // Check if this is a button response (send to chatbot instead of auto-reply)
+    // Check if this is a button response (handle nested quick replies)
     const isButtonResponse = await this.isButtonResponse(lowerText, userId);
     if (isButtonResponse) {
-      console.log('Button response detected, sending to chatbot');
-      return false; // Let chatbot handle button responses
+      console.log('Button response detected, checking for nested quick reply');
+      
+      // Check if this button response has its own quick reply
+      let nestedQuickReply = await this.quickReplyService.getQuickReply(lowerText, userId);
+      if (!nestedQuickReply) {
+        nestedQuickReply = await this.findSimilarQuickReply(lowerText, userId);
+      }
+      
+      if (nestedQuickReply) {
+        console.log('Found nested quick reply:', nestedQuickReply);
+        const buttons = nestedQuickReply.buttons as string[];
+        await sendButtonsCallback(from, `Please select an option:`, buttons);
+        return true; // Handled
+      }
+      
+      console.log('No nested quick reply found, button response handled');
+      return true; // Mark as handled, don't send to chatbot
     }
     
     // Check for exact quick reply match first

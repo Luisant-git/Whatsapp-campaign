@@ -10,8 +10,8 @@ const QuickReply = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
-    trigger: '',
-    buttons: [{ title: '', payload: '' }]
+    triggersText: '',
+    buttons: ['']
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -36,17 +36,35 @@ const QuickReply = () => {
 
   const resetForm = () => {
     setFormData({
-      trigger: '',
-      buttons: [{ title: '', payload: '' }]
+      triggersText: '',
+      buttons: ['']
     });
     setEditingId(null);
     setShowForm(false);
   };
 
+  const addTrigger = () => {
+    setFormData({
+      ...formData,
+      triggers: [...formData.triggers, '']
+    });
+  };
+
+  const removeTrigger = (index) => {
+    const newTriggers = formData.triggers.filter((_, i) => i !== index);
+    setFormData({ ...formData, triggers: newTriggers });
+  };
+
+  const updateTrigger = (index, value) => {
+    const newTriggers = [...formData.triggers];
+    newTriggers[index] = value;
+    setFormData({ ...formData, triggers: newTriggers });
+  };
+
   const addButton = () => {
     setFormData({
       ...formData,
-      buttons: [...formData.buttons, { title: '', payload: '' }]
+      buttons: [...formData.buttons, '']
     });
   };
 
@@ -55,14 +73,15 @@ const QuickReply = () => {
     setFormData({ ...formData, buttons: newButtons });
   };
 
-  const updateButton = (index, field, value) => {
+  const updateButton = (index, value) => {
     const newButtons = [...formData.buttons];
-    newButtons[index][field] = value;
+    newButtons[index] = value;
     setFormData({ ...formData, buttons: newButtons });
   };
 
   const handleSave = async () => {
-    if (!formData.trigger.trim() || formData.buttons.some(b => !b.title.trim() || !b.payload.trim())) {
+    const triggers = formData.triggersText.split(',').map(t => t.trim()).filter(t => t);
+    if (!triggers.length || formData.buttons.some(b => !b.trim())) {
       showError('Please fill all fields');
       return;
     }
@@ -76,7 +95,7 @@ const QuickReply = () => {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          trigger: formData.trigger,
+          triggers,
           buttons: formData.buttons,
           isActive: true
         })
@@ -98,7 +117,7 @@ const QuickReply = () => {
 
   const handleEdit = (quickReply) => {
     setFormData({
-      trigger: quickReply.trigger,
+      triggersText: quickReply.triggers.join(', '),
       buttons: quickReply.buttons
     });
     setEditingId(quickReply.id);
@@ -138,27 +157,45 @@ const QuickReply = () => {
 
       <div className="replies-list">
         <h2>Quick Replies</h2>
+        
+        {/* Hardcoded System Quick Reply */}
+        <div className="system-reply">
+          <h3>System Quick Reply (Hardcoded)</h3>
+          <div className="reply-item system">
+            <div className="reply-content">
+              <div className="trigger-text">
+                <strong>Triggers:</strong> hi, hello, help, info
+              </div>
+              <div className="buttons-preview">
+                <strong>Buttons:</strong>
+                <div className="button-list">
+                  <div className="button-item">Quick Reply</div>
+                  <div className="button-item">AI Chatbot</div>
+                </div>
+              </div>
+            </div>
+            <div className="system-badge">SYSTEM</div>
+          </div>
+        </div>
+
+        {/* User Quick Replies */}
+        <h3>Custom Quick Replies</h3>
         {quickReplies.length === 0 ? (
-          <p className="no-replies">No quick replies configured yet.</p>
+          <p className="no-replies">No custom quick replies configured yet.</p>
         ) : (
           <div className="replies-grid">
             {quickReplies.map((reply) => (
               <div key={reply.id} className="reply-item">
                 <div className="reply-content">
                   <div className="trigger-text">
-                    <strong>Trigger:</strong> {reply.trigger}
+                    <strong>Triggers:</strong> {reply.triggers.join(', ')}
                   </div>
                   <div className="buttons-preview">
                     <strong>Buttons:</strong>
                     <div className="button-list">
-                      {reply.buttons.map((btn, i) => (
+                      {reply.buttons.map((button, i) => (
                         <div key={i} className="button-item">
-                          <div className="button-title">
-                            <span className="button-label">Title:</span> {btn.title}
-                          </div>
-                          <div className="button-payload">
-                            <span className="payload-label">Payload:</span> {btn.payload}
-                          </div>
+                          {button}
                         </div>
                       ))}
                     </div>
@@ -188,12 +225,12 @@ const QuickReply = () => {
             
             <div className="settings-form">
               <div className="form-group">
-                <label>Trigger Word</label>
+                <label>Trigger Words (comma separated)</label>
                 <input
                   type="text"
-                  value={formData.trigger}
-                  onChange={(e) => setFormData({...formData, trigger: e.target.value})}
-                  placeholder="e.g., help, menu"
+                  placeholder="e.g., hi, hello, help, info"
+                  value={formData.triggersText}
+                  onChange={(e) => setFormData({...formData, triggersText: e.target.value})}
                 />
               </div>
 
@@ -203,15 +240,9 @@ const QuickReply = () => {
                   <div key={index} className="button-row">
                     <input
                       type="text"
-                      placeholder="Button Title"
-                      value={button.title}
-                      onChange={(e) => updateButton(index, 'title', e.target.value)}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Payload (what gets sent)"
-                      value={button.payload}
-                      onChange={(e) => updateButton(index, 'payload', e.target.value)}
+                      placeholder="Button title"
+                      value={button}
+                      onChange={(e) => updateButton(index, e.target.value)}
                     />
                     {formData.buttons.length > 1 && (
                       <button 

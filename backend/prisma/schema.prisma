@@ -169,8 +169,8 @@ model AutoReply {
 
 model QuickReply {
   id        Int      @id @default(autoincrement())
-  trigger   String   // Trigger word that shows buttons
-  buttons   Json[]   // Array of button objects {title, payload}
+  triggers  String[]
+  buttons   String[]
   isActive  Boolean  @default(true)
   userId    Int
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)

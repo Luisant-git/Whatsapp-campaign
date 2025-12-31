@@ -14,16 +14,16 @@ export class WhatsappSessionService {
     text: string, 
     userId: number,
     sendCallback: (to: string, message: string, imageUrl?: string) => Promise<any>,
-    sendButtonsCallback: (to: string, text: string, buttons: Array<{title: string, payload: string}>) => Promise<any>
+    sendButtonsCallback: (to: string, text: string, buttons: string[]) => Promise<any>
   ): Promise<boolean> {
     const lowerText = text.toLowerCase().trim();
     console.log('Processing message:', lowerText);
     
-    // Check if this is a button payload (skip auto/quick replies for button responses)
-    const isButtonPayload = await this.isButtonPayload(lowerText, userId);
-    if (isButtonPayload) {
-      console.log('Button payload detected, skipping to chatbot');
-      return false; // Let chatbot handle button payloads
+    // Check if this is a button response (send to chatbot instead of auto-reply)
+    const isButtonResponse = await this.isButtonResponse(lowerText, userId);
+    if (isButtonResponse) {
+      console.log('Button response detected, sending to chatbot');
+      return false; // Let chatbot handle button responses
     }
     
     // Check for exact quick reply match first
@@ -36,7 +36,7 @@ export class WhatsappSessionService {
     
     console.log('Quick reply found:', quickReply);
     if (quickReply) {
-      const buttons = quickReply.buttons as Array<{title: string, payload: string}>;
+      const buttons = quickReply.buttons as string[];
       await sendButtonsCallback(from, `Please select an option:`, buttons);
       return true; // Handled
     }
@@ -62,20 +62,20 @@ export class WhatsappSessionService {
     const quickReplies = await this.quickReplyService.getAllQuickReplies(userId);
     
     for (const quickReply of quickReplies) {
-      const trigger = quickReply.trigger.toLowerCase();
-      
-      // Check if message contains the trigger or trigger contains message
-      if (message.includes(trigger) || trigger.includes(message)) {
-        return quickReply;
-      }
-      
-      // Check for word-based similarity
-      const messageWords = message.split(' ');
-      const triggerWords = trigger.split(' ');
-      
-      for (const word of messageWords) {
-        if (word.length > 2 && triggerWords.some(tw => tw.includes(word) || word.includes(tw))) {
+      for (const trigger of quickReply.triggers) {
+        const lowerTrigger = trigger.toLowerCase();
+        
+        if (message.includes(lowerTrigger) || lowerTrigger.includes(message)) {
           return quickReply;
+        }
+        
+        const messageWords = message.split(' ');
+        const triggerWords = lowerTrigger.split(' ');
+        
+        for (const word of messageWords) {
+          if (word.length > 2 && triggerWords.some(tw => tw.includes(word) || word.includes(tw))) {
+            return quickReply;
+          }
         }
       }
     }
@@ -110,14 +110,19 @@ export class WhatsappSessionService {
     return null;
   }
 
-  private async isButtonPayload(message: string, userId: number): Promise<boolean> {
-    // Check if this message matches any button payload from quick replies
+  private async isButtonResponse(message: string, userId: number): Promise<boolean> {
+    // Check hardcoded buttons first
+    const hardcodedButtons = ['Quick Reply', 'AI Chatbot'];
+    if (hardcodedButtons.some(button => button.toLowerCase() === message.toLowerCase())) {
+      return true;
+    }
+    
     const quickReplies = await this.quickReplyService.getAllQuickReplies(userId);
     
     for (const quickReply of quickReplies) {
-      const buttons = quickReply.buttons as Array<{title: string, payload: string}>;
-      const isPayload = buttons.some(btn => btn.payload.toLowerCase() === message.toLowerCase());
-      if (isPayload) {
+      const buttons = quickReply.buttons as string[];
+      const isButton = buttons.some(button => button.toLowerCase() === message.toLowerCase());
+      if (isButton) {
         return true;
       }
     }

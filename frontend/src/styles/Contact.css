@@ -168,6 +168,98 @@
   box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.1);
 }
 
+.total-count {
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.table-container {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.contacts-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.contacts-table thead {
+  background-color: #f9fafb;
+}
+
+.contacts-table th {
+  padding: 12px 24px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+.contacts-table tbody {
+  background-color: white;
+}
+
+.contacts-table tbody tr {
+  border-top: 1px solid #e5e7eb;
+}
+
+.contacts-table td {
+  padding: 16px 24px;
+  font-size: 14px;
+  color: #111827;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #6b7280;
+  font-size: 16px;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 16px;
+}
+
+.pagination-btn {
+  background-color: #25d366;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background-color: #22c55e;
+}
+
+.pagination-btn:disabled {
+  background-color: #d1d5db;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: 14px;
+  color: #374151;
+  font-weight: 500;
+}
+
 .contacts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -583,5 +675,29 @@
   .tag-input-container {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .table-container {
+    overflow-x: auto;
+  }
+
+  .contacts-table {
+    min-width: 600px;
+  }
+
+  .contacts-table th,
+  .contacts-table td {
+    padding: 12px 8px;
+    font-size: 12px;
+  }
+
+  .pagination {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .pagination-btn {
+    padding: 10px 14px;
+    font-size: 12px;
   }
 }

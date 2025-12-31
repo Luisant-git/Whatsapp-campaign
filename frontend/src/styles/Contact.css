@@ -32,13 +32,13 @@
   display: flex;
   gap: 20px;
   align-items: center;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
+  margin-bottom: 16px;
+  flex-wrap: nowrap;
 }
 
 .delivery-stats {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   align-items: center;
 }
 
@@ -46,10 +46,11 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
+  padding: 8px 14px;
   border-radius: 6px;
   font-size: 14px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .stat-item.delivered {
@@ -68,12 +69,13 @@
 }
 
 .delivery-filter .filter-select {
-  padding: 8px 12px;
+  padding: 8px 14px;
   border: 2px solid #e5e7eb;
   border-radius: 6px;
   font-size: 14px;
   background: white;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .delivery-filter .filter-select:focus {
@@ -139,8 +141,8 @@
 
 .search-bar {
   position: relative;
-  margin-bottom: 24px;
-  max-width: 400px;
+  flex: 1;
+  max-width: 300px;
 }
 
 .search-bar svg {
@@ -495,46 +497,83 @@
 
 @media (max-width: 768px) {
   .contact-container {
-    padding: 12px;
+    padding: 8px;
     width: 100%;
   }
 
-  .contact-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-
   .contact-header h2 {
-    font-size: 24px;
+    font-size: 20px;
   }
 
   .filters-section {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .search-bar {
+    max-width: 100%;
+    order: 1;
   }
 
   .delivery-stats {
+    order: 2;
     justify-content: space-between;
+    gap: 8px;
+  }
+
+  .stat-item {
+    padding: 6px 8px;
+    font-size: 12px;
+    gap: 4px;
+  }
+
+  .delivery-filter {
+    order: 3;
+  }
+
+  .delivery-filter .filter-select {
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 12px;
   }
 
   .contacts-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .contact-card {
-    flex-direction: column;
-    text-align: center;
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .contact-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  .contact-info h3 {
+    font-size: 14px;
+  }
+
+  .contact-info p {
+    font-size: 12px;
   }
 
   .contact-actions {
-    justify-content: center;
+    gap: 6px;
+  }
+
+  .btn-icon {
+    padding: 6px;
   }
 
   .modal-content {
     width: 95%;
-    margin: 20px;
+    margin: 10px;
   }
 
   .modal-actions {

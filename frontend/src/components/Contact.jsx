@@ -22,11 +22,13 @@ export default function Contact() {
     setLoading(true);
     try {
       const response = await contactAPI.getAll(page, limit, searchQuery);
-      setContacts(response.data);
-      setTotal(response.total);
-      setTotalPages(response.totalPages);
+      const result = response.data;
+      setContacts(result.data || []);
+      setTotal(result.total || 0);
+      setTotalPages(result.totalPages || 1);
     } catch (error) {
       showToast('Failed to load contacts', 'error');
+      setContacts([]);
     } finally {
       setLoading(false);
     }

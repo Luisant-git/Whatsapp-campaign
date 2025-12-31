@@ -75,11 +75,6 @@ export class WhatsappService {
 
     if (text) {
       // Handle hardcoded button responses
-      if (text.toLowerCase() === 'quick reply') {
-        await this.sendMessage(from, 'Please use Quick Reply or Auto Reply features from the menu.', userId);
-        return;
-      }
-      
       if (text.toLowerCase() === 'ai chatbot') {
         try {
           const chatResponse = await this.chatbotService.processMessage(userId, {

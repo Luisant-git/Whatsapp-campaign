@@ -7,6 +7,7 @@ import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { SettingsModule } from './settings/settings.module';
 import { AutoReplyModule } from './auto-reply.module';
+import { QuickReplyModule } from './quick-reply.module';
 import { ChatbotModule } from './chatbot/chatbot.module';
 import { MasterConfigModule } from './master-config/master-config.module';
 import { ContactModule } from './contact.module';
@@ -19,6 +20,7 @@ import { ContactModule } from './contact.module';
     AnalyticsModule, 
     SettingsModule, 
     AutoReplyModule,
+    QuickReplyModule,
     ChatbotModule,
     MasterConfigModule,
     ContactModule

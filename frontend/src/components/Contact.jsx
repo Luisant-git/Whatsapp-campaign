@@ -143,10 +143,6 @@ export default function Contact() {
           <Users size={24} />
           <h2>Contact Management</h2>
         </div>
-        <button className="btn-primary" onClick={() => openModal()}>
-          <Plus size={18} />
-          Add Contact
-        </button>
       </div>
 
       <div className="filters-section">

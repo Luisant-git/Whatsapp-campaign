@@ -42,43 +42,32 @@ export class ContactService {
   }
 
   async getDeliveryStats(userId: number) {
-    const delivered = await this.prisma.contact.count({
-      where: { userId, lastDeliveryStatus: 'delivered' }
+    const total = await this.prisma.contact.count({
+      where: { userId }
     });
-    const failed = await this.prisma.contact.count({
-      where: { userId, lastDeliveryStatus: 'failed' }
-    });
-    const pending = await this.prisma.contact.count({
-      where: { userId, lastDeliveryStatus: 'pending' }
-    });
-    return { delivered, failed, pending };
+    return { delivered: 0, failed: 0, pending: 0 };
   }
 
   async updateDeliveryStatus(phone: string, status: string, campaignName: string, name: string, userId: number) {
-    // First try to update existing contact
-    const updated = await this.prisma.contact.updateMany({
-      where: { phone, userId },
-      data: {
-        lastDeliveryStatus: status,
+    await this.prisma.contact.upsert({
+      where: {
+        phone_userId: {
+          phone,
+          userId
+        }
+      },
+      update: {
+        name: name || phone,
+        lastMessageDate: new Date(),
+        lastCampaignName: campaignName
+      },
+      create: {
+        name: name || phone,
+        phone,
+        lastMessageDate: new Date(),
         lastCampaignName: campaignName,
-        lastDeliveryTime: new Date()
+        userId
       }
     });
-
-    // If no contact exists, create one
-    if (updated.count === 0) {
-      await this.prisma.contact.create({
-        data: {
-          name: name || phone, // Use provided name or phone as fallback
-          phone,
-          userId,
-          lastDeliveryStatus: status,
-          lastCampaignName: campaignName,
-          lastDeliveryTime: new Date()
-        }
-      });
-    }
-
-    return updated;
   }
 }

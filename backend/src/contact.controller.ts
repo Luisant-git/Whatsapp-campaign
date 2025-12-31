@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Session } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Session, Query } from '@nestjs/common';
 import { ContactService } from './contact.service';
 import { SessionGuard } from './auth/session.guard';
 
@@ -31,8 +31,18 @@ export class ContactController {
   }
 
   @Get()
-  findAll(@Session() session: Record<string, any>) {
-    return this.contactService.findAll(session.userId);
+  findAll(
+    @Session() session: Record<string, any>,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string
+  ) {
+    return this.contactService.findAll(
+      session.userId,
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 10,
+      search || ''
+    );
   }
 
   @Get('delivery-stats')

@@ -27,11 +27,18 @@ export class WhatsappService {
   async handleIncomingMessage(message: any, userId: number) {
     const from = message.from;
     const messageId = message.id;
-    const text = message.text?.body;
+    let text = message.text?.body;
     const image = message.image;
     const video = message.video;
     const document = message.document;
     const audio = message.audio;
+    
+    // Handle interactive button clicks
+    if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
+      const buttonTitle = message.interactive.button_reply.title;
+      text = buttonTitle; // Use the button title as the message text
+      this.logger.log(`Button clicked: ${buttonTitle}`);
+    }
 
     let mediaType: string | null = null;
     let mediaUrl: string | null = null;
@@ -50,14 +57,14 @@ export class WhatsappService {
       mediaUrl = await this.downloadMedia(audio.id, userId);
     }
 
-    this.logger.log(`Storing incoming message: from=${from}, to=${from}, message=${text}`);
+    this.logger.log(`Storing incoming message: from=${from}, to=${from}, message=${text || (mediaType ? `${mediaType} file` : 'button click')}`);
     
     await this.prisma.whatsAppMessage.create({
       data: {
         messageId,
-        to: from, // This should be the business number, but we're setting it to customer number
-        from, // This is the customer's number
-        message: text || (mediaType ? `${mediaType} file` : null),
+        to: from,
+        from,
+        message: text || (mediaType ? `${mediaType} file` : 'button interaction'),
         mediaType,
         mediaUrl,
         direction: 'incoming',
@@ -67,25 +74,55 @@ export class WhatsappService {
     });
 
     if (text) {
-      await this.sessionService.handleInteractiveMenu(from, text, userId, async (to, msg, imageUrl) => {
-        if (imageUrl) {
-          return this.sendMediaMessage(to, imageUrl, 'image', userId, msg);
+      // Handle hardcoded button responses
+      if (text.toLowerCase() === 'quick reply') {
+        await this.sendMessage(from, 'Please use Quick Reply or Auto Reply features from the menu.', userId);
+        return;
+      }
+      
+      if (text.toLowerCase() === 'ai chatbot') {
+        try {
+          const chatResponse = await this.chatbotService.processMessage(userId, {
+            message: 'I need help with AI assistance',
+            phone: from
+          });
+          
+          if (chatResponse.response) {
+            await this.sendMessage(from, chatResponse.response, userId);
+          }
+        } catch (error) {
+          this.logger.error('Chatbot error:', error);
         }
-        return this.sendMessage(to, msg, userId);
-      });
+        return;
+      }
+      
+      // Try session service first (auto-reply, quick-reply)
+      const sessionHandled = await this.sessionService.handleInteractiveMenu(from, text, userId, 
+        async (to, msg, imageUrl) => {
+          if (imageUrl) {
+            return this.sendMediaMessage(to, imageUrl, 'image', userId, msg);
+          }
+          return this.sendMessage(to, msg, userId);
+        },
+        async (to, msg, buttons) => {
+          return this.sendButtonsMessage(to, msg, buttons, userId);
+        }
+      );
 
-      // Process with chatbot
-      try {
-        const chatResponse = await this.chatbotService.processMessage(userId, {
-          message: text,
-          phone: from
-        });
-        
-        if (chatResponse.response) {
-          await this.sendMessage(from, chatResponse.response, userId);
+      // Only try chatbot if session service didn't handle it
+      if (!sessionHandled) {
+        try {
+          const chatResponse = await this.chatbotService.processMessage(userId, {
+            message: text,
+            phone: from
+          });
+          
+          if (chatResponse.response) {
+            await this.sendMessage(from, chatResponse.response, userId);
+          }
+        } catch (error) {
+          this.logger.error('Chatbot error:', error);
         }
-      } catch (error) {
-        this.logger.error('Chatbot error:', error);
       }
     }
 
@@ -138,6 +175,59 @@ export class WhatsappService {
     } catch (error) {
       this.logger.error('Media download error:', error.response?.data || error.message);
       return null;
+    }
+  }
+
+  async sendButtonsMessage(to: string, text: string, buttons: string[], userId: number) {
+    try {
+      const settings = await this.getSettings(userId);
+      
+      const interactiveButtons = buttons.slice(0, 3).map((button, index) => ({
+        type: 'reply',
+        reply: {
+          id: `btn_${index}`,
+          title: button.length > 20 ? button.substring(0, 20) : button
+        }
+      }));
+      
+      const response = await axios.post(
+        `${settings.apiUrl}/${settings.phoneNumberId}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          to,
+          type: 'interactive',
+          interactive: {
+            type: 'button',
+            body: { text },
+            action: {
+              buttons: interactiveButtons
+            }
+          }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${settings.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      await this.prisma.whatsAppMessage.create({
+        data: {
+          messageId: response.data.messages[0].id,
+          to,
+          from: to,
+          message: `Interactive buttons: ${text}`,
+          direction: 'outgoing',
+          status: 'sent',
+          userId
+        }
+      });
+
+      return { success: true, messageId: response.data.messages[0].id };
+    } catch (error) {
+      this.logger.error('WhatsApp Buttons API Error:', error.response?.data || error.message);
+      return { success: false, error: error.message };
     }
   }
 

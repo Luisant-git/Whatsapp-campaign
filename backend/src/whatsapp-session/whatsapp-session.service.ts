@@ -112,7 +112,7 @@ export class WhatsappSessionService {
 
   private async isButtonResponse(message: string, userId: number): Promise<boolean> {
     // Check hardcoded buttons first
-    const hardcodedButtons = ['Quick Reply', 'AI Chatbot'];
+    const hardcodedButtons = ['AI Chatbot'];
     if (hardcodedButtons.some(button => button.toLowerCase() === message.toLowerCase())) {
       return true;
     }

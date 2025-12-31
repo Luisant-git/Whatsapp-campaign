@@ -29,7 +29,9 @@ export default function Contact() {
 
   const loadContacts = async () => {
     try {
+      console.log('Loading contacts...');
       const response = await contactAPI.getAll();
+      console.log('Contacts response:', response);
       setContacts(response.data);
     } catch (error) {
       showToast('Failed to load contacts', 'error');
@@ -38,7 +40,9 @@ export default function Contact() {
 
   const loadDeliveryStats = async () => {
     try {
+      console.log('Loading delivery stats...');
       const response = await contactAPI.getDeliveryStats();
+      console.log('Delivery stats response:', response);
       setDeliveryStats(response.data);
     } catch (error) {
       console.error('Failed to load delivery stats:', error);

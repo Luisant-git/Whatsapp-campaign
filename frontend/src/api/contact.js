@@ -7,5 +7,8 @@ export const contactAPI = {
   getOne: (id) => axios.get(`${API_URL}/contact/${id}`, { withCredentials: true }),
   create: (data) => axios.post(`${API_URL}/contact`, data, { withCredentials: true }),
   update: (id, data) => axios.patch(`${API_URL}/contact/${id}`, data, { withCredentials: true }),
-  delete: (id) => axios.delete(`${API_URL}/contact/${id}`, { withCredentials: true })
+  delete: (id) => axios.delete(`${API_URL}/contact/${id}`, { withCredentials: true }),
+  getDeliveryStats: () => axios.get(`${API_URL}/contact/delivery-stats`, { withCredentials: true }),
+  updateDeliveryStatus: (phone, status, campaignName) => 
+    axios.patch(`${API_URL}/contact/delivery-status`, { phone, status, campaignName }, { withCredentials: true })
 };

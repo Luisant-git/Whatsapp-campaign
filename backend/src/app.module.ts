@@ -10,6 +10,7 @@ import { AutoReplyModule } from './auto-reply.module';
 import { QuickReplyModule } from './quick-reply.module';
 import { ChatbotModule } from './chatbot/chatbot.module';
 import { MasterConfigModule } from './master-config/master-config.module';
+import { ContactModule } from './contact.module';
 
 @Module({
   imports: [
@@ -21,7 +22,8 @@ import { MasterConfigModule } from './master-config/master-config.module';
     AutoReplyModule,
     QuickReplyModule,
     ChatbotModule,
-    MasterConfigModule
+    MasterConfigModule,
+    ContactModule
   ],
   controllers: [AppController],
   providers: [AppService],

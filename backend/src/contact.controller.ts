@@ -46,8 +46,8 @@ export class ContactController {
   }
 
   @Patch('delivery-status')
-  updateDeliveryStatus(@Body() body: { phone: string; status: string; campaignName: string }, @Session() session: Record<string, any>) {
-    return this.contactService.updateDeliveryStatus(body.phone, body.status, body.campaignName, session.userId);
+  updateDeliveryStatus(@Body() body: { phone: string; status: string; campaignName: string; name?: string }, @Session() session: Record<string, any>) {
+    return this.contactService.updateDeliveryStatus(body.phone, body.status, body.campaignName, body.name || body.phone, session.userId);
   }
 
   @Patch(':id')

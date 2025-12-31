@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from './prisma.service';
+import { PrismaService } from '../prisma.service';
 
 @Injectable()
 export class QuickReplyService {
@@ -8,7 +8,7 @@ export class QuickReplyService {
   async getQuickReply(message: string, userId: number) {
     const lowerMessage = message.toLowerCase().trim();
     console.log('Looking for quick reply with trigger:', lowerMessage);
-    
+
     // Hardcoded quick reply for menu selection
     const hardcodedTriggers = ['hi', 'hello', 'help', 'info'];
     if (hardcodedTriggers.includes(lowerMessage)) {
@@ -17,20 +17,20 @@ export class QuickReplyService {
         triggers: hardcodedTriggers,
         buttons: ['Quick Reply', 'AI Chatbot'],
         isActive: true,
-        userId
+        userId,
       };
     }
-    
+
     const quickReply = await this.prisma.quickReply.findFirst({
-      where: { 
-        userId, 
+      where: {
+        userId,
         isActive: true,
         triggers: {
-          hasSome: [lowerMessage]
-        }
-      }
+          hasSome: [lowerMessage],
+        },
+      },
     });
-    
+
     console.log('Quick reply result:', quickReply);
     return quickReply;
   }
@@ -38,24 +38,34 @@ export class QuickReplyService {
   async addQuickReply(userId: number, triggers: string[], buttons: string[]) {
     return this.prisma.quickReply.create({
       data: {
-        triggers: triggers.map(t => t.toLowerCase()),
+        triggers: triggers.map((t) => t.toLowerCase()),
         buttons,
-        userId
-      }
+        userId,
+      },
     });
   }
 
-  async updateQuickReply(id: number, userId: number, triggers: string[], buttons: string[], isActive: boolean) {
+  async updateQuickReply(
+    id: number,
+    userId: number,
+    triggers: string[],
+    buttons: string[],
+    isActive: boolean,
+  ) {
     return this.prisma.quickReply.update({
       where: { id },
-      data: { triggers: triggers.map(t => t.toLowerCase()), buttons, isActive }
+      data: {
+        triggers: triggers.map((t) => t.toLowerCase()),
+        buttons,
+        isActive,
+      },
     });
   }
 
   async removeQuickReply(id: number, userId: number): Promise<boolean> {
     try {
       await this.prisma.quickReply.delete({
-        where: { id }
+        where: { id },
       });
       return true;
     } catch {
@@ -66,7 +76,7 @@ export class QuickReplyService {
   async getAllQuickReplies(userId: number) {
     return this.prisma.quickReply.findMany({
       where: { userId },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 }

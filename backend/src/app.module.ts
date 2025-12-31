@@ -6,24 +6,24 @@ import { UserModule } from './user/user.module';
 import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { SettingsModule } from './settings/settings.module';
-import { AutoReplyModule } from './auto-reply.module';
-import { QuickReplyModule } from './quick-reply.module';
+import { AutoReplyModule } from './auto-reply/auto-reply.module';
+import { QuickReplyModule } from './quick-reply/quick-reply.module';
 import { ChatbotModule } from './chatbot/chatbot.module';
 import { MasterConfigModule } from './master-config/master-config.module';
-import { ContactModule } from './contact.module';
+import { ContactModule } from './contact/contact.module';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
-    UserModule, 
-    WhatsappModule, 
-    AnalyticsModule, 
-    SettingsModule, 
+    UserModule,
+    WhatsappModule,
+    AnalyticsModule,
+    SettingsModule,
     AutoReplyModule,
     QuickReplyModule,
     ChatbotModule,
     MasterConfigModule,
-    ContactModule
+    ContactModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,6 +1,17 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Session, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Session,
+  Query,
+} from '@nestjs/common';
 import { ContactService } from './contact.service';
-import { SessionGuard } from './auth/session.guard';
+import { SessionGuard } from '../auth/session.guard';
 
 export class CreateContactDto {
   name: string;
@@ -26,7 +37,10 @@ export class ContactController {
   constructor(private readonly contactService: ContactService) {}
 
   @Post()
-  create(@Body() createContactDto: CreateContactDto, @Session() session: Record<string, any>) {
+  create(
+    @Body() createContactDto: CreateContactDto,
+    @Session() session: Record<string, any>,
+  ) {
     return this.contactService.create(createContactDto, session.userId);
   }
 
@@ -35,13 +49,13 @@ export class ContactController {
     @Session() session: Record<string, any>,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
-    @Query('search') search?: string
+    @Query('search') search?: string,
   ) {
     return this.contactService.findAll(
       session.userId,
       page ? parseInt(page) : 1,
       limit ? parseInt(limit) : 10,
-      search || ''
+      search || '',
     );
   }
 
@@ -56,12 +70,31 @@ export class ContactController {
   }
 
   @Patch('delivery-status')
-  updateDeliveryStatus(@Body() body: { phone: string; status: string; campaignName: string; name?: string }, @Session() session: Record<string, any>) {
-    return this.contactService.updateDeliveryStatus(body.phone, body.status, body.campaignName, body.name || body.phone, session.userId);
+  updateDeliveryStatus(
+    @Body()
+    body: {
+      phone: string;
+      status: string;
+      campaignName: string;
+      name?: string;
+    },
+    @Session() session: Record<string, any>,
+  ) {
+    return this.contactService.updateDeliveryStatus(
+      body.phone,
+      body.status,
+      body.campaignName,
+      body.name || body.phone,
+      session.userId,
+    );
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateContactDto: UpdateContactDto, @Session() session: Record<string, any>) {
+  update(
+    @Param('id') id: string,
+    @Body() updateContactDto: UpdateContactDto,
+    @Session() session: Record<string, any>,
+  ) {
     return this.contactService.update(+id, updateContactDto, session.userId);
   }
 

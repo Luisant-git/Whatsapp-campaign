@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from './prisma.service';
+import { PrismaService } from '../prisma.service';
 
 @Injectable()
 export class AutoReplyService {
@@ -7,21 +7,21 @@ export class AutoReplyService {
 
   async getAutoReply(message: string, userId: number): Promise<string | null> {
     const lowerMessage = message.toLowerCase().trim();
-    
+
     const autoReplies = await this.prisma.autoReply.findMany({
-      where: { userId, isActive: true }
+      where: { userId, isActive: true },
     });
-    
+
     for (const autoReply of autoReplies) {
-      const matchedTrigger = autoReply.triggers.find(trigger => 
-        lowerMessage.includes(trigger.toLowerCase())
+      const matchedTrigger = autoReply.triggers.find((trigger) =>
+        lowerMessage.includes(trigger.toLowerCase()),
       );
-      
+
       if (matchedTrigger) {
         return autoReply.response;
       }
     }
-    
+
     return null;
   }
 
@@ -30,22 +30,28 @@ export class AutoReplyService {
       data: {
         triggers,
         response,
-        userId
-      }
+        userId,
+      },
     });
   }
 
-  async updateAutoReply(id: number, userId: number, triggers: string[], response: string, isActive: boolean) {
+  async updateAutoReply(
+    id: number,
+    userId: number,
+    triggers: string[],
+    response: string,
+    isActive: boolean,
+  ) {
     return this.prisma.autoReply.update({
       where: { id },
-      data: { triggers, response, isActive }
+      data: { triggers, response, isActive },
     });
   }
 
   async removeAutoReply(id: number, userId: number): Promise<boolean> {
     try {
       await this.prisma.autoReply.delete({
-        where: { id }
+        where: { id },
       });
       return true;
     } catch {
@@ -56,7 +62,7 @@ export class AutoReplyService {
   async getAllAutoReplies(userId: number) {
     return this.prisma.autoReply.findMany({
       where: { userId },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 }

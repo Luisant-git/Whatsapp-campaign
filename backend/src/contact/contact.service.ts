@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from './prisma.service';
+import { PrismaService } from '../prisma.service';
 
 @Injectable()
 export class ContactService {
@@ -7,19 +7,24 @@ export class ContactService {
 
   async create(data: any, userId: number) {
     return this.prisma.contact.create({
-      data: { ...data, userId }
+      data: { ...data, userId },
     });
   }
 
-  async findAll(userId: number, page: number = 1, limit: number = 10, search: string = '') {
+  async findAll(
+    userId: number,
+    page: number = 1,
+    limit: number = 10,
+    search: string = '',
+  ) {
     const skip = (page - 1) * limit;
-    
+
     const where: any = { userId };
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { phone: { contains: search } },
-        { lastCampaignName: { contains: search, mode: 'insensitive' } }
+        { lastCampaignName: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -28,9 +33,9 @@ export class ContactService {
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.contact.count({ where })
+      this.prisma.contact.count({ where }),
     ]);
 
     return {
@@ -38,13 +43,13 @@ export class ContactService {
       total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit)
+      totalPages: Math.ceil(total / limit),
     };
   }
 
   async findOne(id: number, userId: number) {
     const contact = await this.prisma.contact.findFirst({
-      where: { id, userId }
+      where: { id, userId },
     });
     if (!contact) throw new NotFoundException('Contact not found');
     return contact;
@@ -54,44 +59,50 @@ export class ContactService {
     await this.findOne(id, userId);
     return this.prisma.contact.update({
       where: { id },
-      data
+      data,
     });
   }
 
   async remove(id: number, userId: number) {
     await this.findOne(id, userId);
     return this.prisma.contact.delete({
-      where: { id }
+      where: { id },
     });
   }
 
   async getDeliveryStats(userId: number) {
     const total = await this.prisma.contact.count({
-      where: { userId }
+      where: { userId },
     });
     return { delivered: 0, failed: 0, pending: 0 };
   }
 
-  async updateDeliveryStatus(phone: string, status: string, campaignName: string, name: string, userId: number) {
+  async updateDeliveryStatus(
+    phone: string,
+    status: string,
+    campaignName: string,
+    name: string,
+    userId: number,
+  ) {
     await this.prisma.contact.upsert({
       where: {
         phone_userId: {
           phone,
-          userId
-        }
+          userId,
+        },
       },
       update: {
         name: name || phone,
         lastMessageDate: new Date(),
-        lastCampaignName: campaignName
+        lastCampaignName: campaignName,
       },
       create: {
         name: name || phone,
         phone,
         lastMessageDate: new Date(),
         lastCampaignName: campaignName,
-        userId
-      }
+        userId,
+      },
     });
   }
 }

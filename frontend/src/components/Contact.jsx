@@ -71,6 +71,7 @@ export default function Contact() {
             <table className="contacts-table">
               <thead>
                 <tr>
+                  <th>S.No</th>
                   <th>Name</th>
                   <th>Phone</th>
                   <th>Campaign</th>
@@ -78,8 +79,9 @@ export default function Contact() {
                 </tr>
               </thead>
               <tbody>
-                {contacts.map(contact => (
+                {contacts.map((contact, index) => (
                   <tr key={contact.id}>
+                    <td>{(page - 1) * limit + index + 1}</td>
                     <td>{contact.name}</td>
                     <td>{contact.phone}</td>
                     <td>{contact.lastCampaignName || '-'}</td>

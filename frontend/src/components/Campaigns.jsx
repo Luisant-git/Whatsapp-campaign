@@ -139,6 +139,7 @@ const Campaigns = () => {
         <table>
           <thead>
             <tr>
+              <th>S.No</th>
               <th>Campaign</th>
               <th>Template</th>
               <th>Status</th>
@@ -148,8 +149,9 @@ const Campaigns = () => {
             </tr>
           </thead>
           <tbody>
-            {Array.isArray(currentCampaigns) && currentCampaigns.map((campaign) => (
+            {Array.isArray(currentCampaigns) && currentCampaigns.map((campaign, index) => (
               <tr key={campaign.id}>
+                <td>{indexOfFirstItem + index + 1}</td>
                 <td className="campaign-name">{campaign.name}</td>
                 <td>{campaign.templateName}</td>
                 <td>

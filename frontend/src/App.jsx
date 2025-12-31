@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { MessageSquare, Settings, BarChart3, User, Send, MessageCircle, Bot, Megaphone, Sliders, Menu, X } from 'lucide-react'
+import { MessageSquare, Settings, BarChart3, User, Send, MessageCircle, Bot, Megaphone, Sliders, Menu, X, Users } from 'lucide-react'
 import { ToastProvider } from './contexts/ToastContext'
 import WhatsAppChat from './components/WhatsAppChat'
 import BulkWhatsApp from './components/BulkWhatsApps'
@@ -11,6 +11,7 @@ import MasterConfig from './components/MasterConfig'
 import Profile from './components/Profile'
 import AutoReply from './components/AutoReply'
 import Chatbot from './components/Chatbot'
+import Contact from './components/Contact'
 import './App.css'
 import './styles/Analytics.css'
 import './styles/Settings.css'
@@ -92,6 +93,13 @@ function App() {
           >
             <Send size={18} />
             <span>Bulk Messages</span>
+          </button>
+          <button 
+            className={`nav-item ${activeView === 'contacts' ? 'active' : ''}`}
+            onClick={() => handleMenuClick('contacts')}
+          >
+            <Users size={18} />
+            <span>Contacts</span>
           </button>
           <button 
             className={`nav-item ${activeView === 'campaigns' ? 'active' : ''}`}
@@ -179,6 +187,7 @@ function App() {
         </div>
         {activeView === 'chats' && <WhatsAppChat />}
         {activeView === 'bulk' && <BulkWhatsApp />}
+        {activeView === 'contacts' && <Contact />}
         {activeView === 'campaigns' && <Campaigns />}
         {activeView === 'auto-reply' && <AutoReply />}
         {activeView === 'chatbot' && <Chatbot />}

@@ -9,6 +9,7 @@ import { SettingsModule } from './settings/settings.module';
 import { AutoReplyModule } from './auto-reply.module';
 import { ChatbotModule } from './chatbot/chatbot.module';
 import { MasterConfigModule } from './master-config/master-config.module';
+import { ContactModule } from './contact.module';
 
 @Module({
   imports: [
@@ -19,7 +20,8 @@ import { MasterConfigModule } from './master-config/master-config.module';
     SettingsModule, 
     AutoReplyModule,
     ChatbotModule,
-    MasterConfigModule
+    MasterConfigModule,
+    ContactModule
   ],
   controllers: [AppController],
   providers: [AppService],

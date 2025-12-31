@@ -25,6 +25,7 @@ model User {
   masterConfigs MasterConfig[]
   autoReplies AutoReply[]
   quickReplies QuickReply[]
+  contacts  Contact[]
 }
 
 model MasterConfig {
@@ -176,4 +177,20 @@ model QuickReply {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Contact {
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String
+  email     String?
+  company   String?
+  tags      String[] @default([])
+  notes     String?  @db.Text
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([phone, userId])
 }

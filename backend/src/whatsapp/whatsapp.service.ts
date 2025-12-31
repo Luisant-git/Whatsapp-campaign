@@ -35,24 +35,9 @@ export class WhatsappService {
     
     // Handle interactive button clicks
     if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
-      const buttonId = message.interactive.button_reply.id;
       const buttonTitle = message.interactive.button_reply.title;
-      
-      // Find the corresponding payload for this button
-      const quickReplies = await this.prisma.quickReply.findMany({
-        where: { userId, isActive: true }
-      });
-      
-      for (const quickReply of quickReplies) {
-        const buttons = quickReply.buttons as Array<{title: string, payload: string}>;
-        const matchedButton = buttons.find(btn => btn.title === buttonTitle);
-        if (matchedButton) {
-          text = matchedButton.payload; // Use the payload as the message text
-          break;
-        }
-      }
-      
-      this.logger.log(`Button clicked: ${buttonTitle}, payload: ${text}`);
+      text = buttonTitle; // Use the button title as the message text
+      this.logger.log(`Button clicked: ${buttonTitle}`);
     }
 
     let mediaType: string | null = null;
@@ -89,6 +74,28 @@ export class WhatsappService {
     });
 
     if (text) {
+      // Handle hardcoded button responses
+      if (text.toLowerCase() === 'quick reply') {
+        await this.sendMessage(from, 'Please use Quick Reply or Auto Reply features from the menu.', userId);
+        return;
+      }
+      
+      if (text.toLowerCase() === 'ai chatbot') {
+        try {
+          const chatResponse = await this.chatbotService.processMessage(userId, {
+            message: 'I need help with AI assistance',
+            phone: from
+          });
+          
+          if (chatResponse.response) {
+            await this.sendMessage(from, chatResponse.response, userId);
+          }
+        } catch (error) {
+          this.logger.error('Chatbot error:', error);
+        }
+        return;
+      }
+      
       // Try session service first (auto-reply, quick-reply)
       const sessionHandled = await this.sessionService.handleInteractiveMenu(from, text, userId, 
         async (to, msg, imageUrl) => {
@@ -171,15 +178,15 @@ export class WhatsappService {
     }
   }
 
-  async sendButtonsMessage(to: string, text: string, buttons: Array<{title: string, payload: string}>, userId: number) {
+  async sendButtonsMessage(to: string, text: string, buttons: string[], userId: number) {
     try {
       const settings = await this.getSettings(userId);
       
-      const interactiveButtons = buttons.map((button, index) => ({
+      const interactiveButtons = buttons.slice(0, 3).map((button, index) => ({
         type: 'reply',
         reply: {
           id: `btn_${index}`,
-          title: button.title.length > 20 ? button.title.substring(0, 20) : button.title
+          title: button.length > 20 ? button.substring(0, 20) : button
         }
       }));
       

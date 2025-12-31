@@ -9,11 +9,25 @@ export class QuickReplyService {
     const lowerMessage = message.toLowerCase().trim();
     console.log('Looking for quick reply with trigger:', lowerMessage);
     
+    // Hardcoded quick reply for menu selection
+    const hardcodedTriggers = ['hi', 'hello', 'help', 'info'];
+    if (hardcodedTriggers.includes(lowerMessage)) {
+      return {
+        id: 0,
+        triggers: hardcodedTriggers,
+        buttons: ['Quick Reply', 'AI Chatbot'],
+        isActive: true,
+        userId
+      };
+    }
+    
     const quickReply = await this.prisma.quickReply.findFirst({
       where: { 
         userId, 
         isActive: true,
-        trigger: lowerMessage
+        triggers: {
+          hasSome: [lowerMessage]
+        }
       }
     });
     
@@ -21,20 +35,20 @@ export class QuickReplyService {
     return quickReply;
   }
 
-  async addQuickReply(userId: number, trigger: string, buttons: Array<{title: string, payload: string}>) {
+  async addQuickReply(userId: number, triggers: string[], buttons: string[]) {
     return this.prisma.quickReply.create({
       data: {
-        trigger: trigger.toLowerCase(),
+        triggers: triggers.map(t => t.toLowerCase()),
         buttons,
         userId
       }
     });
   }
 
-  async updateQuickReply(id: number, userId: number, trigger: string, buttons: Array<{title: string, payload: string}>, isActive: boolean) {
+  async updateQuickReply(id: number, userId: number, triggers: string[], buttons: string[], isActive: boolean) {
     return this.prisma.quickReply.update({
       where: { id },
-      data: { trigger: trigger.toLowerCase(), buttons, isActive }
+      data: { triggers: triggers.map(t => t.toLowerCase()), buttons, isActive }
     });
   }
 

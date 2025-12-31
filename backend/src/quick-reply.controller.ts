@@ -11,13 +11,13 @@ export class QuickReplyController {
   }
 
   @Post()
-  addQuickReply(@Body() body: { trigger: string; buttons: Array<{title: string, payload: string}> }) {
-    return this.quickReplyService.addQuickReply(1, body.trigger, body.buttons);
+  addQuickReply(@Body() body: { triggers: string[]; buttons: string[] }) {
+    return this.quickReplyService.addQuickReply(1, body.triggers, body.buttons);
   }
 
   @Put(':id')
-  updateQuickReply(@Param('id') id: string, @Body() body: { trigger: string; buttons: Array<{title: string, payload: string}>; isActive: boolean }) {
-    return this.quickReplyService.updateQuickReply(parseInt(id), 1, body.trigger, body.buttons, body.isActive);
+  updateQuickReply(@Param('id') id: string, @Body() body: { triggers: string[]; buttons: string[]; isActive: boolean }) {
+    return this.quickReplyService.updateQuickReply(parseInt(id), 1, body.triggers, body.buttons, body.isActive);
   }
 
   @Delete(':id')

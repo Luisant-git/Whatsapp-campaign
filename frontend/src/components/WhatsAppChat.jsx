@@ -87,6 +87,16 @@ const WhatsAppChat = () => {
     }
   }, [readMessages]);
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showLabelMenu && !event.target.closest('.label-menu') && !event.target.closest('.label-menu-btn')) {
+        setShowLabelMenu(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showLabelMenu]);
+
   const fetchMessages = async () => {
     if (!API_BASE_URL) return;
     try {
@@ -349,6 +359,13 @@ const WhatsAppChat = () => {
     'Other': '#8e24aa'
   };
 
+  customLabels.forEach((label, index) => {
+    if (!labelColors[label]) {
+      const colors = ['#1e88e5', '#43a047', '#e53935', '#fb8c00', '#8e24aa'];
+      labelColors[label] = colors[index % colors.length];
+    }
+  });
+
   const getRandomColor = () => {
     const colors = ['#1e88e5', '#43a047', '#e53935', '#fb8c00', '#8e24aa'];
     const usedColors = Object.values(labelColors);
@@ -362,9 +379,8 @@ const WhatsAppChat = () => {
       const updatedCustomLabels = [...customLabels, newLabel];
       setCustomLabels(updatedCustomLabels);
       localStorage.setItem('customLabels', JSON.stringify(updatedCustomLabels));
-      if (!labelColors[newLabel]) {
-        labelColors[newLabel] = getRandomColor();
-      }
+      const colors = ['#1e88e5', '#43a047', '#e53935', '#fb8c00', '#8e24aa'];
+      labelColors[newLabel] = colors[updatedCustomLabels.length % colors.length];
       toggleLabel(phone, newLabel);
       setNewLabelName('');
       setShowNewLabelInput(null);
@@ -449,11 +465,15 @@ const WhatsAppChat = () => {
               <div className="chat-last-msg">{chat.lastMessage}</div>
               {chatLabels[chat.phone]?.length > 0 && (
                 <div className="chat-labels">
-                  {chatLabels[chat.phone].map(label => (
-                    <span key={label} className="label-tag" style={{ backgroundColor: labelColors[label] }}>
-                      {label}
-                    </span>
-                  ))}
+                  {chatLabels[chat.phone].map(label => {
+                    const colors = ['#1e88e5', '#43a047', '#e53935', '#fb8c00', '#8e24aa'];
+                    const color = labelColors[label] || colors[customLabels.indexOf(label) % colors.length] || '#8e24aa';
+                    return (
+                      <span key={label} className="label-tag" style={{ backgroundColor: color }}>
+                        {label}
+                      </span>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -470,20 +490,40 @@ const WhatsAppChat = () => {
             </button>
             {showLabelMenu === chat.phone && (
               <div className="label-menu" onClick={(e) => e.stopPropagation()}>
-                {availableLabels.map(label => (
-                  <div 
-                    key={label}
-                    className="label-option"
-                    onClick={() => toggleLabel(chat.phone, label)}
-                  >
-                    <input 
-                      type="checkbox" 
-                      checked={chatLabels[chat.phone]?.includes(label) || false}
-                      readOnly
-                    />
-                    <span style={{ color: labelColors[label] || getRandomColor() }}>{label}</span>
-                  </div>
-                ))}
+                {availableLabels.map(label => {
+                  const isCustom = customLabels.includes(label);
+                  return (
+                    <div 
+                      key={label}
+                      className="label-option"
+                    >
+                      <input 
+                        type="checkbox" 
+                        checked={chatLabels[chat.phone]?.includes(label) || false}
+                        onChange={() => toggleLabel(chat.phone, label)}
+                      />
+                      <span style={{ color: labelColors[label] || getRandomColor() }}>{label}</span>
+                      {isCustom && (
+                        <button 
+                          className="remove-label-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const updatedCustomLabels = customLabels.filter(l => l !== label);
+                            setCustomLabels(updatedCustomLabels);
+                            localStorage.setItem('customLabels', JSON.stringify(updatedCustomLabels));
+                            const newLabels = { ...chatLabels };
+                            Object.keys(newLabels).forEach(phone => {
+                              newLabels[phone] = newLabels[phone].filter(l => l !== label);
+                            });
+                            setChatLabels(newLabels);
+                          }}
+                        >
+                          −
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
                 {showNewLabelInput === chat.phone ? (
                   <div className="new-label-input">
                     <input

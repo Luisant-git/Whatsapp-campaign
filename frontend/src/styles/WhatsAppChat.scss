@@ -220,6 +220,7 @@
           padding: 10px 16px;
           cursor: pointer;
           transition: background 0.2s;
+          position: relative;
 
           &:hover {
             background: #f5f5f5;
@@ -237,6 +238,27 @@
             font-weight: 400;
             color: #111b21;
             flex: 1;
+          }
+
+          .remove-label-btn {
+            background: transparent;
+            border: none;
+            color: #e53935;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s;
+            line-height: 1;
+
+            &:hover {
+              background: #ffebee;
+            }
           }
         }
 

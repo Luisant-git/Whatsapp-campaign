@@ -110,4 +110,18 @@ export class ContactController {
   remove(@Param('id') id: string, @Session() session: Record<string, any>) {
     return this.contactService.remove(+id, this.getUserId(session));
   }
+
+  @Get('labels/all')
+  getLabels(@Session() session: Record<string, any>) {
+    return this.contactService.getLabels(this.getUserId(session));
+  }
+
+  @Post('labels/:phone')
+  updateLabels(
+    @Param('phone') phone: string,
+    @Body('labels') labels: string[],
+    @Session() session: Record<string, any>,
+  ) {
+    return this.contactService.updateLabels(this.getUserId(session), phone, labels);
+  }
 }

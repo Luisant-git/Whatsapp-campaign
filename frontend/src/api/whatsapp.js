@@ -92,3 +92,30 @@ export const getMessages = async (phone) => {
 
   return await response.json();
 };
+
+export const getLabels = async () => {
+  const response = await fetch(`${API_BASE_URL}/contact/labels/all`, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch labels');
+  }
+
+  return await response.json();
+};
+
+export const updateLabels = async (phone, labels) => {
+  const response = await fetch(`${API_BASE_URL}/contact/labels/${phone}`, {
+    method: 'POST',
+    headers: getHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ labels }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to update labels');
+  }
+
+  return await response.json();
+};

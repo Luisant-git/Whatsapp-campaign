@@ -63,6 +63,32 @@
         }
       }
 
+      .label-filter {
+        width: 100%;
+        
+        select {
+          width: 100%;
+          padding: 6px 10px;
+          border: 1px solid #e0e0e0;
+          border-radius: 6px;
+          background: #f0f2f5;
+          color: #333;
+          font-size: 13px;
+          cursor: pointer;
+          outline: none;
+          transition: all 0.2s;
+
+          &:hover {
+            border-color: #25d366;
+          }
+
+          &:focus {
+            background: white;
+            border-color: #25d366;
+          }
+        }
+      }
+
       .search-box {
         position: relative;
         padding: 0;
@@ -178,6 +204,7 @@
       cursor: pointer;
       border-bottom: 1px solid #f0f0f0;
       transition: background 0.2s;
+      position: relative;
 
       &:hover {
         background: #f5f5f5;
@@ -185,6 +212,63 @@
 
       &.active {
         background: #e8f5e9;
+      }
+
+      .label-menu-btn {
+        position: absolute;
+        right: 10px;
+        top: 15px;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #8696a0;
+        transition: all 0.2s;
+
+        &:hover {
+          background: #e0e0e0;
+          color: #25d366;
+        }
+      }
+
+      .label-menu {
+        position: absolute;
+        right: 40px;
+        top: 10px;
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        padding: 8px;
+        z-index: 100;
+        min-width: 150px;
+
+        .label-option {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          cursor: pointer;
+          border-radius: 4px;
+          transition: background 0.2s;
+
+          &:hover {
+            background: #f5f5f5;
+          }
+
+          input[type="checkbox"] {
+            cursor: pointer;
+          }
+
+          span {
+            font-size: 14px;
+            font-weight: 500;
+          }
+        }
       }
 
       .chat-avatar {
@@ -233,6 +317,21 @@
           overflow: hidden;
           text-overflow: ellipsis;
           width: 100%;
+        }
+
+        .chat-labels {
+          display: flex;
+          gap: 4px;
+          margin-top: 4px;
+          flex-wrap: wrap;
+
+          .label-tag {
+            font-size: 10px;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: 500;
+          }
         }
       }
     }
@@ -303,6 +402,68 @@
         display: flex;
         align-items: center;
         gap: 12px;
+      }
+
+      .message-search {
+        position: relative;
+        min-width: 200px;
+
+        .search-icon {
+          position: absolute;
+          left: 8px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #8696a0;
+          pointer-events: none;
+          width: 16px;
+          height: 16px;
+        }
+
+        input {
+          width: 100%;
+          padding: 6px 28px 6px 28px;
+          border: 1px solid #e0e0e0;
+          border-radius: 6px;
+          outline: none;
+          font-size: 13px;
+          color: #333;
+          background: #f0f2f5;
+          transition: all 0.2s;
+
+          &::placeholder {
+            color: #8696a0;
+          }
+
+          &:focus {
+            background: white;
+            border-color: #25d366;
+          }
+        }
+
+        .clear-search {
+          position: absolute;
+          right: 6px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: transparent;
+          border: none;
+          color: #8696a0;
+          font-size: 16px;
+          cursor: pointer;
+          padding: 0;
+          width: 18px;
+          height: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          transition: all 0.2s;
+          line-height: 1;
+
+          &:hover {
+            background: #e0e0e0;
+          }
+        }
       }
 
       .menu-btn {
@@ -880,6 +1041,24 @@
   .whatsapp-chat .chat-main .chat-header .header-actions {
     gap: 6px;
   }
+  .whatsapp-chat .chat-main .chat-header .header-actions .message-search {
+    min-width: 120px;
+  }
+  .whatsapp-chat .chat-main .chat-header .header-actions .message-search input {
+    padding: 5px 22px 5px 22px;
+    font-size: 12px;
+  }
+  .whatsapp-chat .chat-main .chat-header .header-actions .message-search .search-icon {
+    left: 6px;
+    width: 14px;
+    height: 14px;
+  }
+  .whatsapp-chat .chat-main .chat-header .header-actions .message-search .clear-search {
+    right: 4px;
+    width: 16px;
+    height: 16px;
+    font-size: 14px;
+  }
   .whatsapp-chat .chat-main .chat-header .header-actions .date-filter select {
     padding: 6px 8px;
     font-size: 12px;
@@ -991,6 +1170,24 @@
   }
   .whatsapp-chat .chat-main .chat-header .header-actions {
     gap: 4px;
+  }
+  .whatsapp-chat .chat-main .chat-header .header-actions .message-search {
+    min-width: 100px;
+  }
+  .whatsapp-chat .chat-main .chat-header .header-actions .message-search input {
+    padding: 4px 20px 4px 20px;
+    font-size: 11px;
+  }
+  .whatsapp-chat .chat-main .chat-header .header-actions .message-search .search-icon {
+    left: 5px;
+    width: 12px;
+    height: 12px;
+  }
+  .whatsapp-chat .chat-main .chat-header .header-actions .message-search .clear-search {
+    right: 3px;
+    width: 14px;
+    height: 14px;
+    font-size: 12px;
   }
   .whatsapp-chat .chat-main .chat-header .header-actions .date-filter select {
     font-size: 11px;

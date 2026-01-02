@@ -105,4 +105,28 @@ export class ContactService {
       },
     });
   }
+
+  async getLabels(userId: number) {
+    const labels = await this.prisma.chatLabel.findMany({
+      where: { userId },
+    });
+    const result = {};
+    labels.forEach(label => {
+      result[label.phone] = label.labels;
+    });
+    return result;
+  }
+
+  async updateLabels(userId: number, phone: string, labels: string[]) {
+    return this.prisma.chatLabel.upsert({
+      where: {
+        phone_userId: {
+          phone,
+          userId,
+        },
+      },
+      update: { labels },
+      create: { phone, labels, userId },
+    });
+  }
 }

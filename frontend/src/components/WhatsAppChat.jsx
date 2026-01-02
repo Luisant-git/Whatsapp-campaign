@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '../api/config';
-import { getMessages, sendMessage, sendMediaMessage } from '../api/whatsapp';
+import { getMessages, sendMessage, sendMediaMessage, getLabels, updateLabels } from '../api/whatsapp';
 import { MoreVertical } from 'lucide-react';
 import '../styles/WhatsAppChat.scss';
 
@@ -60,6 +60,10 @@ const WhatsAppChat = () => {
   const [audioProgress, setAudioProgress] = useState({});
   const [audioCurrentTime, setAudioCurrentTime] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [messageSearchQuery, setMessageSearchQuery] = useState('');
+  const [chatLabels, setChatLabels] = useState({});
+  const [selectedLabel, setSelectedLabel] = useState('all');
+  const [showLabelMenu, setShowLabelMenu] = useState(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const audioRefs = useRef({});
@@ -67,6 +71,7 @@ const WhatsAppChat = () => {
   useEffect(() => {
     if (API_BASE_URL) {
       fetchMessages();
+      fetchLabels();
       const interval = setInterval(fetchMessages, 3000);
       return () => clearInterval(interval);
     }
@@ -101,6 +106,16 @@ const WhatsAppChat = () => {
     } catch (error) {
       console.error('Error fetching messages:', error);
       toast.error('Failed to fetch messages');
+    }
+  };
+
+  const fetchLabels = async () => {
+    if (!API_BASE_URL) return;
+    try {
+      const labels = await getLabels();
+      setChatLabels(labels);
+    } catch (error) {
+      console.error('Error fetching labels:', error);
     }
   };
  
@@ -307,19 +322,60 @@ const WhatsAppChat = () => {
 
   const filteredMessages = selectedChat
     ? filterMessagesByDate(messages.filter(m => m.from === selectedChat))
+        .filter(msg => 
+          messageSearchQuery === '' || 
+          (msg.message && msg.message.toLowerCase().includes(messageSearchQuery.toLowerCase()))
+        )
     : [];
 
   const groupedMessages = groupMessagesByDate(filteredMessages);
 
-  const filteredChats = chats.filter(chat => 
-    chat.phone.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const availableLabels = ['Work', 'Personal', 'Family', 'Important', 'Other'];
+  const labelColors = {
+    'Work': '#1e88e5',
+    'Personal': '#43a047',
+    'Family': '#e53935',
+    'Important': '#fb8c00',
+    'Other': '#8e24aa'
+  };
+
+  const toggleLabel = async (phone, label) => {
+    const newLabels = { ...chatLabels };
+    if (!newLabels[phone]) newLabels[phone] = [];
+    if (newLabels[phone].includes(label)) {
+      newLabels[phone] = newLabels[phone].filter(l => l !== label);
+    } else {
+      newLabels[phone] = [...newLabels[phone], label];
+    }
+    setChatLabels(newLabels);
+    try {
+      await updateLabels(phone, newLabels[phone]);
+    } catch (error) {
+      console.error('Error updating labels:', error);
+      toast.error('Failed to update labels');
+    }
+  };
+
+  const filteredChats = chats
+    .filter(chat => chat.phone.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter(chat => {
+      if (selectedLabel === 'all') return true;
+      return chatLabels[chat.phone]?.includes(selectedLabel);
+    });
  
   return (
     <div className="whatsapp-chat">
       <div className={`chat-sidebar ${selectedChat ? 'hide-mobile' : ''}`}>
         <div className="sidebar-header">
           <h2>Chats</h2>
+          <div className="label-filter">
+            <select value={selectedLabel} onChange={(e) => setSelectedLabel(e.target.value)}>
+              <option value="all">All Chats</option>
+              {availableLabels.map(label => (
+                <option key={label} value={label}>{label}</option>
+              ))}
+            </select>
+          </div>
           <div className="search-box">
             <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8"/>
@@ -359,7 +415,45 @@ const WhatsAppChat = () => {
                 {chat.unreadCount > 0 && <span className="unread-badge">{chat.unreadCount}</span>}
               </div>
               <div className="chat-last-msg">{chat.lastMessage}</div>
+              {chatLabels[chat.phone]?.length > 0 && (
+                <div className="chat-labels">
+                  {chatLabels[chat.phone].map(label => (
+                    <span key={label} className="label-tag" style={{ backgroundColor: labelColors[label] }}>
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
+            <button 
+              className="label-menu-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowLabelMenu(showLabelMenu === chat.phone ? null : chat.phone);
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>
+              </svg>
+            </button>
+            {showLabelMenu === chat.phone && (
+              <div className="label-menu" onClick={(e) => e.stopPropagation()}>
+                {availableLabels.map(label => (
+                  <div 
+                    key={label}
+                    className="label-option"
+                    onClick={() => toggleLabel(chat.phone, label)}
+                  >
+                    <input 
+                      type="checkbox" 
+                      checked={chatLabels[chat.phone]?.includes(label) || false}
+                      readOnly
+                    />
+                    <span style={{ color: labelColors[label] }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -375,6 +469,23 @@ const WhatsAppChat = () => {
               </button>
               <h3>{selectedChat}</h3>
               <div className="header-actions">
+                <div className="message-search">
+                  <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search messages..."
+                    value={messageSearchQuery}
+                    onChange={(e) => setMessageSearchQuery(e.target.value)}
+                  />
+                  {messageSearchQuery && (
+                    <button className="clear-search" onClick={() => setMessageSearchQuery('')}>
+                      ×
+                    </button>
+                  )}
+                </div>
                 <div className="date-filter">
                   <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}>
                     <option value="all">All Messages</option>

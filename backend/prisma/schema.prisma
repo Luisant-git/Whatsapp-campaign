@@ -26,6 +26,7 @@ model User {
   autoReplies AutoReply[]
   quickReplies QuickReply[]
   contacts  Contact[]
+  chatLabels ChatLabel[]
 }
 
 model MasterConfig {
@@ -189,6 +190,18 @@ model Contact {
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  
+  @@unique([phone, userId])
+}
+
+model ChatLabel {
+  id        Int      @id @default(autoincrement())
+  phone     String
+  labels    String[]
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   
   @@unique([phone, userId])
 }

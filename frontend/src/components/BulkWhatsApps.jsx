@@ -161,20 +161,6 @@ const BulkWhatsApp = () => {
       const successCount = resultsArray.filter((r) => r.success).length;
       const failedCount = resultsArray.filter((r) => !r.success).length;
 
-      // Update delivery status for each contact
-      for (const result of resultsArray) {
-        try {
-          const status = result.success ? 'delivered' : 'failed';
-          const phone = result.phoneNumber || result.phone || result.to;
-          const name = result.name || phone; // Use name if available, otherwise phone
-          console.log('Updating delivery status:', { phone, status, campaignName, name });
-          const updateResponse = await contactAPI.updateDeliveryStatus(phone, status, campaignName, name);
-          console.log('Update response:', updateResponse);
-        } catch (error) {
-          console.error('Failed to update delivery status:', error);
-        }
-      }
-
       if (scheduleType === "time-based") {
         showSuccess(
           `Campaign scheduled successfully for ${scheduledDays.join(

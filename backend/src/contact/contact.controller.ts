@@ -36,12 +36,20 @@ export class UpdateContactDto {
 export class ContactController {
   constructor(private readonly contactService: ContactService) {}
 
+  private getUserId(session: Record<string, any>): number {
+    const userId = session.userId || session.user?.id;
+    if (!userId) {
+      throw new Error('User session not found');
+    }
+    return userId;
+  }
+
   @Post()
   create(
     @Body() createContactDto: CreateContactDto,
     @Session() session: Record<string, any>,
   ) {
-    return this.contactService.create(createContactDto, session.userId);
+    return this.contactService.create(createContactDto, this.getUserId(session));
   }
 
   @Get()
@@ -52,7 +60,7 @@ export class ContactController {
     @Query('search') search?: string,
   ) {
     return this.contactService.findAll(
-      session.userId,
+      this.getUserId(session),
       page ? parseInt(page) : 1,
       limit ? parseInt(limit) : 10,
       search || '',
@@ -61,12 +69,12 @@ export class ContactController {
 
   @Get('delivery-stats')
   getDeliveryStats(@Session() session: Record<string, any>) {
-    return this.contactService.getDeliveryStats(session.userId);
+    return this.contactService.getDeliveryStats(this.getUserId(session));
   }
 
   @Get(':id')
   findOne(@Param('id') id: string, @Session() session: Record<string, any>) {
-    return this.contactService.findOne(+id, session.userId);
+    return this.contactService.findOne(+id, this.getUserId(session));
   }
 
   @Patch('delivery-status')
@@ -85,7 +93,7 @@ export class ContactController {
       body.status,
       body.campaignName,
       body.name || body.phone,
-      session.userId,
+      this.getUserId(session),
     );
   }
 
@@ -95,11 +103,11 @@ export class ContactController {
     @Body() updateContactDto: UpdateContactDto,
     @Session() session: Record<string, any>,
   ) {
-    return this.contactService.update(+id, updateContactDto, session.userId);
+    return this.contactService.update(+id, updateContactDto, this.getUserId(session));
   }
 
   @Delete(':id')
   remove(@Param('id') id: string, @Session() session: Record<string, any>) {
-    return this.contactService.remove(+id, session.userId);
+    return this.contactService.remove(+id, this.getUserId(session));
   }
 }

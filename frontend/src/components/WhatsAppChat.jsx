@@ -70,9 +70,13 @@ const WhatsAppChat = () => {
   });
   const [newLabelName, setNewLabelName] = useState('');
   const [showNewLabelInput, setShowNewLabelInput] = useState(null);
+  const [showMobileSearchModal, setShowMobileSearchModal] = useState(false);
+  const [showMobileDateModal, setShowMobileDateModal] = useState(false);
+  const [showMobileCalendarModal, setShowMobileCalendarModal] = useState(false);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const audioRefs = useRef({});
+  const mobileCalendarRef = useRef(null);
  
   useEffect(() => {
     if (API_BASE_URL) {
@@ -346,8 +350,10 @@ const WhatsAppChat = () => {
   };
 
   const getRandomColor = () => {
-    const colors = ['#1e88e5', '#43a047', '#e53935', '#fb8c00', '#8e24aa', '#00acc1', '#5e35b1', '#c0ca33'];
-    return colors[Math.floor(Math.random() * colors.length)];
+    const colors = ['#1e88e5', '#43a047', '#e53935', '#fb8c00', '#8e24aa'];
+    const usedColors = Object.values(labelColors);
+    const availableColors = colors.filter(c => !usedColors.includes(c));
+    return availableColors.length > 0 ? availableColors[0] : colors[customLabels.length % colors.length];
   };
 
   const addCustomLabel = (phone) => {
@@ -482,7 +488,7 @@ const WhatsAppChat = () => {
                   <div className="new-label-input">
                     <input
                       type="text"
-                      placeholder="New label..."
+                      placeholder="Label name"
                       value={newLabelName}
                       onChange={(e) => setNewLabelName(e.target.value)}
                       onKeyPress={(e) => {
@@ -490,14 +496,14 @@ const WhatsAppChat = () => {
                       }}
                       autoFocus
                     />
-                    <button onClick={() => addCustomLabel(chat.phone)}>+</button>
+                    <button onClick={() => addCustomLabel(chat.phone)}>Create</button>
                   </div>
                 ) : (
                   <div 
                     className="label-option add-label"
                     onClick={() => setShowNewLabelInput(chat.phone)}
                   >
-                    <span>+ Create new label</span>
+                    <span>+ New label</span>
                   </div>
                 )}
               </div>
@@ -517,7 +523,23 @@ const WhatsAppChat = () => {
               </button>
               <h3>{selectedChat}</h3>
               <div className="header-actions">
-                <div className="message-search">
+                <button className="icon-btn search-btn" onClick={() => setShowMobileSearchModal(true)}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                  </svg>
+                </button>
+                <button className="icon-btn filter-btn" onClick={() => setShowMobileDateModal(true)}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+                  </svg>
+                </button>
+                <button className="icon-btn calendar-btn" onClick={() => setShowMobileCalendarModal(true)}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+                  </svg>
+                </button>
+                <div className="message-search desktop-only">
                   <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="11" cy="11" r="8"/>
                     <path d="m21 21-4.35-4.35"/>
@@ -534,7 +556,10 @@ const WhatsAppChat = () => {
                     </button>
                   )}
                 </div>
-                <div className="date-filter">
+                <div className="date-filter desktop-only">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+                  </svg>
                   <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}>
                     <option value="all">All Messages</option>
                     <option value="today">Today</option>
@@ -544,7 +569,7 @@ const WhatsAppChat = () => {
                     {selectedDate && <option value="custom">Selected Date</option>}
                   </select>
                 </div>
-                <div className="calendar-picker">
+                <div className="calendar-picker desktop-only">
                   <button 
                     className="calendar-btn"
                     onClick={() => setShowDatePicker(!showDatePicker)}
@@ -566,6 +591,77 @@ const WhatsAppChat = () => {
                 </div>
               </div>
             </div>
+            
+            {showMobileSearchModal && (
+              <div className="mobile-fullscreen-search">
+                <div className="search-header">
+                  <button className="back-btn" onClick={() => setShowMobileSearchModal(false)}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                  </button>
+                  <div className="search-input-wrapper">
+                    <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="11" cy="11" r="8"/>
+                      <path d="m21 21-4.35-4.35"/>
+                    </svg>
+                    <input
+                      type="text"
+                      placeholder="Search messages..."
+                      value={messageSearchQuery}
+                      onChange={(e) => setMessageSearchQuery(e.target.value)}
+                      autoFocus
+                    />
+                    {messageSearchQuery && (
+                      <button className="clear-btn" onClick={() => setMessageSearchQuery('')}>×</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {showMobileDateModal && (
+              <div className="mobile-fullscreen-filter">
+                <div className="filter-header">
+                  <button className="back-btn" onClick={() => setShowMobileDateModal(false)}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                  </button>
+                  <h3>Filter by Date</h3>
+                </div>
+                <div className="filter-options">
+                  {['all', 'today', 'yesterday', 'week', 'month'].map(filter => (
+                    <div 
+                      key={filter}
+                      className={`filter-option ${dateFilter === filter ? 'active' : ''}`}
+                      onClick={() => { setDateFilter(filter); setShowMobileDateModal(false); }}
+                    >
+                      <span>{filter === 'all' ? 'All Messages' : filter === 'today' ? 'Today' : filter === 'yesterday' ? 'Yesterday' : filter === 'week' ? 'Last 7 Days' : 'Last 30 Days'}</span>
+                      {dateFilter === filter && (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00a884" strokeWidth="2">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {showMobileCalendarModal && (
+              <div className="mobile-calendar-modal" onClick={() => setShowMobileCalendarModal(false)}>
+                <div className="calendar-modal-content" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="date"
+                    value={selectedDate || ''}
+                    onChange={(e) => { handleDateFilter(e.target.value); setShowMobileCalendarModal(false); }}
+                    max={new Date().toISOString().split('T')[0]}
+                    onClick={(e) => e.target.showPicker && e.target.showPicker()}
+                  />
+                </div>
+              </div>
+            )}
             <div className="chat-messages">
               {Object.entries(groupedMessages).map(([date, msgs]) => (
                 <React.Fragment key={date}>

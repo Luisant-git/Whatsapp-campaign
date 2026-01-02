@@ -64,6 +64,12 @@ const WhatsAppChat = () => {
   const [chatLabels, setChatLabels] = useState({});
   const [selectedLabel, setSelectedLabel] = useState('all');
   const [showLabelMenu, setShowLabelMenu] = useState(null);
+  const [customLabels, setCustomLabels] = useState(() => {
+    const saved = localStorage.getItem('customLabels');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [newLabelName, setNewLabelName] = useState('');
+  const [showNewLabelInput, setShowNewLabelInput] = useState(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const audioRefs = useRef({});
@@ -330,13 +336,33 @@ const WhatsAppChat = () => {
 
   const groupedMessages = groupMessagesByDate(filteredMessages);
 
-  const availableLabels = ['Work', 'Personal', 'Family', 'Important', 'Other'];
+  const availableLabels = ['Work', 'Personal', 'Family', 'Important', 'Other', ...customLabels];
   const labelColors = {
     'Work': '#1e88e5',
     'Personal': '#43a047',
     'Family': '#e53935',
     'Important': '#fb8c00',
     'Other': '#8e24aa'
+  };
+
+  const getRandomColor = () => {
+    const colors = ['#1e88e5', '#43a047', '#e53935', '#fb8c00', '#8e24aa', '#00acc1', '#5e35b1', '#c0ca33'];
+    return colors[Math.floor(Math.random() * colors.length)];
+  };
+
+  const addCustomLabel = (phone) => {
+    if (newLabelName.trim() && !availableLabels.includes(newLabelName.trim())) {
+      const newLabel = newLabelName.trim();
+      const updatedCustomLabels = [...customLabels, newLabel];
+      setCustomLabels(updatedCustomLabels);
+      localStorage.setItem('customLabels', JSON.stringify(updatedCustomLabels));
+      if (!labelColors[newLabel]) {
+        labelColors[newLabel] = getRandomColor();
+      }
+      toggleLabel(phone, newLabel);
+      setNewLabelName('');
+      setShowNewLabelInput(null);
+    }
   };
 
   const toggleLabel = async (phone, label) => {
@@ -449,9 +475,31 @@ const WhatsAppChat = () => {
                       checked={chatLabels[chat.phone]?.includes(label) || false}
                       readOnly
                     />
-                    <span style={{ color: labelColors[label] }}>{label}</span>
+                    <span style={{ color: labelColors[label] || getRandomColor() }}>{label}</span>
                   </div>
                 ))}
+                {showNewLabelInput === chat.phone ? (
+                  <div className="new-label-input">
+                    <input
+                      type="text"
+                      placeholder="New label..."
+                      value={newLabelName}
+                      onChange={(e) => setNewLabelName(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') addCustomLabel(chat.phone);
+                      }}
+                      autoFocus
+                    />
+                    <button onClick={() => addCustomLabel(chat.phone)}>+</button>
+                  </div>
+                ) : (
+                  <div 
+                    className="label-option add-label"
+                    onClick={() => setShowNewLabelInput(chat.phone)}
+                  >
+                    <span>+ Create new label</span>
+                  </div>
+                )}
               </div>
             )}
           </div>

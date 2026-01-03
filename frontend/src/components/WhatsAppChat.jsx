@@ -136,6 +136,7 @@ const WhatsAppChat = () => {
     try {
       const labels = await getLabels();
       setChatLabels(labels);
+      await fetchCustomLabels();
     } catch (error) {
       console.error('Error fetching labels:', error);
     }

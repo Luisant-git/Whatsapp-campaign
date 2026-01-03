@@ -6,17 +6,21 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     
-    // Simulate login - replace with actual API call
-    setTimeout(() => {
-      login({ email, name: 'Admin User' });
+    try {
+      await login(email, password);
+    } catch (err) {
+      setError(err.message || 'Login failed. Please try again.');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -28,6 +32,8 @@ export default function Login() {
         </div>
         
         <form onSubmit={handleSubmit} className="login-form">
+          {error && <div style={{ color: 'var(--error)', marginBottom: '16px', fontSize: '14px' }}>{error}</div>}
+          
           <div className="form-group">
             <label>Email Address</label>
             <input

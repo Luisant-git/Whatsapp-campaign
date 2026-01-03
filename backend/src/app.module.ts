@@ -16,6 +16,7 @@ import { AdminModule } from './admin/admin.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
+    AdminModule,
     UserModule,
     WhatsappModule,
     AnalyticsModule,
@@ -25,7 +26,6 @@ import { AdminModule } from './admin/admin.module';
     ChatbotModule,
     MasterConfigModule,
     ContactModule,
-    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

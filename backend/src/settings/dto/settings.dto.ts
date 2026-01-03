@@ -101,7 +101,7 @@ export class SettingsResponseDto {
   id: number;
 
   @ApiProperty({ description: 'Configuration name' })
-  name: string;
+  name: string | null;
 
   @ApiProperty({ description: 'WhatsApp template name' })
   templateName: string;

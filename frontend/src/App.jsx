@@ -37,6 +37,28 @@ function App() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
+  const [aiChatbotEnabled, setAiChatbotEnabled] = useState(false);
+
+  // Check session status every 5 seconds for instant updates
+  useEffect(() => {
+    if (isLoggedIn) {
+      const interval = setInterval(async () => {
+        try {
+          const { checkSessionStatus } = await import('./api/session');
+          const sessionData = await checkSessionStatus();
+          if (sessionData.user?.aiChatbotEnabled !== aiChatbotEnabled) {
+            setAiChatbotEnabled(sessionData.user.aiChatbotEnabled);
+            if (activeView === 'chatbot' && !sessionData.user.aiChatbotEnabled) {
+              setActiveView('chats'); // Redirect if chatbot disabled
+            }
+          }
+        } catch (error) {
+          console.error('Session check failed:', error);
+        }
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [isLoggedIn, aiChatbotEnabled, activeView]);
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
 
   useEffect(() => {
@@ -56,11 +78,24 @@ function App() {
     const token = localStorage.getItem("token");
     if (token) {
       setIsLoggedIn(true);
+      fetchUserProfile();
     }
   }, []);
 
+  const fetchUserProfile = async () => {
+    try {
+      const { getProfile } = await import('./api/auth');
+      const profileData = await getProfile();
+      setUser(profileData.user);
+      setAiChatbotEnabled(profileData.user?.aiChatbotEnabled || false);
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error);
+    }
+  };
+
   const handleLogin = (userData) => {
     setUser(userData);
+    setAiChatbotEnabled(userData?.aiChatbotEnabled || false);
     setIsLoggedIn(true);
   };
 
@@ -148,15 +183,17 @@ function App() {
                 <Zap size={18} />
                 <span>Quick Reply</span>
               </button>
-              <button
-                className={`nav-item ${
-                  activeView === "chatbot" ? "active" : ""
-                }`}
-                onClick={() => handleMenuClick("chatbot")}
-              >
-                <Bot size={18} />
-                <span>AI Chatbot</span>
-              </button>
+              {aiChatbotEnabled && (
+                <button
+                  className={`nav-item ${
+                    activeView === "chatbot" ? "active" : ""
+                  }`}
+                  onClick={() => handleMenuClick("chatbot")}
+                >
+                  <Bot size={18} />
+                  <span>AI Chatbot</span>
+                </button>
+              )}
               <button
                 className={`nav-item ${
                   activeView === "settings" ? "active" : ""
@@ -252,7 +289,7 @@ function App() {
             {activeView === "campaigns" && <Campaigns />}
             {activeView === "auto-reply" && <AutoReply />}
             {activeView === "quick-reply" && <QuickReply />}
-            {activeView === "chatbot" && <Chatbot />}
+            {activeView === "chatbot" && aiChatbotEnabled && <Chatbot />}
             {activeView === "analytics" && <Analytics />}
             {activeView === "settings" && <SettingsPanel />}
             {activeView === "master-config" && <MasterConfig />}

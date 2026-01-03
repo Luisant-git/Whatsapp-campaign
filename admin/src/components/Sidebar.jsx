@@ -1,13 +1,16 @@
 import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { MdDashboard, MdPeople, MdCampaign, MdMessage, MdAnalytics, MdSettings } from 'react-icons/md';
 import '../styles/Sidebar.css';
 
 export default function Sidebar({ isOpen }) {
-  const [activeMenu, setActiveMenu] = useState('dashboard');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const activeMenu = location.pathname === '/users' ? 'users' : 'dashboard';
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: MdDashboard },
-    { id: 'users', label: 'Users', icon: MdPeople },
+    { id: 'dashboard', label: 'Dashboard', icon: MdDashboard, path: '/' },
+    { id: 'users', label: 'Users', icon: MdPeople, path: '/users' },
     { id: 'campaigns', label: 'Campaigns', icon: MdCampaign },
     { id: 'messages', label: 'Messages', icon: MdMessage },
     { id: 'analytics', label: 'Analytics', icon: MdAnalytics },
@@ -28,7 +31,7 @@ export default function Sidebar({ isOpen }) {
             <button
               key={item.id}
               className={`nav-item ${activeMenu === item.id ? 'active' : ''}`}
-              onClick={() => setActiveMenu(item.id)}
+              onClick={() => item.path && navigate(item.path)}
             >
               <Icon className="nav-icon" size={20} />
               <span className="nav-label">{item.label}</span>

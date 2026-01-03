@@ -1,6 +1,8 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import Users from './pages/Users';
 import Layout from './components/Layout';
 import './App.css';
 
@@ -21,7 +23,11 @@ function AppContent() {
 
   return (
     <Layout>
-      <Dashboard />
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/users" element={<Users />} />
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
     </Layout>
   );
 }
@@ -29,7 +35,9 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
     </AuthProvider>
   );
 }

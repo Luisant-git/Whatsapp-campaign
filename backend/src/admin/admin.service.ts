@@ -87,4 +87,61 @@ export class AdminService {
   remove(id: number) {
     return `This action removes a #${id} admin`;
   }
+
+  async getAllUsers() {
+    return await this.prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        isActive: true,
+        aiChatbotEnabled: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  async toggleUserChatbot(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { aiChatbotEnabled: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: { aiChatbotEnabled: !user.aiChatbotEnabled },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        isActive: true,
+        aiChatbotEnabled: true,
+      },
+    });
+
+    return { message: 'AI Chatbot toggled successfully', user: updatedUser };
+  }
+
+  async updateUserSession(userId: number, sessionStore: any) {
+    const user = await this.findOne(userId);
+    if (user && sessionStore) {
+      sessionStore.all((err: any, sessions: any) => {
+        if (err) return;
+        Object.keys(sessions).forEach(sessionId => {
+          const session = sessions[sessionId];
+          if (session.user && session.user.id === userId) {
+            session.user.aiChatbotEnabled = user.aiChatbotEnabled;
+            sessionStore.set(sessionId, session);
+          }
+        });
+      });
+    }
+  }
 }

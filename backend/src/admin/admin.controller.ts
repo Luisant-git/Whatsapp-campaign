@@ -85,4 +85,19 @@ export class AdminController {
   remove(@Param('id') id: number) {
     return this.adminService.remove(id);
   }
+
+  @Get('users/all')
+  @ApiOperation({ summary: 'Get all users' })
+  getAllUsers() {
+    return this.adminService.getAllUsers();
+  }
+
+  @Patch('users/:id/toggle-chatbot')
+  @ApiOperation({ summary: 'Toggle AI chatbot for user' })
+  async toggleUserChatbot(@Param('id') id: number, @Session() session: Record<string, any>) {
+    const result = await this.adminService.toggleUserChatbot(+id);
+    // Update user sessions instantly
+    await this.adminService.updateUserSession(+id, session.store);
+    return result;
+  }
 }

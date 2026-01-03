@@ -23,6 +23,7 @@ model User {
   name      String?
   password  String
   isActive  Boolean  @default(true)
+  aiChatbotEnabled Boolean @default(false)
   customLabels String[] @default([])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -73,7 +74,7 @@ model WhatsAppMessage {
 
 model WhatsAppSettings {
   id            Int      @id @default(autoincrement())
-  name          String   // Configuration name
+  name          String?  // Configuration name - made optional
   templateName  String
   phoneNumberId String
   accessToken   String

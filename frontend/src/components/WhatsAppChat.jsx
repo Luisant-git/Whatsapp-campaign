@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '../api/config';
-import { getMessages, sendMessage, sendMediaMessage, getLabels, updateLabels } from '../api/whatsapp';
+import { getMessages, sendMessage, sendMediaMessage, getLabels, updateLabels, getCustomLabels, addCustomLabel, deleteCustomLabel } from '../api/whatsapp';
 import { MoreVertical } from 'lucide-react';
 import '../styles/WhatsAppChat.scss';
 
@@ -64,10 +64,7 @@ const WhatsAppChat = () => {
   const [chatLabels, setChatLabels] = useState({});
   const [selectedLabel, setSelectedLabel] = useState('all');
   const [showLabelMenu, setShowLabelMenu] = useState(null);
-  const [customLabels, setCustomLabels] = useState(() => {
-    const saved = localStorage.getItem('customLabels');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [customLabels, setCustomLabels] = useState([]);
   const [newLabelName, setNewLabelName] = useState('');
   const [showNewLabelInput, setShowNewLabelInput] = useState(null);
   const [showMobileSearchModal, setShowMobileSearchModal] = useState(false);
@@ -82,6 +79,7 @@ const WhatsAppChat = () => {
     if (API_BASE_URL) {
       fetchMessages();
       fetchLabels();
+      fetchCustomLabels();
       const interval = setInterval(fetchMessages, 3000);
       return () => clearInterval(interval);
     }
@@ -136,6 +134,16 @@ const WhatsAppChat = () => {
       setChatLabels(labels);
     } catch (error) {
       console.error('Error fetching labels:', error);
+    }
+  };
+
+  const fetchCustomLabels = async () => {
+    if (!API_BASE_URL) return;
+    try {
+      const labels = await getCustomLabels();
+      setCustomLabels(labels);
+    } catch (error) {
+      console.error('Error fetching custom labels:', error);
     }
   };
  
@@ -373,17 +381,19 @@ const WhatsAppChat = () => {
     return availableColors.length > 0 ? availableColors[0] : colors[customLabels.length % colors.length];
   };
 
-  const addCustomLabel = (phone) => {
+  const addCustomLabel = async (phone) => {
     if (newLabelName.trim() && !availableLabels.includes(newLabelName.trim())) {
       const newLabel = newLabelName.trim();
-      const updatedCustomLabels = [...customLabels, newLabel];
-      setCustomLabels(updatedCustomLabels);
-      localStorage.setItem('customLabels', JSON.stringify(updatedCustomLabels));
-      const colors = ['#1e88e5', '#43a047', '#e53935', '#fb8c00', '#8e24aa'];
-      labelColors[newLabel] = colors[updatedCustomLabels.length % colors.length];
-      toggleLabel(phone, newLabel);
-      setNewLabelName('');
-      setShowNewLabelInput(null);
+      try {
+        await addCustomLabel(newLabel);
+        await fetchCustomLabels();
+        toggleLabel(phone, newLabel);
+        setNewLabelName('');
+        setShowNewLabelInput(null);
+      } catch (error) {
+        console.error('Error adding custom label:', error);
+        toast.error('Failed to add custom label');
+      }
     }
   };
 
@@ -506,16 +516,16 @@ const WhatsAppChat = () => {
                       {isCustom && (
                         <button 
                           className="remove-label-btn"
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation();
-                            const updatedCustomLabels = customLabels.filter(l => l !== label);
-                            setCustomLabels(updatedCustomLabels);
-                            localStorage.setItem('customLabels', JSON.stringify(updatedCustomLabels));
-                            const newLabels = { ...chatLabels };
-                            Object.keys(newLabels).forEach(phone => {
-                              newLabels[phone] = newLabels[phone].filter(l => l !== label);
-                            });
-                            setChatLabels(newLabels);
+                            try {
+                              await deleteCustomLabel(label);
+                              await fetchCustomLabels();
+                              await fetchLabels();
+                            } catch (error) {
+                              console.error('Error deleting label:', error);
+                              toast.error('Failed to delete label');
+                            }
                           }}
                         >
                           −

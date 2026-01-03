@@ -117,6 +117,54 @@ export class ContactService {
     return result;
   }
 
+  async getCustomLabels(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { customLabels: true },
+    });
+    return user?.customLabels || [];
+  }
+
+  async addCustomLabel(userId: number, label: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { customLabels: true },
+    });
+    const customLabels = user?.customLabels || [];
+    if (!customLabels.includes(label)) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { customLabels: [...customLabels, label] },
+      });
+    }
+    return { success: true };
+  }
+
+  async deleteCustomLabel(userId: number, label: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { customLabels: true },
+    });
+    const customLabels = (user?.customLabels || []).filter(l => l !== label);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { customLabels },
+    });
+    // Remove label from all chats
+    const chatLabels = await this.prisma.chatLabel.findMany({
+      where: { userId },
+    });
+    for (const chat of chatLabels) {
+      if (chat.labels.includes(label)) {
+        await this.prisma.chatLabel.update({
+          where: { id: chat.id },
+          data: { labels: chat.labels.filter(l => l !== label) },
+        });
+      }
+    }
+    return { success: true };
+  }
+
   async updateLabels(userId: number, phone: string, labels: string[]) {
     return this.prisma.chatLabel.upsert({
       where: {

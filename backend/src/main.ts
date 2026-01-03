@@ -9,22 +9,39 @@ const FileStore = require('session-file-store')(session);
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  // Enable CORS first
+  app.enableCors({
+    origin: isProduction 
+      ? ['https://whatsapp.luisant.cloud', 'https://whatsapp.admin.luisant.cloud']
+      : true,
+    credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Cookie'],
+    exposedHeaders: ['Set-Cookie'],
+  });
+  
   // Configure session middleware
   app.use(
     session({
       store: new FileStore({
         path: join(__dirname, '..', 'sessions'),
-        ttl: 365 * 24 * 60 * 60, // 1 year in seconds
-        retries: 0, // Don't retry on file errors
-        logFn: () => {}, // Disable error logging
+        ttl: 365 * 24 * 60 * 60,
+        retries: 0,
+        logFn: () => {},
       }),
       secret: process.env.SESSION_SECRET || 'your-session-secret',
       resave: false,
       saveUninitialized: false,
+      name: 'admin.sid',
+      proxy: isProduction,
       cookie: {
-        maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
+        maxAge: 365 * 24 * 60 * 60 * 1000,
         httpOnly: true,
-        secure: false, // Set to true in production with HTTPS
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+        domain: isProduction ? '.luisant.cloud' : undefined,
       },
     }),
   );
@@ -34,17 +51,12 @@ async function bootstrap() {
     prefix: '/uploads/',
   });
   
-  app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
-  });
-  
   const config = new DocumentBuilder()
     .setTitle('WhatsApp Campaign API')
     .setDescription('API for WhatsApp Campaign Management with bulk messaging')
     .setVersion('1.0')
     .addTag('WhatsApp', 'WhatsApp messaging endpoints')
+    .addTag('Admin', 'Admin authentication endpoints')
     .build();
   
   const document = SwaggerModule.createDocument(app, config);

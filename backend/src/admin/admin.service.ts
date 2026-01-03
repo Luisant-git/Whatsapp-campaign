@@ -1,25 +1,63 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
+import { LoginAdminDto } from './dto/login-admin.dto';
 import { PrismaService } from 'src/prisma.service';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AdminService {
     constructor(private prisma: PrismaService) {}
   
-  async create(createAdminDto: CreateAdminDto) {
+  async register(createAdminDto: CreateAdminDto) {
     const { email, name, password } = createAdminDto;
-    const data = await this.prisma.admin.create({
+    
+    const existingAdmin = await this.prisma.admin.findUnique({ where: { email } });
+    if (existingAdmin) {
+      throw new ConflictException('Admin with this email already exists');
+    }
+    
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    const admin = await this.prisma.admin.create({
       data: {
         email,
         name,
-        password,
+        password: hashedPassword,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        createdAt: true,
       },
     });
+    
+    return { message: 'Admin registered successfully', admin };
+  }
+
+  async login(loginAdminDto: LoginAdminDto) {
+    const { email, password } = loginAdminDto;
+    
+    const admin = await this.prisma.admin.findUnique({ where: { email } });
+    if (!admin) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    
+    const isPasswordValid = await bcrypt.compare(password, admin.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    
+    return {
+      id: admin.id,
+      email: admin.email,
+      name: admin.name,
+    };
   }
 
   async findAll() {
-    const data = await this.prisma.admin.findMany({
+    return await this.prisma.admin.findMany({
       select: {
         id: true,
         email: true,

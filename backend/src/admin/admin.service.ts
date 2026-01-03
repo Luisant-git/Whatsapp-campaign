@@ -130,7 +130,10 @@ export class AdminService {
   }
 
   async updateUserSession(userId: number, sessionStore: any) {
-    const user = await this.findOne(userId);
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { aiChatbotEnabled: true },
+    });
     if (user && sessionStore) {
       sessionStore.all((err: any, sessions: any) => {
         if (err) return;

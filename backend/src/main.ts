@@ -9,17 +9,17 @@ const FileStore = require('session-file-store')(session);
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   
-  // Enable CORS first before other middleware
   const isProduction = process.env.NODE_ENV === 'production';
   
+  // Enable CORS first
   app.enableCors({
     origin: isProduction 
       ? ['https://whatsapp.luisant.cloud', 'https://whatsapp.admin.luisant.cloud']
       : true,
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-    exposedHeaders: ['set-cookie'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Cookie'],
+    exposedHeaders: ['Set-Cookie'],
   });
   
   // Configure session middleware
@@ -27,15 +27,17 @@ async function bootstrap() {
     session({
       store: new FileStore({
         path: join(__dirname, '..', 'sessions'),
-        ttl: 365 * 24 * 60 * 60, // 1 year in seconds
-        retries: 0, // Don't retry on file errors
-        logFn: () => {}, // Disable error logging
+        ttl: 365 * 24 * 60 * 60,
+        retries: 0,
+        logFn: () => {},
       }),
       secret: process.env.SESSION_SECRET || 'your-session-secret',
       resave: false,
       saveUninitialized: false,
+      name: 'admin.sid',
+      proxy: isProduction,
       cookie: {
-        maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
+        maxAge: 365 * 24 * 60 * 60 * 1000,
         httpOnly: true,
         secure: isProduction,
         sameSite: isProduction ? 'none' : 'lax',
@@ -47,16 +49,6 @@ async function bootstrap() {
   // Serve static files from uploads directory
   app.useStaticAssets(join(__dirname, '..', 'uploads'), {
     prefix: '/uploads/',
-  });
-  
-  app.enableCors({
-    origin: isProduction 
-      ? ['https://whatsapp.luisant.cloud', 'https://whatsapp.admin.luisant.cloud']
-      : true,
-    credentials: true,
-    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-    exposedHeaders: ['set-cookie'],
   });
   
   const config = new DocumentBuilder()

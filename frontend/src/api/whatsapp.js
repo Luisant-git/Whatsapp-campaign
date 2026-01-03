@@ -119,3 +119,44 @@ export const updateLabels = async (phone, labels) => {
 
   return await response.json();
 };
+
+
+export const getCustomLabels = async () => {
+  const response = await fetch(`${API_BASE_URL}/contact/labels/custom`, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch custom labels');
+  }
+
+  return await response.json();
+};
+
+export const addCustomLabel = async (label) => {
+  const response = await fetch(`${API_BASE_URL}/contact/labels/custom`, {
+    method: 'POST',
+    headers: getHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ label }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to add custom label');
+  }
+
+  return await response.json();
+};
+
+export const deleteCustomLabel = async (label) => {
+  const response = await fetch(`${API_BASE_URL}/contact/labels/custom/${encodeURIComponent(label)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to delete custom label');
+  }
+
+  return await response.json();
+};

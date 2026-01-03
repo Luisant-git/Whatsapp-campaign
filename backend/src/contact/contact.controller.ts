@@ -116,6 +116,27 @@ export class ContactController {
     return this.contactService.getLabels(this.getUserId(session));
   }
 
+  @Get('labels/custom')
+  getCustomLabels(@Session() session: Record<string, any>) {
+    return this.contactService.getCustomLabels(this.getUserId(session));
+  }
+
+  @Post('labels/custom')
+  addCustomLabel(
+    @Body('label') label: string,
+    @Session() session: Record<string, any>,
+  ) {
+    return this.contactService.addCustomLabel(this.getUserId(session), label);
+  }
+
+  @Delete('labels/custom/:label')
+  deleteCustomLabel(
+    @Param('label') label: string,
+    @Session() session: Record<string, any>,
+  ) {
+    return this.contactService.deleteCustomLabel(this.getUserId(session), label);
+  }
+
   @Post('labels/:phone')
   updateLabels(
     @Param('phone') phone: string,

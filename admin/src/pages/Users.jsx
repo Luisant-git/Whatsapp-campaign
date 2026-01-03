@@ -32,6 +32,11 @@ export default function Users() {
       const response = await fetch(`${API_URL}/admin/users/${userId}/toggle-chatbot`, {
         method: 'PATCH',
         credentials: 'include',
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
       });
       if (response.ok) {
         fetchUsers(); // Refresh the users list

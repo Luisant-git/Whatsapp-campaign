@@ -94,10 +94,9 @@ export class AdminController {
 
   @Patch('users/:id/toggle-chatbot')
   @ApiOperation({ summary: 'Toggle AI chatbot for user' })
-  async toggleUserChatbot(@Param('id') id: number, @Session() session: Record<string, any>) {
+  async toggleUserChatbot(@Param('id') id: number) {
     const result = await this.adminService.toggleUserChatbot(+id);
-    // Update user sessions instantly
-    await this.adminService.updateUserSession(+id, session.store);
+    await this.adminService.updateUserSession(+id);
     return result;
   }
 }

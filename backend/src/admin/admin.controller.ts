@@ -4,18 +4,18 @@ import { CreateAdminDto } from './dto/create-admin.dto';
 import { LoginAdminDto } from './dto/login-admin.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
-
+ 
 @ApiTags('Admin')
 @Controller('admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
-
+ 
   @Post('register')
   @ApiOperation({ summary: 'Register a new admin' })
   async register(@Body() createAdminDto: CreateAdminDto) {
     return this.adminService.register(createAdminDto);
   }
-
+ 
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Admin login' })
@@ -24,9 +24,9 @@ export class AdminController {
     session.adminId = admin.id;
     session.adminEmail = admin.email;
     session.adminName = admin.name;
-    
-    return { 
-      message: 'Login successful', 
+   
+    return {
+      message: 'Login successful',
       admin: {
         id: admin.id,
         email: admin.email,
@@ -34,7 +34,7 @@ export class AdminController {
       }
     };
   }
-
+ 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Admin logout' })
@@ -42,7 +42,7 @@ export class AdminController {
     session.destroy();
     return { message: 'Logout successful' };
   }
-
+ 
   @Get('me')
   @ApiOperation({ summary: 'Get current admin session' })
   getMe(@Session() session: Record<string, any>) {
@@ -55,7 +55,7 @@ export class AdminController {
       name: session.adminName,
     };
   }
-
+ 
   @Get('test-session')
   @ApiOperation({ summary: 'Test session (debug)' })
   testSession(@Session() session: Record<string, any>) {
@@ -65,38 +65,39 @@ export class AdminController {
       sessionData: session,
     };
   }
-
+ 
   @Get()
   findAll() {
     return this.adminService.findAll();
   }
-
+ 
   @Get(':id')
   findOne(@Param('id') id: number) {
     return this.adminService.findOne(+id);
   }
-
+ 
   @Patch(':id')
   update(@Param('id') id: number, @Body() updateAdminDto: UpdateAdminDto) {
     return this.adminService.update(id, updateAdminDto);
   }
-
+ 
   @Delete(':id')
   remove(@Param('id') id: number) {
     return this.adminService.remove(id);
   }
-
+ 
   @Get('users/all')
   @ApiOperation({ summary: 'Get all users' })
   getAllUsers() {
     return this.adminService.getAllUsers();
   }
-
+ 
   @Patch('users/:id/toggle-chatbot')
   @ApiOperation({ summary: 'Toggle AI chatbot for user' })
-  async toggleUserChatbot(@Param('id') id: number) {
+  async toggleUserChatbot(@Param('id') id: number, @Session() session: Record<string, any>) {
     const result = await this.adminService.toggleUserChatbot(+id);
-    await this.adminService.updateUserSession(+id);
+    // Update user sessions instantly
+    await this.adminService.updateUserSession(+id, session.store);
     return result;
   }
 }

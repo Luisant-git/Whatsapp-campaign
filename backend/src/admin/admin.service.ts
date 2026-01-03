@@ -129,22 +129,11 @@ export class AdminService {
     return { message: 'AI Chatbot toggled successfully', user: updatedUser };
   }
 
-  async updateUserSession(userId: number, sessionStore: any) {
+  async updateUserSession(userId: number) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { aiChatbotEnabled: true },
     });
-    if (user && sessionStore) {
-      sessionStore.all((err: any, sessions: any) => {
-        if (err) return;
-        Object.keys(sessions).forEach(sessionId => {
-          const session = sessions[sessionId];
-          if (session.user && session.user.id === userId) {
-            session.user.aiChatbotEnabled = user.aiChatbotEnabled;
-            sessionStore.set(sessionId, session);
-          }
-        });
-      });
-    }
+    return user;
   }
 }

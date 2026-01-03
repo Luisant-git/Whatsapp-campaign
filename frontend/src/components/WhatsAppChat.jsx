@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '../api/config';
-import { getMessages, sendMessage, sendMediaMessage, getLabels, updateLabels, getCustomLabels, addCustomLabel, deleteCustomLabel } from '../api/whatsapp';
+import { getMessages, sendMessage, sendMediaMessage, getLabels, updateLabels, getCustomLabels, addCustomLabel as addCustomLabelAPI, deleteCustomLabel as deleteCustomLabelAPI } from '../api/whatsapp';
 import { MoreVertical } from 'lucide-react';
 import '../styles/WhatsAppChat.scss';
 
@@ -381,13 +381,13 @@ const WhatsAppChat = () => {
     return availableColors.length > 0 ? availableColors[0] : colors[customLabels.length % colors.length];
   };
 
-  const addCustomLabel = async (phone) => {
+  const handleAddCustomLabel = async (phone) => {
     if (newLabelName.trim() && !availableLabels.includes(newLabelName.trim())) {
       const newLabel = newLabelName.trim();
       try {
-        await addCustomLabel(newLabel);
+        await addCustomLabelAPI(newLabel);
         await fetchCustomLabels();
-        toggleLabel(phone, newLabel);
+        await toggleLabel(phone, newLabel);
         setNewLabelName('');
         setShowNewLabelInput(null);
       } catch (error) {
@@ -519,7 +519,7 @@ const WhatsAppChat = () => {
                           onClick={async (e) => {
                             e.stopPropagation();
                             try {
-                              await deleteCustomLabel(label);
+                              await deleteCustomLabelAPI(label);
                               await fetchCustomLabels();
                               await fetchLabels();
                             } catch (error) {
@@ -542,11 +542,11 @@ const WhatsAppChat = () => {
                       value={newLabelName}
                       onChange={(e) => setNewLabelName(e.target.value)}
                       onKeyPress={(e) => {
-                        if (e.key === 'Enter') addCustomLabel(chat.phone);
+                        if (e.key === 'Enter') handleAddCustomLabel(chat.phone);
                       }}
                       autoFocus
                     />
-                    <button onClick={() => addCustomLabel(chat.phone)}>Create</button>
+                    <button onClick={() => handleAddCustomLabel(chat.phone)}>Create</button>
                   </div>
                 ) : (
                   <div 

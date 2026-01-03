@@ -23,7 +23,16 @@ export class AdminController {
     const admin = await this.adminService.login(loginAdminDto);
     session.adminId = admin.id;
     session.adminEmail = admin.email;
-    return { message: 'Login successful', admin };
+    session.adminName = admin.name;
+    
+    return { 
+      message: 'Login successful', 
+      admin: {
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+      }
+    };
   }
 
   @Post('logout')
@@ -37,12 +46,23 @@ export class AdminController {
   @Get('me')
   @ApiOperation({ summary: 'Get current admin session' })
   getMe(@Session() session: Record<string, any>) {
-    if (!session.adminId) {
+    if (!session || !session.adminId) {
       throw new UnauthorizedException('Not authenticated');
     }
     return {
       id: session.adminId,
       email: session.adminEmail,
+      name: session.adminName,
+    };
+  }
+
+  @Get('test-session')
+  @ApiOperation({ summary: 'Test session (debug)' })
+  testSession(@Session() session: Record<string, any>) {
+    return {
+      hasSession: !!session,
+      sessionId: session?.id,
+      sessionData: session,
     };
   }
 

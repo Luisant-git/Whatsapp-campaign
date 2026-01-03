@@ -265,7 +265,7 @@ export class SettingsService {
       });
       
       return firstSettings ? {
-        name: firstSettings.name,
+        name: firstSettings.name || 'Default Config',
         templateName: firstSettings.templateName,
         phoneNumberId: firstSettings.phoneNumberId,
         accessToken: firstSettings.accessToken,
@@ -277,7 +277,7 @@ export class SettingsService {
     }
 
     return {
-      name: settings.name,
+      name: settings.name || 'Default Config',
       templateName: settings.templateName,
       phoneNumberId: settings.phoneNumberId,
       accessToken: settings.accessToken,

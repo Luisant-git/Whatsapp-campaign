@@ -30,6 +30,7 @@ export class UserService {
         email: true,
         name: true,
         isActive: true,
+        aiChatbotEnabled: true,
         createdAt: true
       }
     });
@@ -54,7 +55,8 @@ export class UserService {
     session.user = {
       id: user.id,
       email: user.email,
-      name: user.name
+      name: user.name,
+      aiChatbotEnabled: user.aiChatbotEnabled
     };
 
     // Log user session
@@ -65,7 +67,8 @@ export class UserService {
       user: {
         id: user.id,
         email: user.email,
-        name: user.name
+        name: user.name,
+        aiChatbotEnabled: user.aiChatbotEnabled
       }
     };
   }
@@ -113,6 +116,7 @@ export class UserService {
         email: true,
         name: true,
         isActive: true,
+        aiChatbotEnabled: true,
         createdAt: true
       }
     });

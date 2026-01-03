@@ -11,6 +11,7 @@ import { QuickReplyModule } from './quick-reply/quick-reply.module';
 import { ChatbotModule } from './chatbot/chatbot.module';
 import { MasterConfigModule } from './master-config/master-config.module';
 import { ContactModule } from './contact/contact.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { ContactModule } from './contact/contact.module';
     ChatbotModule,
     MasterConfigModule,
     ContactModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

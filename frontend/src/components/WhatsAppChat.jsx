@@ -80,7 +80,11 @@ const WhatsAppChat = () => {
       fetchMessages();
       fetchLabels();
       fetchCustomLabels();
-      const interval = setInterval(fetchMessages, 3000);
+      const interval = setInterval(() => {
+        fetchMessages();
+        fetchLabels();
+        fetchCustomLabels();
+      }, 1000);
       return () => clearInterval(interval);
     }
   }, [readMessages]);
@@ -386,7 +390,8 @@ const WhatsAppChat = () => {
       const newLabel = newLabelName.trim();
       try {
         await addCustomLabelAPI(newLabel);
-        await fetchCustomLabels();
+        const labels = await getCustomLabels();
+        setCustomLabels(labels);
         await toggleLabel(phone, newLabel);
         setNewLabelName('');
         setShowNewLabelInput(null);
@@ -520,8 +525,10 @@ const WhatsAppChat = () => {
                             e.stopPropagation();
                             try {
                               await deleteCustomLabelAPI(label);
-                              await fetchCustomLabels();
-                              await fetchLabels();
+                              const labels = await getCustomLabels();
+                              setCustomLabels(labels);
+                              const allLabels = await getLabels();
+                              setChatLabels(allLabels);
                             } catch (error) {
                               console.error('Error deleting label:', error);
                               toast.error('Failed to delete label');

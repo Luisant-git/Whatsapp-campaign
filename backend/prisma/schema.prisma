@@ -23,6 +23,7 @@ model User {
   name      String?
   password  String
   isActive  Boolean  @default(true)
+  customLabels String[] @default([])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   

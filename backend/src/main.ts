@@ -9,6 +9,19 @@ const FileStore = require('session-file-store')(session);
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   
+  // Enable CORS first before other middleware
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  app.enableCors({
+    origin: isProduction 
+      ? ['https://whatsapp.luisant.cloud', 'https://whatsapp.admin.luisant.cloud']
+      : true,
+    credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    exposedHeaders: ['set-cookie'],
+  });
+  
   // Configure session middleware
   app.use(
     session({
@@ -24,7 +37,9 @@ async function bootstrap() {
       cookie: {
         maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
         httpOnly: true,
-        secure: false, // Set to true in production with HTTPS
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+        domain: isProduction ? '.luisant.cloud' : undefined,
       },
     }),
   );
@@ -35,9 +50,13 @@ async function bootstrap() {
   });
   
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    origin: isProduction 
+      ? ['https://whatsapp.luisant.cloud', 'https://whatsapp.admin.luisant.cloud']
+      : true,
     credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    exposedHeaders: ['set-cookie'],
   });
   
   const config = new DocumentBuilder()
@@ -45,6 +64,7 @@ async function bootstrap() {
     .setDescription('API for WhatsApp Campaign Management with bulk messaging')
     .setVersion('1.0')
     .addTag('WhatsApp', 'WhatsApp messaging endpoints')
+    .addTag('Admin', 'Admin authentication endpoints')
     .build();
   
   const document = SwaggerModule.createDocument(app, config);

@@ -16,7 +16,12 @@ export const AuthProvider = ({ children }) => {
   const checkAuth = async () => {
     try {
       const response = await fetch(`${API_URL}/admin/me`, {
+        method: 'GET',
         credentials: 'include',
+        mode: 'cors',
+        headers: {
+          'Accept': 'application/json',
+        },
       });
       if (response.ok) {
         const data = await response.json();
@@ -37,8 +42,12 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const response = await fetch(`${API_URL}/admin/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
       credentials: 'include',
+      mode: 'cors',
       body: JSON.stringify({ email, password }),
     });
     
@@ -57,6 +66,7 @@ export const AuthProvider = ({ children }) => {
     await fetch(`${API_URL}/admin/logout`, {
       method: 'POST',
       credentials: 'include',
+      mode: 'cors',
     });
     setUser(null);
     setIsAuthenticated(false);

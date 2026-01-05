@@ -189,7 +189,7 @@ const BulkWhatsApp = () => {
     <div className="bulk-whatsapp">
       <div className="page-header">
         <div className="page-title">
-          <h1>Bulk WhatsApp Messages</h1>
+          <h1>Campaign Messages</h1>
           <span className="page-subtitle">
             Send promotional messages to multiple customers
           </span>
@@ -362,7 +362,7 @@ const BulkWhatsApp = () => {
                   <span className="send-icon">
                     <IoSendSharp size={20} />
                   </span>
-                  Send Bulk Messages
+                  Send Campaign Messages
                 </>
               )}
             </button>

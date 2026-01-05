@@ -114,7 +114,7 @@ const Campaigns = () => {
   return (
     <div className="campaigns-container">
       <div className="campaigns-header">
-        <h2>Campaigns</h2>
+        <h2>View Campaigns</h2>
         <div className="campaigns-controls">
           <select 
             value={selectedSettingsName} 

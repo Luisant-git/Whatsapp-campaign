@@ -1,6 +1,6 @@
 .subscription-container {
   padding: 20px;
-  background: white;
+  background: #f5f7fa;
   height: calc(100vh - 60px);
   overflow-y: auto;
 }

@@ -14,7 +14,7 @@ import { useToast } from '../contexts/ToastContext';
 import { Eye, EyeOff, Plus, Trash2, Star, Upload } from "lucide-react";
 import '../styles/QuickReply.css';
 
-const Settings = () => {
+const Settings = ({ onNavigate }) => {
   const { showSuccess, showError, showConfirm } = useToast();
   const [allSettings, setAllSettings] = useState([]);
   const [masterConfigs, setMasterConfigs] = useState([]);
@@ -630,8 +630,11 @@ const Settings = () => {
                 </p>
               </div>
               <div className="form-actions" style={{marginTop: '16px', paddingTop: '0', borderTop: 'none'}}>
-                <button className="btn-primary" onClick={() => setShowPurchaseModal(false)} style={{width: '100%'}}>
-                  Got it
+                <button className="btn-primary" onClick={() => {
+                  setShowPurchaseModal(false);
+                  if (onNavigate) onNavigate('subscription');
+                }} style={{width: '100%'}}>
+                  View Subscription Plans
                 </button>
               </div>
             </div>

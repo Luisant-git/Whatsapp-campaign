@@ -4,15 +4,21 @@ import {
   Settings,
   BarChart3,
   User,
-  Send,
+  Mail,
   MessageCircle,
   Bot,
-  Megaphone,
+  List,
   Sliders,
   Menu,
   X,
   Zap,
   Users,
+  PieChart,
+  ChartBar,
+  ChartBarIcon,
+  ChartBarStacked,
+  ChartNoAxesColumn,
+  ChartNoAxesCombined,
 } from "lucide-react";
 import { ToastProvider } from "./contexts/ToastContext";
 import WhatsAppChat from "./components/WhatsAppChat";
@@ -134,6 +140,15 @@ function App() {
             </div>
             <nav className="sidebar-nav">
               <button
+                className={`nav-item ${
+                  activeView === "analytics" ? "active" : ""
+                }`}
+                onClick={() => handleMenuClick("analytics")}
+              >
+                <ChartNoAxesCombined size={18} />
+                <span>Dashboard</span>
+              </button>
+              <button
                 className={`nav-item ${activeView === "chats" ? "active" : ""}`}
                 onClick={() => handleMenuClick("chats")}
               >
@@ -144,8 +159,8 @@ function App() {
                 className={`nav-item ${activeView === "bulk" ? "active" : ""}`}
                 onClick={() => handleMenuClick("bulk")}
               >
-                <Send size={18} />
-                <span>Bulk Messages</span>
+                <Mail size={18} />
+                <span>Campaign</span>
               </button>
               <button
                 className={`nav-item ${
@@ -162,8 +177,8 @@ function App() {
                 }`}
                 onClick={() => handleMenuClick("campaigns")}
               >
-                <Megaphone size={18} />
-                <span>Campaigns</span>
+                <List size={18} />
+                <span>View Campaigns</span>
               </button>
               <button
                 className={`nav-item ${
@@ -211,15 +226,6 @@ function App() {
               >
                 <Sliders size={18} />
                 <span>Configurations</span>
-              </button>
-              <button
-                className={`nav-item ${
-                  activeView === "analytics" ? "active" : ""
-                }`}
-                onClick={() => handleMenuClick("analytics")}
-              >
-                <BarChart3 size={18} />
-                <span>Analytics</span>
               </button>
             </nav>
           </div>

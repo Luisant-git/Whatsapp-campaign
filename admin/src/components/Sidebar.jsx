@@ -11,10 +11,10 @@ export default function Sidebar({ isOpen }) {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: MdDashboard, path: '/' },
     { id: 'users', label: 'Users', icon: MdPeople, path: '/users' },
-    { id: 'campaigns', label: 'Campaigns', icon: MdCampaign },
-    { id: 'messages', label: 'Messages', icon: MdMessage },
-    { id: 'analytics', label: 'Analytics', icon: MdAnalytics },
-    { id: 'settings', label: 'Settings', icon: MdSettings },
+    // { id: 'campaigns', label: 'Campaigns', icon: MdCampaign },
+    // { id: 'messages', label: 'Messages', icon: MdMessage },
+    // { id: 'analytics', label: 'Analytics', icon: MdAnalytics },
+    // { id: 'settings', label: 'Settings', icon: MdSettings },
   ];
 
   return (

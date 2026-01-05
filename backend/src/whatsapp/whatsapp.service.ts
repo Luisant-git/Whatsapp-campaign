@@ -471,26 +471,24 @@ export class WhatsappService {
         this.logger.log(`API URL: ${settings.apiUrl}/${settings.phoneNumberId}/messages`);
         this.logger.log(`Template: ${templateName}, Language: ${settings.language}`);
         
-        const imageUrl = headerImageUrl || settings.headerImageUrl;
-        
         const components: any[] = [];
         
-        // Only add header if image URL is provided, valid, and not empty
-        if (imageUrl && imageUrl.trim() !== '' && imageUrl.startsWith('http')) {
-          this.logger.log(`Adding header image: ${imageUrl}`);
+        // Only add header if explicitly provided via headerImageUrl parameter
+        if (headerImageUrl && headerImageUrl.trim() !== '' && headerImageUrl.startsWith('http')) {
+          this.logger.log(`Adding header image: ${headerImageUrl}`);
           components.push({
             type: 'header',
             parameters: [
               {
                 type: 'image',
                 image: {
-                  link: imageUrl
+                  link: headerImageUrl
                 }
               }
             ]
           });
         } else {
-          this.logger.log('No valid header image provided, skipping header component');
+          this.logger.log('No header image provided, sending template without header');
         }
         
         const requestBody = {

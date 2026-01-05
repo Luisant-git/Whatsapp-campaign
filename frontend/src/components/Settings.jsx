@@ -473,7 +473,10 @@ const Settings = () => {
               </div>
 
               <div className="form-group">
-                <label>Header Image</label>
+                <label>Header Image (Optional)</label>
+                <small style={{display: 'block', marginBottom: '8px', color: '#666'}}>
+                  Only add if your WhatsApp template has an image header parameter
+                </small>
                 <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
                   <label className="btn-secondary" style={{cursor: 'pointer', margin: 0}}>
                     <Upload size={16} /> {uploading ? 'Uploading...' : 'Upload Image'}
@@ -486,7 +489,16 @@ const Settings = () => {
                     />
                   </label>
                   {currentSettings.headerImageUrl && (
-                    <span style={{fontSize: '12px', color: '#666'}}>✓ Image uploaded</span>
+                    <>
+                      <span style={{fontSize: '12px', color: '#28a745'}}>✓ Image uploaded</span>
+                      <button 
+                        className="btn-danger" 
+                        style={{padding: '6px 12px', fontSize: '12px'}}
+                        onClick={() => handleInputChange('headerImageUrl', '')}
+                      >
+                        <Trash2 size={14} /> Remove
+                      </button>
+                    </>
                   )}
                 </div>
                 {currentSettings.headerImageUrl && (

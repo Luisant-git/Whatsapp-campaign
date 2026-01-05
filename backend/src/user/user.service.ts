@@ -56,7 +56,8 @@ export class UserService {
       id: user.id,
       email: user.email,
       name: user.name,
-      aiChatbotEnabled: user.aiChatbotEnabled
+      aiChatbotEnabled: user.aiChatbotEnabled,
+      useQuickReply: user.useQuickReply
     };
 
     // Log user session
@@ -68,7 +69,8 @@ export class UserService {
         id: user.id,
         email: user.email,
         name: user.name,
-        aiChatbotEnabled: user.aiChatbotEnabled
+        aiChatbotEnabled: user.aiChatbotEnabled,
+        useQuickReply: user.useQuickReply
       }
     };
   }
@@ -117,6 +119,7 @@ export class UserService {
         name: true,
         isActive: true,
         aiChatbotEnabled: true,
+        useQuickReply: true,
         createdAt: true
       }
     });
@@ -138,5 +141,19 @@ export class UserService {
 
   remove(id: number) {
     return this.prisma.user.delete({ where: { id } });
+  }
+
+  async updatePreference(userId: number, useQuickReply: boolean) {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { useQuickReply },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        useQuickReply: true
+      }
+    });
+    return { message: 'Preference updated successfully', user };
   }
 }

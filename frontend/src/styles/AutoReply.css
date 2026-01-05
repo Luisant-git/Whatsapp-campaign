@@ -2,7 +2,7 @@
   padding: 20px !important;
   width: 100% !important;
   margin: 0 !important;
-  background: #f5f5f5 !important;
+  background: white !important;
   height: calc(100vh - 60px) !important;
   overflow-y: auto !important;
 }

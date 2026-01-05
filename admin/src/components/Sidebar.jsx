@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { MdDashboard, MdPeople, MdCampaign, MdMessage, MdAnalytics, MdSettings } from 'react-icons/md';
+import { MdDashboard, MdPeople, MdCampaign, MdMessage, MdAnalytics, MdSettings, MdCardMembership } from 'react-icons/md';
 import '../styles/Sidebar.css';
 
 export default function Sidebar({ isOpen }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const activeMenu = location.pathname === '/users' ? 'users' : 'dashboard';
+  const activeMenu = location.pathname === '/users' ? 'users' : location.pathname === '/subscriptions' ? 'subscriptions' : 'dashboard';
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: MdDashboard, path: '/' },
     { id: 'users', label: 'Users', icon: MdPeople, path: '/users' },
+    { id: 'subscriptions', label: 'Subscriptions', icon: MdCardMembership, path: '/subscriptions' },
     // { id: 'campaigns', label: 'Campaigns', icon: MdCampaign },
     // { id: 'messages', label: 'Messages', icon: MdMessage },
     // { id: 'analytics', label: 'Analytics', icon: MdAnalytics },

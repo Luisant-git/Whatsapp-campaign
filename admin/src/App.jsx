@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
+import Subscriptions from './pages/Subscriptions';
 import Layout from './components/Layout';
 import './App.css';
 
@@ -26,6 +27,7 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/users" element={<Users />} />
+        <Route path="/subscriptions" element={<Subscriptions />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Layout>

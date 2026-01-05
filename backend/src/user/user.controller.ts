@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Session, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Session, Req, UseGuards, Put } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -75,6 +75,14 @@ export class UserController {
   @ApiResponse({ status: 200, description: 'User profile retrieved' })
   getProfile(@Param('id') id: string) {
     return this.userService.findOne(+id);
+  }
+
+  @Put('preference')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Update user preference' })
+  @ApiResponse({ status: 200, description: 'Preference updated successfully' })
+  updatePreference(@Body() body: { useQuickReply: boolean }, @Session() session: Record<string, any>) {
+    return this.userService.updatePreference(session.user.id, body.useQuickReply);
   }
 
   @Delete(':id')

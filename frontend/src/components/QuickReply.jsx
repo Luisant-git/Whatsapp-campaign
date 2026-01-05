@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit } from 'lucide-react';
 import { API_BASE_URL } from '../api/config';
 import { useToast } from '../contexts/ToastContext';
+import { getProfile } from '../api/auth';
 import '../styles/QuickReply.css';
 
 const QuickReply = () => {
@@ -15,9 +16,11 @@ const QuickReply = () => {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [useQuickReply, setUseQuickReply] = useState(true);
 
   useEffect(() => {
     fetchQuickReplies();
+    fetchUserProfile();
   }, []);
 
   const fetchQuickReplies = async () => {
@@ -31,6 +34,15 @@ const QuickReply = () => {
       console.error('Failed to fetch quick replies:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUserProfile = async () => {
+    try {
+      const data = await getProfile();
+      setUseQuickReply(data.user?.useQuickReply !== false);
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error);
     }
   };
 
@@ -172,6 +184,11 @@ const QuickReply = () => {
                   <div className="button-item">Quick Reply</div>
                   <div className="button-item">AI Chatbot</div>
                 </div>
+              </div>
+              <div style={{marginTop: '10px', padding: '8px', background: useQuickReply ? '#e8f5e9' : '#fff3cd', borderRadius: '4px'}}>
+                <strong>Current Mode:</strong> {useQuickReply ? 'Quick Reply Buttons' : 'AI Chatbot'}
+                <br />
+                <small style={{color: '#666'}}>Change this in Settings → Response Preference</small>
               </div>
             </div>
             <div className="system-badge">SYSTEM</div>

@@ -19,6 +19,7 @@ import {
   ChartBarStacked,
   ChartNoAxesColumn,
   ChartNoAxesCombined,
+  CreditCard,
 } from "lucide-react";
 import { ToastProvider } from "./contexts/ToastContext";
 import WhatsAppChat from "./components/WhatsAppChat";
@@ -33,6 +34,7 @@ import AutoReply from "./components/AutoReply";
 import QuickReply from "./components/QuickReply";
 import Chatbot from "./components/Chatbot";
 import Contact from "./components/Contact";
+import Subscription from "./components/Subscription";
 import "./App.css";
 import "./styles/Analytics.css";
 import "./styles/Settings.css";
@@ -227,6 +229,15 @@ function App() {
                 <Sliders size={18} />
                 <span>Configurations</span>
               </button>
+              <button
+                className={`nav-item ${
+                  activeView === "subscription" ? "active" : ""
+                }`}
+                onClick={() => handleMenuClick("subscription")}
+              >
+                <CreditCard size={18} />
+                <span>Subscription</span>
+              </button>
             </nav>
           </div>
           <div className="main-content">
@@ -300,6 +311,7 @@ function App() {
             {activeView === "settings" && <SettingsPanel />}
             {activeView === "master-config" && <MasterConfig />}
             {activeView === "profile" && <Profile />}
+            {activeView === "subscription" && <Subscription />}
           </div>
         </div>
       )}

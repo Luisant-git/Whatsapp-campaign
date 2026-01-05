@@ -172,3 +172,20 @@ export const uploadHeaderImage = async (file) => {
 
   return await response.json();
 };
+
+export const updateUserPreference = async (preference) => {
+  const response = await fetch(`${API_BASE_URL}/user/preference`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(preference),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to update preference');
+  }
+
+  return await response.json();
+};

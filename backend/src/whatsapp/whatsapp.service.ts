@@ -74,23 +74,6 @@ export class WhatsappService {
     });
 
     if (text) {
-      // Handle hardcoded button responses
-      if (text.toLowerCase() === 'ai chatbot') {
-        try {
-          const chatResponse = await this.chatbotService.processMessage(userId, {
-            message: 'I need help with AI assistance',
-            phone: from
-          });
-          
-          if (chatResponse.response) {
-            await this.sendMessage(from, chatResponse.response, userId);
-          }
-        } catch (error) {
-          this.logger.error('Chatbot error:', error);
-        }
-        return;
-      }
-      
       // Try session service first (auto-reply, quick-reply)
       const sessionHandled = await this.sessionService.handleInteractiveMenu(from, text, userId, 
         async (to, msg, imageUrl) => {

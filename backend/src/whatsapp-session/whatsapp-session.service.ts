@@ -150,16 +150,6 @@ export class WhatsappSessionService {
     message: string,
     userId: number,
   ): Promise<boolean> {
-    // Check hardcoded buttons first
-    const hardcodedButtons = ['AI Chatbot'];
-    if (
-      hardcodedButtons.some(
-        (button) => button.toLowerCase() === message.toLowerCase(),
-      )
-    ) {
-      return true;
-    }
-
     const quickReplies =
       await this.quickReplyService.getAllQuickReplies(userId);
 

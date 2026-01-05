@@ -170,35 +170,8 @@ const QuickReply = () => {
       <div className="replies-list">
         <h2>Quick Replies</h2>
         
-        {/* Hardcoded System Quick Reply */}
-        <div className="system-reply">
-          <h3>System Quick Reply</h3>
-          <div className="reply-item system">
-            <div className="reply-content">
-              <div className="trigger-text">
-                <strong>Triggers:</strong> hi, hello, help, info
-              </div>
-              <div className="buttons-preview">
-                <strong>Buttons:</strong>
-                <div className="button-list">
-                  <div className="button-item">Quick Reply</div>
-                  <div className="button-item">AI Chatbot</div>
-                </div>
-              </div>
-              <div style={{marginTop: '10px', padding: '8px', background: useQuickReply ? '#e8f5e9' : '#fff3cd', borderRadius: '4px'}}>
-                <strong>Current Mode:</strong> {useQuickReply ? 'Quick Reply Buttons' : 'AI Chatbot'}
-                <br />
-                <small style={{color: '#666'}}>Change this in Settings → Response Preference</small>
-              </div>
-            </div>
-            <div className="system-badge">SYSTEM</div>
-          </div>
-        </div>
-
-        {/* User Quick Replies */}
-        <h3>Custom Quick Replies</h3>
         {quickReplies.length === 0 ? (
-          <p className="no-replies">No custom quick replies configured yet.</p>
+          <p className="no-replies">No quick replies configured yet.</p>
         ) : (
           <div className="replies-grid">
             {quickReplies.map((reply) => (

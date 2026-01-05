@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { AutoReplyService } from '../auto-reply/auto-reply.service';
 import { QuickReplyService } from '../quick-reply/quick-reply.service';
+import { PrismaService } from '../prisma.service';
 
 @Injectable()
 export class WhatsappSessionService {
   constructor(
     private autoReplyService: AutoReplyService,
     private quickReplyService: QuickReplyService,
+    private prisma: PrismaService,
   ) {}
 
   async handleInteractiveMenu(
@@ -27,47 +29,57 @@ export class WhatsappSessionService {
     const lowerText = text.toLowerCase().trim();
     console.log('Processing message:', lowerText);
 
-    // Check if this is a button response (handle nested quick replies)
-    const isButtonResponse = await this.isButtonResponse(lowerText, userId);
-    if (isButtonResponse) {
-      console.log('Button response detected, checking for nested quick reply');
+    // Get user preference
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { useQuickReply: true }
+    });
+    const useQuickReply = user?.useQuickReply !== false;
 
-      // Check if this button response has its own quick reply
-      let nestedQuickReply = await this.quickReplyService.getQuickReply(
+    // Only process quick replies if user has quick reply enabled
+    if (useQuickReply) {
+      // Check if this is a button response (handle nested quick replies)
+      const isButtonResponse = await this.isButtonResponse(lowerText, userId);
+      if (isButtonResponse) {
+        console.log('Button response detected, checking for nested quick reply');
+
+        // Check if this button response has its own quick reply
+        let nestedQuickReply = await this.quickReplyService.getQuickReply(
+          lowerText,
+          userId,
+        );
+        if (!nestedQuickReply) {
+          nestedQuickReply = await this.findSimilarQuickReply(lowerText, userId);
+        }
+
+        if (nestedQuickReply) {
+          console.log('Found nested quick reply:', nestedQuickReply);
+          const buttons = nestedQuickReply.buttons as string[];
+          await sendButtonsCallback(from, `Please select an option:`, buttons);
+          return true; // Handled
+        }
+
+        console.log('No nested quick reply found, button response handled');
+        return true; // Mark as handled, don't send to chatbot
+      }
+
+      // Check for exact quick reply match first
+      let quickReply = await this.quickReplyService.getQuickReply(
         lowerText,
         userId,
       );
-      if (!nestedQuickReply) {
-        nestedQuickReply = await this.findSimilarQuickReply(lowerText, userId);
+
+      // If no exact match, try fuzzy matching for quick replies
+      if (!quickReply) {
+        quickReply = await this.findSimilarQuickReply(lowerText, userId);
       }
 
-      if (nestedQuickReply) {
-        console.log('Found nested quick reply:', nestedQuickReply);
-        const buttons = nestedQuickReply.buttons as string[];
+      console.log('Quick reply found:', quickReply);
+      if (quickReply) {
+        const buttons = quickReply.buttons as string[];
         await sendButtonsCallback(from, `Please select an option:`, buttons);
         return true; // Handled
       }
-
-      console.log('No nested quick reply found, button response handled');
-      return true; // Mark as handled, don't send to chatbot
-    }
-
-    // Check for exact quick reply match first
-    let quickReply = await this.quickReplyService.getQuickReply(
-      lowerText,
-      userId,
-    );
-
-    // If no exact match, try fuzzy matching for quick replies
-    if (!quickReply) {
-      quickReply = await this.findSimilarQuickReply(lowerText, userId);
-    }
-
-    console.log('Quick reply found:', quickReply);
-    if (quickReply) {
-      const buttons = quickReply.buttons as string[];
-      await sendButtonsCallback(from, `Please select an option:`, buttons);
-      return true; // Handled
     }
 
     // Check for exact auto-reply match

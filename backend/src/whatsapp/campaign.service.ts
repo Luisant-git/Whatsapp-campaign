@@ -187,7 +187,7 @@ export class CampaignService {
           campaign.templateName,
           userId,
           campaign.settingsId,
-          settings?.headerImageUrl || undefined
+          settings?.headerImageUrl && settings.headerImageUrl.trim() !== '' ? settings.headerImageUrl : undefined
         );
 
         const messageResult = result[0];

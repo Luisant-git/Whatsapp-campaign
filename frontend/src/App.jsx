@@ -308,7 +308,7 @@ function App() {
             {activeView === "quick-reply" && <QuickReply />}
             {activeView === "chatbot" && aiChatbotEnabled && <Chatbot />}
             {activeView === "analytics" && <Analytics />}
-            {activeView === "settings" && <SettingsPanel />}
+            {activeView === "settings" && <SettingsPanel onNavigate={setActiveView} />}
             {activeView === "master-config" && <MasterConfig />}
             {activeView === "profile" && <Profile />}
             {activeView === "subscription" && <Subscription />}

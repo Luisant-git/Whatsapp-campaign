@@ -229,7 +229,7 @@ const Settings = ({ onNavigate }) => {
       <div className="settings-form" style={{marginBottom: '20px'}}>
         <h2>Response Preference</h2>
         <div className="form-group">
-          <label>Choose how to respond to trigger messages (hi, hello, help, info)</label>
+          <label>Choose how to respond to trigger messages</label>
           <div style={{display: 'flex', gap: '12px', marginTop: '10px'}}>
             <button 
               className={useQuickReply ? 'btn-primary' : 'btn-secondary'}

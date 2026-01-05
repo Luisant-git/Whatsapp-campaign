@@ -12,6 +12,7 @@ import { ChatbotModule } from './chatbot/chatbot.module';
 import { MasterConfigModule } from './master-config/master-config.module';
 import { ContactModule } from './contact/contact.module';
 import { AdminModule } from './admin/admin.module';
+import { SubscriptionModule } from './subscription/subscription.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { AdminModule } from './admin/admin.module';
     ChatbotModule,
     MasterConfigModule,
     ContactModule,
+    SubscriptionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

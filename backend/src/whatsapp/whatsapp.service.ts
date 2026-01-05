@@ -473,24 +473,25 @@ export class WhatsappService {
         
         const imageUrl = headerImageUrl || settings.headerImageUrl;
         
-        if (!imageUrl || !imageUrl.startsWith('https://') || imageUrl.includes('localhost')) {
-          throw new Error('Please set a valid HTTPS image URL in WhatsApp Settings');
-        }
-        
         const components: any[] = [];
         
-        this.logger.log(`Adding header image: ${imageUrl}`);
-        components.push({
-          type: 'header',
-          parameters: [
-            {
-              type: 'image',
-              image: {
-                link: imageUrl
+        // Only add header if image URL is provided, valid, and not empty
+        if (imageUrl && imageUrl.trim() !== '' && imageUrl.startsWith('http')) {
+          this.logger.log(`Adding header image: ${imageUrl}`);
+          components.push({
+            type: 'header',
+            parameters: [
+              {
+                type: 'image',
+                image: {
+                  link: imageUrl
+                }
               }
-            }
-          ]
-        });
+            ]
+          });
+        } else {
+          this.logger.log('No valid header image provided, skipping header component');
+        }
         
         const requestBody = {
           messaging_product: 'whatsapp',
@@ -499,7 +500,7 @@ export class WhatsappService {
           template: {
             name: templateName,
             language: { code: settings.language || 'en' },
-            components: components.length > 0 ? components : undefined
+            ...(components.length > 0 && { components })
           }
         };
         

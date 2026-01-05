@@ -6,6 +6,8 @@ import {
   deleteSettings,
   setDefaultSettings,
   uploadHeaderImage,
+  getProfile,
+  updateUserPreference,
 } from "../api/auth";
 import { getMasterConfigs } from "../api/masterConfig";
 import { useToast } from '../contexts/ToastContext';
@@ -36,10 +38,14 @@ const Settings = () => {
   const [editingId, setEditingId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [selectedMasterConfig, setSelectedMasterConfig] = useState(null);
+  const [useQuickReply, setUseQuickReply] = useState(true);
+  const [aiChatbotEnabled, setAiChatbotEnabled] = useState(false);
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
 
   useEffect(() => {
     fetchAllSettings();
     fetchMasterConfigs();
+    fetchUserProfile();
   }, []);
 
   const fetchMasterConfigs = async () => {
@@ -48,6 +54,16 @@ const Settings = () => {
       setMasterConfigs(data || []);
     } catch (error) {
       console.error("Failed to fetch master configs:", error);
+    }
+  };
+
+  const fetchUserProfile = async () => {
+    try {
+      const data = await getProfile();
+      setUseQuickReply(data.user?.useQuickReply !== false);
+      setAiChatbotEnabled(data.user?.aiChatbotEnabled || false);
+    } catch (error) {
+      console.error("Failed to fetch user profile:", error);
     }
   };
 
@@ -175,6 +191,21 @@ const Settings = () => {
     }
   };
 
+  const handleTogglePreference = async (value) => {
+    if (!value && !aiChatbotEnabled) {
+      setShowPurchaseModal(true);
+      return;
+    }
+    try {
+      await updateUserPreference({ useQuickReply: value });
+      setUseQuickReply(value);
+      showSuccess(`Switched to ${value ? 'Quick Reply' : 'AI Chatbot'}`);
+    } catch (error) {
+      console.error("Failed to update preference:", error);
+      showError('Failed to update preference');
+    }
+  };
+
   if (loading) {
     return (
       <div className="settings-container">
@@ -193,6 +224,35 @@ const Settings = () => {
         <button className="btn-primary" onClick={() => setShowForm(true)}>
           <Plus size={16} /> Add Configuration
         </button>
+      </div>
+
+      <div className="settings-form" style={{marginBottom: '20px'}}>
+        <h2>Response Preference</h2>
+        <div className="form-group">
+          <label>Choose how to respond to trigger messages (hi, hello, help, info)</label>
+          <div style={{display: 'flex', gap: '12px', marginTop: '10px'}}>
+            <button 
+              className={useQuickReply ? 'btn-primary' : 'btn-secondary'}
+              onClick={() => handleTogglePreference(true)}
+            >
+              Quick Reply Buttons
+            </button>
+            <button 
+              className={!useQuickReply ? 'btn-primary' : 'btn-secondary'}
+              onClick={() => handleTogglePreference(false)}
+              style={!aiChatbotEnabled ? {position: 'relative'} : {}}
+            >
+              AI Chatbot {!aiChatbotEnabled && '🔒'}
+            </button>
+          </div>
+          <small style={{display: 'block', marginTop: '8px', color: '#666'}}>
+            {useQuickReply 
+              ? 'Users will see interactive buttons when they send trigger words' 
+              : aiChatbotEnabled 
+                ? 'AI Chatbot will respond automatically to user messages'
+                : 'AI Chatbot feature requires purchase. Contact support to enable.'}
+          </small>
+        </div>
       </div>
 
       <div className="settings-list">
@@ -527,6 +587,40 @@ const Settings = () => {
               </div>
               <div className="form-actions">
                 <button className="btn-secondary" onClick={() => setSelectedMasterConfig(null)}>Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPurchaseModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{maxWidth: '600px'}}>
+            <div className="modal-header">
+              <h2>🔒 AI Chatbot Feature Locked</h2>
+              <button onClick={() => setShowPurchaseModal(false)} className="close-btn">×</button>
+            </div>
+            <div className="settings-form">
+              <div style={{display: 'flex', alignItems: 'center', gap: '20px', padding: '10px 0'}}>
+                <div style={{fontSize: '48px'}}>🤖</div>
+                <div style={{flex: 1}}>
+                  <p style={{fontSize: '16px', color: '#333', marginBottom: '8px', lineHeight: '1.5'}}>
+                    The AI Chatbot feature is not enabled for your account.
+                  </p>
+                  <p style={{fontSize: '14px', color: '#666', marginBottom: '0', lineHeight: '1.5'}}>
+                    Upgrade your plan to unlock intelligent automated responses powered by AI.
+                  </p>
+                </div>
+              </div>
+              <div style={{background: '#f8f9fa', padding: '12px 16px', borderRadius: '8px', marginTop: '16px', marginBottom: '16px'}}>
+                <p style={{fontSize: '13px', color: '#555', margin: 0}}>
+                  <strong>Contact Support:</strong> Email: support@example.com | Phone: +1 (555) 123-4567
+                </p>
+              </div>
+              <div className="form-actions" style={{marginTop: '16px', paddingTop: '0', borderTop: 'none'}}>
+                <button className="btn-primary" onClick={() => setShowPurchaseModal(false)} style={{width: '100%'}}>
+                  Got it
+                </button>
               </div>
             </div>
           </div>

@@ -24,7 +24,9 @@ model User {
   password  String
   isActive  Boolean  @default(true)
   aiChatbotEnabled Boolean @default(false)
+  useQuickReply Boolean @default(true)
   customLabels String[] @default([])
+  subscriptionId Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -38,6 +40,7 @@ model User {
   quickReplies QuickReply[]
   contacts  Contact[]
   chatLabels ChatLabel[]
+  subscription SubscriptionPlan? @relation(fields: [subscriptionId], references: [id])
 }
 
 model MasterConfig {
@@ -215,4 +218,17 @@ model ChatLabel {
   updatedAt DateTime @updatedAt
   
   @@unique([phone, userId])
+}
+
+model SubscriptionPlan {
+  id          Int      @id @default(autoincrement())
+  name        String
+  price       Float
+  duration    Int      // in days
+  features    String[] // Array of features
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  users       User[]
 }

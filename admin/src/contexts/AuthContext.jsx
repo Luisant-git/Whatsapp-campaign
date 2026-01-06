@@ -40,13 +40,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
-    if (email === 'admin@example.com' && password === 'password123') {
-      const hardcodedUser = { id: 0, email: 'admin@example.com', name: 'Admin' };
-      setUser(hardcodedUser);
-      setIsAuthenticated(true);
-      return { admin: hardcodedUser };
-    }
-    
     try {
       const response = await fetch(`${API_URL}/admin/login`, {
         method: 'POST',

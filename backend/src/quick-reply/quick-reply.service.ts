@@ -9,18 +9,6 @@ export class QuickReplyService {
     const lowerMessage = message.toLowerCase().trim();
     console.log('Looking for quick reply with trigger:', lowerMessage);
 
-    // Hardcoded quick reply for menu selection
-    const hardcodedTriggers = ['hi', 'hello', 'help', 'info'];
-    if (hardcodedTriggers.includes(lowerMessage)) {
-      return {
-        id: 0,
-        triggers: hardcodedTriggers,
-        buttons: ['Quick Reply', 'AI Chatbot'],
-        isActive: true,
-        userId,
-      };
-    }
-
     const quickReply = await this.prisma.quickReply.findFirst({
       where: {
         userId,

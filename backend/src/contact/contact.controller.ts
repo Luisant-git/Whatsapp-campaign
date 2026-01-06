@@ -16,6 +16,7 @@ import { SessionGuard } from '../auth/session.guard';
 export class CreateContactDto {
   name: string;
   phone: string;
+  group?: string;
   email?: string;
   company?: string;
   tags?: string[];
@@ -25,6 +26,7 @@ export class CreateContactDto {
 export class UpdateContactDto {
   name?: string;
   phone?: string;
+  group?: string;
   email?: string;
   company?: string;
   tags?: string[];
@@ -70,6 +72,11 @@ export class ContactController {
   @Get('delivery-stats')
   getDeliveryStats(@Session() session: Record<string, any>) {
     return this.contactService.getDeliveryStats(this.getUserId(session));
+  }
+
+  @Get('groups/all')
+  getGroups(@Session() session: Record<string, any>) {
+    return this.contactService.getGroups(this.getUserId(session));
   }
 
   @Get(':id')

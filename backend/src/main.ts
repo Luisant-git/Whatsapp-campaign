@@ -13,13 +13,11 @@ async function bootstrap() {
   
   // Enable CORS first
   app.enableCors({
-    origin: isProduction 
-      ? ['https://whatsapp.luisant.cloud', 'https://whatsapp.admin.luisant.cloud']
-      : true,
+    origin: isProduction
+      ? ['https://your-production-domain.com']
+      : ['http://localhost:5173', 'http://localhost:5174'],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
-    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Cookie'],
-    exposedHeaders: ['Set-Cookie'],
   });
   
   // Configure session middleware
@@ -41,7 +39,6 @@ async function bootstrap() {
         httpOnly: true,
         secure: isProduction,
         sameSite: isProduction ? 'none' : 'lax',
-        domain: isProduction ? '.luisant.cloud' : undefined,
       },
     }),
   );

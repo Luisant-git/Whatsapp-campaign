@@ -32,9 +32,16 @@ export class WhatsappSessionService {
     // Get user preference
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { useQuickReply: true }
+      select: { useQuickReply: true, aiChatbotEnabled: true }
     });
-    const useQuickReply = user?.useQuickReply !== false;
+    
+    if (!user) {
+      console.log('User not found');
+      return false;
+    }
+
+    const useQuickReply = user.useQuickReply === true;
+    console.log('User preference - useQuickReply:', useQuickReply, 'aiChatbotEnabled:', user.aiChatbotEnabled);
 
     // Only process quick replies if user has quick reply enabled
     if (useQuickReply) {
@@ -55,7 +62,7 @@ export class WhatsappSessionService {
         if (nestedQuickReply) {
           console.log('Found nested quick reply:', nestedQuickReply);
           const buttons = nestedQuickReply.buttons as string[];
-          await sendButtonsCallback(from, `Please select an option:`, buttons);
+          await sendButtonsCallback(from, buttons[0] || 'Response', buttons.slice(1));
           return true; // Handled
         }
 
@@ -77,7 +84,7 @@ export class WhatsappSessionService {
       console.log('Quick reply found:', quickReply);
       if (quickReply) {
         const buttons = quickReply.buttons as string[];
-        await sendButtonsCallback(from, `Please select an option:`, buttons);
+        await sendButtonsCallback(from, buttons[0] || 'Response', buttons.slice(1));
         return true; // Handled
       }
     }

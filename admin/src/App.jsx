@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import Subscriptions from './pages/Subscriptions';
+import SubscriptionOrders from './pages/SubscriptionOrders';
 import Layout from './components/Layout';
 import './App.css';
 
@@ -28,6 +29,7 @@ function AppContent() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/users" element={<Users />} />
         <Route path="/subscriptions" element={<Subscriptions />} />
+        <Route path="/subscription-orders" element={<SubscriptionOrders />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Layout>

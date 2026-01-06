@@ -39,14 +39,6 @@ export class AdminService {
   async login(loginAdminDto: LoginAdminDto) {
     const { email, password } = loginAdminDto;
    
-    if (email === 'admin@example.com' && password === 'password123') {
-      return {
-        id: 0,
-        email: 'admin@example.com',
-        name: 'Admin',
-      };
-    }
-   
     const admin = await this.prisma.admin.findUnique({ where: { email } });
     if (!admin) {
       throw new UnauthorizedException('Invalid credentials');

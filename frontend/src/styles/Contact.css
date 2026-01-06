@@ -9,6 +9,14 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 
 .header-left {
@@ -345,11 +353,10 @@
 
 .btn-icon {
   background: none;
-  border: 1px solid #e2e8f0;
+  border: none;
   padding: 8px;
   border-radius: 6px;
   cursor: pointer;
-  color: #64748b;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
@@ -357,19 +364,22 @@
 }
 
 .btn-icon:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  color: #374151;
+  background: none;
 }
 
 .btn-icon.btn-danger {
-  color: #ef4444;
-  border-color: #fecaca;
+  background: #ef4444;
+  color: white;
 }
 
 .btn-icon.btn-danger:hover {
-  background: #fef2f2;
-  border-color: #ef4444;
+  background: #dc2626;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
 }
 
 .empty-state {
@@ -425,7 +435,7 @@
   margin: 0;
 }
 
-.btn-close {
+.close-btn {
   background: none;
   border: none;
   cursor: pointer;
@@ -433,9 +443,12 @@
   padding: 4px;
   border-radius: 4px;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.btn-close:hover {
+.close-btn:hover {
   background: #f1f5f9;
   color: #374151;
 }
@@ -570,6 +583,11 @@
   transform: translateY(-1px);
 }
 
+.btn-primary:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+}
+
 .btn-secondary {
   background: #f8fafc;
   color: #475569;
@@ -580,11 +598,58 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .btn-secondary:hover {
   background: #f1f5f9;
   border-color: #cbd5e1;
+}
+
+.bulk-import-content {
+  padding: 24px;
+}
+
+.bulk-import-content p {
+  margin-bottom: 12px;
+  color: #475569;
+}
+
+.bulk-import-content ul {
+  margin: 12px 0;
+  padding-left: 24px;
+  color: #475569;
+}
+
+.bulk-import-content ul li {
+  margin: 6px 0;
+}
+
+.csv-example {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.csv-example strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #1e293b;
+}
+
+.csv-example pre {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 12px;
+  margin: 8px 0 0 0;
+  font-size: 13px;
+  color: #475569;
+  overflow-x: auto;
 }
 
 @media (max-width: 768px) {

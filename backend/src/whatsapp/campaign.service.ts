@@ -223,13 +223,13 @@ export class CampaignService {
           update: {
             name: contact.name || 'Unknown',
             lastMessageDate: new Date(),
-            lastCampaignName: campaign.name
+            group: campaign.name
           },
           create: {
             phone: formattedPhone,
             name: contact.name || 'Unknown',
             lastMessageDate: new Date(),
-            lastCampaignName: campaign.name,
+            group: campaign.name,
             userId
           }
         });

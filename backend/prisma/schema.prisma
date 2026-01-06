@@ -127,6 +127,7 @@ model CampaignContact {
   id         Int      @id @default(autoincrement())
   name       String?
   phone      String
+  group      String?
   campaignId Int
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
@@ -202,7 +203,7 @@ model Contact {
   name             String
   phone            String
   lastMessageDate  DateTime?
-  lastCampaignName String?
+  group            String?
   userId           Int
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt        DateTime @default(now())

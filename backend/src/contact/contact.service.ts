@@ -6,9 +6,32 @@ export class ContactService {
   constructor(private prisma: PrismaService) {}
 
   async create(data: any, userId: number) {
-    return this.prisma.contact.create({
-      data: { ...data, userId },
+    // Format phone number
+    const phone = this.formatPhoneNumber(data.phone);
+    
+    // Check if contact already exists
+    const existing = await this.prisma.contact.findFirst({
+      where: { phone, userId }
     });
+    
+    if (existing) {
+      throw new NotFoundException('Contact with this phone number already exists');
+    }
+    
+    return this.prisma.contact.create({
+      data: { ...data, phone, userId },
+    });
+  }
+
+  private formatPhoneNumber(phone: string): string {
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    
+    // Always add 91 prefix for 10 digit numbers
+    if (cleanPhone.length === 10) {
+      return `91${cleanPhone}`;
+    }
+    
+    return cleanPhone;
   }
 
   async findAll(
@@ -24,7 +47,7 @@ export class ContactService {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { phone: { contains: search } },
-        { lastCampaignName: { contains: search, mode: 'insensitive' } },
+        { group: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -94,16 +117,23 @@ export class ContactService {
       update: {
         name: name || phone,
         lastMessageDate: new Date(),
-        lastCampaignName: campaignName,
       },
       create: {
         name: name || phone,
         phone,
         lastMessageDate: new Date(),
-        lastCampaignName: campaignName,
         userId,
       },
     });
+  }
+
+  async getGroups(userId: number) {
+    const contacts = await this.prisma.contact.findMany({
+      where: { userId, group: { not: null } },
+      select: { group: true },
+      distinct: ['group'],
+    });
+    return contacts.map(c => c.group).filter(Boolean);
   }
 
   async getLabels(userId: number) {

@@ -27,6 +27,8 @@ model User {
   useQuickReply Boolean @default(true)
   customLabels String[] @default([])
   subscriptionId Int?
+  subscriptionStartDate DateTime?
+  subscriptionEndDate DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -41,6 +43,7 @@ model User {
   contacts  Contact[]
   chatLabels ChatLabel[]
   subscription SubscriptionPlan? @relation(fields: [subscriptionId], references: [id])
+  subscriptionOrders SubscriptionOrder[]
 }
 
 model MasterConfig {
@@ -231,4 +234,20 @@ model SubscriptionPlan {
   updatedAt   DateTime @updatedAt
   
   users       User[]
+  orders      SubscriptionOrder[]
+}
+
+model SubscriptionOrder {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  planId      Int
+  amount      Float
+  startDate   DateTime
+  endDate     DateTime
+  status      String   @default("pending") // pending, active, expired, cancelled
+  isCurrentPlan Boolean @default(false)
+  createdAt   DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan        SubscriptionPlan @relation(fields: [planId], references: [id])
 }

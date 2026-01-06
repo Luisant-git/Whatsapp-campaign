@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MdAdd, MdEdit, MdDelete } from 'react-icons/md';
-import { getAllSubscriptions, createSubscription, updateSubscription, deleteSubscription } from '../api/subscription';
+import { getAllSubscriptions, getUserSubscriptions, createSubscription, updateSubscription, deleteSubscription } from '../api/subscription';
 import '../styles/Subscriptions.css';
 
 const Subscriptions = () => {
@@ -100,30 +100,32 @@ const Subscriptions = () => {
       </div>
 
       <div className="plans-list">
-        {plans.map((plan) => (
-          <div key={plan.id} className="plan-item">
-            <div className="plan-info">
-              <h3>{plan.name}</h3>
-              <p className="plan-price">₹{plan.price} / {plan.duration} days</p>
-              <ul className="plan-features-list">
-                {plan.features.map((feature, i) => (
-                  <li key={i}>{feature}</li>
-                ))}
-              </ul>
-              <span className={`status-badge ${plan.isActive ? 'active' : 'inactive'}`}>
-                {plan.isActive ? 'Active' : 'Inactive'}
-              </span>
+        <div className="plans-grid">
+          {plans.map((plan) => (
+            <div key={plan.id} className="plan-item">
+              <div className="plan-info">
+                <h3>{plan.name}</h3>
+                <p className="plan-price">₹{plan.price} / {plan.duration} days</p>
+                <ul className="plan-features-list">
+                  {plan.features.map((feature, i) => (
+                    <li key={i}>{feature}</li>
+                  ))}
+                </ul>
+                <span className={`status-badge ${plan.isActive ? 'active' : 'inactive'}`}>
+                  {plan.isActive ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+              <div className="plan-actions">
+                <button onClick={() => handleEdit(plan)} className="btn-edit">
+                  <MdEdit size={16} />
+                </button>
+                <button onClick={() => handleDelete(plan.id)} className="btn-delete">
+                  <MdDelete size={16} />
+                </button>
+              </div>
             </div>
-            <div className="plan-actions">
-              <button onClick={() => handleEdit(plan)} className="btn-edit">
-                <MdEdit size={16} />
-              </button>
-              <button onClick={() => handleDelete(plan.id)} className="btn-delete">
-                <MdDelete size={16} />
-              </button>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {showForm && (
@@ -204,6 +206,7 @@ const Subscriptions = () => {
         </div>
       )}
     </div>
+
   );
 };
 

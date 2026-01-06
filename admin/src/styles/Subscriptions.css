@@ -15,6 +15,35 @@
   color: #333;
 }
 
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.tab {
+  padding: 12px 24px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.tab.active {
+  color: #1976d2;
+  border-bottom-color: #1976d2;
+}
+
+.tab:hover {
+  color: #1976d2;
+}
+
 .plans-list {
   display: grid;
   gap: 16px;
@@ -74,6 +103,11 @@
   color: #999;
 }
 
+.status-badge.expired {
+  background: #ffebee;
+  color: #d32f2f;
+}
+
 .plan-actions {
   display: flex;
   gap: 8px;
@@ -103,6 +137,41 @@
 
 .btn-delete:hover {
   background: #ffcdd2;
+}
+
+.users-subscriptions {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.subscriptions-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.subscriptions-table thead {
+  background: #f5f5f5;
+}
+
+.subscriptions-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.subscriptions-table td {
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #666;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.subscriptions-table tbody tr:hover {
+  background: #f9f9f9;
 }
 
 .modal-overlay {

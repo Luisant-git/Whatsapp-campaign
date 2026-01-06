@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Put, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete, UseGuards, Session } from '@nestjs/common';
 import { SubscriptionService } from './subscription.service';
 import { SessionGuard } from '../auth/session.guard';
 
@@ -20,6 +20,48 @@ export class SubscriptionController {
   @Get('active')
   findActive() {
     return this.subscriptionService.findActive();
+  }
+
+  @Get('current')
+  @UseGuards(SessionGuard)
+  getCurrentPlan(@Session() session: any) {
+    return this.subscriptionService.getCurrentPlan(session.user.id);
+  }
+
+  @Get('my-orders')
+  @UseGuards(SessionGuard)
+  getUserOrders(@Session() session: any) {
+    return this.subscriptionService.getUserOrders(session.user.id);
+  }
+
+  @Get('users')
+  @UseGuards(SessionGuard)
+  getAllUserSubscriptions() {
+    return this.subscriptionService.getAllUserSubscriptions();
+  }
+
+  @Get('orders/all')
+  @UseGuards(SessionGuard)
+  getAllOrders() {
+    return this.subscriptionService.getAllOrders();
+  }
+
+  @Put('orders/:id/status')
+  @UseGuards(SessionGuard)
+  updateOrderStatus(@Param('id') id: string, @Body() data: { status: string }) {
+    return this.subscriptionService.updateOrderStatus(+id, data.status);
+  }
+
+  @Put('set-current/:orderId')
+  @UseGuards(SessionGuard)
+  setCurrentPlan(@Session() session: any, @Param('orderId') orderId: string) {
+    return this.subscriptionService.setCurrentPlan(session.user.id, +orderId);
+  }
+
+  @Post('subscribe/:planId')
+  @UseGuards(SessionGuard)
+  subscribe(@Session() session: any, @Param('planId') planId: string) {
+    return this.subscriptionService.subscribe(session.user.id, +planId);
   }
 
   @Get(':id')

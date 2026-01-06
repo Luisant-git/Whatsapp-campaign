@@ -320,7 +320,7 @@ export default function Contact() {
                     <td>{contact.group || 'N/A'}</td>
                     <td>
                       {contact.lastMessageDate 
-                        ? new Date(contact.lastMessageDate).toLocaleDateString()
+                        ? new Date(contact.lastMessageDate).toLocaleDateString('en-GB')
                         : 'N/A'
                       }
                     </td>

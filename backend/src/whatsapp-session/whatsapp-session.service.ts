@@ -62,7 +62,7 @@ export class WhatsappSessionService {
         if (nestedQuickReply) {
           console.log('Found nested quick reply:', nestedQuickReply);
           const buttons = nestedQuickReply.buttons as string[];
-          await sendButtonsCallback(from, buttons[0] || 'Response', buttons.slice(1));
+          await sendButtonsCallback(from, 'Choose an option:', buttons);
           return true; // Handled
         }
 
@@ -84,7 +84,7 @@ export class WhatsappSessionService {
       console.log('Quick reply found:', quickReply);
       if (quickReply) {
         const buttons = quickReply.buttons as string[];
-        await sendButtonsCallback(from, buttons[0] || 'Response', buttons.slice(1));
+        await sendButtonsCallback(from, 'Choose an option:', buttons);
         return true; // Handled
       }
     }

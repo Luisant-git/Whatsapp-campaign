@@ -25,6 +25,7 @@ model User {
   isActive  Boolean  @default(true)
   aiChatbotEnabled Boolean @default(false)
   useQuickReply Boolean @default(true)
+  responsePriority String @default("quickreply") // quickreply, chatbot
   customLabels String[] @default([])
   subscriptionId Int?
   subscriptionStartDate DateTime?

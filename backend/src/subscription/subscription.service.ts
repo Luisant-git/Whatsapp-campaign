@@ -80,38 +80,47 @@ export class SubscriptionService {
   }
 
   async getCurrentPlan(userId: number) {
-    // Get current order
-    let currentOrder = await this.prisma.subscriptionOrder.findFirst({
-      where: { userId, isCurrentPlan: true, status: 'active' },
+    // Get the most recent active order based on creation date
+    const latestOrder = await this.prisma.subscriptionOrder.findFirst({
+      where: { userId, status: 'active' },
+      orderBy: { createdAt: 'desc' },
       include: { plan: true }
     });
 
-    // If no current plan set, auto-set the most recent active one
-    if (!currentOrder) {
-      const latestActive = await this.prisma.subscriptionOrder.findFirst({
-        where: { userId, status: 'active' },
-        orderBy: { createdAt: 'desc' },
-        include: { plan: true }
-      });
-
-      if (latestActive) {
-        await this.prisma.subscriptionOrder.update({
-          where: { id: latestActive.id },
-          data: { isCurrentPlan: true }
-        });
-        currentOrder = latestActive;
-      }
-    }
-
-    if (!currentOrder) {
+    if (!latestOrder) {
       return { subscription: null, isActive: false };
     }
 
-    const isActive = new Date(currentOrder.endDate) > new Date();
+    // Auto-set as current plan if not already
+    if (!latestOrder.isCurrentPlan) {
+      // Unset all other current plans
+      await this.prisma.subscriptionOrder.updateMany({
+        where: { userId, isCurrentPlan: true },
+        data: { isCurrentPlan: false }
+      });
+      
+      // Set latest as current
+      await this.prisma.subscriptionOrder.update({
+        where: { id: latestOrder.id },
+        data: { isCurrentPlan: true }
+      });
+
+      // Update user subscription
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          subscriptionId: latestOrder.planId,
+          subscriptionStartDate: latestOrder.startDate,
+          subscriptionEndDate: latestOrder.endDate
+        }
+      });
+    }
+
+    const isActive = new Date(latestOrder.endDate) > new Date();
     return {
-      subscription: currentOrder.plan,
-      startDate: currentOrder.startDate,
-      endDate: currentOrder.endDate,
+      subscription: latestOrder.plan,
+      startDate: latestOrder.startDate,
+      endDate: latestOrder.endDate,
       isActive
     };
   }
@@ -167,29 +176,37 @@ export class SubscriptionService {
       data: { status }
     });
 
-    // If approved, set as current plan and update user subscription
+    // If approved, automatically set as current plan if it's the most recent
     if (status === 'active') {
-      // Unset other current plans
-      await this.prisma.subscriptionOrder.updateMany({
-        where: { userId: order.userId, isCurrentPlan: true },
-        data: { isCurrentPlan: false }
+      const latestOrder = await this.prisma.subscriptionOrder.findFirst({
+        where: { userId: order.userId, status: 'active' },
+        orderBy: { createdAt: 'desc' }
       });
 
-      // Set this as current plan
-      await this.prisma.subscriptionOrder.update({
-        where: { id: orderId },
-        data: { isCurrentPlan: true }
-      });
+      // If this is the most recent order, set it as current
+      if (latestOrder && latestOrder.id === orderId) {
+        // Unset other current plans
+        await this.prisma.subscriptionOrder.updateMany({
+          where: { userId: order.userId, isCurrentPlan: true },
+          data: { isCurrentPlan: false }
+        });
 
-      // Update user subscription
-      await this.prisma.user.update({
-        where: { id: order.userId },
-        data: {
-          subscriptionId: order.planId,
-          subscriptionStartDate: order.startDate,
-          subscriptionEndDate: order.endDate
-        }
-      });
+        // Set this as current plan
+        await this.prisma.subscriptionOrder.update({
+          where: { id: orderId },
+          data: { isCurrentPlan: true }
+        });
+
+        // Update user subscription
+        await this.prisma.user.update({
+          where: { id: order.userId },
+          data: {
+            subscriptionId: order.planId,
+            subscriptionStartDate: order.startDate,
+            subscriptionEndDate: order.endDate
+          }
+        });
+      }
     }
 
     return { message: 'Order status updated', order };

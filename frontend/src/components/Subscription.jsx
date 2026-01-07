@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getSubscriptions, getCurrentPlan, subscribeToPlan, getUserOrders, setCurrentPlan as setCurrentPlanAPI } from '../api/subscription';
+import { getSubscriptions, getCurrentPlan, subscribeToPlan, getUserOrders } from '../api/subscription';
 import { Check, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import '../styles/Subscription.css';
@@ -10,6 +10,7 @@ const Subscription = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showDowngradeModal, setShowDowngradeModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [activeTab, setActiveTab] = useState('plans');
 
@@ -35,6 +36,15 @@ const Subscription = () => {
   };
 
   const handleSubscribeClick = (plan) => {
+    // Check if user has current plan and trying to downgrade
+    if (currentPlan?.subscription && currentPlan.isActive) {
+      if (plan.price < currentPlan.subscription.price) {
+        setSelectedPlan(plan);
+        setShowDowngradeModal(true);
+        return;
+      }
+    }
+    
     setSelectedPlan(plan);
     setShowConfirmModal(true);
   };
@@ -66,20 +76,6 @@ const Subscription = () => {
       case 'expired': return <AlertCircle size={16} />;
       case 'cancelled': return <XCircle size={16} />;
       default: return null;
-    }
-  };
-
-  const handleSetCurrentPlan = async (orderId) => {
-    console.log('Clicking Use This Plan, orderId:', orderId);
-    try {
-      console.log('Calling setCurrentPlan API...');
-      const result = await setCurrentPlanAPI(orderId);
-      console.log('API Response:', result);
-      toast.success('Current plan updated!');
-      await fetchData();
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error('Failed to update current plan');
     }
   };
 
@@ -201,11 +197,6 @@ const Subscription = () => {
                       <span className="value">{formatDate(order.createdAt)}</span>
                     </div>
                   </div>
-                  {order.status === 'active' && !order.isCurrentPlan && (
-                    <button className="btn-use-plan" onClick={() => handleSetCurrentPlan(order.id)}>
-                      Use This Plan
-                    </button>
-                  )}
                 </div>
               ))}
             </div>
@@ -225,6 +216,26 @@ const Subscription = () => {
             <div className="modal-actions">
               <button className="btn-cancel" onClick={() => setShowConfirmModal(false)}>Cancel</button>
               <button className="btn-confirm" onClick={confirmSubscription}>Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDowngradeModal && selectedPlan && (
+        <div className="modal-overlay" onClick={() => setShowDowngradeModal(false)}>
+          <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>⚠️ Downgrade Not Allowed</h3>
+            <div className="modal-plan-info">
+              <p className="downgrade-text">
+                You are trying to downgrade from <strong>{currentPlan?.subscription?.name}</strong> (₹{currentPlan?.subscription?.price}) 
+                to <strong>{selectedPlan.name}</strong> (₹{selectedPlan.price}).
+              </p>
+              <p className="downgrade-text">
+                Downgrades are not permitted. You can only upgrade to a higher plan.
+              </p>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-confirm" onClick={() => setShowDowngradeModal(false)}>Understood</button>
             </div>
           </div>
         </div>

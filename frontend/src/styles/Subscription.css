@@ -465,3 +465,22 @@
 .btn-use-plan:hover {
   background: #20b858;
 }
+
+.downgrade-text {
+  color: #666;
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.downgrade-text strong {
+  color: #333;
+  font-weight: 600;
+}
+
+.confirm-modal h3 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}

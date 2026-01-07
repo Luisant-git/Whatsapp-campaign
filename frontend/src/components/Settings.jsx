@@ -40,7 +40,9 @@ const Settings = ({ onNavigate }) => {
   const [selectedMasterConfig, setSelectedMasterConfig] = useState(null);
   const [useQuickReply, setUseQuickReply] = useState(true);
   const [aiChatbotEnabled, setAiChatbotEnabled] = useState(false);
+  const [responsePriority, setResponsePriority] = useState('quickreply');
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [activeTab, setActiveTab] = useState('configurations');
 
   useEffect(() => {
     fetchAllSettings();
@@ -62,6 +64,7 @@ const Settings = ({ onNavigate }) => {
       const data = await getProfile();
       setUseQuickReply(data.user?.useQuickReply !== false);
       setAiChatbotEnabled(data.user?.aiChatbotEnabled || false);
+      setResponsePriority(data.user?.responsePriority || 'quickreply');
     } catch (error) {
       console.error("Failed to fetch user profile:", error);
     }
@@ -191,18 +194,37 @@ const Settings = ({ onNavigate }) => {
     }
   };
 
-  const handleTogglePreference = async (value) => {
-    if (!value && !aiChatbotEnabled) {
+  const handleToggleQuickReply = async (value) => {
+    try {
+      await updateUserPreference({ useQuickReply: value });
+      setUseQuickReply(value);
+      showSuccess(`Quick Reply ${value ? 'enabled' : 'disabled'}`);
+    } catch (error) {
+      showError('Failed to update preference');
+    }
+  };
+
+  const handleToggleChatbot = async (value) => {
+    if (value && !aiChatbotEnabled) {
       setShowPurchaseModal(true);
       return;
     }
     try {
-      await updateUserPreference({ useQuickReply: value });
-      setUseQuickReply(value);
-      showSuccess(`Switched to ${value ? 'Quick Reply' : 'AI Chatbot'}`);
+      await updateUserPreference({ aiChatbotEnabled: value });
+      setAiChatbotEnabled(value);
+      showSuccess(`AI Chatbot ${value ? 'enabled' : 'disabled'}`);
     } catch (error) {
-      console.error("Failed to update preference:", error);
       showError('Failed to update preference');
+    }
+  };
+
+  const handlePriorityChange = async (priority) => {
+    try {
+      await updateUserPreference({ responsePriority: priority });
+      setResponsePriority(priority);
+      showSuccess(`Response priority updated to ${priority === 'quickreply' ? 'Quick Reply' : 'AI Chatbot'}`);
+    } catch (error) {
+      showError('Failed to update priority');
     }
   };
 
@@ -221,109 +243,239 @@ const Settings = ({ onNavigate }) => {
           <h1>WhatsApp API Settings</h1>
           <p>Manage multiple WhatsApp Business API configurations.</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowForm(true)}>
-          <Plus size={16} /> Add Configuration
+        {activeTab === 'configurations' && (
+          <button className="btn-primary" onClick={() => setShowForm(true)}>
+            <Plus size={16} /> Add Configuration
+          </button>
+        )}
+      </div>
+
+      <div className="tabs" style={{marginBottom: '24px', borderBottom: '2px solid #e0e0e0'}}>
+        <button 
+          className={activeTab === 'configurations' ? 'tab active' : 'tab'}
+          onClick={() => setActiveTab('configurations')}
+          style={{
+            padding: '12px 24px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'configurations' ? '2px solid #25d366' : '2px solid transparent',
+            marginBottom: '-2px',
+            cursor: 'pointer',
+            fontSize: '15px',
+            fontWeight: activeTab === 'configurations' ? '600' : '500',
+            color: activeTab === 'configurations' ? '#25d366' : '#666'
+          }}
+        >
+          Configurations
+        </button>
+        <button 
+          className={activeTab === 'preferences' ? 'tab active' : 'tab'}
+          onClick={() => setActiveTab('preferences')}
+          style={{
+            padding: '12px 24px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'preferences' ? '2px solid #25d366' : '2px solid transparent',
+            marginBottom: '-2px',
+            cursor: 'pointer',
+            fontSize: '15px',
+            fontWeight: activeTab === 'preferences' ? '600' : '500',
+            color: activeTab === 'preferences' ? '#25d366' : '#666'
+          }}
+        >
+          Response Preference
         </button>
       </div>
 
-      <div className="settings-form" style={{marginBottom: '20px'}}>
-        <h2>Response Preference</h2>
-        <div className="form-group">
-          <label>Choose how to respond to trigger messages</label>
-          <div style={{display: 'flex', gap: '12px', marginTop: '10px'}}>
-            <button 
-              className={useQuickReply ? 'btn-primary' : 'btn-secondary'}
-              onClick={() => handleTogglePreference(true)}
-            >
-              Quick Reply Buttons
-            </button>
-            <button 
-              className={!useQuickReply ? 'btn-primary' : 'btn-secondary'}
-              onClick={() => handleTogglePreference(false)}
-              style={!aiChatbotEnabled ? {position: 'relative'} : {}}
-            >
-              AI Chatbot {!aiChatbotEnabled && '🔒'}
-            </button>
-          </div>
-          <small style={{display: 'block', marginTop: '8px', color: '#666'}}>
-            {useQuickReply 
-              ? 'Users will see interactive buttons when they send trigger words' 
-              : aiChatbotEnabled 
-                ? 'AI Chatbot will respond automatically to user messages'
-                : 'AI Chatbot feature requires purchase. Contact support to enable.'}
-          </small>
-        </div>
-      </div>
+      {activeTab === 'preferences' && (
+        <div className="preference-container">
+          <div className="preference-card">
+            <div className="preference-header">
+              <h2>Response Methods</h2>
+              <p>Configure how your WhatsApp bot responds to incoming messages</p>
+            </div>
 
-      <div className="settings-list">
-        <h2>Configurations</h2>
-        {allSettings.length === 0 ? (
-          <p>No configurations found. Create your first configuration.</p>
-        ) : (
-          <div className="configurations-grid">
-            {allSettings.map((config) => (
-              <div
-                key={config.id}
-                className={`config-card ${config.isDefault ? "default" : ""}`}
-              >
-                <div className="config-header">
-                  <h3>{config.name}</h3>
-                  {config.isDefault && (
-                    <Star size={16} className="default-icon" />
+            <div className="response-methods">
+              <div className={`method-card ${useQuickReply ? 'active' : ''}`}>
+                <div className="method-icon">⚡</div>
+                <div className="method-content">
+                  <div className="method-title">
+                    <h3>Quick Reply Buttons</h3>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={useQuickReply}
+                        onChange={(e) => handleToggleQuickReply(e.target.checked)}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <p className="method-description">
+                    Provide predefined button options for quick customer responses. Perfect for FAQs and common queries.
+                  </p>
+                  {useQuickReply && (
+                    <div className="method-status active-status">
+                      <span className="status-dot"></span>
+                      Active
+                    </div>
                   )}
                 </div>
-                <div className="config-details">
-                  <p>
-                    <strong>Template:</strong> {config.templateName}
+              </div>
+
+              <div className={`method-card ${aiChatbotEnabled ? 'active' : ''} ${!aiChatbotEnabled && !useQuickReply ? 'locked' : ''}`}>
+                <div className="method-icon">🤖</div>
+                <div className="method-content">
+                  <div className="method-title">
+                    <h3>AI Chatbot {!aiChatbotEnabled && !useQuickReply && <span className="lock-badge">🔒 Premium</span>}</h3>
+                    <label className={`toggle-switch ${!aiChatbotEnabled && !useQuickReply ? 'disabled' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={aiChatbotEnabled}
+                        onChange={(e) => handleToggleChatbot(e.target.checked)}
+                        disabled={!aiChatbotEnabled && !useQuickReply}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <p className="method-description">
+                    Intelligent AI-powered responses that understand context and provide natural conversations.
                   </p>
-                  <p>
-                    <strong>Language:</strong> {config.language}
-                  </p>
-                  {config.masterConfigId ? (
-                    <p>
-                      <strong>Config:</strong> {masterConfigs.find(mc => mc.id === config.masterConfigId)?.name || 'Unknown'}
-                    </p>
-                  ) : (
-                    <p>
-                      <strong>Phone ID:</strong> {config.phoneNumberId}
-                    </p>
+                  {aiChatbotEnabled && (
+                    <div className="method-status active-status">
+                      <span className="status-dot"></span>
+                      Active
+                    </div>
+                  )}
+                  {!aiChatbotEnabled && !useQuickReply && (
+                    <button className="upgrade-btn" onClick={() => setShowPurchaseModal(true)}>
+                      Upgrade to Enable
+                    </button>
                   )}
                 </div>
-                <div className="config-actions">
+              </div>
+            </div>
+
+            {useQuickReply && aiChatbotEnabled && (
+              <div className="priority-section">
+                <div className="priority-header">
+                  <h3>Response Priority</h3>
+                  <p>Choose which method responds first. The system will fallback to the other if no match is found.</p>
+                </div>
+                <div className="priority-options">
                   <button
-                    onClick={() => handleEdit(config)}
-                    className="btn-secondary"
+                    className={`priority-btn ${responsePriority === 'quickreply' ? 'selected' : ''}`}
+                    onClick={() => handlePriorityChange('quickreply')}
                   >
-                    Edit
+                    <div className="priority-icon">⚡</div>
+                    <div className="priority-content">
+                      <span className="priority-label">Quick Reply First</span>
+                      <span className="priority-desc">Try button matches first, then AI</span>
+                    </div>
+                    {responsePriority === 'quickreply' && <span className="check-icon">✓</span>}
                   </button>
-                  {!config.masterConfigId && (
-                    <button
-                      onClick={() => setSelectedMasterConfig(config)}
-                      className="btn-outline"
-                    >
-                      <Eye size={16} /> View Details
-                    </button>
-                  )}
-                  {!config.isDefault && (
-                    <button
-                      onClick={() => handleSetDefault(config.id)}
-                      className="btn-outline"
-                    >
-                      Set Default
-                    </button>
-                  )}
                   <button
-                    onClick={() => handleDelete(config.id)}
-                    className="btn-danger"
+                    className={`priority-btn ${responsePriority === 'chatbot' ? 'selected' : ''}`}
+                    onClick={() => handlePriorityChange('chatbot')}
                   >
-                    <Trash2 size={16} />
+                    <div className="priority-icon">🤖</div>
+                    <div className="priority-content">
+                      <span className="priority-label">AI Chatbot First</span>
+                      <span className="priority-desc">Try AI response first, then buttons</span>
+                    </div>
+                    {responsePriority === 'chatbot' && <span className="check-icon">✓</span>}
                   </button>
                 </div>
               </div>
-            ))}
+            )}
+
+            <div className="preference-info">
+              <div className="info-icon">ℹ️</div>
+              <div className="info-content">
+                <strong>Current Configuration:</strong>
+                {useQuickReply && aiChatbotEnabled
+                  ? ` Both methods enabled. ${responsePriority === 'quickreply' ? 'Quick Reply' : 'AI Chatbot'} will respond first with automatic fallback.`
+                  : useQuickReply && !aiChatbotEnabled
+                    ? ' Only Quick Reply buttons are active.'
+                    : !useQuickReply && aiChatbotEnabled
+                      ? ' Only AI Chatbot is active.'
+                      : ' No response method is active. Please enable at least one method.'}
+              </div>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {activeTab === 'configurations' && (
+        <div className="settings-list">
+          <h2>Configurations</h2>
+          {allSettings.length === 0 ? (
+            <p>No configurations found. Create your first configuration.</p>
+          ) : (
+            <div className="configurations-grid">
+              {allSettings.map((config) => (
+                <div
+                  key={config.id}
+                  className={`config-card ${config.isDefault ? "default" : ""}`}
+                >
+                  <div className="config-header">
+                    <h3>{config.name}</h3>
+                    {config.isDefault && (
+                      <Star size={16} className="default-icon" />
+                    )}
+                  </div>
+                  <div className="config-details">
+                    <p>
+                      <strong>Template:</strong> {config.templateName}
+                    </p>
+                    <p>
+                      <strong>Language:</strong> {config.language}
+                    </p>
+                    {config.masterConfigId ? (
+                      <p>
+                        <strong>Config:</strong> {masterConfigs.find(mc => mc.id === config.masterConfigId)?.name || 'Unknown'}
+                      </p>
+                    ) : (
+                      <p>
+                        <strong>Phone ID:</strong> {config.phoneNumberId}
+                      </p>
+                    )}
+                  </div>
+                  <div className="config-actions">
+                    <button
+                      onClick={() => handleEdit(config)}
+                      className="btn-secondary"
+                    >
+                      Edit
+                    </button>
+                    {!config.masterConfigId && (
+                      <button
+                        onClick={() => setSelectedMasterConfig(config)}
+                        className="btn-outline"
+                      >
+                        <Eye size={16} /> View Details
+                      </button>
+                    )}
+                    {!config.isDefault && (
+                      <button
+                        onClick={() => handleSetDefault(config.id)}
+                        className="btn-outline"
+                      >
+                        Set Default
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(config.id)}
+                      className="btn-danger"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {showForm && (
         <div className="modal-overlay">
@@ -477,6 +629,10 @@ const Settings = ({ onNavigate }) => {
                 <small style={{display: 'block', marginBottom: '8px', color: '#666'}}>
                   Only add if your WhatsApp template has an image header parameter
                 </small>
+                <ul style={{margin: '0 0 8px 0', padding: '0 0 0 20px', fontSize: '12px', color: '#666'}}>
+                  <li>Supported formats: JPG, JPEG, PNG, GIF</li>
+                  <li>Maximum size: 5MB</li>
+                </ul>
                 <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
                   <label className="btn-secondary" style={{cursor: 'pointer', margin: 0}}>
                     <Upload size={16} /> {uploading ? 'Uploading...' : 'Upload Image'}
@@ -489,51 +645,49 @@ const Settings = ({ onNavigate }) => {
                     />
                   </label>
                   {currentSettings.headerImageUrl && (
-                    <>
-                      <span style={{fontSize: '12px', color: '#28a745'}}>✓ Image uploaded</span>
-                      <button 
-                        className="btn-danger" 
-                        style={{padding: '6px 12px', fontSize: '12px'}}
-                        onClick={() => handleInputChange('headerImageUrl', '')}
-                      >
-                        <Trash2 size={14} /> Remove
-                      </button>
-                    </>
+                    <span style={{fontSize: '12px', color: '#28a745'}}>✓ Image uploaded</span>
                   )}
                 </div>
                 {currentSettings.headerImageUrl && (
-                  <div style={{marginTop: '10px'}}>
+                  <div style={{marginTop: '10px', position: 'relative', display: 'inline-block', width: '200px'}}>
                     <img 
                       src={currentSettings.headerImageUrl} 
                       alt="Header preview" 
                       style={{
-                        maxWidth: '200px', 
-                        maxHeight: '150px',
+                        width: '100%',
+                        height: '150px',
                         borderRadius: '4px',
                         border: '1px solid #ddd',
-                        objectFit: 'cover'
-                      }}
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'block';
-                      }}
-                      onLoad={(e) => {
-                        e.target.style.display = 'block';
-                        e.target.nextSibling.style.display = 'none';
+                        objectFit: 'cover',
+                        display: 'block'
                       }}
                     />
-                    <div style={{
-                      display: 'none',
-                      padding: '20px',
-                      border: '1px solid #ddd',
-                      borderRadius: '4px',
-                      backgroundColor: '#f5f5f5',
-                      color: '#666',
-                      textAlign: 'center',
-                      maxWidth: '200px'
-                    }}>
-                      Image preview unavailable
-                    </div>
+                    <button 
+                      type="button"
+                      style={{
+                        position: 'absolute',
+                        top: '8px',
+                        right: '8px',
+                        width: '28px',
+                        height: '28px',
+                        padding: '0',
+                        border: 'none',
+                        borderRadius: '50%',
+                        background: 'rgba(239, 68, 68, 0.9)',
+                        color: 'white',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '18px',
+                        fontWeight: 'bold',
+                        lineHeight: '1'
+                      }}
+                      onClick={() => handleInputChange('headerImageUrl', '')}
+                      title="Remove image"
+                    >
+                      ×
+                    </button>
                   </div>
                 )}
               </div>

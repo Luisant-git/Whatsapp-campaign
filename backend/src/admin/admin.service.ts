@@ -95,6 +95,35 @@ export class AdminService {
       },
     });
   }
+
+  async registerUser(createUserDto: { name: string; email: string; password: string }) {
+    const { email, name, password } = createUserDto;
+
+    const existingUser = await this.prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      throw new ConflictException('User with this email already exists');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        name,
+        password: hashedPassword,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        isActive: true,
+        aiChatbotEnabled: true,
+        createdAt: true,
+      },
+    });
+
+    return { message: 'User registered successfully', user };
+  }
  
   async toggleUserChatbot(userId: number) {
     const user = await this.prisma.user.findUnique({

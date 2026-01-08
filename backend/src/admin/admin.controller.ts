@@ -91,6 +91,12 @@ export class AdminController {
   getAllUsers() {
     return this.adminService.getAllUsers();
   }
+
+  @Post('users/register')
+  @ApiOperation({ summary: 'Register a new user' })
+  async registerUser(@Body() createUserDto: { name: string; email: string; password: string }) {
+    return this.adminService.registerUser(createUserDto);
+  }
  
   @Patch('users/:id/toggle-chatbot')
   @ApiOperation({ summary: 'Toggle AI chatbot for user' })

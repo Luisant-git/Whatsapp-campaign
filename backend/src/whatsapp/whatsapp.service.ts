@@ -337,6 +337,20 @@ export class WhatsappService {
     }
   }
 
+  async findAllUsersByPhoneNumberId(phoneNumberId: string): Promise<number[]> {
+    try {
+      const settings = await this.prisma.whatsAppSettings.findMany({
+        where: { phoneNumberId },
+        select: { userId: true },
+        distinct: ['userId']
+      });
+      return settings.map(s => s.userId);
+    } catch (error) {
+      this.logger.error('Error finding users by phone number ID:', error);
+      return [];
+    }
+  }
+
   async findFirstActiveUser(): Promise<number | null> {
     try {
       const user = await this.prisma.user.findFirst({

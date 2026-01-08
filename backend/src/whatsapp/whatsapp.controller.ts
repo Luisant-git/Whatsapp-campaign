@@ -69,19 +69,25 @@ export class WhatsappController {
             const message = change.value.messages?.[0];
             if (message) {
               console.log('Processing incoming message:', message);
-              // Find the user based on phone number ID from webhook metadata
               const phoneNumberId = change.value.metadata?.phone_number_id;
-              let userId = await this.whatsappService.findUserByPhoneNumberId(phoneNumberId);
               
-              // Fallback: if no user found, try to find by any active user (for single-user setups)
-              if (!userId) {
-                userId = await this.whatsappService.findFirstActiveUser();
-              }
+              // Get all users with this phone number ID
+              const userIds = await this.whatsappService.findAllUsersByPhoneNumberId(phoneNumberId);
               
-              if (userId) {
-                await this.whatsappService.handleIncomingMessage(message, userId);
+              if (userIds && userIds.length > 0) {
+                // Store message for all users sharing this phone number
+                for (const userId of userIds) {
+                  await this.whatsappService.handleIncomingMessage(message, userId);
+                }
               } else {
-                console.log('No user found for phone number ID:', phoneNumberId);
+                // Fallback: try to find any active user
+                const userId = await this.whatsappService.findFirstActiveUser();
+                if (userId) {
+                  await this.whatsappService.handleIncomingMessage(message, userId);
+                } else {
+                  console.log('No user found for phone number ID:', phoneNumberId);
+                  console.log('Message not stored - no matching user configuration');
+                }
               }
             }
             const statuses = change.value.statuses;

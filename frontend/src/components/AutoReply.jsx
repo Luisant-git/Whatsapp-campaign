@@ -18,7 +18,9 @@ const AutoReply = () => {
 
   const fetchReplies = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auto-reply`);
+      const response = await fetch(`${API_BASE_URL}/auto-reply`, {
+        credentials: 'include'
+      });
       if (response.ok) {
         const data = await response.json();
         setReplies(Array.isArray(data) ? data : []);
@@ -42,6 +44,7 @@ const AutoReply = () => {
       const response = await fetch(`${API_BASE_URL}/auto-reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ triggers: triggersArray, response: newResponse })
       });
       
@@ -66,7 +69,8 @@ const AutoReply = () => {
     if (confirmed) {
       try {
         const response = await fetch(`${API_BASE_URL}/auto-reply/${id}`, {
-          method: 'DELETE'
+          method: 'DELETE',
+          credentials: 'include'
         });
         
         if (response.ok) {

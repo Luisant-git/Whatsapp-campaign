@@ -25,7 +25,9 @@ const QuickReply = () => {
 
   const fetchQuickReplies = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/quick-reply`);
+      const response = await fetch(`${API_BASE_URL}/quick-reply`, {
+        credentials: 'include'
+      });
       if (response.ok) {
         const data = await response.json();
         setQuickReplies(Array.isArray(data) ? data : []);
@@ -106,6 +108,7 @@ const QuickReply = () => {
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           triggers,
           buttons: formData.buttons,
@@ -141,7 +144,8 @@ const QuickReply = () => {
     if (confirmed) {
       try {
         const response = await fetch(`${API_BASE_URL}/quick-reply/${id}`, {
-          method: 'DELETE'
+          method: 'DELETE',
+          credentials: 'include'
         });
         if (response.ok) {
           fetchQuickReplies();

@@ -59,6 +59,16 @@ export class WhatsappService {
 
     this.logger.log(`Storing incoming message: from=${from}, to=${from}, message=${text || (mediaType ? `${mediaType} file` : 'button click')}`);
     
+    // Check if message already exists
+    const existingMessage = await this.prisma.whatsAppMessage.findUnique({
+      where: { messageId }
+    });
+
+    if (existingMessage) {
+      this.logger.log(`Message ${messageId} already exists, skipping`);
+      return;
+    }
+
     await this.prisma.whatsAppMessage.create({
       data: {
         messageId,

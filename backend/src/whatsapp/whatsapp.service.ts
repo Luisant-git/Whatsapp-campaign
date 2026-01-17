@@ -386,6 +386,19 @@ export class WhatsappService {
     }
   }
 
+  async findUserByVerifyToken(token: string): Promise<number | null> {
+    try {
+      const settings = await this.prisma.whatsAppSettings.findFirst({
+        where: { verifyToken: token },
+        select: { userId: true }
+      });
+      return settings?.userId || null;
+    } catch (error) {
+      this.logger.error('Error finding user by verify token:', error);
+      return null;
+    }
+  }
+
   async getMessages(userId: number, phoneNumber?: string) {
     return this.prisma.whatsAppMessage.findMany({
       where: { userId, ...(phoneNumber && { from: phoneNumber }) },

@@ -32,34 +32,35 @@ export class WhatsappController {
     private readonly campaignService: CampaignService
   ) {}
 
-  @Get('webhook')
+  @Get('webhook/:verifyToken')
   @ApiOperation({ summary: 'Verify WhatsApp webhook' })
+  @ApiParam({ name: 'verifyToken', required: true, description: 'Verify token from settings' })
   @ApiQuery({ name: 'hub.mode', required: true })
   @ApiQuery({ name: 'hub.verify_token', required: true })
   @ApiQuery({ name: 'hub.challenge', required: true })
   @ApiResponse({ status: 200, description: 'Webhook verified successfully' })
   @ApiResponse({ status: 403, description: 'Forbidden - Invalid token' })
-  async verifyWebhook(@Query() query: any) {
+  async verifyWebhook(@Param('verifyToken') verifyToken: string, @Query() query: any) {
     const mode = query['hub.mode'];
     const token = query['hub.verify_token'];
     const challenge = query['hub.challenge'];
 
-    if (mode === 'subscribe') {
-      // Check if token matches any user's verify token
-      const isValidToken = await this.whatsappService.validateVerifyToken(token);
+    if (mode === 'subscribe' && token === verifyToken) {
+      const isValidToken = await this.whatsappService.validateVerifyToken(verifyToken);
       if (isValidToken) {
-        console.log('Webhook verified');
+        console.log('Webhook verified for token:', verifyToken);
         return parseInt(challenge);
       }
     }
     throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);
   }
 
-  @Post('webhook')
+  @Post('webhook/:verifyToken')
   @ApiOperation({ summary: 'Handle incoming WhatsApp webhooks' })
+  @ApiParam({ name: 'verifyToken', required: true, description: 'Verify token from settings' })
   @ApiResponse({ status: 200, description: 'Webhook processed successfully' })
   @ApiResponse({ status: 404, description: 'Not Found' })
-  async handleWebhook(@Body() body: any) {
+  async handleWebhook(@Param('verifyToken') verifyToken: string, @Body() body: any) {
     console.log('Webhook received:', JSON.stringify(body, null, 2));
     
     if (body.object === 'whatsapp_business_account') {
@@ -71,8 +72,9 @@ export class WhatsappController {
               console.log('Processing incoming message:', message);
               const phoneNumberId = change.value.metadata?.phone_number_id;
               
-              // Get all users with this phone number ID
-              const userIds = await this.whatsappService.findAllUsersByPhoneNumberId(phoneNumberId);
+              // Get user by verify token first
+              const userId = await this.whatsappService.findUserByVerifyToken(verifyToken);
+              const userIds = userId ? [userId] : await this.whatsappService.findAllUsersByPhoneNumberId(phoneNumberId);
               
               if (userIds && userIds.length > 0) {
                 // Store message for all users sharing this phone number

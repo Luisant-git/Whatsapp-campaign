@@ -41,17 +41,28 @@ export class WhatsappController {
   @ApiResponse({ status: 200, description: 'Webhook verified successfully' })
   @ApiResponse({ status: 403, description: 'Forbidden - Invalid token' })
   async verifyWebhook(@Param('verifyToken') verifyToken: string, @Query() query: any) {
+    console.log('=== WEBHOOK VERIFICATION CALLED ===');
+    console.log('URL Param - verifyToken:', verifyToken);
+    console.log('Query Params:', query);
+    
     const mode = query['hub.mode'];
     const token = query['hub.verify_token'];
     const challenge = query['hub.challenge'];
+    
+    console.log('Mode:', mode);
+    console.log('Token from query:', token);
+    console.log('Token from URL:', verifyToken);
+    console.log('Tokens match:', token === verifyToken);
 
     if (mode === 'subscribe' && token === verifyToken) {
       const isValidToken = await this.whatsappService.validateVerifyToken(verifyToken);
+      console.log('Token valid in database:', isValidToken);
       if (isValidToken) {
-        console.log('Webhook verified for token:', verifyToken);
+        console.log('✓ Webhook verified successfully for token:', verifyToken);
         return parseInt(challenge);
       }
     }
+    console.log('✗ Webhook verification failed');
     throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);
   }
 
@@ -61,7 +72,9 @@ export class WhatsappController {
   @ApiResponse({ status: 200, description: 'Webhook processed successfully' })
   @ApiResponse({ status: 404, description: 'Not Found' })
   async handleWebhook(@Param('verifyToken') verifyToken: string, @Body() body: any) {
-    console.log('Webhook received:', JSON.stringify(body, null, 2));
+    console.log('=== WEBHOOK POST RECEIVED ===');
+    console.log('URL Param - verifyToken:', verifyToken);
+    console.log('Webhook body:', JSON.stringify(body, null, 2));
     
     if (body.object === 'whatsapp_business_account') {
       for (const entry of body.entry) {
@@ -71,10 +84,13 @@ export class WhatsappController {
             if (message) {
               console.log('Processing incoming message:', message);
               const phoneNumberId = change.value.metadata?.phone_number_id;
+              console.log('Phone Number ID:', phoneNumberId);
               
               // Get user by verify token first
               const userId = await this.whatsappService.findUserByVerifyToken(verifyToken);
+              console.log('User ID from verify token:', userId);
               const userIds = userId ? [userId] : await this.whatsappService.findAllUsersByPhoneNumberId(phoneNumberId);
+              console.log('Final user IDs:', userIds);
               
               if (userIds && userIds.length > 0) {
                 // Store message for all users sharing this phone number

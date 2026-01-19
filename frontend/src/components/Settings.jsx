@@ -43,6 +43,7 @@ const Settings = ({ onNavigate }) => {
   const [aiChatbotEnabled, setAiChatbotEnabled] = useState(false);
   const [responsePriority, setResponsePriority] = useState('quickreply');
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [upgradeFeature, setUpgradeFeature] = useState('');
   const [activeTab, setActiveTab] = useState('configurations');
 
   useEffect(() => {
@@ -201,6 +202,11 @@ const Settings = ({ onNavigate }) => {
   };
 
   const handleToggleQuickReply = async (value) => {
+    if (value && !useQuickReply) {
+      setUpgradeFeature('Quick Reply');
+      setShowPurchaseModal(true);
+      return;
+    }
     try {
       await updateUserPreference({ useQuickReply: value });
       setUseQuickReply(value);
@@ -212,6 +218,7 @@ const Settings = ({ onNavigate }) => {
 
   const handleToggleChatbot = async (value) => {
     if (value && !aiChatbotEnabled) {
+      setUpgradeFeature('AI Chatbot');
       setShowPurchaseModal(true);
       return;
     }
@@ -302,16 +309,17 @@ const Settings = ({ onNavigate }) => {
             </div>
 
             <div className="response-methods">
-              <div className={`method-card ${useQuickReply ? 'active' : ''}`}>
+              <div className={`method-card ${useQuickReply ? 'active' : ''} ${!useQuickReply ? 'locked' : ''}`}>
                 <div className="method-icon">⚡</div>
                 <div className="method-content">
                   <div className="method-title">
-                    <h3>Quick Reply Buttons</h3>
-                    <label className="toggle-switch">
+                    <h3>Quick Reply Buttons {!useQuickReply && <span className="lock-badge">🔒 Premium</span>}</h3>
+                    <label className={`toggle-switch ${!useQuickReply ? 'disabled' : ''}`}>
                       <input
                         type="checkbox"
                         checked={useQuickReply}
                         onChange={(e) => handleToggleQuickReply(e.target.checked)}
+                        disabled={!useQuickReply}
                       />
                       <span className="toggle-slider"></span>
                     </label>
@@ -324,6 +332,11 @@ const Settings = ({ onNavigate }) => {
                       <span className="status-dot"></span>
                       Active
                     </div>
+                  )}
+                  {!useQuickReply && (
+                    <button className="upgrade-btn" onClick={() => { setUpgradeFeature('Quick Reply'); setShowPurchaseModal(true); }}>
+                      Upgrade to Enable
+                    </button>
                   )}
                 </div>
               </div>
@@ -776,18 +789,18 @@ const Settings = ({ onNavigate }) => {
         <div className="modal-overlay">
           <div className="modal-content" style={{maxWidth: '600px'}}>
             <div className="modal-header">
-              <h2>🔒 AI Chatbot Feature Locked</h2>
+              <h2>🔒 {upgradeFeature} Feature Locked</h2>
               <button onClick={() => setShowPurchaseModal(false)} className="close-btn">×</button>
             </div>
             <div className="settings-form">
               <div style={{display: 'flex', alignItems: 'center', gap: '20px', padding: '10px 0'}}>
-                <div style={{fontSize: '48px'}}>🤖</div>
+                <div style={{fontSize: '48px'}}>{upgradeFeature === 'AI Chatbot' ? '🤖' : '⚡'}</div>
                 <div style={{flex: 1}}>
                   <p style={{fontSize: '16px', color: '#333', marginBottom: '8px', lineHeight: '1.5'}}>
-                    The AI Chatbot feature is not enabled for your account.
+                    The {upgradeFeature} feature is not enabled for your account.
                   </p>
                   <p style={{fontSize: '14px', color: '#666', marginBottom: '0', lineHeight: '1.5'}}>
-                    Upgrade your plan to unlock intelligent automated responses powered by AI.
+                    Upgrade your plan to unlock {upgradeFeature === 'AI Chatbot' ? 'intelligent automated responses powered by AI' : 'predefined button options for quick customer responses'}.
                   </p>
                 </div>
               </div>

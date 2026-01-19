@@ -41,9 +41,10 @@ export class WhatsappController {
   @ApiResponse({ status: 200, description: 'Webhook verified successfully' })
   @ApiResponse({ status: 403, description: 'Forbidden - Invalid token' })
   async verifyWebhook(@Param('verifyToken') verifyToken: string, @Query() query: any) {
-    console.log('=== WEBHOOK VERIFICATION CALLED ===');
+    console.log('\n=== WEBHOOK GET CALLED ===');
+    console.log('Timestamp:', new Date().toISOString());
     console.log('URL Param - verifyToken:', verifyToken);
-    console.log('Query Params:', query);
+    console.log('Query Params:', JSON.stringify(query, null, 2));
     
     const mode = query['hub.mode'];
     const token = query['hub.verify_token'];
@@ -66,15 +67,33 @@ export class WhatsappController {
     throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);
   }
 
+  // Catch-all for debugging - remove after testing
+  @Get('webhook')
+  @ApiOperation({ summary: 'Catch-all webhook GET for debugging' })
+  async catchAllWebhookGet(@Query() query: any) {
+    console.log('\n⚠️ WEBHOOK GET CALLED WITHOUT TOKEN PARAMETER');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Query Params:', JSON.stringify(query, null, 2));
+    console.log('This means Meta is calling the OLD webhook URL');
+    console.log('Please update Meta Console with: /whatsapp/webhook/YOUR_TOKEN');
+    throw new HttpException('Forbidden - Token required in URL', HttpStatus.FORBIDDEN);
+  }
+
   @Post('webhook/:verifyToken')
   @ApiOperation({ summary: 'Handle incoming WhatsApp webhooks' })
   @ApiParam({ name: 'verifyToken', required: true, description: 'Verify token from settings' })
   @ApiResponse({ status: 200, description: 'Webhook processed successfully' })
   @ApiResponse({ status: 404, description: 'Not Found' })
   async handleWebhook(@Param('verifyToken') verifyToken: string, @Body() body: any) {
-    console.log('=== WEBHOOK POST RECEIVED ===');
-    console.log('URL Param - verifyToken:', verifyToken);
-    console.log('Webhook body:', JSON.stringify(body, null, 2));
+    console.log('\n=== WEBHOOK POST RECEIVED ===');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Verify Token:', verifyToken);
+    console.log('Body:', JSON.stringify(body, null, 2));
+    
+    if (!body || !body.object) {
+      console.log('⚠️ Empty or invalid webhook body');
+      return 'EVENT_RECEIVED';
+    }
     
     if (body.object === 'whatsapp_business_account') {
       for (const entry of body.entry) {
@@ -120,6 +139,18 @@ export class WhatsappController {
       return 'EVENT_RECEIVED';
     }
     throw new HttpException('Not Found', HttpStatus.NOT_FOUND);
+  }
+
+  // Catch-all for debugging - remove after testing
+  @Post('webhook')
+  @ApiOperation({ summary: 'Catch-all webhook POST for debugging' })
+  async catchAllWebhookPost(@Body() body: any) {
+    console.log('\n⚠️ WEBHOOK POST CALLED WITHOUT TOKEN PARAMETER');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Body:', JSON.stringify(body, null, 2));
+    console.log('This means Meta is calling the OLD webhook URL');
+    console.log('Please update Meta Console with: /whatsapp/webhook/YOUR_TOKEN');
+    return 'EVENT_RECEIVED';
   }
 
   @Get('messages')

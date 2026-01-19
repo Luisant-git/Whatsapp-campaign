@@ -141,15 +141,47 @@ export class WhatsappController {
     throw new HttpException('Not Found', HttpStatus.NOT_FOUND);
   }
 
-  // Catch-all for debugging - remove after testing
   @Post('webhook')
-  @ApiOperation({ summary: 'Catch-all webhook POST for debugging' })
+  @ApiOperation({ summary: 'Handle webhook without token parameter' })
   async catchAllWebhookPost(@Body() body: any) {
-    console.log('\n⚠️ WEBHOOK POST CALLED WITHOUT TOKEN PARAMETER');
+    console.log('\n⚠️ WEBHOOK POST WITHOUT TOKEN');
     console.log('Timestamp:', new Date().toISOString());
     console.log('Body:', JSON.stringify(body, null, 2));
-    console.log('This means Meta is calling the OLD webhook URL');
-    console.log('Please update Meta Console with: /whatsapp/webhook/YOUR_TOKEN');
+    
+    if (!body || !body.object) {
+      return 'EVENT_RECEIVED';
+    }
+    
+    if (body.object === 'whatsapp_business_account') {
+      for (const entry of body.entry) {
+        for (const change of entry.changes) {
+          if (change.field === 'messages') {
+            const message = change.value.messages?.[0];
+            if (message) {
+              const phoneNumberId = change.value.metadata?.phone_number_id;
+              const userIds = await this.whatsappService.findAllUsersByPhoneNumberId(phoneNumberId);
+              
+              if (userIds && userIds.length > 0) {
+                for (const userId of userIds) {
+                  await this.whatsappService.handleIncomingMessage(message, userId);
+                }
+              } else {
+                const userId = await this.whatsappService.findFirstActiveUser();
+                if (userId) {
+                  await this.whatsappService.handleIncomingMessage(message, userId);
+                }
+              }
+            }
+            const statuses = change.value.statuses;
+            if (statuses) {
+              for (const status of statuses) {
+                await this.whatsappService.updateMessageStatus(status.id, status.status);
+              }
+            }
+          }
+        }
+      }
+    }
     return 'EVENT_RECEIVED';
   }
 

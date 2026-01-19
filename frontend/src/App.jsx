@@ -46,6 +46,7 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
   const [aiChatbotEnabled, setAiChatbotEnabled] = useState(false);
+  const [useQuickReply, setUseQuickReply] = useState(true);
 
   // Check session status every 5 seconds for instant updates
   useEffect(() => {
@@ -57,7 +58,13 @@ function App() {
           if (sessionData.user?.aiChatbotEnabled !== aiChatbotEnabled) {
             setAiChatbotEnabled(sessionData.user.aiChatbotEnabled);
             if (activeView === 'chatbot' && !sessionData.user.aiChatbotEnabled) {
-              setActiveView('chats'); // Redirect if chatbot disabled
+              setActiveView('chats');
+            }
+          }
+          if (sessionData.user?.useQuickReply !== useQuickReply) {
+            setUseQuickReply(sessionData.user.useQuickReply !== false);
+            if (activeView === 'quick-reply' && sessionData.user.useQuickReply === false) {
+              setActiveView('chats');
             }
           }
         } catch (error) {
@@ -66,7 +73,7 @@ function App() {
       }, 100);
       return () => clearInterval(interval);
     }
-  }, [isLoggedIn, aiChatbotEnabled, activeView]);
+  }, [isLoggedIn, aiChatbotEnabled, useQuickReply, activeView]);
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
 
   useEffect(() => {
@@ -96,6 +103,7 @@ function App() {
       const profileData = await getProfile();
       setUser(profileData.user);
       setAiChatbotEnabled(profileData.user?.aiChatbotEnabled || false);
+      setUseQuickReply(profileData.user?.useQuickReply !== false);
     } catch (error) {
       console.error('Failed to fetch user profile:', error);
     }
@@ -104,6 +112,7 @@ function App() {
   const handleLogin = (userData) => {
     setUser(userData);
     setAiChatbotEnabled(userData?.aiChatbotEnabled || false);
+    setUseQuickReply(userData?.useQuickReply !== false);
     setIsLoggedIn(true);
   };
 
@@ -191,15 +200,17 @@ function App() {
                 <MessageCircle size={18} />
                 <span>Auto Reply</span>
               </button>
-              <button
-                className={`nav-item ${
-                  activeView === "quick-reply" ? "active" : ""
-                }`}
-                onClick={() => setActiveView("quick-reply")}
-              >
-                <Zap size={18} />
-                <span>Quick Reply</span>
-              </button>
+              {useQuickReply && (
+                <button
+                  className={`nav-item ${
+                    activeView === "quick-reply" ? "active" : ""
+                  }`}
+                  onClick={() => setActiveView("quick-reply")}
+                >
+                  <Zap size={18} />
+                  <span>Quick Reply</span>
+                </button>
+              )}
               {aiChatbotEnabled && (
                 <button
                   className={`nav-item ${
@@ -305,7 +316,7 @@ function App() {
             {activeView === "contacts" && <Contact />}
             {activeView === "campaigns" && <Campaigns />}
             {activeView === "auto-reply" && <AutoReply />}
-            {activeView === "quick-reply" && <QuickReply />}
+            {activeView === "quick-reply" && useQuickReply && <QuickReply />}
             {activeView === "chatbot" && aiChatbotEnabled && <Chatbot />}
             {activeView === "analytics" && <Analytics />}
             {activeView === "settings" && <SettingsPanel onNavigate={setActiveView} />}

@@ -54,6 +54,25 @@ export default function Users() {
     }
   };
 
+  const toggleQuickReply = async (userId) => {
+    try {
+      const response = await fetch(`${API_URL}/admin/users/${userId}/toggle-quickreply`, {
+        method: 'PATCH',
+        credentials: 'include',
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      });
+      if (response.ok) {
+        fetchUsers();
+      }
+    } catch (error) {
+      console.error('Error toggling quick reply:', error);
+    }
+  };
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setError('');
@@ -104,6 +123,7 @@ export default function Users() {
               <th>Name</th>
               <th>Email</th>
               <th>Status</th>
+              <th>Quick Reply</th>
               <th>AI Chatbot</th>
               <th>Created At</th>
             </tr>
@@ -118,6 +138,16 @@ export default function Users() {
                   <span className={`status-badge ${user.isActive ? 'active' : 'inactive'}`}>
                     {user.isActive ? 'Active' : 'Inactive'}
                   </span>
+                </td>
+                <td>
+                  <label className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={user.useQuickReply !== false}
+                      onChange={() => toggleQuickReply(user.id)}
+                    />
+                    <span className="slider"></span>
+                  </label>
                 </td>
                 <td>
                   <label className="toggle-switch">

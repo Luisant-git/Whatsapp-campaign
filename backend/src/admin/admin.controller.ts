@@ -102,7 +102,14 @@ export class AdminController {
   @ApiOperation({ summary: 'Toggle AI chatbot for user' })
   async toggleUserChatbot(@Param('id') id: number, @Session() session: Record<string, any>) {
     const result = await this.adminService.toggleUserChatbot(+id);
-    // Update user sessions instantly
+    await this.adminService.updateUserSession(+id, session.store);
+    return result;
+  }
+
+  @Patch('users/:id/toggle-quickreply')
+  @ApiOperation({ summary: 'Toggle Quick Reply for user' })
+  async toggleUserQuickReply(@Param('id') id: number, @Session() session: Record<string, any>) {
+    const result = await this.adminService.toggleUserQuickReply(+id);
     await this.adminService.updateUserSession(+id, session.store);
     return result;
   }

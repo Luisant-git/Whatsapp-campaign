@@ -19,6 +19,7 @@ const MasterConfig = () => {
   const [showAccessToken, setShowAccessToken] = useState(false);
   const [showVerifyToken, setShowVerifyToken] = useState(false);
   const [selectedConfig, setSelectedConfig] = useState(null);
+  const [verifyTokenError, setVerifyTokenError] = useState('');
 
   useEffect(() => {
     fetchMasterConfigs();
@@ -43,6 +44,7 @@ const MasterConfig = () => {
 
   const handleSave = async () => {
     setSaving(true);
+    setVerifyTokenError('');
     try {
       if (editingId) {
         await updateMasterConfig(editingId, currentConfig);
@@ -55,7 +57,11 @@ const MasterConfig = () => {
       fetchMasterConfigs();
     } catch (error) {
       console.error("Failed to save master config:", error);
-      showError(`Failed to save master config: ${error.response?.data?.message || error.message}`);
+      const errorMessage = error.message || 'Failed to save master config';
+      if (errorMessage.toLowerCase().includes('verify token')) {
+        setVerifyTokenError(errorMessage);
+      }
+      showError(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -187,7 +193,11 @@ const MasterConfig = () => {
                     type={showVerifyToken ? "text" : "password"}
                     placeholder="Enter Verify Token"
                     value={currentConfig.verifyToken}
-                    onChange={(e) => setCurrentConfig({...currentConfig, verifyToken: e.target.value})}
+                    onChange={(e) => {
+                      setCurrentConfig({...currentConfig, verifyToken: e.target.value});
+                      setVerifyTokenError('');
+                    }}
+                    style={verifyTokenError ? {borderColor: '#ef4444'} : {}}
                   />
                   <button
                     type="button"
@@ -197,6 +207,11 @@ const MasterConfig = () => {
                     {showVerifyToken ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+                {verifyTokenError && (
+                  <small style={{color: '#ef4444', fontSize: '12px', fontWeight: '500', display: 'block', marginTop: '4px'}}>
+                    {verifyTokenError}
+                  </small>
+                )}
               </div>
               <div className="form-actions">
                 <button className="btn-secondary" onClick={resetForm}>Cancel</button>

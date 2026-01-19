@@ -109,6 +109,20 @@ export class SettingsService {
       throw new ConflictException('Configuration with this name already exists');
     }
 
+    // Check if verify token is already used by another user
+    if (whatsAppSettingsDto.verifyToken) {
+      const tokenUsedByOtherUser = await this.prisma.whatsAppSettings.findFirst({
+        where: {
+          verifyToken: whatsAppSettingsDto.verifyToken,
+          userId: { not: userId }
+        }
+      });
+      
+      if (tokenUsedByOtherUser) {
+        throw new ConflictException('This verify token is already used by another user');
+      }
+    }
+
     if (whatsAppSettingsDto.isDefault) {
       await this.prisma.whatsAppSettings.updateMany({
         where: { userId, isDefault: true },
@@ -159,6 +173,20 @@ export class SettingsService {
       });
       if (nameExists) {
         throw new ConflictException('Configuration with this name already exists');
+      }
+    }
+
+    // Check if verify token is already used by another user
+    if (updateSettingsDto.verifyToken && updateSettingsDto.verifyToken !== existingSettings.verifyToken) {
+      const tokenUsedByOtherUser = await this.prisma.whatsAppSettings.findFirst({
+        where: {
+          verifyToken: updateSettingsDto.verifyToken,
+          userId: { not: userId }
+        }
+      });
+      
+      if (tokenUsedByOtherUser) {
+        throw new ConflictException('This verify token is already used by another user');
       }
     }
 

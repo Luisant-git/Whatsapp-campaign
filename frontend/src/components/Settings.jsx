@@ -32,6 +32,7 @@ const Settings = ({ onNavigate }) => {
   const [showAccessToken, setShowAccessToken] = useState(false);
   const [showVerifyToken, setShowVerifyToken] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [verifyTokenError, setVerifyTokenError] = useState('');
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -120,6 +121,7 @@ const Settings = ({ onNavigate }) => {
 
   const handleSaveConfiguration = async () => {
     setSaving(true);
+    setVerifyTokenError('');
     try {
       if (editingId) {
         await updateSettings(editingId, currentSettings);
@@ -132,7 +134,11 @@ const Settings = ({ onNavigate }) => {
       fetchAllSettings();
     } catch (error) {
       console.error("Failed to save settings:", error);
-      showError('Failed to save configuration');
+      const errorMessage = error.message || 'Failed to save configuration';
+      if (errorMessage.toLowerCase().includes('verify token')) {
+        setVerifyTokenError(errorMessage);
+      }
+      showError(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -606,10 +612,12 @@ const Settings = ({ onNavigate }) => {
                     type={showVerifyToken ? "text" : "password"}
                     placeholder="Enter your verify token"
                     value={currentSettings.verifyToken}
-                    onChange={(e) =>
-                      handleInputChange("verifyToken", e.target.value)
-                    }
+                    onChange={(e) => {
+                      handleInputChange("verifyToken", e.target.value);
+                      setVerifyTokenError('');
+                    }}
                     disabled={currentSettings.masterConfigId}
+                    style={verifyTokenError ? {borderColor: '#ef4444'} : {}}
                   />
                   <button
                     type="button"
@@ -619,6 +627,11 @@ const Settings = ({ onNavigate }) => {
                     {showVerifyToken ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+                {verifyTokenError && (
+                  <small style={{color: '#ef4444', fontSize: '12px', fontWeight: '500', display: 'block', marginTop: '4px'}}>
+                    {verifyTokenError}
+                  </small>
+                )}
                 {currentSettings.masterConfigId && (
                   <small style={{color: '#28a745', fontSize: '12px', fontWeight: '500'}}>Auto-filled from configuration</small>
                 )}

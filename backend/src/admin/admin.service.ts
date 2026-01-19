@@ -88,6 +88,7 @@ export class AdminService {
         name: true,
         isActive: true,
         aiChatbotEnabled: true,
+        useQuickReply: true,
         createdAt: true,
       },
       orderBy: {
@@ -111,6 +112,7 @@ export class AdminService {
         email,
         name,
         password: hashedPassword,
+        useQuickReply: true,
       },
       select: {
         id: true,
@@ -118,6 +120,7 @@ export class AdminService {
         name: true,
         isActive: true,
         aiChatbotEnabled: true,
+        useQuickReply: true,
         createdAt: true,
       },
     });
@@ -144,16 +147,43 @@ export class AdminService {
         name: true,
         isActive: true,
         aiChatbotEnabled: true,
+        useQuickReply: true,
       },
     });
  
     return { message: 'AI Chatbot toggled successfully', user: updatedUser };
   }
+
+  async toggleUserQuickReply(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { useQuickReply: true },
+    });
+ 
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+ 
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: { useQuickReply: !user.useQuickReply },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        isActive: true,
+        aiChatbotEnabled: true,
+        useQuickReply: true,
+      },
+    });
+ 
+    return { message: 'Quick Reply toggled successfully', user: updatedUser };
+  }
  
   async updateUserSession(userId: number, sessionStore: any) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { aiChatbotEnabled: true },
+      select: { aiChatbotEnabled: true, useQuickReply: true },
     });
     if (user && sessionStore) {
       sessionStore.all((err: any, sessions: any) => {
@@ -162,6 +192,7 @@ export class AdminService {
           const session = sessions[sessionId];
           if (session.user && session.user.id === userId) {
             session.user.aiChatbotEnabled = user.aiChatbotEnabled;
+            session.user.useQuickReply = user.useQuickReply;
             sessionStore.set(sessionId, session);
           }
         });

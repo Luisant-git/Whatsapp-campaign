@@ -43,6 +43,22 @@ export class UserController {
     return this.userService.getCurrentUser(session);
   }
 
+  @Put('update-name')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Update user name' })
+  @ApiResponse({ status: 200, description: 'Name updated successfully' })
+  updateName(@Body() body: { name: string }, @Session() session: Record<string, any>) {
+    return this.userService.updateName(session.user.id, body.name, session);
+  }
+
+  @Put('preference')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Update user preference' })
+  @ApiResponse({ status: 200, description: 'Preference updated successfully' })
+  updatePreference(@Body() body: { useQuickReply: boolean }, @Session() session: Record<string, any>) {
+    return this.userService.updatePreference(session.user.id, body.useQuickReply);
+  }
+
   @Get()
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Get all users' })
@@ -75,14 +91,6 @@ export class UserController {
   @ApiResponse({ status: 200, description: 'User profile retrieved' })
   getProfile(@Param('id') id: string) {
     return this.userService.findOne(+id);
-  }
-
-  @Put('preference')
-  @UseGuards(SessionGuard)
-  @ApiOperation({ summary: 'Update user preference' })
-  @ApiResponse({ status: 200, description: 'Preference updated successfully' })
-  updatePreference(@Body() body: { useQuickReply: boolean }, @Session() session: Record<string, any>) {
-    return this.userService.updatePreference(session.user.id, body.useQuickReply);
   }
 
   @Delete(':id')

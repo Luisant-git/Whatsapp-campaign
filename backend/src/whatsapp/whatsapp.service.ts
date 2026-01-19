@@ -84,6 +84,12 @@ export class WhatsappService {
     });
 
     if (text) {
+      // Get user to check if AI chatbot is enabled
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { aiChatbotEnabled: true }
+      });
+
       // Try session service first (auto-reply, quick-reply)
       const sessionHandled = await this.sessionService.handleInteractiveMenu(from, text, userId, 
         async (to, msg, imageUrl) => {
@@ -97,8 +103,8 @@ export class WhatsappService {
         }
       );
 
-      // Only try chatbot if session service didn't handle it
-      if (!sessionHandled) {
+      // Only try chatbot if session service didn't handle it AND AI chatbot is enabled
+      if (!sessionHandled && user?.aiChatbotEnabled) {
         try {
           const chatResponse = await this.chatbotService.processMessage(userId, {
             message: text,

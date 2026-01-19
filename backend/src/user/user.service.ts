@@ -156,4 +156,25 @@ export class UserService {
     });
     return { message: 'Preference updated successfully', user };
   }
+
+  async updateName(userId: number, name: string, session: any) {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { name },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        aiChatbotEnabled: true,
+        useQuickReply: true
+      }
+    });
+    
+    // Update session
+    if (session.user) {
+      session.user.name = name;
+    }
+    
+    return { message: 'Name updated successfully', user };
+  }
 }

@@ -142,6 +142,7 @@ const Campaigns = () => {
               <th>S.No</th>
               <th>Campaign</th>
               <th>Template</th>
+              <th>Group</th>
               <th>Status</th>
               <th>Results</th>
               <th>Created</th>
@@ -154,6 +155,7 @@ const Campaigns = () => {
                 <td>{indexOfFirstItem + index + 1}</td>
                 <td className="campaign-name">{campaign.name}</td>
                 <td>{campaign.templateName}</td>
+                <td>{campaign.group?.name || '—'}</td>
                 <td>
                   <span className={`status-badge ${campaign.status}`}>
                     {campaign.status.toUpperCase()}

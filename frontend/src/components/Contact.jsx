@@ -1,397 +1,579 @@
-import { useState, useEffect } from 'react';
-import { Users, Search, ChevronLeft, ChevronRight, Plus, Upload, X, Edit2, Trash2 } from 'lucide-react';
-import { contactAPI } from '../api/contact';
-import { useToast } from '../contexts/ToastContext';
-import * as XLSX from 'xlsx';
-import '../styles/Contact.css';
+import { useState, useEffect, useRef } from "react";
+import {
+  Users,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Upload,
+  Edit2,
+  Eye,
+  X,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
+
+import "../styles/Contact.css";
+import { contactAPI } from "../api/contact";
+import { groupAPI } from "../api/group";
+import * as XLSX from "xlsx";
+import { IoCheckmarkOutline, IoCloseOutline, IoCloudUploadOutline } from "react-icons/io5";
+import { useToast } from "../contexts/ToastContext";
 
 export default function Contact() {
+  // ---------- UI state ----------
   const [contacts, setContacts] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [groups, setGroups] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const limit = 10;
   const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [validationError, setValidationError] = useState("");
+
+  // ---------- modal state ----------
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showGroupModal, setShowGroupModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [editingContact, setEditingContact] = useState(null);
-  const [formData, setFormData] = useState({ name: '', phone: '', group: '' });
-  const { showToast } = useToast();
-  const limit = 10;
+  const [viewContact, setViewContact] = useState(null);
+  // ---------- Bulk import state (required) ----------
+const [uploadedData, setUploadedData] = useState([]);
+const [fileName, setFileName] = useState("");      // 👈 defines fileName
+const [selectedGroup, setSelectedGroup] = useState("");
+const { showSuccess, showError } = useToast();
 
-  useEffect(() => {
-    loadContacts();
-  }, [page, searchQuery]);
+  // ---------- form data ----------
+  const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    place: "",
+    dob: "",
+    anniversary: "",
+    group: "",
+  });
+  const [groupName, setGroupName] = useState("");
 
-  const loadContacts = async () => {
+  // ---------- debounce search ----------
+  const debounceTimer = useRef(null);
+  const debouncedSearch = (query) => {
+    clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      setPage(1);
+      fetchContacts(1, limit, query);
+    }, 400);
+  };
+
+  // ---------- API calls ----------
+  const fetchContacts = async (pg = page, lim = limit, search = searchQuery) => {
     setLoading(true);
+    setError("");
     try {
-      const response = await contactAPI.getAll(page, limit, searchQuery);
-      const result = response.data;
-      setContacts(result.data || []);
-      setTotal(result.total || 0);
-      setTotalPages(result.totalPages || 1);
-    } catch (error) {
-      showToast('Failed to load contacts', 'error');
-      setContacts([]);
+      const resp = await contactAPI.getAll(pg, lim, search);
+      const { data, pagination } = resp.data;
+      setContacts(data || []);
+      if (pagination) {
+        setTotal(pagination.total || 0);
+        setTotalPages(pagination.totalPages || 0);
+      } else {
+        setTotal(resp.data.total || 0);
+        setTotalPages(Math.ceil((resp.data.total || 0) / limit));
+      }
+    } catch (err) {
+      console.error("Failed to fetch contacts", err);
+      setError("Unable to load contacts. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearch = (value) => {
-    setSearchQuery(value);
-    setPage(1);
+  const fetchGroups = async () => {
+    try {
+      const resp = await groupAPI.getAll();
+      const groupsArray = Array.isArray(resp.data)
+        ? resp.data
+        : resp.data.data || [];
+      setGroups(groupsArray.map((g) => g.name || g));
+    } catch (err) {
+      console.error("Failed to fetch groups", err);
+    }
   };
 
-  const handleAddContact = () => {
-    setFormData({ name: '', phone: '', group: '' });
-    setEditingContact(null);
-    setShowAddModal(true);
-  };
+  // ---------- effects ----------
+  useEffect(() => {
+    fetchContacts();
+    fetchGroups();
+  }, []);
 
-  const handleEditContact = (contact) => {
-    setFormData({ name: contact.name, phone: contact.phone, group: contact.group || '' });
-    setEditingContact(contact);
-    setShowAddModal(true);
-  };
+  useEffect(() => {
+    fetchContacts(page, limit, searchQuery);
+    fetchGroups();
+  }, [page, searchQuery]);
 
+  // ---------- handlers ----------
+  const handleAddGroup = async () => {
+    if (!groupName.trim()) {
+      showError("Please enter a group name");
+      return;
+    }
+  
+    try {
+      await groupAPI.create({ name: groupName.trim() });
+      await fetchGroups();
+      showSuccess(`Successfully created group "${groupName.trim()}"`);
+      setGroupName("");
+      setShowGroupModal(false);
+    } catch (err) {
+      console.error("Error creating group", err);
+      showError("Failed to create group. Please try again.");
+    }
+  };
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.phone) {
-      showToast('Name and phone are required', 'error');
+  
+    const phone = formData.phone.replace(/[^0-9]/g, "");
+  
+    // Validation
+    if (!formData.name.trim()) {
+      setValidationError("Please enter a valid name and 10‑digit phone number.");
       return;
     }
-
-    // Validate phone number is exactly 10 digits
-    const cleanPhone = formData.phone.replace(/[^0-9]/g, '');
-    if (cleanPhone.length !== 10) {
-      showToast('Phone number must be exactly 10 digits', 'error');
+    if (!editingContact && phone.length !== 10) {
+      setValidationError("Please enter a valid 10‑digit phone number.");
       return;
     }
-
-    const dataToSubmit = {
-      name: formData.name,
-      phone: cleanPhone,
-      group: formData.group || ''
-    };
-
+    if (!formData.group) {
+      setValidationError("Please select a group.");
+      return;
+    }
+  
+    setValidationError("");
+    setLoading(true);
+    setError("");
+  
     try {
       if (editingContact) {
-        await contactAPI.update(editingContact.id, dataToSubmit);
-        showToast('Contact updated successfully', 'success');
+        await contactAPI.update(editingContact.id, formData);
+        // ✅ success toast for update
+        showSuccess(`Successfully updated contact "${formData.name}"`);
       } else {
-        await contactAPI.create(dataToSubmit);
-        showToast('Contact added successfully', 'success');
+        await contactAPI.create(formData);
+        // ✅ success toast for create
+        showSuccess(`Successfully created contact "${formData.name}"`);
       }
-      
-      // Close modal and reset form
+  
+      await fetchContacts(page, limit, searchQuery);
       setShowAddModal(false);
       setEditingContact(null);
-      setFormData({ name: '', phone: '', group: '' });
-      await loadContacts();
-    } catch (error) {
-      const errorMsg = error.response?.data?.message || error.message || 'Failed to save contact';
-      showToast(errorMsg, 'error');
+      resetForm();
+    } catch (err) {
+      console.error("Save error", err);
+      // 🔴 error toast for failure
+      showError(
+        editingContact
+          ? "Failed to update contact. Please try again."
+          : "Failed to create contact. Please try again."
+      );
+    } finally {
+      setLoading(false);
     }
   };
-
+  
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this contact?')) return;
-    
+    if (!window.confirm("Are you sure you want to delete this contact?")) return;
+    setLoading(true);
+    setError("");
     try {
       await contactAPI.delete(id);
-      showToast('Contact deleted successfully', 'success');
-      loadContacts();
-    } catch (error) {
-      showToast('Failed to delete contact', 'error');
+      await fetchContacts(page, limit, searchQuery);
+    } catch (err) {
+      console.error("Delete error", err);
+      setError("Failed to delete contact.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleBulkImport = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const resetForm = () =>
+    setFormData({
+      name: "",
+      phone: "",
+      email: "",
+      place: "",
+      dob: "",
+      anniversary: "",
+      group: "",
+    });
 
-    const reader = new FileReader();
     
-    // Check if it's an Excel file
-    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-      reader.onload = async (event) => {
-        try {
-          const data = new Uint8Array(event.target.result);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+// ---------- working Bulk Import handlers ----------
+const handleFileUpload = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  setFileName(file.name);
 
-          if (jsonData.length === 0) {
-            showToast('Excel file is empty', 'error');
-            return;
-          }
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    try {
+      const data = new Uint8Array(event.target.result);
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-          let successCount = 0;
-          let failCount = 0;
-          const errors = [];
+      // ✅ now supports lowercase headers like your Excel
+      const formatted = jsonData
+        .map((row) => ({
+          name:
+            row["Name"] ||
+            row["name"] ||
+            row["Customer Name"] ||
+            row["customer name"] ||
+            "",
+          phone: String(
+            row["Phone"] ||
+              row["phone"] ||
+              row["Phone Number"] ||
+              row["phone number"] ||
+              ""
+          ).trim(),
+          group: row["Group"] || row["group"] || "",
+          email: row["Email"] || row["email"] || "",
+          place: row["Place"] || row["place"] || "",
+          dob: row["DOB"] || row["dob"] || "",
+          anniversary:
+            row["Anniversary"] || row["anniversary"] || "",
+        }))
+        .filter((r) => r.phone);
 
-          for (let i = 0; i < jsonData.length; i++) {
-            const row = jsonData[i];
-            
-            // Try to find name field with various possible column names
-            const name = row.Name || row.name || row.NAME || row['Name'] || row['name'] || 
-                        Object.keys(row).find(k => k.toLowerCase().includes('name')) && 
-                        row[Object.keys(row).find(k => k.toLowerCase().includes('name'))];
-            
-            // Try to find phone field with various possible column names
-            const phoneRaw = row.Phone || row.phone || row.PHONE || row['Phone'] || row['phone'] ||
-                            Object.keys(row).find(k => k.toLowerCase().includes('phone')) && 
-                            row[Object.keys(row).find(k => k.toLowerCase().includes('phone'))];
-            
-            // Try to find group field
-            const group = row.Group || row.group || row.GROUP || row['Group'] || row['group'] ||
-                         (Object.keys(row).find(k => k.toLowerCase().includes('group')) && 
-                         row[Object.keys(row).find(k => k.toLowerCase().includes('group'))]) || '';
-            
-            const phone = String(phoneRaw || '').replace(/[^0-9]/g, '');
+      setUploadedData(formatted);
+      showSuccess(`Loaded ${formatted.length} contacts from file`);
+    } catch (err) {
+      console.error("Error reading file:", err);
+      showError("Error reading file. Please check the column names.");
+    }
+  };
+  reader.readAsArrayBuffer(file);
+};
 
-            if (!name || !phone) {
-              errors.push(`Row ${i + 2}: Missing name or phone`);
-              failCount++;
-              continue;
-            }
+const handleBulkImportSubmit = async () => {
+  if (uploadedData.length === 0) {
+    showError("Please upload a file first");
+    return;
+  }
 
-            if (phone.length !== 10) {
-              errors.push(`Row ${i + 2}: Phone must be 10 digits`);
-              failCount++;
-              continue;
-            }
+  let successCount = 0;
+  let failCount = 0;
+  const duplicateNumbers = [];
 
-            try {
-              await contactAPI.create({ name, phone, group });
-              successCount++;
-            } catch (error) {
-              errors.push(`Row ${i + 2}: ${error.response?.data?.message || 'Failed'}`);
-              failCount++;
-            }
-          }
+  for (const c of uploadedData) {
+    try {
+      await contactAPI.create({
+        name: c.name,
+        phone: c.phone,
+        email: c.email || undefined,
+        place: c.place || undefined,
+        dob: c.dob || undefined,
+        anniversary: c.anniversary || undefined,
+        group: c.group || selectedGroup || undefined,
+      });
+      successCount++;
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "";
+      if (/already exists/i.test(msg) || /duplicate/i.test(msg)) {
+        duplicateNumbers.push(c.phone);
+      }
+      failCount++;
+    }
+  }
 
-          if (errors.length > 0 && errors.length <= 5) {
-            showToast(`Imported ${successCount} contacts. Failed: ${failCount}. ${errors.join(', ')}`, errors.length === failCount ? 'error' : 'success');
-          } else if (errors.length > 5) {
-            showToast(`Imported ${successCount} contacts. Failed: ${failCount}`, 'success');
-          } else {
-            showToast(`Imported ${successCount} contacts successfully!`, 'success');
-          }
+  // show summary
+  if (successCount > 0)
+    showSuccess(`Imported ${successCount} contact${successCount > 1 ? "s" : ""}`);
+  if (duplicateNumbers.length > 0)
+    showError(`Already registered numbers: ${duplicateNumbers.join(", ")}`);
+  if (failCount > 0 && duplicateNumbers.length === 0)
+    showError("Some contacts failed to import.");
 
-          setShowBulkModal(false);
-          loadContacts();
-        } catch (error) {
-          showToast('Failed to parse Excel file', 'error');
-        }
-      };
-      reader.readAsArrayBuffer(file);
-    } else {
-      // CSV file handling
-      reader.onload = async (event) => {
-        try {
-          const text = event.target.result;
-          const lines = text.split('\n').filter(line => line.trim());
-          
-          if (lines.length < 2) {
-            showToast('File must have headers and at least one contact', 'error');
-            return;
-          }
-
-          const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-          const nameIndex = headers.findIndex(h => h.includes('name'));
-          const phoneIndex = headers.findIndex(h => h.includes('phone'));
-          const groupIndex = headers.findIndex(h => h.includes('group'));
-
-          if (nameIndex === -1 || phoneIndex === -1) {
-            showToast('File must have Name and Phone columns', 'error');
-            return;
-          }
-
-          let successCount = 0;
-          let failCount = 0;
-          const errors = [];
-
-          for (let i = 1; i < lines.length; i++) {
-            const values = lines[i].split(',').map(v => v.trim());
-            const phone = values[phoneIndex]?.replace(/[^0-9]/g, '');
-            
-            if (!phone || phone.length !== 10) {
-              errors.push(`Row ${i + 1}: Phone must be 10 digits`);
-              failCount++;
-              continue;
-            }
-
-            const contactData = {
-              name: values[nameIndex],
-              phone: phone,
-              group: groupIndex !== -1 ? values[groupIndex] : ''
-            };
-
-            if (contactData.name && contactData.phone) {
-              try {
-                await contactAPI.create(contactData);
-                successCount++;
-              } catch (error) {
-                errors.push(`Row ${i + 1}: ${error.response?.data?.message || 'Failed'}`);
-                failCount++;
-              }
-            } else {
-              failCount++;
-            }
-          }
-
-          if (errors.length > 0 && errors.length <= 5) {
-            showToast(`Imported ${successCount} contacts. Failed: ${failCount}. ${errors.join(', ')}`, errors.length === failCount ? 'error' : 'success');
-          } else if (errors.length > 5) {
-            showToast(`Imported ${successCount} contacts. Failed: ${failCount}`, 'success');
-          } else {
-            showToast(`Imported ${successCount} contacts successfully!`, 'success');
-          }
-          
-          setShowBulkModal(false);
-          loadContacts();
-        } catch (error) {
-          showToast('Failed to parse file', 'error');
-        }
-      };
-      reader.readAsText(file);
+  setUploadedData([]);
+  setFileName("");
+  setShowBulkModal(false);
+  fetchContacts();
+};
+  // ---------- helper ----------
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "—";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString("en-GB"); // e.g., 02/02/2026
+    } catch {
+      return "—";
     }
   };
 
+  // ---------- render ----------
   return (
     <div className="contact-container">
+      {/* Header */}
       <div className="contact-header">
         <div className="header-left">
           <Users size={24} />
           <h2>Contact Management</h2>
         </div>
         <div className="header-actions">
-          <button className="btn-primary" onClick={handleAddContact}>
-            <Plus size={20} />
-            Add Contact
+          <button className="btn-secondary" onClick={() => setShowGroupModal(true)}>
+            + Add Group
+          </button>
+          <button
+            className="btn-primary"
+            onClick={() => {
+              resetForm();
+              setEditingContact(null);
+              setShowAddModal(true);
+            }}
+          >
+            <Plus size={18} /> Add Contact
           </button>
           <button className="btn-secondary" onClick={() => setShowBulkModal(true)}>
-            <Upload size={20} />
-            Bulk Import
+            <Upload size={18} /> Bulk Import
           </button>
         </div>
       </div>
 
+      {/* Search + Count */}
       <div className="filters-section">
         <div className="search-bar">
           <Search size={20} />
           <input
             type="text"
-            placeholder="Search contacts..."
+            placeholder="Search by contact, name or group..."
             value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
         <div className="total-count">
-          Total: {total} contacts
+          Total: {total} Contact{total !== 1 ? "s" : ""}
         </div>
       </div>
 
-      {loading ? (
-        <div className="loading">Loading...</div>
-      ) : (
-        <>
-          <div className="table-container">
-            <table className="contacts-table">
-              <thead>
-                <tr>
-                  <th>S.No</th>
-                  <th>Name</th>
-                  <th>Phone</th>
-                  <th>Group</th>
-                  <th>Last Message</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {contacts.map((contact, index) => (
-                  <tr key={contact.id}>
-                    <td>{(page - 1) * limit + index + 1}</td>
-                    <td>{contact.name}</td>
-                    <td>{contact.phone}</td>
-                    <td>{contact.group || 'N/A'}</td>
-                    <td>
-                      {contact.lastMessageDate 
-                        ? new Date(contact.lastMessageDate).toLocaleDateString('en-GB')
-                        : 'N/A'
-                      }
-                    </td>
-                    <td>
-                      <div className="action-buttons">
-                        <button 
-                          className="btn-icon" 
-                          onClick={() => handleEditContact(contact)}
-                          title="Edit"
-                          style={{ color: '#22c55e' }}
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        {/* <button 
-                          className="btn-icon btn-danger" 
-                          onClick={() => handleDelete(contact.id)}
-                          title="Delete"
-                        >
-                          <Trash2 size={16} />
-                        </button> */}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {contacts.length === 0 && (
-            <div className="empty-state">
-              <Users size={48} />
-              <p>No contacts found. Add contacts manually or import from CSV.</p>
-            </div>
-          )}
-
-          {totalPages > 1 && (
-            <div className="pagination">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="pagination-btn"
-              >
-                <ChevronLeft size={20} />
-                Previous
-              </button>
-              <span className="pagination-info">
-                Page {page} of {totalPages}
-              </span>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="pagination-btn"
-              >
-                Next
-                <ChevronRight size={20} />
-              </button>
-            </div>
-          )}
-        </>
+      {/* Error banner */}
+      {error && (
+        <div
+          className="error-banner"
+          style={{
+            background: "#fee",
+            padding: "0.75rem",
+            marginBottom: "1rem",
+            borderRadius: "4px",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+          }}
+        >
+          <AlertCircle size={20} color="#d00" />
+          <span>{error}</span>
+        </div>
       )}
 
-      {/* Add/Edit Contact Modal */}
+      {/* Table */}
+      {loading && contacts.length === 0 ? (
+        <div className="empty-state">
+          <Loader2 size={48} className="spin" />
+          <p>Loading contacts…</p>
+        </div>
+      ) : contacts.length === 0 ? (
+        <div className="empty-state">
+          <Users size={48} />
+          <p>No contacts yet. Add or import contacts to start.</p>
+        </div>
+      ) : (
+        <div className="table-container">
+          <table className="contacts-table">
+            <thead>
+              <tr>
+                <th>S.No</th>
+                <th>Name</th>
+                <th>Mobile</th>
+                <th>Group</th>
+                <th>Email</th>
+                <th>Place</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {contacts.map((c, i) => (
+                <tr key={c.id}>
+                  <td>{(page - 1) * limit + i + 1}</td>
+                  <td>{c.name}</td>
+                  <td>{c.phone}</td>
+                  <td>{c.group?.name || "N/A"}</td>
+                  <td>{c.email || "N/A"}</td>
+                  <td>{c.place || "N/A"}</td>
+                  <td>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <button
+                        className="btn-icon"
+                        title="View"
+                        style={{ color: "#0ea5e9" }}
+                        onClick={() => setViewContact(c)}
+                      >
+                        <Eye size={16} />
+                      </button>
+                      <button
+                        className="btn-icon"
+                        title="Edit"
+                        style={{ color: "#22c55e" }}
+                        onClick={() => {
+                          setShowAddModal(true);
+                          setEditingContact(c);
+                          setFormData({
+                            ...c,
+                            group: c.group?.name || "",
+                          });
+                        }}
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button
+            disabled={page === 1 || loading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="pagination-btn"
+          >
+            <ChevronLeft size={18} /> Prev
+          </button>
+          <span className="pagination-info">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            disabled={page === totalPages || loading}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            className="pagination-btn"
+          >
+            Next <ChevronRight size={18} />
+          </button>
+        </div>
+      )}
+
+      {/* ---- Modals ---- */}
+
+      {/* View Contact */}
+      {viewContact && (
+        <div className="modal-overlay" onClick={() => setViewContact(null)}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "600px" }}
+          >
+            <div className="modal-header">
+              <h3>Contact Details</h3>
+              <button className="close-btn" onClick={() => setViewContact(null)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "12px 24px",
+                padding: "10px 0",
+              }}
+            >
+              <p>
+                <strong>Name:</strong> {viewContact.name}
+              </p>
+              <p>
+                <strong>Mobile:</strong> {viewContact.phone}
+              </p>
+              <p>
+                <strong>Group:</strong> {viewContact.group?.name || "N/A"}
+              </p>
+              <p>
+                <strong>Email:</strong> {viewContact.email|| "N/A"}
+              </p>
+              <p>
+                <strong>Place:</strong> {viewContact.place || "N/A"}
+              </p>
+              <p>
+                <strong>DOB:</strong> {formatDate(viewContact.dob)|| "N/A"}
+              </p>
+              <p>
+                <strong>Anniversary:</strong> {formatDate(viewContact.anniversary)|| "N/A"}
+              </p>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  setEditingContact(viewContact);
+                  setFormData({ ...viewContact });
+                  setViewContact(null);
+                  setShowAddModal(true);
+                }}
+              >
+                Edit
+              </button>
+              <button className="btn-secondary" onClick={() => setViewContact(null)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Contact */}
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>{editingContact ? 'Edit Contact' : 'Add New Contact'}</h3>
+              <h3>{editingContact ? "Edit Contact" : "Add New Contact"}</h3>
               <button className="close-btn" onClick={() => setShowAddModal(false)}>
                 <X size={20} />
               </button>
             </div>
+
+            {validationError && (
+              <div
+                style={{
+                  background: "#fef2f2",
+                  color: "#991b1b",
+                  padding: "0.5rem 0.75rem",
+                  borderRadius: "4px",
+                  marginBottom: "0.75rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                <AlertCircle size={18} color="#dc2626" />
+                <span>{validationError}</span>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit}>
               <div className="form-group">
                 <label>Name *</label>
@@ -399,43 +581,106 @@ export default function Contact() {
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter contact name"
+                  placeholder="Enter name"
                   required
                 />
               </div>
+
               <div className="form-group">
-                <label>Phone *</label>
+                <label>Mobile Number *</label>
                 <input
                   type="text"
                   value={formData.phone}
                   onChange={(e) => {
-                    const value = e.target.value.replace(/[^0-9]/g, '');
-                    if (value.length <= 10) {
-                      setFormData({ ...formData, phone: value });
-                    }
+                    const v = e.target.value.replace(/[^0-9]/g, "");
+                    if (v.length <= 10) setFormData({ ...formData, phone: v });
                   }}
-                  placeholder="Enter 10 digit phone number"
+                  placeholder="10 digits only"
                   maxLength={10}
                   required
                   disabled={!!editingContact}
                 />
-                <small style={{ color: '#64748b', fontSize: '12px' }}>Enter 10 digit number (91 will be added automatically)</small>
               </div>
+
               <div className="form-group">
-                <label>Group</label>
-                <input
-                  type="text"
+                <label>Group *</label>
+                <select
                   value={formData.group}
                   onChange={(e) => setFormData({ ...formData, group: e.target.value })}
-                  placeholder="Enter group name (optional)"
+                  required
+                >
+                  <option value="">Select Group</option>
+                  {groups.map((g, i) => (
+                    <option key={i} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Email ID</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="Enter email (optional)"
                 />
               </div>
+
+              <div className="form-group">
+                <label>Place</label>
+                <input
+                  type="text"
+                  value={formData.place}
+                  onChange={(e) => setFormData({ ...formData, place: e.target.value })}
+                  placeholder="Enter place (optional)"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>DOB</label>
+                <input
+                  type="date"
+                  value={formData.dob}
+                  onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Anniversary</label>
+                <input
+                  type="date"
+                  value={formData.anniversary}
+                  onChange={(e) =>
+                    setFormData({ ...formData, anniversary: e.target.value })
+                  }
+                />
+              </div>
+
               <div className="modal-actions">
-                <button type="button" className="btn-secondary" onClick={() => setShowAddModal(false)}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => {
+                    setShowAddModal(false);
+                    resetForm();
+                    setEditingContact(null);
+                  }}
+                  disabled={loading}
+                >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
-                  {editingContact ? 'Update' : 'Add'} Contact
+
+                <button type="submit" className="btn-primary" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 size={16} className="spin" />{" "}
+                      {editingContact ? "Updating…" : "Adding…"}
+                    </>
+                  ) : (
+                    <>{editingContact ? "Update" : "Add"} Contact</>
+                  )}
                 </button>
               </div>
             </form>
@@ -443,40 +688,136 @@ export default function Contact() {
         </div>
       )}
 
-      {/* Bulk Import Modal */}
-      {showBulkModal && (
-        <div className="modal-overlay" onClick={() => setShowBulkModal(false)}>
+      {/* Add Group */}
+      {showGroupModal && (
+        <div className="modal-overlay" onClick={() => setShowGroupModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Bulk Import Contacts</h3>
-              <button className="close-btn" onClick={() => setShowBulkModal(false)}>
+              <h3>Add Group</h3>
+              <button className="close-btn" onClick={() => setShowGroupModal(false)}>
                 <X size={20} />
               </button>
             </div>
-            <div className="bulk-import-content">
-              <p>Upload a CSV or Excel file with the following columns:</p>
-              <ul>
-                <li>Name (required)</li>
-                <li>Phone (required)</li>
-                <li>Group (optional)</li>
-              </ul>
-              <div className="csv-example">
-                <strong>Example format:</strong>
-                <pre>Name,Phone,Group
-John Doe,9876543210,Sales
-Jane Smith,8765432109,Marketing</pre>
-                <small style={{ color: '#dc2626', marginTop: '8px', display: 'block' }}>Note: Phone numbers must be exactly 10 digits</small>
-              </div>
+            <div className="form-group">
+              <label>Group Name *</label>
               <input
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                onChange={handleBulkImport}
-                style={{ marginTop: '20px' }}
+                type="text"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                placeholder="Enter group name"
               />
+            </div>
+            <div className="modal-actions">
+              <button
+                className="btn-secondary"
+                onClick={() => setShowGroupModal(false)}
+              >
+                Cancel
+              </button>
+              <button className="btn-primary" onClick={handleAddGroup}>
+                Add Group
+              </button>
             </div>
           </div>
         </div>
       )}
+
+      
+     {/* Bulk Import */}
+{showBulkModal && (
+  <div className="modal-overlay" onClick={() => setShowBulkModal(false)}>
+    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-header">
+        <h3>Bulk Import Contacts</h3>
+        <button className="close-btn" onClick={() => setShowBulkModal(false)}>
+          <X size={20} />
+        </button>
+      </div>
+
+      <div className="bulk-import-content">
+        <p>Upload a CSV or Excel file with the following columns:</p>
+        <ul>
+          <li>Name (required)</li>
+          <li>Phone (required)</li>
+          <li>Group (optional)</li>
+          <li>Email, Place, DOB, Anniversary (optional)</li>
+        </ul>
+
+        <div className="file-upload-container" style={{ marginTop: "12px" }}>
+          <input
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileUpload}
+            id="contact-upload"
+            className="file-input"
+          />
+          <label htmlFor="contact-upload" className="file-upload-btn">
+            <IoCloudUploadOutline size={20} />
+            <span style={{ marginLeft: "8px" }}>
+              {fileName || "Choose File (Excel/CSV)"}
+            </span>
+          </label>
+
+          {uploadedData.length > 0 && (
+            <div
+              className="file-success"
+              style={{
+                marginTop: "8px",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <IoCheckmarkOutline size={18} color="#16a34a" />
+              <span>{uploadedData.length} contacts ready to import</span>
+              <button
+                onClick={() => {
+                  setUploadedData([]);
+                  setFileName("");
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                <IoCloseOutline size={18} />
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="form-group" style={{ marginTop: "12px" }}>
+          <label>Select Group (optional)</label>
+          <select
+            className="form-input"
+            value={selectedGroup}
+            onChange={(e) => setSelectedGroup(e.target.value)}
+          >
+            <option value="">No Group</option>
+            {groups.map((g, i) => (
+              <option key={i} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="modal-actions" style={{ marginTop: "16px" }}>
+          <button
+            className="btn-secondary"
+            onClick={() => setShowBulkModal(false)}
+          >
+            Cancel
+          </button>
+          <button className="btn-primary" onClick={handleBulkImportSubmit}>
+            Import Contacts
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }

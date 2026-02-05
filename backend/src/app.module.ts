@@ -13,6 +13,7 @@ import { MasterConfigModule } from './master-config/master-config.module';
 import { ContactModule } from './contact/contact.module';
 import { AdminModule } from './admin/admin.module';
 import { SubscriptionModule } from './subscription/subscription.module';
+import { GroupModule } from './group/group.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { SubscriptionModule } from './subscription/subscription.module';
     MasterConfigModule,
     ContactModule,
     SubscriptionModule,
+    GroupModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -74,21 +74,30 @@ const WhatsAppChat = () => {
   const fileInputRef = useRef(null);
   const audioRefs = useRef({});
   const mobileCalendarRef = useRef(null);
+  const [labelColors, setLabelColors] = useState({});
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+
+  
+
  
   useEffect(() => {
-    if (API_BASE_URL) {
+    if (!API_BASE_URL) return;
+  
+    // Initial load once
+    fetchMessages();
+    fetchLabels();
+    fetchCustomLabels();
+  
+    // Optional polling every 15 seconds (adjust as needed)
+    const interval = setInterval(() => {
       fetchMessages();
       fetchLabels();
       fetchCustomLabels();
-      const interval = setInterval(() => {
-        fetchMessages();
-        fetchLabels();
-        fetchCustomLabels();
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [readMessages]);
-
+    }, 15000);
+  
+    return () => clearInterval(interval); // cleanup when component unmounts
+  }, []); // 👈 empty deps == only run once
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (showLabelMenu && !event.target.closest('.label-menu') && !event.target.closest('.label-menu-btn')) {
@@ -105,7 +114,33 @@ const WhatsAppChat = () => {
       const messages = await getMessages();
       console.log('Fetched messages:', messages); // Debug log
       setMessages(messages);
-     
+  
+      // === NEW: Auto-label numbers based on last incoming "yes"/"stop" ===
+      const lastIncomingByPhone = {};
+  
+      messages.forEach(msg => {
+        if (msg.direction === 'incoming') {
+          const phone = msg.from;
+          if (
+            !lastIncomingByPhone[phone] ||
+            new Date(msg.createdAt) > new Date(lastIncomingByPhone[phone].createdAt)
+          ) {
+            lastIncomingByPhone[phone] = msg;
+          }
+        }
+      });
+  
+      Object.entries(lastIncomingByPhone).forEach(([phone, msg]) => {
+        const text = (msg.message || '').trim().toLowerCase();
+  
+        if (text === 'yes') {
+          addLabelForPhone(phone, 'yes');
+        } else if (text === 'stop') {
+          addLabelForPhone(phone, 'stop');
+        }
+      });
+      // === END NEW ===
+  
       const uniqueChats = {};
       messages.forEach(msg => {
         if (!uniqueChats[msg.from]) {
@@ -120,11 +155,19 @@ const WhatsAppChat = () => {
           uniqueChats[msg.from].lastMessage = msg.message || 'Media';
           uniqueChats[msg.from].lastTime = msg.createdAt;
         }
-        if (msg.direction === 'incoming' && (!readMessages[msg.from] || new Date(msg.createdAt) > new Date(readMessages[msg.from]))) {
+        if (
+          msg.direction === 'incoming' &&
+          (!readMessages[msg.from] || new Date(msg.createdAt) > new Date(readMessages[msg.from]))
+        ) {
           uniqueChats[msg.from].unreadCount++;
         }
       });
-      setChats(Object.values(uniqueChats).sort((a, b) => new Date(b.lastTime) - new Date(a.lastTime)));
+  
+      setChats(
+        Object.values(uniqueChats).sort(
+          (a, b) => new Date(b.lastTime) - new Date(a.lastTime)
+        )
+      );
     } catch (error) {
       console.error('Error fetching messages:', error);
       toast.error('Failed to fetch messages');
@@ -145,13 +188,22 @@ const WhatsAppChat = () => {
   const fetchCustomLabels = async () => {
     if (!API_BASE_URL) return;
     try {
-      const labels = await getCustomLabels();
+      let labels = await getCustomLabels();
+  
+      const needed = ['yes', 'stop'];
+      for (const lbl of needed) {
+        if (!labels.includes(lbl)) {
+          await addCustomLabelAPI(lbl);
+        }
+      }
+  
+      labels = await getCustomLabels(); // refresh
       setCustomLabels(labels);
     } catch (error) {
       console.error('Error fetching custom labels:', error);
     }
   };
- 
+  
   const handleSendMessage = async () => {
     if ((!messageText.trim() && !selectedFile) || !selectedChat) return;
 
@@ -209,7 +261,21 @@ const WhatsAppChat = () => {
     setDateFilter('custom');
     setShowDatePicker(false);
   };
-
+  useEffect(() => {
+    if (!customLabels.length) return;
+  
+    setLabelColors(prev => {
+      const updated = { ...prev };
+      customLabels.forEach((label, index) => {
+        if (!updated[label]) {
+          updated[label] =
+            LABEL_COLOR_PALETTE[index % LABEL_COLOR_PALETTE.length];
+        }
+      });
+      return updated;
+    });
+  }, [customLabels]);
+  
   const filterMessagesByDate = (messages) => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -363,14 +429,26 @@ const WhatsAppChat = () => {
 
   const groupedMessages = groupMessagesByDate(filteredMessages);
 
-  const availableLabels = ['Work', 'Personal', 'Family', 'Important', 'Other', ...customLabels];
-  const labelColors = {
-    'Work': '#1e88e5',
-    'Personal': '#43a047',
-    'Family': '#e53935',
-    'Important': '#fb8c00',
-    'Other': '#8e24aa'
-  };
+  const LABEL_COLOR_PALETTE = [
+    '#1e88e5', // blue
+    '#43a047', // green
+    '#e53935', // red
+    '#fb8c00', // orange
+    '#8e24aa', // purple
+    '#00897b', // teal
+    '#6d4c41', // brown
+  ];
+
+  const availableLabels = customLabels; // ONLY DB labels
+  const MAX_VISIBLE = 2;
+
+const visibleLabels = customLabels.slice(0, MAX_VISIBLE);
+const hiddenLabels = customLabels.slice(MAX_VISIBLE);
+
+
+
+
+  
 
   customLabels.forEach((label, index) => {
     if (!labelColors[label]) {
@@ -403,6 +481,21 @@ const WhatsAppChat = () => {
     }
   };
 
+  const addLabelForPhone = async (phone, label) => {
+    const existing = chatLabels[phone] || [];
+    if (existing.includes(label)) return; // already has it
+  
+    const updated = { ...chatLabels, [phone]: [...existing, label] };
+    setChatLabels(updated);
+  
+    try {
+      await updateLabels(phone, updated[phone]);
+    } catch (error) {
+      console.error('Error adding label:', error);
+      toast.error('Failed to update labels');
+    }
+  };
+
   const toggleLabel = async (phone, label) => {
     const newLabels = { ...chatLabels };
     if (!newLabels[phone]) newLabels[phone] = [];
@@ -431,15 +524,8 @@ const WhatsAppChat = () => {
     <div className="whatsapp-chat">
       <div className={`chat-sidebar ${selectedChat ? 'hide-mobile' : ''}`}>
         <div className="sidebar-header">
-          <h2>Chats</h2>
-          <div className="label-filter">
-            <select value={selectedLabel} onChange={(e) => setSelectedLabel(e.target.value)}>
-              <option value="all">All Chats</option>
-              {availableLabels.map(label => (
-                <option key={label} value={label}>{label}</option>
-              ))}
-            </select>
-          </div>
+          
+         
           <div className="search-box">
             <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8"/>
@@ -457,6 +543,61 @@ const WhatsAppChat = () => {
               </button>
             )}
           </div>
+          <div className="wa-label-tabs">
+
+{/* ALL */}
+<button
+  className={`wa-tab ${selectedLabel === 'all' ? 'active' : ''}`}
+  onClick={() => setSelectedLabel('all')}
+>
+  All
+</button>
+
+{/* FIRST 3 LABELS */}
+{visibleLabels.map(label => (
+  <button
+    key={label}
+    className={`wa-tab ${selectedLabel === label ? 'active' : ''}`}
+    onClick={() => setSelectedLabel(label)}
+  >
+    {label}
+  </button>
+))}
+
+{/* DROPDOWN */}
+{hiddenLabels.length > 0 && (
+  <div className="wa-dropdown">
+    <button
+      className="wa-tab more-btn"
+      onClick={() => setShowMoreMenu(prev => !prev)}
+    >
+      ⋯
+    </button>
+
+    {showMoreMenu && (
+      <div className="wa-dropdown-menu">
+        {hiddenLabels.map(label => (
+          <div
+            key={label}
+            className={`wa-dropdown-item ${selectedLabel === label ? 'active' : ''}`}
+            onClick={() => {
+              setSelectedLabel(label);
+              setShowMoreMenu(false);
+            }}
+          >
+            {label}
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+</div>
+
+
+ 
+
+
         </div>
         {filteredChats.map(chat => (
           <div
@@ -481,15 +622,16 @@ const WhatsAppChat = () => {
               <div className="chat-last-msg">{chat.lastMessage}</div>
               {chatLabels[chat.phone]?.length > 0 && (
                 <div className="chat-labels">
-                  {chatLabels[chat.phone].map(label => {
-                    const colors = ['#1e88e5', '#43a047', '#e53935', '#fb8c00', '#8e24aa'];
-                    const color = labelColors[label] || colors[customLabels.indexOf(label) % colors.length] || '#8e24aa';
-                    return (
-                      <span key={label} className="label-tag" style={{ backgroundColor: color }}>
-                        {label}
-                      </span>
-                    );
-                  })}
+                 {chatLabels[chat.phone].map(label => (
+  <span
+    key={label}
+    className="label-tag"
+    style={{ backgroundColor: labelColors[label] || '#9e9e9e' }}
+  >
+    {label}
+  </span>
+))}
+
                 </div>
               )}
             </div>
@@ -519,51 +661,11 @@ const WhatsAppChat = () => {
                         onChange={() => toggleLabel(chat.phone, label)}
                       />
                       <span style={{ color: labelColors[label] || getRandomColor() }}>{label}</span>
-                      {isCustom && (
-                        <button 
-                          className="remove-label-btn"
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            try {
-                              await deleteCustomLabelAPI(label);
-                              const labels = await getCustomLabels();
-                              setCustomLabels(labels);
-                              const allLabels = await getLabels();
-                              setChatLabels(allLabels);
-                            } catch (error) {
-                              console.error('Error deleting label:', error);
-                              toast.error('Failed to delete label');
-                            }
-                          }}
-                        >
-                          −
-                        </button>
-                      )}
+                      
                     </div>
                   );
                 })}
-                {showNewLabelInput === chat.phone ? (
-                  <div className="new-label-input">
-                    <input
-                      type="text"
-                      placeholder="Label name"
-                      value={newLabelName}
-                      onChange={(e) => setNewLabelName(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') handleAddCustomLabel(chat.phone);
-                      }}
-                      autoFocus
-                    />
-                    <button onClick={() => handleAddCustomLabel(chat.phone)}>Create</button>
-                  </div>
-                ) : (
-                  <div 
-                    className="label-option add-label"
-                    onClick={() => setShowNewLabelInput(chat.phone)}
-                  >
-                    <span>+ New label</span>
-                  </div>
-                )}
+               
               </div>
             )}
           </div>

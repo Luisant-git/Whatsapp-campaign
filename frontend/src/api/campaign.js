@@ -94,3 +94,20 @@ export const downloadCampaignResults = async (id, format) => {
 
   return await response.blob();
 };
+
+export const createCampaign = async (data) => {
+  const response = await fetch(`${API_BASE_URL}/whatsapp/campaigns`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to create campaign');
+  }
+
+  return await response.json();
+};

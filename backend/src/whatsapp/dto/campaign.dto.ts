@@ -44,6 +44,11 @@ export class CreateCampaignDto {
   @IsOptional()
   @IsString()
   scheduledTime?: string;
+
+  @ApiPropertyOptional({ description: 'Campaign group ID', example: 3 })
+  @IsOptional()
+  @IsInt()
+  groupId?: number;  
 }
 
 export class UpdateCampaignDto {
@@ -88,6 +93,13 @@ export class UpdateCampaignDto {
   @IsOptional()
   @IsString()
   scheduledTime?: string;
+
+  @ApiPropertyOptional({ description: 'Campaign group ID', example: 3 })
+@IsOptional()
+@IsInt()
+groupId?: number;
+
+ 
 }
 
 export class CampaignResponseDto {

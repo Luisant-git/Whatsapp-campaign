@@ -101,6 +101,7 @@ const WhatsAppChat = () => {
   
     // Optional polling every 15 seconds (adjust as needed)
     const interval = setInterval(() => {
+      fetchManuallyEdited();
       fetchMessages();
       fetchLabels();
       fetchCustomLabels();
@@ -176,7 +177,6 @@ useEffect(() => {
       console.log('Fetched messages:', messages);
       setMessages(messages);
   
-      // 1) Find latest incoming message per phone
       const lastIncomingByPhone = {};
       messages.forEach((msg) => {
         if (msg.direction !== 'incoming') return;
@@ -187,46 +187,43 @@ useEffect(() => {
         }
       });
   
-      // 2) Auto-manage Yes/Stop only for phones NOT manually edited
-Object.entries(lastIncomingByPhone).forEach(([phone, msg]) => {
-  if (manuallyEditedPhones[phone]) return; // user changed this phone, skip
+      // ONLY auto-manage if manuallyEditedPhones is loaded
+      if (Object.keys(manuallyEditedPhones).length > 0 || manuallyEditedPhones.constructor === Object) {
+        Object.entries(lastIncomingByPhone).forEach(([phone, msg]) => {
+          if (manuallyEditedPhones[phone]) return;
 
-  const text = (msg.message || '').trim().toLowerCase();
-  const existing = chatLabels[phone] || [];
+          const text = (msg.message || '').trim().toLowerCase();
+          const existing = chatLabels[phone] || [];
 
-  // Remove any old Yes/Stop variants (Yes/yes, Stop/stop)
-  let newLabels = existing.filter(
-    (l) => l.toLowerCase() !== 'yes' && l.toLowerCase() !== 'stop'
-  );
+          let newLabels = existing.filter(
+            (l) => l.toLowerCase() !== 'yes' && l.toLowerCase() !== 'stop'
+          );
 
-  // Add normalized label ONLY if message is yes or stop
-  if (text === 'yes') {
-    newLabels.push('Yes');       // store as 'Yes'
-  } else if (text === 'stop') {
-    newLabels.push('Stop');      // store as 'Stop'
-  }
-  // IMPORTANT: If neither yes nor stop, keep existing Stop/Yes if already present
-  else {
-    const hadStop = existing.some(l => l.toLowerCase() === 'stop');
-    const hadYes = existing.some(l => l.toLowerCase() === 'yes');
-    if (hadStop) newLabels.push('Stop');
-    if (hadYes) newLabels.push('Yes');
-  }
+          if (text === 'yes') {
+            newLabels.push('Yes');
+          } else if (text === 'stop') {
+            newLabels.push('Stop');
+          } else {
+            const hadStop = existing.some(l => l.toLowerCase() === 'stop');
+            const hadYes = existing.some(l => l.toLowerCase() === 'yes');
+            if (hadStop) newLabels.push('Stop');
+            if (hadYes) newLabels.push('Yes');
+          }
 
-  const same =
-    existing.length === newLabels.length &&
-    existing.every((l) => newLabels.includes(l));
+          const same =
+            existing.length === newLabels.length &&
+            existing.every((l) => newLabels.includes(l));
 
-  if (!same) {
-    const updated = { ...chatLabels, [phone]: newLabels };
-    setChatLabels(updated);
-    updateLabels(phone, newLabels).catch((err) => {
-      console.error('Error updating labels for', phone, err);
-      toast.error('Failed to update labels');
-    });
-  }
-});
-      // 3) Your existing uniqueChats logic (unchanged)
+          if (!same) {
+            const updated = { ...chatLabels, [phone]: newLabels };
+            setChatLabels(updated);
+            updateLabels(phone, newLabels).catch((err) => {
+              console.error('Error updating labels for', phone, err);
+            });
+          }
+        });
+      }
+
       const uniqueChats = {};
       messages.forEach((msg) => {
         if (!uniqueChats[msg.from]) {

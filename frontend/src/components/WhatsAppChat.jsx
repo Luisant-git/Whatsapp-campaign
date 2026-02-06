@@ -76,8 +76,10 @@ const WhatsAppChat = () => {
   const mobileCalendarRef = useRef(null);
   const [labelColors, setLabelColors] = useState({});
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [manuallyEditedPhones, setManuallyEditedPhones] = useState({});
-// { [phone]: true }
+  const [manuallyEditedPhones, setManuallyEditedPhones] = useState(() => {
+    const saved = localStorage.getItem('manuallyEditedPhones');
+    return saved ? JSON.parse(saved) : {};
+  });
 
 
   
@@ -170,13 +172,19 @@ Object.entries(lastIncomingByPhone).forEach(([phone, msg]) => {
     (l) => l.toLowerCase() !== 'yes' && l.toLowerCase() !== 'stop'
   );
 
-  // Add normalized label
+  // Add normalized label ONLY if message is yes or stop
   if (text === 'yes') {
     newLabels.push('Yes');       // store as 'Yes'
   } else if (text === 'stop') {
     newLabels.push('Stop');      // store as 'Stop'
   }
-  // else: neither yes nor stop → both removed
+  // IMPORTANT: If neither yes nor stop, keep existing Stop/Yes if already present
+  else {
+    const hadStop = existing.some(l => l.toLowerCase() === 'stop');
+    const hadYes = existing.some(l => l.toLowerCase() === 'yes');
+    if (hadStop) newLabels.push('Stop');
+    if (hadYes) newLabels.push('Yes');
+  }
 
   const same =
     existing.length === newLabels.length &&
@@ -549,8 +557,10 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
   
     setChatLabels(newLabels);
   
-    // Mark this phone as manually edited (for ALL labels, including yes/stop)
-    setManuallyEditedPhones((prev) => ({ ...prev, [phone]: true }));
+    // Mark this phone as manually edited and save to localStorage
+    const updatedManualPhones = { ...manuallyEditedPhones, [phone]: true };
+    setManuallyEditedPhones(updatedManualPhones);
+    localStorage.setItem('manuallyEditedPhones', JSON.stringify(updatedManualPhones));
   
     try {
       await updateLabels(phone, newLabels[phone]);

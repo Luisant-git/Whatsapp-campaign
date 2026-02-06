@@ -8,13 +8,13 @@ COLOR HELPERS (localStorage)
 const COLOR_KEY = "label_colors";
 
 export const getLabelColor = (name) => {
-  if (typeof window === "undefined") return "#22c55e"; // SSR safety
+  if (typeof window === "undefined") return null;
   const map = JSON.parse(localStorage.getItem(COLOR_KEY) || "{}");
-  return map[name] || "#22c55e";
+  return map[name] || null; // Return null if not found
 };
 
-export const saveLabelColor = (name, color = "#22c55e") => {
-  if (typeof window === "undefined") return;
+export const saveLabelColor = (name, color) => {
+  if (typeof window === "undefined" || !color) return;
   const map = JSON.parse(localStorage.getItem(COLOR_KEY) || "{}");
   map[name] = color;
   localStorage.setItem(COLOR_KEY, JSON.stringify(map));

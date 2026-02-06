@@ -93,8 +93,7 @@ const WhatsAppChat = () => {
   useEffect(() => {
     if (!API_BASE_URL) return;
   
-    fetchUserId();
-    fetchManuallyEdited();
+    // Initial load once
     fetchMessages();
     fetchLabels();
     fetchCustomLabels();
@@ -106,32 +105,11 @@ const WhatsAppChat = () => {
       fetchCustomLabels();
     }, 15000);
   
-    return () => clearInterval(interval);
+    return () => clearInterval(interval); // cleanup when component unmounts
   }, []); 
-
-  const fetchUserId = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/auth/profile`, { credentials: 'include' });
-      const data = await res.json();
-      setUserId(data.user?.id);
-    } catch (err) {
-      console.error('Failed to fetch user ID', err);
-    }
-  };
-
-  const fetchManuallyEdited = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/contact/manually-edited`, { credentials: 'include' });
-      const phones = await res.json();
-      const map = {};
-      phones.forEach(p => map[p] = true);
-      setManuallyEditedPhones(map);
-    } catch (err) {
-      console.error('Failed to fetch manually edited phones', err);
-    }
-  };
   
   
+  // 👈 empty deps == only run once
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (showLabelMenu && !event.target.closest('.label-menu') && !event.target.closest('.label-menu-btn')) {

@@ -148,9 +148,8 @@ getContactsByGroup(
 
  
 @Get('blocklist')
-@UseGuards(SessionGuard)
-async getBlocklisted(@Session() session: any) {
-  return this.contactService.getBlocklistedContacts(session.user.id);
+async getBlocklisted(@Session() session: Record<string, any>) {
+  return this.contactService.getBlocklistedContacts(this.getUserId(session));
 }
 
 

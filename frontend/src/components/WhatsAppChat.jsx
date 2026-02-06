@@ -306,12 +306,15 @@ Object.entries(lastIncomingByPhone).forEach(([phone, msg]) => {
   useEffect(() => {
     if (!customLabels.length) return;
   
+    // Load colors from localStorage (same as Labels.jsx)
+    const savedColors = JSON.parse(localStorage.getItem('label_colors') || '{}');
+    
     setLabelColors(prev => {
       const updated = { ...prev };
       customLabels.forEach((label, index) => {
         if (!updated[label]) {
-          updated[label] =
-            LABEL_COLOR_PALETTE[index % LABEL_COLOR_PALETTE.length];
+          // Use saved color from localStorage, or fallback to palette
+          updated[label] = savedColors[label] || LABEL_COLOR_PALETTE[index % LABEL_COLOR_PALETTE.length];
         }
       });
       return updated;
@@ -492,19 +495,13 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
 
   
 
+  // Load from localStorage for any missing colors
+  const savedColors = JSON.parse(localStorage.getItem('label_colors') || '{}');
   customLabels.forEach((label, index) => {
     if (!labelColors[label]) {
-      const colors = ['#1e88e5', '#43a047', '#e53935', '#fb8c00', '#8e24aa'];
-      labelColors[label] = colors[index % colors.length];
+      labelColors[label] = savedColors[label] || LABEL_COLOR_PALETTE[index % LABEL_COLOR_PALETTE.length];
     }
   });
-
-  const getRandomColor = () => {
-    const colors = ['#1e88e5', '#43a047', '#e53935', '#fb8c00', '#8e24aa'];
-    const usedColors = Object.values(labelColors);
-    const availableColors = colors.filter(c => !usedColors.includes(c));
-    return availableColors.length > 0 ? availableColors[0] : colors[customLabels.length % colors.length];
-  };
 
   const handleAddCustomLabel = async (phone) => {
     if (newLabelName.trim() && !availableLabels.includes(newLabelName.trim())) {
@@ -709,7 +706,7 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
                         checked={chatLabels[chat.phone]?.includes(label) || false}
                         onChange={() => toggleLabel(chat.phone, label)}
                       />
-                      <span style={{ color: labelColors[label] || getRandomColor() }}>{label}</span>
+                      <span style={{ color: labelColors[label] || '#9e9e9e' }}>{label}</span>
                       
                     </div>
                   );

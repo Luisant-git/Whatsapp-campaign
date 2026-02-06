@@ -52,15 +52,14 @@ const COLOR_PALETTE = [
 
   const loadLabels = async () => {
     try {
-      let data = await getCustomLabels(); // [{ name, color? } or just { name } depending on API]
+      let data = await getCustomLabels();
   
-      // Make sure each label has a color; if not, assign and save one.
       const withColors = data.map((label, index) => {
         const name = label.name;
-        let color = label.color || getLabelColor(name);
+        let color = label.color;
   
+        // Assign color if missing
         if (!color) {
-          // assign a deterministic-ish color from palette
           color = COLOR_PALETTE[index % COLOR_PALETTE.length];
           saveLabelColor(name, color);
         }
@@ -111,14 +110,12 @@ const COLOR_PALETTE = [
         updatedLabels.forEach((l) => saveLabelColor(l.name, l.color));
 
       } else {
-        // Add new label (backend expects STRING)
-        await addCustomLabel(trimmedName);
-      
-        // Use whatever is in the form (already random when modal opened,
-        // unless user changed it)
+        // Save color FIRST before API call
         const colorToSave = formData.color || getRandomColor();
-      
         saveLabelColor(trimmedName, colorToSave);
+      
+        // Then add to backend
+        await addCustomLabel(trimmedName);
       
         showToast("Label added successfully", "success");
       }

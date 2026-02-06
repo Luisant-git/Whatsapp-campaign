@@ -75,7 +75,7 @@ function App() {
         } catch (error) {
           console.error('Session check failed:', error);
         }
-      }, 100);
+      }, 5000);
       return () => clearInterval(interval);
     }
   }, [isLoggedIn, aiChatbotEnabled, useQuickReply, activeView]);

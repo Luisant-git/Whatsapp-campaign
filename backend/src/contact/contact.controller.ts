@@ -171,12 +171,23 @@ async getBlocklisted(@Session() session: Record<string, any>) {
   }
 
   @Post('labels/:phone')
-  updateLabels(
+  async updateLabels(
     @Param('phone') phone: string,
     @Body('labels') labels: string[],
     @Session() session: Record<string, any>,
   ) {
-    return this.contactService.updateLabels(this.getUserId(session), phone, labels);
+    const userId = this.getUserId(session);
+    const result = await this.contactService.updateLabels(userId, phone, labels);
+    
+    // Check if Stop/Yes was manually added
+    const hasStop = labels.some(l => l.toLowerCase() === 'stop');
+    const hasYes = labels.some(l => l.toLowerCase() === 'yes');
+    if (hasStop || hasYes) {
+      // Mark as manually edited in database
+      await this.contactService.markManuallyEdited(userId, phone);
+    }
+    
+    return result;
   }
 
   @Post('remove-label')
@@ -186,5 +197,10 @@ removeLabel(
   @Session() session: Record<string, any>,
 ) {
   return this.contactService.removeLabel(this.getUserId(session), phone, label);
+}
+
+@Get('manually-edited')
+getManuallyEdited(@Session() session: Record<string, any>) {
+  return this.contactService.getManuallyEditedPhones(this.getUserId(session));
 }
 }

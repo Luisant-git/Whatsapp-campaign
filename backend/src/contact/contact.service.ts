@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { LabelsGateway } from '../labels/labels.gateway';
 
 @Injectable()
 export class ContactService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private labelsGateway: LabelsGateway,
+  ) {}
 
  
 
@@ -381,7 +385,7 @@ async findAll(
   }
 
   async updateLabels(userId: number, phone: string, labels: string[]) {
-    return this.prisma.chatLabel.upsert({
+    const result = await this.prisma.chatLabel.upsert({
       where: {
         phone_userId: {
           phone,
@@ -391,6 +395,9 @@ async findAll(
       update: { labels },
       create: { phone, labels, userId },
     });
+    
+    this.labelsGateway.emitLabelUpdate(userId, phone, labels);
+    return result;
   }
   
 
@@ -404,10 +411,27 @@ async findAll(
       },
     });
   
-    if (!existing) return { success: true }; // nothing to do
+    if (!existing) return { success: true };
   
     const newLabels = existing.labels.filter((l) => l !== label);
     await this.updateLabels(userId, phone, newLabels);
     return { success: true };
+  }
+
+  async markManuallyEdited(userId: number, phone: string) {
+    await this.prisma.chatLabel.upsert({
+      where: { phone_userId: { phone, userId } },
+      update: { manuallyEdited: true },
+      create: { phone, userId, labels: [], manuallyEdited: true },
+    });
+    this.labelsGateway.emitManualEdit(userId, phone);
+  }
+
+  async getManuallyEditedPhones(userId: number) {
+    const records = await this.prisma.chatLabel.findMany({
+      where: { userId, manuallyEdited: true },
+      select: { phone: true },
+    });
+    return records.map(r => r.phone);
   }
 }

@@ -13,25 +13,62 @@ import {
   saveLabelColor,
 } from "../api/Label";
 
+
 export default function Labels() {
+
+  
+const getRandomColor = () => {
+  const index = Math.floor(Math.random() * COLOR_PALETTE.length);
+  return COLOR_PALETTE[index];
+};
+
+
+const COLOR_PALETTE = [
+  "#1e88e5", // blue
+  "#43a047", // green
+  "#e53935", // red
+  "#fb8c00", // orange
+  "#8e24aa", // purple
+  "#00897b", // teal
+  "#6d4c41", // brown
+];
+
   const [labels, setLabels] = useState([]); // [{ name, color }]
   const [showModal, setShowModal] = useState(false);
-  const [editingLabel, setEditingLabel] = useState(null); // { name, color } or null
+  const [editingLabel, setEditingLabel] = useState(null); 
   const [formData, setFormData] = useState({
     name: "",
-    color: "#22c55e",
+    color: getRandomColor(),   // use random color instead of fixed green
   });
-
   const { showToast } = useToast();
 
   useEffect(() => {
     loadLabels();
   }, []);
 
+ 
+  
+  
+
   const loadLabels = async () => {
     try {
-      const data = await getCustomLabels(); // [{ name, color }]
-      setLabels(data);
+      let data = await getCustomLabels(); // [{ name, color? } or just { name } depending on API]
+  
+      // Make sure each label has a color; if not, assign and save one.
+      const withColors = data.map((label, index) => {
+        const name = label.name;
+        let color = label.color || getLabelColor(name);
+  
+        if (!color) {
+          // assign a deterministic-ish color from palette
+          color = COLOR_PALETTE[index % COLOR_PALETTE.length];
+          saveLabelColor(name, color);
+        }
+  
+        return { name, color };
+      });
+  
+      setLabels(withColors);
     } catch (err) {
       showToast(err.message || "Failed to load labels", "error");
     }
@@ -39,7 +76,7 @@ export default function Labels() {
 
   const openAdd = () => {
     setEditingLabel(null);
-    setFormData({ name: "", color: "#22c55e" });
+    setFormData({ name: "", color: getRandomColor() }); // random every time
     setShowModal(true);
   };
 
@@ -73,17 +110,18 @@ export default function Labels() {
         // Save colors locally
         updatedLabels.forEach((l) => saveLabelColor(l.name, l.color));
 
-        showToast("Label updated successfully", "success");
       } else {
         // Add new label (backend expects STRING)
         await addCustomLabel(trimmedName);
-
-        // Save color locally
-        saveLabelColor(trimmedName, formData.color);
-
+      
+        // Use whatever is in the form (already random when modal opened,
+        // unless user changed it)
+        const colorToSave = formData.color || getRandomColor();
+      
+        saveLabelColor(trimmedName, colorToSave);
+      
         showToast("Label added successfully", "success");
       }
-
       setShowModal(false);
       await loadLabels();
     } catch (err) {

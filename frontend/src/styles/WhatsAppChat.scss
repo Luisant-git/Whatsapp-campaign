@@ -1701,12 +1701,14 @@
 /* LABEL TABS CONTAINER */
 .wa-label-tabs {
   display: flex;
-  align-items: center; /* vertical alignment */
+  align-items: center;
+  justify-content: center;  /* NEW */
   gap: 6px;
   padding: 6px 10px;
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  align-self: center;       /* OPTIONAL: center the whole block */
 }
 
 /* NORMAL TAB */

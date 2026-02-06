@@ -84,8 +84,23 @@ async findAll(
 ) {
   const skip = (page - 1) * limit;
 
-  const where: any = { userId };
+  // 1) Find all phones that have 'stop' label
+  const stopLabeled = await this.prisma.chatLabel.findMany({
+    where: {
+      userId,
+      labels: { hasSome: ['Stop', 'stop'] },  // accept both
+    },
+    select: { phone: true },
+  });
+  const stopPhones = stopLabeled.map((x) => x.phone);
 
+  // 2) Base where clause, excluding stop phones if any
+  const where: any = {
+    userId,
+    ...(stopPhones.length ? { phone: { notIn: stopPhones } } : {}),
+  };
+
+  // 3) Search filters
   if (search) {
     where.OR = [
       { name: { contains: search, mode: 'insensitive' } },
@@ -120,19 +135,25 @@ async findAll(
   };
 }
 
+  
 
-  /* ============================
-     FIND SINGLE CONTACT
-     ============================ */
-  async findOne(id: number, userId: number) {
-    const contact = await this.prisma.contact.findFirst({
-      where: { id, userId },
-    });
+//  /* ============================
+//    FIND SINGLE CONTACT
+//    ============================ */
+// async getContactById(id: number, userId: number) {
+//   const contact = await this.prisma.contact.findFirst({
+//     where: {
+//       id: id,
+//       userId: userId,
+//     },
+//   });
 
-    if (!contact) throw new NotFoundException('Contact not found');
-    return contact;
-  }
+//   if (!contact) {
+//     throw new NotFoundException('Contact not found');
+//   }
 
+//   return contact;
+// }
 
   /* ============================
     getCONTACTby group
@@ -155,86 +176,76 @@ async findAll(
   /* ============================
     getBlocklistedContacts
      ============================ */
-
-   
-async getBlocklistedContacts(userId: number) {
-  // Fetch all contacts tagged with 'blocklist' in chatLabel table
-  const labeled = await this.prisma.chatLabel.findMany({
-    where: {
-      userId,
-      labels: { has: 'blocklist' },     // Prisma array‑contains
-    },
-    select: { phone: true },
-  });
-
-  if (labeled.length === 0) return [];
-
-  const phones = labeled.map((l) => l.phone);
-
-  // Return matching Contact entries (if any)
-  const results = await this.prisma.contact.findMany({
-    where: { phone: { in: phones }, userId },
-    include: { group: true },
-  });
-
-  return results;
-}
-
+     async getBlocklistedContacts(userId: number) {
+      const labeled = await this.prisma.chatLabel.findMany({
+        where: {
+          userId,
+          labels: { hasSome: ['Stop', 'stop'] },  // accept both
+        },
+        select: { phone: true },
+      });
+    
+      if (labeled.length === 0) return [];
+    
+      const phones = labeled.map((l) => l.phone);
+    
+      const results = await this.prisma.contact.findMany({
+        where: { phone: { in: phones }, userId },
+        include: { group: true },
+      });
+    
+      return results;
+    }
 
   /* ============================
      UPDATE CONTACT
      ============================ */
      
-async update(id: number, data: any, userId: number) {
-  await this.findOne(id, userId);
-
-  const phone = this.formatPhoneNumber(data.phone);
-
-  // prepare safe values
-  const dob = data.dob ? new Date(data.dob) : null;
-  const anniversary = data.anniversary ? new Date(data.anniversary) : null;
-
-  // build base data
-  const updateData: any = {
-    name: data.name,
-    phone,
-    email: data.email,
-    place: data.place,
-    dob,
-    anniversary,
-  };
-
-  // relation handling
-  if (data.group) {
-    updateData.group = {
-      connectOrCreate: {
-        where: {
-          name_userId: { name: data.group, userId },
-        },
-        create: {
-          name: data.group,
-          user: { connect: { id: userId } },
-        },
-      },
-    };
-  }
-
-  return this.prisma.contact.update({
-    where: { id },
-    data: updateData,
-  });
-}
-  /* ============================
-     DELETE CONTACT
-     ============================ */
-  async remove(id: number, userId: number) {
-    await this.findOne(id, userId);
-
-    return this.prisma.contact.delete({
-      where: { id },
-    });
-  }
-
+     async update(id: number, data: any, userId: number) {
+      // TEMP: skip getContactById to avoid bad findFirst
+      // await this.getContactById(id, userId);
+    
+      const phone = this.formatPhoneNumber(data.phone);
+      const dob = data.dob ? new Date(data.dob) : null;
+      const anniversary = data.anniversary ? new Date(data.anniversary) : null;
+    
+      const updateData: any = {
+        name: data.name,
+        phone,
+        email: data.email,
+        place: data.place,
+        dob,
+        anniversary,
+      };
+    
+      if (data.group) {
+        updateData.group = {
+          connectOrCreate: {
+            where: {
+              name_userId: { name: data.group, userId },
+            },
+            create: {
+              name: data.group,
+              user: { connect: { id: userId } },
+            },
+          },
+        };
+      }
+    
+      return this.prisma.contact.update({
+        where: { id },
+        data: updateData,
+      });
+    }
+    
+    async remove(id: number, userId: number) {
+      // TEMP: skip getContactById
+      // await this.getContactById(id, userId);
+    
+      return this.prisma.contact.delete({
+        where: { id },
+      });
+    }
   /* ============================
      DELIVERY STATS
      ============================ */

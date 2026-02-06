@@ -15,8 +15,8 @@ import { useToast } from "../contexts/ToastContext";
 
 /**
  * Blacklist Management Page
- * Shows users labeled 'blocklist' (in chatLabel).
- * Allows re‑activating (remove 'blocklist') or deleting contact.
+ * Shows users labeled 'Stop' (in chatLabel).
+ * Allows re‑activating (remove 'Stop') contact.
  */
 export default function Blacklist() {
   const { showSuccess, showError } = useToast();
@@ -27,7 +27,7 @@ export default function Blacklist() {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewContact, setViewContact] = useState(null);
 
-  // Pagination (you can extend this later)
+  // Pagination
   const [page, setPage] = useState(1);
   const limit = 10;
   const [totalPages, setTotalPages] = useState(1);
@@ -37,9 +37,14 @@ export default function Blacklist() {
     setLoading(true);
     setError("");
     try {
-      const resp = await contactAPI.getBlocked(); // <-- uses /contact/blocklist
-      setBlockedContacts(resp.data || []);
-      setTotalPages(1); // adjust if you add real pagination later
+      const resp = await contactAPI.getBlocked(); // /contact/blocklist
+      const data = resp.data || [];
+      setBlockedContacts(data);
+
+      // compute total pages from data length
+      const pages = Math.max(1, Math.ceil(data.length / limit));
+      setTotalPages(pages);
+      setPage(1); // reset to first page when list is reloaded
     } catch (err) {
       console.error("Failed to fetch blocklist", err);
       setError("Unable to load blocked contacts. Please try again.");
@@ -55,7 +60,10 @@ export default function Blacklist() {
   // 🔹 Remove from blocklist (restore contact)
   const handleRestore = async (contact) => {
     try {
-      await contactAPI.removeLabel(contact.phone, "blocklist");
+      // Remove both possible case variants
+      await contactAPI.removeLabel(contact.phone, "Stop");
+      await contactAPI.removeLabel(contact.phone, "stop");
+  
       showSuccess(`Restored ${contact.name || contact.phone} to contact list.`);
       fetchBlocked();
     } catch (err) {
@@ -64,18 +72,29 @@ export default function Blacklist() {
     }
   };
 
-  // 🔹 Delete permanently
-  const handleDelete = async (contact) => {
-    if (!window.confirm(`Delete ${contact.name || contact.phone} permanently?`)) return;
-    try {
-      await contactAPI.delete(contact.id);
-      showSuccess(`Deleted ${contact.name || contact.phone}`);
-      fetchBlocked();
-    } catch (err) {
-      console.error("Delete error", err);
-      showError("Failed to delete contact.");
-    }
-  };
+  // (Optional) Delete permanently – if you want to keep delete, uncomment this and add the button.
+  // const handleDelete = async (contact) => {
+  //   if (!window.confirm(`Delete ${contact.name || contact.phone} permanently?`)) return;
+  //   try {
+  //     await contactAPI.delete(contact.id);
+  //     showSuccess(`Deleted ${contact.name || contact.phone}`);
+  //     fetchBlocked();
+  //   } catch (err) {
+  //     console.error("Delete error", err);
+  //     showError("Failed to delete contact.");
+  //   }
+  // };
+
+  // 🔹 Apply search filter, then slice for current page
+  const filtered = blockedContacts.filter(
+    (c) =>
+      c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.phone?.includes(searchQuery)
+  );
+
+  const startIndex = (page - 1) * limit;
+  const endIndex = startIndex + limit;
+  const paginatedContacts = filtered.slice(startIndex, endIndex);
 
   return (
     <div className="contact-container">
@@ -118,7 +137,7 @@ export default function Blacklist() {
         </div>
       )}
 
-      {!loading && blockedContacts.length > 0 && (
+      {!loading && paginatedContacts.length > 0 && (
         <div className="table-container">
           <table className="contacts-table">
             <thead>
@@ -132,61 +151,50 @@ export default function Blacklist() {
               </tr>
             </thead>
             <tbody>
-              {blockedContacts
-                .filter(
-                  (c) =>
-                    c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    c.phone?.includes(searchQuery)
-                )
-                .map((c, i) => (
-                  <tr key={c.id}>
-                    <td>{i + 1}</td>
-                    <td>{c.name}</td>
-                    <td>{c.phone}</td>
-                    <td>{c.email || "N/A"}</td>
-                    <td>{c.group?.name || "—"}</td>
-                    <td>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "center",
-                          gap: "8px",
-                        }}
+              {paginatedContacts.map((c, i) => (
+                <tr key={c.id}>
+                  {/* S.No across pages */}
+                  <td>{startIndex + i + 1}</td>
+                  <td>{c.name}</td>
+                  <td>{c.phone}</td>
+                  <td>{c.email || "N/A"}</td>
+                  <td>{c.group?.name || "—"}</td>
+                  <td style={{ textAlign: "center", width: "140px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <button
+                        className="btn-icon"
+                        title="View"
+                        style={{ color: "#0ea5e9" }}
+                        onClick={() => setViewContact(c)}
                       >
-                        <button
-                          className="btn-icon"
-                          title="View"
-                          style={{ color: "#0ea5e9" }}
-                          onClick={() => setViewContact(c)}
-                        >
-                          <Eye size={16} />
-                        </button>
-                        <button
-                          className="btn-icon"
-                          title="Restore to Contacts"
-                          style={{ color: "#22c55e" }}
-                          onClick={() => handleRestore(c)}
-                        >
-                          <ArrowLeftCircle size={18} />
-                        </button>
-                        <button
-                          className="btn-icon"
-                          title="Delete Permanently"
-                          style={{ color: "#dc2626" }}
-                          onClick={() => handleDelete(c)}
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        <Eye size={16} />
+                      </button>
+                      <button
+                        className="btn-icon"
+                        title="Restore to Contacts"
+                        style={{ color: "#22c55e" }}
+                        onClick={() => handleRestore(c)}
+                      >
+                        <ArrowLeftCircle size={18} />
+                      </button>
+                      {/* If you want delete back, add the button here */}
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
       )}
 
-      {/* Optional: Pagination if you add it later */}
+      {/* Pagination */}
       {totalPages > 1 && (
         <div className="pagination">
           <button
@@ -223,10 +231,18 @@ export default function Blacklist() {
                 <X size={20} />
               </button>
             </div>
-            <p><strong>Name:</strong> {viewContact.name}</p>
-            <p><strong>Phone:</strong> {viewContact.phone}</p>
-            <p><strong>Email:</strong> {viewContact.email || "N/A"}</p>
-            <p><strong>Group:</strong> {viewContact.group?.name || "N/A"}</p>
+            <p>
+              <strong>Name:</strong> {viewContact.name}
+            </p>
+            <p>
+              <strong>Phone:</strong> {viewContact.phone}
+            </p>
+            <p>
+              <strong>Email:</strong> {viewContact.email || "N/A"}
+            </p>
+            <p>
+              <strong>Group:</strong> {viewContact.group?.name || "N/A"}
+            </p>
 
             <div className="modal-actions">
               <button
@@ -238,7 +254,10 @@ export default function Blacklist() {
               >
                 Restore
               </button>
-              <button className="btn-secondary" onClick={() => setViewContact(null)}>
+              <button
+                className="btn-secondary"
+                onClick={() => setViewContact(null)}
+              >
                 Close
               </button>
             </div>

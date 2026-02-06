@@ -97,10 +97,10 @@ getContactsByGroup(
   return this.contactService.getContactsByGroup(+groupId, this.getUserId(session));
 }
 
-  @Get(':id')
-  findOne(@Param('id') id: string, @Session() session: Record<string, any>) {
-    return this.contactService.findOne(+id, this.getUserId(session));
-  }
+  // @Get(':id')
+  // findOne(@Param('id') id: string, @Session() session: Record<string, any>) {
+  //   return this.contactService.getContactById(+id, this.getUserId(session));
+  // }
 
   @Patch('delivery-status')
   updateDeliveryStatus(

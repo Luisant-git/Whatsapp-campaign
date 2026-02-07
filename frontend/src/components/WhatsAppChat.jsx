@@ -105,7 +105,7 @@ const WhatsAppChat = () => {
       fetchMessages();
       fetchLabels();
       fetchCustomLabels();
-    }, 15000);
+    }, 30000);
   
     return () => clearInterval(interval);
   }, []); 
@@ -262,7 +262,6 @@ useEffect(() => {
     try {
       const labels = await getLabels();
       setChatLabels(labels);
-      await fetchCustomLabels();
     } catch (error) {
       console.error('Error fetching labels:', error);
     }
@@ -581,9 +580,13 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
   
     try {
       await updateLabels(phone, newLabels[phone]);
+      console.log('Label updated successfully for', phone, newLabels[phone]);
+      toast.success('Label updated');
     } catch (error) {
       console.error('Error updating labels:', error);
       toast.error('Failed to update labels');
+      // Revert on error
+      setChatLabels(chatLabels);
     }
   };
   const filteredChats = chats

@@ -40,6 +40,44 @@ export class WhatsappService {
       this.logger.log(`Button clicked: ${buttonTitle}`);
     }
 
+    // Check if message is "stop" or "yes" and handle labels
+    if (text) {
+      const lowerText = text.toLowerCase().trim();
+      
+      // Check if manually edited to avoid auto-labeling
+      const chatLabel = await this.prisma.chatLabel.findUnique({
+        where: { phone_userId: { phone: from, userId } },
+      });
+
+      const isManuallyEdited = chatLabel?.manuallyEdited || false;
+
+      if (!isManuallyEdited) {
+        if (lowerText === 'stop') {
+          // Add Stop label
+          await this.prisma.chatLabel.upsert({
+            where: { phone_userId: { phone: from, userId } },
+            update: { labels: { set: ['Stop'] } },
+            create: { phone: from, userId, labels: ['Stop'] },
+          });
+          this.logger.log(`Added 'Stop' label to ${from}`);
+        } else if (lowerText === 'yes') {
+          // Remove Stop label if present, add Yes label
+          const currentLabels = chatLabel?.labels || [];
+          const updatedLabels = currentLabels.filter(l => l.toLowerCase() !== 'stop');
+          if (!updatedLabels.includes('Yes')) {
+            updatedLabels.push('Yes');
+          }
+          
+          await this.prisma.chatLabel.upsert({
+            where: { phone_userId: { phone: from, userId } },
+            update: { labels: { set: updatedLabels } },
+            create: { phone: from, userId, labels: ['Yes'] },
+          });
+          this.logger.log(`Removed 'Stop' label and added 'Yes' label to ${from}`);
+        }
+      }
+    }
+
     let mediaType: string | null = null;
     let mediaUrl: string | null = null;
 
@@ -84,6 +122,14 @@ export class WhatsappService {
     });
 
     if (text) {
+      const lowerText = text.toLowerCase().trim();
+      
+      // Skip auto-reply/chatbot if message is "stop" or "yes"
+      if (lowerText === 'stop' || lowerText === 'yes') {
+        this.logger.log(`Skipping auto-reply/chatbot for ${lowerText} message`);
+        return;
+      }
+
       // Get user to check if AI chatbot is enabled
       const user = await this.prisma.user.findUnique({
         where: { id: userId },

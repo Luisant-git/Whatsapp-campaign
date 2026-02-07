@@ -1697,3 +1697,109 @@
     font-size: 12px;
   }
 }
+
+/* LABEL TABS CONTAINER */
+.wa-label-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: center;  /* NEW */
+  gap: 6px;
+  padding: 6px 10px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  align-self: center;       /* OPTIONAL: center the whole block */
+}
+
+/* NORMAL TAB */
+.wa-tab {
+  padding: 4px 12px;
+  font-size: 13px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #f3f4f6;
+  color: #5f6368;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  outline: none; /* remove focus border */
+  box-shadow: none; /* remove any extra shadows */
+}
+
+.wa-tab:hover {
+  background: #e8eaed;
+}
+
+/* ACTIVE TAB */
+.wa-tab.active {
+  background: #d9fdd3; /* green background */
+  color: #05603a;      /* green text */
+  border-color: transparent; /* removes border */
+  font-weight: 500;
+  outline: none; /* remove focus border */
+  box-shadow: none; /* remove any shadow */
+}
+
+/* REMOVE DEFAULT FOCUS ON CLICK */
+.wa-tab:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* DROPDOWN WRAPPER */
+.wa-dropdown {
+  position: relative;
+}
+
+/* 3 DOT BUTTON */
+.more-btn {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* DROPDOWN MENU */
+.wa-dropdown-menu {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  min-width: 160px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  overflow: hidden;
+  animation: fadeIn 0.15s ease-out;
+}
+
+/* DROPDOWN ITEM */
+.wa-dropdown-item {
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #3c4043;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.wa-dropdown-item:hover {
+  background: #f5f6f7;
+}
+
+/* ACTIVE DROPDOWN ITEM */
+.wa-dropdown-item.active {
+  background: #d9fdd3;
+  color: #05603a;
+  font-weight: 500;
+}
+
+/* ANIMATION */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

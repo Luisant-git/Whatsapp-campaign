@@ -56,7 +56,7 @@ async function bootstrap() {
     .addTag('Admin', 'Admin authentication endpoints')
     .build();
   
-  const document = SwaggerModule.createDocument(app, config);
+  const document = SwaggerModule.createDocument(app, config);  
   SwaggerModule.setup('api', app, document);
   
   await app.listen(process.env.PORT ?? 3010);

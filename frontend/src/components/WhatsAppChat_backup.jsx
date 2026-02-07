@@ -93,48 +93,23 @@ const WhatsAppChat = () => {
   useEffect(() => {
     if (!API_BASE_URL) return;
   
-    fetchUserId();
-    const init = async () => {
-      await fetchManuallyEdited();
-      await fetchLabels();
-      fetchMessages(true); // Skip auto-labeling on initial load
-    };
-    init();
+    // Initial load once
+    fetchMessages();
+    fetchLabels();
     fetchCustomLabels();
   
     // Optional polling every 15 seconds (adjust as needed)
     const interval = setInterval(() => {
-      fetchManuallyEdited();
       fetchMessages();
+      fetchLabels();
       fetchCustomLabels();
-    }, 30000);
+    }, 15000);
   
-    return () => clearInterval(interval);
+    return () => clearInterval(interval); // cleanup when component unmounts
   }, []); 
-
-  const fetchUserId = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/auth/profile`, { credentials: 'include' });
-      const data = await res.json();
-      setUserId(data.user?.id);
-    } catch (err) {
-      console.error('Failed to fetch user ID', err);
-    }
-  };
-
-  const fetchManuallyEdited = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/contact/manually-edited`, { credentials: 'include' });
-      const phones = await res.json();
-      const map = {};
-      phones.forEach(p => map[p] = true);
-      setManuallyEditedPhones(map);
-    } catch (err) {
-      console.error('Failed to fetch manually edited phones', err);
-    }
-  };
   
   
+  // 👈 empty deps == only run once
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (showLabelMenu && !event.target.closest('.label-menu') && !event.target.closest('.label-menu-btn')) {
@@ -172,13 +147,14 @@ useEffect(() => {
 }, [selectedChat, messages]);
 
   
-  const fetchMessages = async (skipAutoLabeling = false) => {
+  const fetchMessages = async () => {
     if (!API_BASE_URL) return;
     try {
       const messages = await getMessages();
       console.log('Fetched messages:', messages);
       setMessages(messages);
   
+      // 1) Find latest incoming message per phone
       const lastIncomingByPhone = {};
       messages.forEach((msg) => {
         if (msg.direction !== 'incoming') return;
@@ -189,41 +165,46 @@ useEffect(() => {
         }
       });
   
-      // ONLY auto-manage if NOT skipping and manuallyEditedPhones is loaded
-      if (!skipAutoLabeling && (Object.keys(manuallyEditedPhones).length > 0 || manuallyEditedPhones.constructor === Object)) {
-        Object.entries(lastIncomingByPhone).forEach(([phone, msg]) => {
-          const text = (msg.message || '').trim().toLowerCase();
-          const existing = chatLabels[phone] || [];
+      // 2) Auto-manage Yes/Stop only for phones NOT manually edited
+Object.entries(lastIncomingByPhone).forEach(([phone, msg]) => {
+  if (manuallyEditedPhones[phone]) return; // user changed this phone, skip
 
-          let newLabels = existing.filter(
-            (l) => l.toLowerCase() !== 'yes' && l.toLowerCase() !== 'stop'
-          );
+  const text = (msg.message || '').trim().toLowerCase();
+  const existing = chatLabels[phone] || [];
 
-          if (text === 'yes') {
-            newLabels.push('Yes');
-          } else if (text === 'stop') {
-            newLabels.push('Stop');
-          } else {
-            const hadStop = existing.some(l => l.toLowerCase() === 'stop');
-            const hadYes = existing.some(l => l.toLowerCase() === 'yes');
-            if (hadStop) newLabels.push('Stop');
-            if (hadYes) newLabels.push('Yes');
-          }
+  // Remove any old Yes/Stop variants (Yes/yes, Stop/stop)
+  let newLabels = existing.filter(
+    (l) => l.toLowerCase() !== 'yes' && l.toLowerCase() !== 'stop'
+  );
 
-          const same =
-            existing.length === newLabels.length &&
-            existing.every((l) => newLabels.includes(l));
+  // Add normalized label ONLY if message is yes or stop
+  if (text === 'yes') {
+    newLabels.push('Yes');       // store as 'Yes'
+  } else if (text === 'stop') {
+    newLabels.push('Stop');      // store as 'Stop'
+  }
+  // IMPORTANT: If neither yes nor stop, keep existing Stop/Yes if already present
+  else {
+    const hadStop = existing.some(l => l.toLowerCase() === 'stop');
+    const hadYes = existing.some(l => l.toLowerCase() === 'yes');
+    if (hadStop) newLabels.push('Stop');
+    if (hadYes) newLabels.push('Yes');
+  }
 
-          if (!same) {
-            const updated = { ...chatLabels, [phone]: newLabels };
-            setChatLabels(updated);
-            updateLabels(phone, newLabels).catch((err) => {
-              console.error('Error updating labels for', phone, err);
-            });
-          }
-        });
-      }
+  const same =
+    existing.length === newLabels.length &&
+    existing.every((l) => newLabels.includes(l));
 
+  if (!same) {
+    const updated = { ...chatLabels, [phone]: newLabels };
+    setChatLabels(updated);
+    updateLabels(phone, newLabels).catch((err) => {
+      console.error('Error updating labels for', phone, err);
+      toast.error('Failed to update labels');
+    });
+  }
+});
+      // 3) Your existing uniqueChats logic (unchanged)
       const uniqueChats = {};
       messages.forEach((msg) => {
         if (!uniqueChats[msg.from]) {
@@ -261,8 +242,8 @@ useEffect(() => {
     if (!API_BASE_URL) return;
     try {
       const labels = await getLabels();
-      console.log('Fetched labels from server:', labels);
       setChatLabels(labels);
+      await fetchCustomLabels();
     } catch (error) {
       console.error('Error fetching labels:', error);
     }
@@ -568,22 +549,22 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
   };
 
   const toggleLabel = async (phone, label) => {
-    const currentLabels = chatLabels[phone] || [];
-    const newLabels = currentLabels.includes(label)
-      ? currentLabels.filter((l) => l !== label)
-      : [...currentLabels, label];
+    const newLabels = { ...chatLabels };
+    if (!newLabels[phone]) newLabels[phone] = [];
   
-    // Optimistically update UI
-    setChatLabels(prev => ({ ...prev, [phone]: newLabels }));
+    if (newLabels[phone].includes(label)) {
+      newLabels[phone] = newLabels[phone].filter((l) => l !== label);
+    } else {
+      newLabels[phone] = [...newLabels[phone], label];
+    }
+  
+    setChatLabels(newLabels);
   
     try {
-      const response = await updateLabels(phone, newLabels);
-      console.log('✅ Label saved to database:', phone, newLabels, response);
+      await updateLabels(phone, newLabels[phone]);
     } catch (error) {
-      console.error('❌ Error saving label:', error);
-      toast.error('Failed to save label');
-      // Revert on error
-      setChatLabels(prev => ({ ...prev, [phone]: currentLabels }));
+      console.error('Error updating labels:', error);
+      toast.error('Failed to update labels');
     }
   };
   const filteredChats = chats

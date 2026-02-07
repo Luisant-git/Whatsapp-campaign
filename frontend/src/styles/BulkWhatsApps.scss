@@ -653,3 +653,22 @@
     100% { transform: rotate(360deg); }
   }
 }
+
+
+//group contact filter
+
+/* ---------- group contact count hint ---------- */
+.form-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.15px;
+}
+
+.form-hint--success {
+  color: #00b686 !important;
+}
+.form-hint--warning {
+  color: #e74c3c !important;
+}

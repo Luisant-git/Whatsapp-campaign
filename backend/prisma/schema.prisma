@@ -45,6 +45,7 @@ model User {
   chatLabels ChatLabel[]
   subscription SubscriptionPlan? @relation(fields: [subscriptionId], references: [id])
   subscriptionOrders SubscriptionOrder[]
+  group       Group[]
 }
 
 model MasterConfig {
@@ -113,10 +114,12 @@ model Campaign {
   scheduleType String   @default("one-time") // one-time, time-based
   scheduledDays String[] @default([])
   scheduledTime String?
+  groupId       Int ?
   userId       Int
   settingsId   Int
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   settings     WhatsAppSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  group   Group ? @relation(fields: [groupId], references: [id], onDelete: Cascade)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   
@@ -202,9 +205,14 @@ model QuickReply {
 model Contact {
   id               Int      @id @default(autoincrement())
   name             String
+  email            String?
   phone            String
+  place            String?
   lastMessageDate  DateTime?
-  group            String?
+  dob             DateTime?
+  anniversary     DateTime?
+  groupId           Int ?
+  group             Group ? @relation(fields: [groupId],references: [id], onDelete: Cascade)
   userId           Int
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt        DateTime @default(now())
@@ -213,10 +221,23 @@ model Contact {
   @@unique([phone, userId])
 }
 
+model Group {
+  id                Int  @id @default(autoincrement())
+  name              String 
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  contact         Contact[]
+  campaign          Campaign[]
+  userId           Int
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+@@unique([name, userId])  // composite unique
+}
+
 model ChatLabel {
   id        Int      @id @default(autoincrement())
   phone     String
   labels    String[]
+  manuallyEdited Boolean @default(false)
   userId    Int
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())

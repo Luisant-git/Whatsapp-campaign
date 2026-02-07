@@ -199,7 +199,7 @@ const QuickReply = () => {
                   <button onClick={() => handleEdit(reply)} className="btn-secondary">
                     <Edit size={16} />
                   </button>
-                  <button onClick={() => handleDelete(reply.id)} className="btn-danger">
+                  <button onClick={() => handleDelete(reply.id)} className="btn-icon danger">
                     <Trash2 size={16} />
                   </button>
                 </div>

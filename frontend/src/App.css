@@ -129,6 +129,45 @@
   transition: all 0.2s;
 }
 
+/* ---------- Collapsible Settings submenu ---------- */
+.nav-item-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-submenu {
+  margin-left: 1.25rem;           /* 👈 this controls how far right it sits */
+  margin-top: 0.25rem;
+  border-left: 2px solid rgba(255, 255, 255, 0.1);
+  padding-left: 0.75rem;          /* space between border and text */
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.nav-subitem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;                /* slightly smaller */
+  color: #555;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.nav-subitem:hover {
+  color: #25d366;
+}
+
+.nav-subitem.active {
+  color: #075e54;
+  background: #d4edda;
+  font-weight: 500;
+
+}
+
 .nav-item:hover {
   background: #e8f5e9;
 }

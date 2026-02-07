@@ -230,7 +230,8 @@ export class WhatsappController {
       parameters: sendBulkDto.parameters,
       scheduleType: sendBulkDto.scheduleType || 'one-time',
       scheduledDays: sendBulkDto.scheduledDays || [],
-      scheduledTime: sendBulkDto.scheduledTime
+      scheduledTime: sendBulkDto.scheduledTime,
+      groupId: sendBulkDto.groupId, // ✅ Added this line
     }, session.user.id);
 
     // If one-time, run immediately; if time-based, just return campaign info

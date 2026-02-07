@@ -11,97 +11,96 @@ export class CampaignService {
     private prisma: PrismaService,
     private whatsappService: WhatsappService
   ) {}
-
   async createCampaign(createCampaignDto: CreateCampaignDto, userId: number) {
     const scheduleType = createCampaignDto.scheduleType || 'one-time';
     const status = scheduleType === 'time-based' ? 'scheduled' : 'draft';
-
-    // Find settings by template name to get settingsId
+  
+    // 1. Get WhatsApp settings
     const settings = await this.prisma.whatsAppSettings.findFirst({
       where: {
         templateName: createCampaignDto.templateName,
-        userId
-      }
-    });
-
-    if (!settings) {
-      throw new Error(`No WhatsApp settings found for template: ${createCampaignDto.templateName}`);
-    }
-
-    const campaign = await this.prisma.campaign.create({
-      data: {
-        name: createCampaignDto.name,
-        templateName: createCampaignDto.templateName,
-        parameters: createCampaignDto.parameters || undefined,
-        totalCount: createCampaignDto.contacts.length,
-        scheduleType,
-        scheduledDays: createCampaignDto.scheduledDays || [],
-        scheduledTime: createCampaignDto.scheduledTime,
-        status,
         userId,
-        settingsId: settings.id,
-        contacts: {
-          create: createCampaignDto.contacts.map(contact => ({
-            name: contact.name,
-            phone: contact.phone
-          }))
-        }
       },
-      include: {
-        contacts: true
-      }
     });
-
+  
+    if (!settings) {
+      throw new Error(
+        `No WhatsApp settings found for template: ${createCampaignDto.templateName}`,
+      );
+    }
+  
+    // 2. Build base data object
+    const data: any = {
+      name: createCampaignDto.name,
+      templateName: createCampaignDto.templateName,
+      parameters: createCampaignDto.parameters || undefined,
+      totalCount: createCampaignDto.contacts.length,
+      scheduleType,
+      scheduledDays: createCampaignDto.scheduledDays || [],
+      scheduledTime: createCampaignDto.scheduledTime,
+      status,
+      user: { connect: { id: userId } },
+      settings: { connect: { id: settings.id } },
+      contacts: {
+        create: createCampaignDto.contacts.map(contact => ({
+          name: contact.name,
+          phone: contact.phone,
+        })),
+      },
+    };
+  
+    // 3. If groupId is provided, validate and attach group relation
+    if (createCampaignDto.groupId) {
+      const group = await this.prisma.group.findFirst({
+        where: { id: createCampaignDto.groupId, userId },
+      });
+  
+      if (!group) {
+        throw new Error(
+          `Group ID ${createCampaignDto.groupId} not found for this user.`,
+        );
+      }
+  
+      data.group = { connect: { id: createCampaignDto.groupId } };
+    }
+  
+    // 4. Create campaign
+    const campaign = await this.prisma.campaign.create({
+      data,
+      include: {
+        contacts: true,
+        group: true,
+      },
+    });
+  
     return campaign;
   }
-
-  async getCampaigns(userId: number, settingsName?: string) {
-    const whereClause: any = { userId };
-    
-    // If settingsName is provided, find the associated template and filter by it
-    if (settingsName) {
-      const settings = await this.prisma.whatsAppSettings.findFirst({
-        where: { name: settingsName }
-      });
-      
-      if (settings) {
-        whereClause.templateName = settings.templateName;
-      } else {
-        // Return empty if no settings found for this name
-        return [];
-      }
-    }
-    
-    return this.prisma.campaign.findMany({
-      where: whereClause,
-      include: {
-        _count: {
-          select: {
-            contacts: true,
-            messages: true
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
-  }
-
   async getCampaign(id: number, userId: number) {
     const campaign = await this.prisma.campaign.findFirst({
       where: { id, userId },
       include: {
         contacts: true,
-        messages: {
-          orderBy: { createdAt: 'desc' }
-        }
-      }
+        messages: { orderBy: { createdAt: 'desc' } },
+      },
     });
-
-    if (!campaign) {
-      throw new NotFoundException('Campaign not found');
-    }
-
+  
+    if (!campaign) throw new NotFoundException('Campaign not found');
     return campaign;
+  }
+
+  async getCampaigns(userId: number, settingsName?: string) {
+    return this.prisma.campaign.findMany({
+      where: {
+        userId,
+        ...(settingsName ? { settings: { templateName: settingsName } } : {}),
+      },
+      include: {
+        contacts: true,
+        group: true,
+        settings: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   async updateCampaign(id: number, updateCampaignDto: UpdateCampaignDto, userId: number) {
@@ -153,7 +152,7 @@ export class CampaignService {
 
   async runCampaign(id: number, userId: number) {
     const campaign = await this.getCampaign(id, userId);
-
+  
     // Update campaign status to running
     await this.prisma.campaign.update({
       where: { id },
@@ -163,22 +162,41 @@ export class CampaignService {
         failedCount: 0
       }
     });
-
+  
     // Clear previous campaign messages for rerun
     await this.prisma.campaignMessage.deleteMany({
       where: { campaignId: id }
     });
-
+  
     const results: Array<{ phone: string; name: string | null; success: boolean; messageId?: string; error?: string }> = [];
     let successCount = 0;
     let failedCount = 0;
-
+  
     // Get settings to access headerImageUrl
     const settings = await this.prisma.whatsAppSettings.findUnique({ 
       where: { id: campaign.settingsId } 
     });
-
-    for (const contact of campaign.contacts) {
+  
+    // 🔹 1) Find all phones with 'Stop' label for this user
+    const stopLabeled = await this.prisma.chatLabel.findMany({
+      where: {
+        userId,
+        labels: { hasSome: ['Stop', 'stop'] },  // accept both
+      },
+      select: { phone: true },
+    });
+    const stopPhones = new Set(stopLabeled.map(l => l.phone));
+  
+    // 🔹 2) Filter campaign contacts to exclude blocked phones
+    const contactsToSend = campaign.contacts.filter(c => !stopPhones.has(c.phone));
+  
+    this.logger.log(
+      `Campaign ${id}: total contacts ${campaign.contacts.length}, ` +
+      `${contactsToSend.length} after excluding 'Stop' label`
+    );
+  
+    // 🔹 3) Send only to unblocked contacts
+    for (const contact of contactsToSend) {
       try {
         this.logger.log(`Sending campaign message to ${contact.phone}`);
         
@@ -189,7 +207,7 @@ export class CampaignService {
           campaign.settingsId,
           settings?.headerImageUrl && settings.headerImageUrl.trim() !== '' ? settings.headerImageUrl : undefined
         );
-
+  
         const messageResult = result[0];
         const status = messageResult.success ? 'sent' : 'failed';
         
@@ -198,7 +216,7 @@ export class CampaignService {
         } else {
           failedCount++;
         }
-
+  
         // Store campaign message result with formatted phone number
         const formattedPhone = messageResult.phoneNumber || contact.phone;
         await this.prisma.campaignMessage.create({
@@ -211,29 +229,29 @@ export class CampaignService {
             campaignId: id
           }
         });
-
+  
         // Auto-create or update contact
         await this.prisma.contact.upsert({
           where: {
             phone_userId: {
               phone: formattedPhone,
-              userId
-            }
+              userId,
+            },
           },
           update: {
             name: contact.name || 'Unknown',
             lastMessageDate: new Date(),
-            group: campaign.name
+            groupId: campaign.groupId,
           },
           create: {
             phone: formattedPhone,
             name: contact.name || 'Unknown',
             lastMessageDate: new Date(),
-            group: campaign.name,
-            userId
-          }
+            groupId: campaign.groupId,
+            userId,
+          },
         });
-
+  
         results.push({
           phone: formattedPhone,
           name: contact.name,
@@ -241,12 +259,11 @@ export class CampaignService {
           messageId: messageResult.messageId,
           error: messageResult.error
         });
-
+  
       } catch (error) {
         failedCount++;
         this.logger.error(`Failed to send to ${contact.phone}:`, error);
         
-        // Use formatted phone for failed messages too
         const formattedPhone = this.formatPhoneNumber(contact.phone);
         await this.prisma.campaignMessage.create({
           data: {
@@ -257,7 +274,7 @@ export class CampaignService {
             campaignId: id
           }
         });
-
+  
         results.push({
           phone: formattedPhone,
           name: contact.name,
@@ -266,7 +283,7 @@ export class CampaignService {
         });
       }
     }
-
+  
     // Update final campaign status and counts
     await this.prisma.campaign.update({
       where: { id },
@@ -276,7 +293,7 @@ export class CampaignService {
         failedCount
       }
     });
-
+  
     return {
       campaignId: id,
       totalSent: results.length,
@@ -285,6 +302,137 @@ export class CampaignService {
       results
     };
   }
+
+  // async runCampaign(id: number, userId: number) {
+  //   const campaign = await this.getCampaign(id, userId);
+  
+  //   // Mark campaign running
+  //   await this.prisma.campaign.update({
+  //     where: { id },
+  //     data: { status: 'running', successCount: 0, failedCount: 0 },
+  //   });
+  
+  //   // Clear previous results (if re‑run)
+  //   await this.prisma.campaignMessage.deleteMany({ where: { campaignId: id } });
+  
+  //   const results: Array<{ phone: string; name: string | null; success: boolean; messageId?: string; error?: string }> = [];
+  //   let successCount = 0;
+  //   let failedCount = 0;
+  
+  //   const settings = await this.prisma.whatsAppSettings.findUnique({
+  //     where: { id: campaign.settingsId },
+  //   });
+  
+  //   for (const contact of campaign.contacts) {
+  //     try {
+  //       this.logger.log(`Sending campaign message to ${contact.phone}`);
+  
+  //       // 👇 Footer text that will appear for every recipient
+  //       const footerText =
+  //         '\n\nIf you’re interested, reply YES.\nTo stop receiving messages, reply STOP.';
+  
+  //       // Skip contacts already in blocklist label (optional safeguard)
+  //       const label = await this.prisma.chatLabel.findUnique({
+  //         where: { phone_userId: { phone: contact.phone, userId } },
+  //         select: { labels: true },
+  //       });
+  //       if (label?.labels?.includes('blocklist')) {
+  //         this.logger.log(`Skipping ${contact.phone} - currently in blocklist`);
+  //         continue;
+  //       }
+  
+  //       // ✅ Use correct template name + pass footerText separately
+  //       const result = await this.whatsappService.sendBulkTemplateMessageWithNames(
+  //         [{ name: contact.name || '', phone: contact.phone }],
+  //         campaign.templateName,     // official template name registered in Meta
+  //         userId,
+  //         campaign.settingsId,
+  //         settings?.headerImageUrl?.trim() || undefined,
+  //         footerText                 // 👈 this is rendered in the message body
+  //       );
+  
+  //       const messageResult = result[0];
+  //       const status = messageResult.success ? 'sent' : 'failed';
+  //       if (messageResult.success) successCount++;
+  //       else failedCount++;
+  
+  //       const formattedPhone = messageResult.phoneNumber || contact.phone;
+  
+  //       // Record each message outcome
+  //       await this.prisma.campaignMessage.create({
+  //         data: {
+  //           messageId: messageResult.messageId || null,
+  //           phone: formattedPhone,
+  //           name: contact.name,
+  //           status,
+  //           error: messageResult.error || null,
+  //           campaignId: id,
+  //         },
+  //       });
+  
+  //       // Upsert contact so it remains tracked
+  //       await this.prisma.contact.upsert({
+  //         where: { phone_userId: { phone: formattedPhone, userId } },
+  //         update: {
+  //           name: contact.name || 'Unknown',
+  //           lastMessageDate: new Date(),
+  //           groupId: campaign.groupId,
+  //         },
+  //         create: {
+  //           phone: formattedPhone,
+  //           name: contact.name || 'Unknown',
+  //           lastMessageDate: new Date(),
+  //           groupId: campaign.groupId,
+  //           userId,
+  //         },
+  //       });
+  
+  //       // Store success/failed in response list
+  //       results.push({
+  //         phone: formattedPhone,
+  //         name: contact.name,
+  //         success: messageResult.success,
+  //         messageId: messageResult.messageId,
+  //         error: messageResult.error,
+  //       });
+  //     } catch (error) {
+  //       failedCount++;
+  //       this.logger.error(`Failed to send to ${contact.phone}:`, error);
+  
+  //       const formattedPhone = this.formatPhoneNumber(contact.phone);
+  //       await this.prisma.campaignMessage.create({
+  //         data: {
+  //           phone: formattedPhone,
+  //           name: contact.name,
+  //           status: 'failed',
+  //           error: error.message,
+  //           campaignId: id,
+  //         },
+  //       });
+  
+  //       results.push({
+  //         phone: formattedPhone,
+  //         name: contact.name,
+  //         success: false,
+  //         error: error.message,
+  //       });
+  //     }
+  //   }
+  
+  //   // Mark campaign complete
+  //   await this.prisma.campaign.update({
+  //     where: { id },
+  //     data: { status: 'completed', successCount, failedCount },
+  //   });
+  
+  //   return {
+  //     campaignId: id,
+  //     totalSent: results.length,
+  //     successCount,
+  //     failedCount,
+  //     results,
+  //   };
+  // }
 
   async deleteCampaign(id: number, userId: number) {
     const campaign = await this.prisma.campaign.findFirst({

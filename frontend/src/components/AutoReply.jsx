@@ -143,7 +143,7 @@ const AutoReply = () => {
                     </div>
                   </div>
                   <button 
-                    className="btn-delete" 
+                    className="btn-icon danger" 
                     onClick={() => handleDelete(reply.id)}
                     title="Delete this auto-reply"
                   >

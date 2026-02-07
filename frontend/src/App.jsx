@@ -53,10 +53,11 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [contactsOpen, setContactsOpen] = useState(false);
 
-  // Check session status every 5 seconds for instant updates
+  // Check session status only when needed (not on interval)
   useEffect(() => {
     if (isLoggedIn) {
-      const interval = setInterval(async () => {
+      // Only check once on mount
+      const checkSession = async () => {
         try {
           const { checkSessionStatus } = await import('./api/session');
           const sessionData = await checkSessionStatus();
@@ -75,10 +76,10 @@ function App() {
         } catch (error) {
           console.error('Session check failed:', error);
         }
-      }, 5000);
-      return () => clearInterval(interval);
+      };
+      checkSession();
     }
-  }, [isLoggedIn, aiChatbotEnabled, useQuickReply, activeView]);
+  }, [isLoggedIn]); // Only run when login status changes
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
 
   useEffect(() => {

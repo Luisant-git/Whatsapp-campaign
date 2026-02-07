@@ -372,6 +372,71 @@ async findAll(
       where: { userId },
     });
 
+    for (const chatLabel of chatLabels) {
+      const updatedLabels = chatLabel.labels.filter(l => l !== label);
+      await this.prisma.chatLabel.update({
+        where: { id: chatLabel.id },
+        data: { labels: updatedLabels },
+      });
+    }
+
+    return { success: true };
+  }
+
+  async updateLabels(userId: number, phone: string, labels: string[]) {
+    await this.prisma.chatLabel.upsert({
+      where: {
+        phone_userId: { phone, userId },
+      },
+      update: { labels },
+      create: { phone, userId, labels },
+    });
+
+    this.labelsGateway.emitLabelUpdate(userId, phone, labels);
+    return { success: true };
+  }
+
+  async removeLabel(userId: number, phone: string, label: string) {
+    const chatLabel = await this.prisma.chatLabel.findUnique({
+      where: { phone_userId: { phone, userId } },
+    });
+
+    if (!chatLabel) return { success: false };
+
+    const updatedLabels = chatLabel.labels.filter(l => l.toLowerCase() !== label.toLowerCase());
+    
+    await this.prisma.chatLabel.update({
+      where: { phone_userId: { phone, userId } },
+      data: { 
+        labels: updatedLabels,
+        manuallyEdited: false // Reset manually edited flag when removing label
+      },
+    });
+
+    this.labelsGateway.emitLabelUpdate(userId, phone, updatedLabels);
+    return { success: true, message: 'Label removed successfully' };
+  }
+
+  async markManuallyEdited(userId: number, phone: string) {
+    await this.prisma.chatLabel.upsert({
+      where: { phone_userId: { phone, userId } },
+      update: { manuallyEdited: true },
+      create: { phone, userId, labels: [], manuallyEdited: true },
+    });
+
+    this.labelsGateway.emitManualEdit(userId, phone);
+    return { success: true };
+  }
+
+  async getManuallyEditedPhones(userId: number) {
+    const edited = await this.prisma.chatLabel.findMany({
+      where: { userId, manuallyEdited: true },
+      select: { phone: true },
+    });
+
+    return edited.map(e => e.phone);
+  };
+
     for (const chat of chatLabels) {
       if (chat.labels.includes(label)) {
         await this.prisma.chatLabel.update({

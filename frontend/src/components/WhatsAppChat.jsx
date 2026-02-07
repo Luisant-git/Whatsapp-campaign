@@ -105,7 +105,7 @@ const WhatsAppChat = () => {
     // Optional polling every 15 seconds (adjust as needed)
     const interval = setInterval(() => {
       fetchManuallyEdited();
-      fetchMessages(true);
+      fetchMessages();
       fetchCustomLabels();
     }, 30000);
   
@@ -192,8 +192,6 @@ useEffect(() => {
       // ONLY auto-manage if NOT skipping and manuallyEditedPhones is loaded
       if (!skipAutoLabeling && (Object.keys(manuallyEditedPhones).length > 0 || manuallyEditedPhones.constructor === Object)) {
         Object.entries(lastIncomingByPhone).forEach(([phone, msg]) => {
-          if (manuallyEditedPhones[phone]) return;
-
           const text = (msg.message || '').trim().toLowerCase();
           const existing = chatLabels[phone] || [];
 

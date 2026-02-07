@@ -103,7 +103,6 @@ const WhatsAppChat = () => {
     const interval = setInterval(() => {
       fetchManuallyEdited();
       fetchMessages();
-      fetchLabels();
       fetchCustomLabels();
     }, 30000);
   
@@ -261,7 +260,7 @@ useEffect(() => {
     if (!API_BASE_URL) return;
     try {
       const labels = await getLabels();
-      console.log('Fetched labels from API:', labels);
+      console.log('Fetched labels from server:', labels);
       setChatLabels(labels);
     } catch (error) {
       console.error('Error fetching labels:', error);
@@ -577,14 +576,11 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
     setChatLabels(prev => ({ ...prev, [phone]: newLabels }));
   
     try {
-      await updateLabels(phone, newLabels);
-      console.log('Label updated successfully for', phone, newLabels);
-      toast.success('Label updated');
-      // Refresh labels from server to ensure sync
-      await fetchLabels();
+      const response = await updateLabels(phone, newLabels);
+      console.log('✅ Label saved to database:', phone, newLabels, response);
     } catch (error) {
-      console.error('Error updating labels:', error);
-      toast.error('Failed to update labels');
+      console.error('❌ Error saving label:', error);
+      toast.error('Failed to save label');
       // Revert on error
       setChatLabels(prev => ({ ...prev, [phone]: currentLabels }));
     }

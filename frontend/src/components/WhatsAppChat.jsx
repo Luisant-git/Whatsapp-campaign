@@ -97,7 +97,7 @@ const WhatsAppChat = () => {
     const init = async () => {
       await fetchManuallyEdited();
       await fetchLabels();
-      fetchMessages();
+      fetchMessages(true); // Skip auto-labeling on initial load
     };
     init();
     fetchCustomLabels();

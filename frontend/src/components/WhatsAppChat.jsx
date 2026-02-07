@@ -94,9 +94,12 @@ const WhatsAppChat = () => {
     if (!API_BASE_URL) return;
   
     fetchUserId();
-    fetchManuallyEdited();
-    fetchMessages();
-    fetchLabels();
+    const init = async () => {
+      await fetchManuallyEdited();
+      await fetchLabels();
+      fetchMessages();
+    };
+    init();
     fetchCustomLabels();
   
     // Optional polling every 15 seconds (adjust as needed)

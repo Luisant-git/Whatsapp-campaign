@@ -261,6 +261,7 @@ useEffect(() => {
     if (!API_BASE_URL) return;
     try {
       const labels = await getLabels();
+      console.log('Fetched labels from API:', labels);
       setChatLabels(labels);
     } catch (error) {
       console.error('Error fetching labels:', error);
@@ -567,26 +568,25 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
   };
 
   const toggleLabel = async (phone, label) => {
-    const newLabels = { ...chatLabels };
-    if (!newLabels[phone]) newLabels[phone] = [];
+    const currentLabels = chatLabels[phone] || [];
+    const newLabels = currentLabels.includes(label)
+      ? currentLabels.filter((l) => l !== label)
+      : [...currentLabels, label];
   
-    if (newLabels[phone].includes(label)) {
-      newLabels[phone] = newLabels[phone].filter((l) => l !== label);
-    } else {
-      newLabels[phone] = [...newLabels[phone], label];
-    }
-  
-    setChatLabels(newLabels);
+    // Optimistically update UI
+    setChatLabels(prev => ({ ...prev, [phone]: newLabels }));
   
     try {
-      await updateLabels(phone, newLabels[phone]);
-      console.log('Label updated successfully for', phone, newLabels[phone]);
+      await updateLabels(phone, newLabels);
+      console.log('Label updated successfully for', phone, newLabels);
       toast.success('Label updated');
+      // Refresh labels from server to ensure sync
+      await fetchLabels();
     } catch (error) {
       console.error('Error updating labels:', error);
       toast.error('Failed to update labels');
       // Revert on error
-      setChatLabels(chatLabels);
+      setChatLabels(prev => ({ ...prev, [phone]: currentLabels }));
     }
   };
   const filteredChats = chats

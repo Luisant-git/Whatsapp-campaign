@@ -69,11 +69,11 @@ const SubscriptionOrders = () => {
                 <td>#{order.id}</td>
                 <td>
                   <div className="user-info">
-                    <div className="user-name">{order.user.name || 'N/A'}</div>
-                    <div className="user-email">{order.user.email}</div>
+                    <div className="user-name">{order.tenant?.name || 'N/A'}</div>
+                    <div className="user-email">{order.tenant?.email || 'N/A'}</div>
                   </div>
                 </td>
-                <td><strong>{order.plan.name}</strong></td>
+                <td><strong>{order.plan?.name || 'N/A'}</strong></td>
                 <td className="amount">₹{order.amount}</td>
                 <td>{formatDate(order.startDate)}</td>
                 <td>{formatDate(order.endDate)}</td>

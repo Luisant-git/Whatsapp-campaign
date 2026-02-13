@@ -21,6 +21,7 @@ export class UserService {
     }
 
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+    const dbName = `tenant_${createUserDto.email.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
     // Create tenant record
     const tenant = await this.centralPrisma.tenant.create({
@@ -29,7 +30,7 @@ export class UserService {
         name: createUserDto.name,
         password: hashedPassword,
         isActive: true,
-        dbName: `tenant_${Date.now()}`,
+        dbName,
         dbHost: 'localhost',
         dbPort: 5432,
         dbUser: 'postgres',
@@ -38,10 +39,10 @@ export class UserService {
     });
 
     // Create tenant database
-    await this.centralPrisma.$executeRawUnsafe(`CREATE DATABASE ${tenant.dbName}`);
+    await this.centralPrisma.$executeRawUnsafe(`CREATE DATABASE ${dbName}`);
     
     // Push schema to tenant database
-    const tenantDbUrl = `postgresql://postgres:root@localhost:5432/${tenant.dbName}?schema=public`;
+    const tenantDbUrl = `postgresql://postgres:root@localhost:5432/${dbName}?schema=public`;
     process.env.TENANT_DATABASE_URL = tenantDbUrl;
     execSync('npx prisma db push --schema=./prisma/schema-tenant.prisma --skip-generate', {
       stdio: 'pipe',
@@ -111,6 +112,21 @@ export class UserService {
     if (!tenant) {
       throw new UnauthorizedException('Tenant not found');
     }
+
+    // Fetch tenant config from tenant database
+    let tenantConfig: any = null;
+    try {
+      const tenantDbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+      const tenantPrisma = new TenantPrisma({
+        datasources: { db: { url: tenantDbUrl } },
+      });
+      await tenantPrisma.$connect();
+      tenantConfig = await tenantPrisma.tenantConfig.findFirst();
+      await tenantPrisma.$disconnect();
+    } catch (error) {
+      console.error('Error fetching tenant config:', error);
+    }
+
     return {
       message: 'Current user retrieved successfully',
       user: {
@@ -118,6 +134,8 @@ export class UserService {
         email: tenant.email,
         name: tenant.name,
         isActive: tenant.isActive,
+        aiChatbotEnabled: tenantConfig?.aiChatbotEnabled || false,
+        useQuickReply: tenantConfig?.useQuickReply !== false,
       }
     };
   }

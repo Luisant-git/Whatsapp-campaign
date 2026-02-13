@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { TenantPrismaService } from '../tenant-prisma.service';
-import { TenantContext } from '../tenant/tenant.decorator';
+import { CentralPrismaService } from '../central-prisma.service';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { ChatMessageDto } from './dto/chat-message.dto';
 import Groq from 'groq-sdk';
@@ -9,18 +9,27 @@ import Groq from 'groq-sdk';
 export class ChatbotService {
   private groq: Groq;
 
-  constructor(private tenantPrisma: TenantPrismaService) {
+  constructor(
+    private tenantPrisma: TenantPrismaService,
+    private centralPrisma: CentralPrismaService,
+  ) {
     this.groq = new Groq({
       apiKey: process.env.GROQ_API_KEY,
     });
   }
 
-  private getPrisma(ctx: TenantContext) {
-    return this.tenantPrisma.getTenantClient(ctx.tenantId, ctx.dbUrl);
+  private async getPrisma(userId: number) {
+    const tenant = await this.centralPrisma.tenant.findUnique({
+      where: { id: userId },
+    });
+    if (!tenant) throw new Error('Tenant not found');
+    
+    const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+    return this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
   }
 
-  async uploadDocument(tenantContext: TenantContext, uploadDocumentDto: UploadDocumentDto) {
-    const prisma = this.getPrisma(tenantContext);
+  async uploadDocument(userId: number, uploadDocumentDto: UploadDocumentDto) {
+    const prisma = await this.getPrisma(userId);
     if (!uploadDocumentDto.content || uploadDocumentDto.content.trim() === '') {
       throw new Error('Document content is required and cannot be empty');
     }
@@ -41,8 +50,8 @@ export class ChatbotService {
     }
   }
 
-  async processMessage(tenantContext: TenantContext, chatMessageDto: ChatMessageDto) {
-    const prisma = this.getPrisma(tenantContext);
+  async processMessage(userId: number, chatMessageDto: ChatMessageDto) {
+    const prisma = await this.getPrisma(userId);
     let session = await prisma.chatSession.findFirst({
       where: { phone: chatMessageDto.phone },
     });
@@ -65,7 +74,6 @@ export class ChatbotService {
       select: { content: true, filename: true },
     });
 
-    // If no documents uploaded, return fallback message
     if (documents.length === 0) {
       const fallbackResponse = 'I don\'t have any documents to reference. Please contact our support team for assistance.';
       
@@ -111,8 +119,8 @@ export class ChatbotService {
     return { response: aiResponse };
   }
 
-  async getChatHistory(tenantContext: TenantContext, phone: string) {
-    const prisma = this.getPrisma(tenantContext);
+  async getChatHistory(userId: number, phone: string) {
+    const prisma = await this.getPrisma(userId);
     const session = await prisma.chatSession.findFirst({
       where: { phone },
       include: {
@@ -125,15 +133,15 @@ export class ChatbotService {
     return session?.messages || [];
   }
 
-  async getUserDocuments(tenantContext: TenantContext) {
-    const prisma = this.getPrisma(tenantContext);
+  async getUserDocuments(userId: number) {
+    const prisma = await this.getPrisma(userId);
     return prisma.document.findMany({
       select: { id: true, filename: true, createdAt: true },
     });
   }
 
-  async deleteDocument(tenantContext: TenantContext, documentId: number) {
-    const prisma = this.getPrisma(tenantContext);
+  async deleteDocument(userId: number, documentId: number) {
+    const prisma = await this.getPrisma(userId);
     return prisma.document.delete({
       where: { id: documentId },
     });

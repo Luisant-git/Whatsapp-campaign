@@ -1,89 +1,139 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Scope, Inject } from '@nestjs/common';
+import { Injectable, Scope, Inject } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
-import { PrismaClient as TenantPrismaClient } from '@prisma/client-tenant';
+import { PrismaClient } from '@prisma/client-tenant';
 import { TenantPrismaService } from './tenant-prisma.service';
 import { CentralPrismaService } from './central-prisma.service';
 
 @Injectable({ scope: Scope.REQUEST })
-export class PrismaService implements OnModuleInit, OnModuleDestroy {
-  private client: TenantPrismaClient;
+export class PrismaService {
+  private client: PrismaClient;
 
   constructor(
     @Inject(REQUEST) private request: any,
     private tenantPrisma: TenantPrismaService,
     private centralPrisma: CentralPrismaService,
-  ) {}
+  ) {
+    this.initializeClient();
+  }
 
-  async onModuleInit() {
-    const userId = this.request.session?.userId;
-    if (userId) {
-      const tenant = await this.centralPrisma.tenant.findUnique({
-        where: { id: userId },
-      });
-      if (tenant) {
-        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-        this.client = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-      }
+  private initializeClient() {
+    const tenantContext = this.request.tenantContext;
+    
+    if (tenantContext) {
+      // Use tenant-specific database from middleware
+      this.client = this.tenantPrisma.getTenantClient(
+        tenantContext.tenantId,
+        tenantContext.dbUrl
+      );
+      console.log(`PrismaService initialized for tenant: ${tenantContext.tenantId}`);
+    } else {
+      console.warn('PrismaService initialized without tenant context. Session:', this.request.session?.userId);
     }
   }
 
-  async onModuleDestroy() {
-    // Managed by TenantPrismaService
-  }
-
+  // Override all Prisma client properties to use the tenant-specific client
   get whatsAppSettings() {
-    return this.client?.whatsAppSettings;
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.whatsAppSettings;
   }
 
   get campaign() {
-    return this.client?.campaign;
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.campaign;
   }
 
   get campaignContact() {
-    return this.client?.campaignContact;
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.campaignContact;
   }
 
   get campaignMessage() {
-    return this.client?.campaignMessage;
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.campaignMessage;
   }
 
   get group() {
-    return this.client?.group;
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.group;
   }
 
   get contact() {
-    return this.client?.contact;
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.contact;
   }
 
   get chatLabel() {
-    return this.client?.chatLabel;
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.chatLabel;
   }
 
   get whatsAppMessage() {
-    return this.client?.whatsAppMessage;
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.whatsAppMessage;
   }
 
   get masterConfig() {
-    return this.client?.masterConfig;
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.masterConfig;
   }
 
   get document() {
-    return this.client?.document;
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.document;
   }
 
   get chatSession() {
-    return this.client?.chatSession;
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.chatSession;
   }
 
   get chatMessage() {
-    return this.client?.chatMessage;
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.chatMessage;
   }
 
   get autoReply() {
-    return this.client?.autoReply;
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.autoReply;
   }
 
   get quickReply() {
-    return this.client?.quickReply;
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.quickReply;
+  }
+
+  get tenantConfig() {
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.tenantConfig;
   }
 }

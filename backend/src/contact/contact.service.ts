@@ -237,4 +237,30 @@ export class ContactService {
     );
     return { success: true, message: 'Label removed successfully' };
   }
+
+  async getCustomLabels(tenantContext: TenantContext) {
+    const prisma = this.getPrisma(tenantContext);
+    const config = await prisma.tenantConfig.findFirst();
+    return config?.customLabels || [];
+  }
+
+  async updateCustomLabels(tenantContext: TenantContext, labels: string[]) {
+    const prisma = this.getPrisma(tenantContext);
+    
+    // Get or create tenant config
+    const existingConfig = await prisma.tenantConfig.findFirst();
+    
+    if (existingConfig) {
+      await prisma.tenantConfig.update({
+        where: { id: existingConfig.id },
+        data: { customLabels: labels },
+      });
+    } else {
+      await prisma.tenantConfig.create({
+        data: { customLabels: labels },
+      });
+    }
+    
+    return { success: true, customLabels: labels };
+  }
 }

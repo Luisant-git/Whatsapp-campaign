@@ -81,18 +81,61 @@ export class AdminService {
   }
  
   async getAllUsers() {
-    return await this.prisma.tenant.findMany({
+    const tenants = await this.prisma.tenant.findMany({
       select: {
         id: true,
         email: true,
         name: true,
         isActive: true,
         createdAt: true,
+        dbName: true,
+        dbHost: true,
+        dbPort: true,
+        dbUser: true,
+        dbPassword: true,
       },
       orderBy: {
         createdAt: 'desc',
       },
     });
+
+    // Fetch tenant config for each tenant
+    const { PrismaClient } = require('@prisma/client-tenant');
+    const usersWithConfig = await Promise.all(
+      tenants.map(async (tenant) => {
+        try {
+          const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+          const tenantPrisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+          
+          await tenantPrisma.$connect();
+          const config = await tenantPrisma.tenantConfig.findFirst();
+          await tenantPrisma.$disconnect();
+          
+          return {
+            id: tenant.id,
+            email: tenant.email,
+            name: tenant.name,
+            isActive: tenant.isActive,
+            createdAt: tenant.createdAt,
+            aiChatbotEnabled: config?.aiChatbotEnabled || false,
+            useQuickReply: config?.useQuickReply !== false,
+          };
+        } catch (error) {
+          console.error(`Error fetching config for tenant ${tenant.id}:`, error);
+          return {
+            id: tenant.id,
+            email: tenant.email,
+            name: tenant.name,
+            isActive: tenant.isActive,
+            createdAt: tenant.createdAt,
+            aiChatbotEnabled: false,
+            useQuickReply: true,
+          };
+        }
+      })
+    );
+
+    return usersWithConfig;
   }
 
   async registerUser(createUserDto: { name: string; email: string; password: string }) {
@@ -104,13 +147,16 @@ export class AdminService {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const dbName = `tenant_${email.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
+    // Create tenant record
     const user = await this.prisma.tenant.create({
       data: {
         email,
         name,
         password: hashedPassword,
-        dbName: `tenant_${Date.now()}`,
+        isActive: true,
+        dbName,
         dbHost: 'localhost',
         dbPort: 5432,
         dbUser: 'postgres',
@@ -125,15 +171,94 @@ export class AdminService {
       },
     });
 
+    // Create tenant database
+    try {
+      await this.prisma.$executeRawUnsafe(`CREATE DATABASE ${dbName}`);
+      
+      // Push schema to tenant database
+      const tenantDbUrl = `postgresql://postgres:root@localhost:5432/${dbName}?schema=public`;
+      const { execSync } = require('child_process');
+      process.env.TENANT_DATABASE_URL = tenantDbUrl;
+      execSync('npx prisma db push --schema=./prisma/schema-tenant.prisma --skip-generate', {
+        stdio: 'pipe',
+      });
+    } catch (error) {
+      // If database creation fails, delete the tenant record
+      await this.prisma.tenant.delete({ where: { id: user.id } });
+      throw new Error(`Failed to create tenant database: ${error.message}`);
+    }
+
     return { message: 'User registered successfully', user };
   }
  
   async toggleUserChatbot(userId: number) {
-    return { message: 'Feature not available in multi-tenant mode' };
+    // Get tenant info
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: userId } });
+    if (!tenant) {
+      throw new Error('Tenant not found');
+    }
+
+    // Connect to tenant database
+    const { PrismaClient } = require('@prisma/client-tenant');
+    const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+    const tenantPrisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+
+    try {
+      await tenantPrisma.$connect();
+      
+      // Get or create tenant config
+      const config = await tenantPrisma.tenantConfig.findFirst();
+      
+      if (config) {
+        await tenantPrisma.tenantConfig.update({
+          where: { id: config.id },
+          data: { aiChatbotEnabled: !config.aiChatbotEnabled },
+        });
+      } else {
+        await tenantPrisma.tenantConfig.create({
+          data: { aiChatbotEnabled: true },
+        });
+      }
+      
+      return { message: 'AI Chatbot toggled successfully' };
+    } finally {
+      await tenantPrisma.$disconnect();
+    }
   }
 
   async toggleUserQuickReply(userId: number) {
-    return { message: 'Feature not available in multi-tenant mode' };
+    // Get tenant info
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: userId } });
+    if (!tenant) {
+      throw new Error('Tenant not found');
+    }
+
+    // Connect to tenant database
+    const { PrismaClient } = require('@prisma/client-tenant');
+    const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+    const tenantPrisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+
+    try {
+      await tenantPrisma.$connect();
+      
+      // Get or create tenant config
+      const config = await tenantPrisma.tenantConfig.findFirst();
+      
+      if (config) {
+        await tenantPrisma.tenantConfig.update({
+          where: { id: config.id },
+          data: { useQuickReply: !config.useQuickReply },
+        });
+      } else {
+        await tenantPrisma.tenantConfig.create({
+          data: { useQuickReply: true },
+        });
+      }
+      
+      return { message: 'Quick Reply toggled successfully' };
+    } finally {
+      await tenantPrisma.$disconnect();
+    }
   }
  
   async updateUserSession(userId: number, sessionStore: any) {

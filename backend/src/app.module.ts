@@ -40,17 +40,18 @@ import { TestController } from './test.controller';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    // Tenant middleware disabled for now
-    // consumer
-    //   .apply(TenantMiddleware)
-    //   .exclude(
-    //     'admin/(.*)',
-    //     'user/login',
-    //     'user/register',
-    //     'subscription',
-    //     'subscription/(.*)',
-    //     'test/(.*)',
-    //   )
-    //   .forRoutes('*');
+    consumer
+      .apply(TenantMiddleware)
+      .exclude(
+        'admin/(.*)',
+        'user/login',
+        'user/register',
+        'subscription',
+        'subscription/(.*)',
+        'test/(.*)',
+        'whatsapp/webhook',
+        'whatsapp/webhook/(.*)',
+      )
+      .forRoutes('*');
   }
 }

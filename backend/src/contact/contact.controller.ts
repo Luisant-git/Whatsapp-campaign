@@ -113,6 +113,30 @@ export class ContactController {
     return this.contactService.getLabels(tenantContext);
   }
 
+  @Get('labels/custom')
+  async getCustomLabels(@TenantContext() tenantContext: TenantContextType) {
+    return this.contactService.getCustomLabels(tenantContext);
+  }
+
+  @Post('labels/custom')
+  async updateCustomLabels(
+    @TenantContext() tenantContext: TenantContextType,
+    @Body() body: { label?: string; labels?: string[] },
+  ) {
+    // Handle both single label and array of labels
+    let labelsArray: string[];
+    if (body.label) {
+      // Single label - get existing and add new one
+      const existing = await this.contactService.getCustomLabels(tenantContext);
+      labelsArray = Array.isArray(existing) ? [...existing, body.label] : [body.label];
+    } else if (body.labels) {
+      labelsArray = body.labels;
+    } else {
+      labelsArray = [];
+    }
+    return this.contactService.updateCustomLabels(tenantContext, labelsArray);
+  }
+
   @Get('blocklist')
   async getBlocklisted(@TenantContext() tenantContext: TenantContextType) {
     return this.contactService.getBlocklistedContacts(tenantContext);

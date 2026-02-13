@@ -19,7 +19,6 @@ export class CampaignService {
     const settings = await this.prisma.whatsAppSettings.findFirst({
       where: {
         templateName: createCampaignDto.templateName,
-        userId,
       },
     });
   
@@ -39,7 +38,6 @@ export class CampaignService {
       scheduledDays: createCampaignDto.scheduledDays || [],
       scheduledTime: createCampaignDto.scheduledTime,
       status,
-      user: { connect: { id: userId } },
       settings: { connect: { id: settings.id } },
       contacts: {
         create: createCampaignDto.contacts.map(contact => ({
@@ -52,7 +50,7 @@ export class CampaignService {
     // 3. If groupId is provided, validate and attach group relation
     if (createCampaignDto.groupId) {
       const group = await this.prisma.group.findFirst({
-        where: { id: createCampaignDto.groupId, userId },
+        where: { id: createCampaignDto.groupId },
       });
   
       if (!group) {
@@ -77,7 +75,7 @@ export class CampaignService {
   }
   async getCampaign(id: number, userId: number) {
     const campaign = await this.prisma.campaign.findFirst({
-      where: { id, userId },
+      where: { id },
       include: {
         contacts: true,
         messages: { orderBy: { createdAt: 'desc' } },
@@ -91,7 +89,6 @@ export class CampaignService {
   async getCampaigns(userId: number, settingsName?: string) {
     return this.prisma.campaign.findMany({
       where: {
-        userId,
         ...(settingsName ? { settings: { templateName: settingsName } } : {}),
       },
       include: {
@@ -105,7 +102,7 @@ export class CampaignService {
 
   async updateCampaign(id: number, updateCampaignDto: UpdateCampaignDto, userId: number) {
     const campaign = await this.prisma.campaign.findFirst({
-      where: { id, userId }
+      where: { id }
     });
 
     if (!campaign) {
@@ -177,10 +174,9 @@ export class CampaignService {
       where: { id: campaign.settingsId } 
     });
   
-    // 🔹 1) Find all phones with 'Stop' label for this user
+    // 🔹 1) Find all phones with 'Stop' label
     const stopLabeled = await this.prisma.chatLabel.findMany({
       where: {
-        userId,
         labels: { hasSome: ['Stop', 'stop'] },  // accept both
       },
       select: { phone: true },
@@ -188,10 +184,10 @@ export class CampaignService {
     const stopPhones = new Set(stopLabeled.map(l => l.phone));
   
     // 🔹 2) Filter campaign contacts to exclude blocked phones
-    const contactsToSend = campaign.contacts.filter(c => !stopPhones.has(c.phone));
+    const contactsToSend = (campaign.contacts || []).filter(c => !stopPhones.has(c.phone));
   
     this.logger.log(
-      `Campaign ${id}: total contacts ${campaign.contacts.length}, ` +
+      `Campaign ${id}: total contacts ${(campaign.contacts || []).length}, ` +
       `${contactsToSend.length} after excluding 'Stop' label`
     );
   
@@ -233,10 +229,7 @@ export class CampaignService {
         // Auto-create or update contact
         await this.prisma.contact.upsert({
           where: {
-            phone_userId: {
-              phone: formattedPhone,
-              userId,
-            },
+            phone: formattedPhone,
           },
           update: {
             name: contact.name || 'Unknown',
@@ -248,7 +241,6 @@ export class CampaignService {
             name: contact.name || 'Unknown',
             lastMessageDate: new Date(),
             groupId: campaign.groupId,
-            userId,
           },
         });
   
@@ -436,7 +428,7 @@ export class CampaignService {
 
   async deleteCampaign(id: number, userId: number) {
     const campaign = await this.prisma.campaign.findFirst({
-      where: { id, userId }
+      where: { id }
     });
 
     if (!campaign) {
@@ -452,7 +444,7 @@ export class CampaignService {
 
   async getCampaignResults(id: number, userId: number) {
     const campaign = await this.prisma.campaign.findFirst({
-      where: { id, userId },
+      where: { id },
       include: {
         messages: {
           orderBy: { createdAt: 'desc' }
@@ -466,7 +458,7 @@ export class CampaignService {
 
     // Get response data for each contact
     const results = await Promise.all(
-      campaign.messages.map(async (message) => {
+      (campaign.messages || []).map(async (message) => {
         // Check if customer responded after the campaign message was sent
         // Try different phone number formats to handle potential mismatches
         const cleanPhone = message.phone.replace(/[^0-9]/g, '');
@@ -480,10 +472,9 @@ export class CampaignService {
 
         this.logger.log(`Checking responses for campaign message to ${message.phone}, variations: ${phoneVariations.join(', ')}`);
 
-        // Debug: Check all incoming messages for this user
+        // Debug: Check all incoming messages
         const allIncoming = await this.prisma.whatsAppMessage.findMany({
           where: {
-            userId,
             direction: 'incoming',
             createdAt: {
               gte: message.createdAt
@@ -496,7 +487,6 @@ export class CampaignService {
         const responses = await this.prisma.whatsAppMessage.findMany({
           where: {
             from: { in: phoneVariations },
-            userId,
             direction: 'incoming',
             createdAt: {
               gte: message.createdAt

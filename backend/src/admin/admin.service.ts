@@ -2,12 +2,12 @@ import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/co
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { LoginAdminDto } from './dto/login-admin.dto';
-import { PrismaService } from 'src/prisma.service';
+import { CentralPrismaService } from '../central-prisma.service';
 import * as bcrypt from 'bcrypt';
  
 @Injectable()
 export class AdminService {
-    constructor(private prisma: PrismaService) {}
+    constructor(private prisma: CentralPrismaService) {}
  
   async register(createAdminDto: CreateAdminDto) {
     const { email, name, password } = createAdminDto;
@@ -81,14 +81,12 @@ export class AdminService {
   }
  
   async getAllUsers() {
-    return await this.prisma.user.findMany({
+    return await this.prisma.tenant.findMany({
       select: {
         id: true,
         email: true,
         name: true,
         isActive: true,
-        aiChatbotEnabled: true,
-        useQuickReply: true,
         createdAt: true,
       },
       orderBy: {
@@ -100,27 +98,29 @@ export class AdminService {
   async registerUser(createUserDto: { name: string; email: string; password: string }) {
     const { email, name, password } = createUserDto;
 
-    const existingUser = await this.prisma.user.findUnique({ where: { email } });
+    const existingUser = await this.prisma.tenant.findUnique({ where: { email } });
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await this.prisma.user.create({
+    const user = await this.prisma.tenant.create({
       data: {
         email,
         name,
         password: hashedPassword,
-        useQuickReply: true,
+        dbName: `tenant_${Date.now()}`,
+        dbHost: 'localhost',
+        dbPort: 5432,
+        dbUser: 'postgres',
+        dbPassword: 'root',
       },
       select: {
         id: true,
         email: true,
         name: true,
         isActive: true,
-        aiChatbotEnabled: true,
-        useQuickReply: true,
         createdAt: true,
       },
     });
@@ -129,74 +129,14 @@ export class AdminService {
   }
  
   async toggleUserChatbot(userId: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { aiChatbotEnabled: true },
-    });
- 
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
- 
-    const updatedUser = await this.prisma.user.update({
-      where: { id: userId },
-      data: { aiChatbotEnabled: !user.aiChatbotEnabled },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        isActive: true,
-        aiChatbotEnabled: true,
-        useQuickReply: true,
-      },
-    });
- 
-    return { message: 'AI Chatbot toggled successfully', user: updatedUser };
+    return { message: 'Feature not available in multi-tenant mode' };
   }
 
   async toggleUserQuickReply(userId: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { useQuickReply: true },
-    });
- 
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
- 
-    const updatedUser = await this.prisma.user.update({
-      where: { id: userId },
-      data: { useQuickReply: !user.useQuickReply },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        isActive: true,
-        aiChatbotEnabled: true,
-        useQuickReply: true,
-      },
-    });
- 
-    return { message: 'Quick Reply toggled successfully', user: updatedUser };
+    return { message: 'Feature not available in multi-tenant mode' };
   }
  
   async updateUserSession(userId: number, sessionStore: any) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { aiChatbotEnabled: true, useQuickReply: true },
-    });
-    if (user && sessionStore) {
-      sessionStore.all((err: any, sessions: any) => {
-        if (err) return;
-        Object.keys(sessions).forEach(sessionId => {
-          const session = sessions[sessionId];
-          if (session.user && session.user.id === userId) {
-            session.user.aiChatbotEnabled = user.aiChatbotEnabled;
-            session.user.useQuickReply = user.useQuickReply;
-            sessionStore.set(sessionId, session);
-          }
-        });
-      });
-    }
+    // Not needed in multi-tenant mode
   }
 }

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
+import { TenantPrismaService } from '../tenant-prisma.service';
+import { TenantContext } from '../tenant/tenant.decorator';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { ChatMessageDto } from './dto/chat-message.dto';
 import Groq from 'groq-sdk';
@@ -8,13 +9,18 @@ import Groq from 'groq-sdk';
 export class ChatbotService {
   private groq: Groq;
 
-  constructor(private prisma: PrismaService) {
+  constructor(private tenantPrisma: TenantPrismaService) {
     this.groq = new Groq({
       apiKey: process.env.GROQ_API_KEY,
     });
   }
 
-  async uploadDocument(userId: number, uploadDocumentDto: UploadDocumentDto) {
+  private getPrisma(ctx: TenantContext) {
+    return this.tenantPrisma.getTenantClient(ctx.tenantId, ctx.dbUrl);
+  }
+
+  async uploadDocument(tenantContext: TenantContext, uploadDocumentDto: UploadDocumentDto) {
+    const prisma = this.getPrisma(tenantContext);
     if (!uploadDocumentDto.content || uploadDocumentDto.content.trim() === '') {
       throw new Error('Document content is required and cannot be empty');
     }
@@ -24,11 +30,10 @@ export class ChatbotService {
     }
     
     try {
-      return await this.prisma.document.create({
+      return await prisma.document.create({
         data: {
           filename: uploadDocumentDto.filename,
           content: uploadDocumentDto.content.trim(),
-          userId,
         },
       });
     } catch (error) {
@@ -36,18 +41,19 @@ export class ChatbotService {
     }
   }
 
-  async processMessage(userId: number, chatMessageDto: ChatMessageDto) {
-    let session = await this.prisma.chatSession.findFirst({
-      where: { phone: chatMessageDto.phone, userId },
+  async processMessage(tenantContext: TenantContext, chatMessageDto: ChatMessageDto) {
+    const prisma = this.getPrisma(tenantContext);
+    let session = await prisma.chatSession.findFirst({
+      where: { phone: chatMessageDto.phone },
     });
 
     if (!session) {
-      session = await this.prisma.chatSession.create({
-        data: { phone: chatMessageDto.phone, userId },
+      session = await prisma.chatSession.create({
+        data: { phone: chatMessageDto.phone },
       });
     }
 
-    await this.prisma.chatMessage.create({
+    await prisma.chatMessage.create({
       data: {
         message: chatMessageDto.message,
         isFromUser: true,
@@ -55,8 +61,7 @@ export class ChatbotService {
       },
     });
 
-    const documents = await this.prisma.document.findMany({
-      where: { userId },
+    const documents = await prisma.document.findMany({
       select: { content: true, filename: true },
     });
 
@@ -64,7 +69,7 @@ export class ChatbotService {
     if (documents.length === 0) {
       const fallbackResponse = 'I don\'t have any documents to reference. Please contact our support team for assistance.';
       
-      await this.prisma.chatMessage.create({
+      await prisma.chatMessage.create({
         data: {
           message: fallbackResponse,
           isFromUser: false,
@@ -95,7 +100,7 @@ export class ChatbotService {
 
     const aiResponse = completion.choices[0]?.message?.content || 'I\'m having technical difficulties. Please contact our support team for assistance.';
 
-    await this.prisma.chatMessage.create({
+    await prisma.chatMessage.create({
       data: {
         message: aiResponse,
         isFromUser: false,
@@ -106,9 +111,10 @@ export class ChatbotService {
     return { response: aiResponse };
   }
 
-  async getChatHistory(userId: number, phone: string) {
-    const session = await this.prisma.chatSession.findFirst({
-      where: { phone, userId },
+  async getChatHistory(tenantContext: TenantContext, phone: string) {
+    const prisma = this.getPrisma(tenantContext);
+    const session = await prisma.chatSession.findFirst({
+      where: { phone },
       include: {
         messages: {
           orderBy: { createdAt: 'asc' },
@@ -119,16 +125,17 @@ export class ChatbotService {
     return session?.messages || [];
   }
 
-  async getUserDocuments(userId: number) {
-    return this.prisma.document.findMany({
-      where: { userId },
+  async getUserDocuments(tenantContext: TenantContext) {
+    const prisma = this.getPrisma(tenantContext);
+    return prisma.document.findMany({
       select: { id: true, filename: true, createdAt: true },
     });
   }
 
-  async deleteDocument(userId: number, documentId: number) {
-    return this.prisma.document.delete({
-      where: { id: documentId, userId },
+  async deleteDocument(tenantContext: TenantContext, documentId: number) {
+    const prisma = this.getPrisma(tenantContext);
+    return prisma.document.delete({
+      where: { id: documentId },
     });
   }
 }

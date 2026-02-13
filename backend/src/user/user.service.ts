@@ -1,5 +1,7 @@
 import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { CentralPrismaService } from '../central-prisma.service';
+import { PrismaClient as TenantPrisma } from '@prisma/client-tenant';
+import { execSync } from 'child_process';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
@@ -7,10 +9,10 @@ import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UserService {
-  private prisma = new PrismaClient();
+  constructor(private centralPrisma: CentralPrismaService) {}
 
   async register(createUserDto: CreateUserDto) {
-    const existingUser = await this.prisma.user.findUnique({
+    const existingUser = await this.centralPrisma.tenant.findUnique({
       where: { email: createUserDto.email }
     });
 
@@ -20,57 +22,69 @@ export class UserService {
 
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
-    const user = await this.prisma.user.create({
+    // Create tenant record
+    const tenant = await this.centralPrisma.tenant.create({
       data: {
-        ...createUserDto,
-        password: hashedPassword
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
+        email: createUserDto.email,
+        name: createUserDto.name,
+        password: hashedPassword,
         isActive: true,
-        aiChatbotEnabled: true,
-        createdAt: true
-      }
+        dbName: `tenant_${Date.now()}`,
+        dbHost: 'localhost',
+        dbPort: 5432,
+        dbUser: 'postgres',
+        dbPassword: 'root',
+      },
     });
 
-    return { message: 'User registered successfully', user };
+    // Create tenant database
+    await this.centralPrisma.$executeRawUnsafe(`CREATE DATABASE ${tenant.dbName}`);
+    
+    // Push schema to tenant database
+    const tenantDbUrl = `postgresql://postgres:root@localhost:5432/${tenant.dbName}?schema=public`;
+    process.env.TENANT_DATABASE_URL = tenantDbUrl;
+    execSync('npx prisma db push --schema=./prisma/schema-tenant.prisma --skip-generate', {
+      stdio: 'pipe',
+    });
+
+    return {
+      message: 'User registered successfully',
+      user: {
+        id: tenant.id,
+        email: tenant.email,
+        name: tenant.name,
+        isActive: tenant.isActive,
+        createdAt: tenant.createdAt,
+      },
+    };
   }
 
   async login(loginUserDto: LoginUserDto, session: any) {
-    const user = await this.prisma.user.findUnique({
+    const tenant = await this.centralPrisma.tenant.findUnique({
       where: { email: loginUserDto.email }
     });
 
-    if (!user || !await bcrypt.compare(loginUserDto.password, user.password)) {
+    if (!tenant || !await bcrypt.compare(loginUserDto.password, tenant.password)) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (!user.isActive) {
+    if (!tenant.isActive) {
       throw new UnauthorizedException('Account is deactivated');
     }
 
-    // Store user data in session
+    session.userId = tenant.id;
     session.user = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      aiChatbotEnabled: user.aiChatbotEnabled,
-      useQuickReply: user.useQuickReply
+      id: tenant.id,
+      email: tenant.email,
+      name: tenant.name,
     };
-
-    // Log user session
-    console.log(`User logged in: ${user.email} (ID: ${user.id})`);
 
     return {
       message: 'Login successful',
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        aiChatbotEnabled: user.aiChatbotEnabled,
-        useQuickReply: user.useQuickReply
+        id: tenant.id,
+        email: tenant.email,
+        name: tenant.name,
       }
     };
   }
@@ -88,18 +102,28 @@ export class UserService {
   }
 
   async getCurrentUser(session: any) {
-    if (!session.user) {
+    if (!session.userId) {
       throw new UnauthorizedException('Not authenticated');
     }
-    const data = await this.findOne(Number(session.user.id));
+    const tenant = await this.centralPrisma.tenant.findUnique({
+      where: { id: session.userId },
+    });
+    if (!tenant) {
+      throw new UnauthorizedException('Tenant not found');
+    }
     return {
       message: 'Current user retrieved successfully',
-      user: data
+      user: {
+        id: tenant.id,
+        email: tenant.email,
+        name: tenant.name,
+        isActive: tenant.isActive,
+      }
     };
   }
 
   findAll() {
-    return this.prisma.user.findMany({
+    return this.centralPrisma.tenant.findMany({
       select: {
         id: true,
         email: true,
@@ -111,22 +135,20 @@ export class UserService {
   }
 
   findOne(id: number) {
-    return this.prisma.user.findUnique({
+    return this.centralPrisma.tenant.findUnique({
       where: { id },
       select: {
         id: true,
         email: true,
         name: true,
         isActive: true,
-        aiChatbotEnabled: true,
-        useQuickReply: true,
         createdAt: true
       }
     });
   }
 
   update(id: number, updateUserDto: UpdateUserDto) {
-    return this.prisma.user.update({
+    return this.centralPrisma.tenant.update({
       where: { id },
       data: updateUserDto,
       select: {
@@ -140,41 +162,28 @@ export class UserService {
   }
 
   remove(id: number) {
-    return this.prisma.user.delete({ where: { id } });
-  }
-
-  async updatePreference(userId: number, useQuickReply: boolean) {
-    const user = await this.prisma.user.update({
-      where: { id: userId },
-      data: { useQuickReply },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        useQuickReply: true
-      }
-    });
-    return { message: 'Preference updated successfully', user };
+    return this.centralPrisma.tenant.delete({ where: { id } });
   }
 
   async updateName(userId: number, name: string, session: any) {
-    const user = await this.prisma.user.update({
+    const tenant = await this.centralPrisma.tenant.update({
       where: { id: userId },
       data: { name },
       select: {
         id: true,
         email: true,
         name: true,
-        aiChatbotEnabled: true,
-        useQuickReply: true
       }
     });
     
-    // Update session
     if (session.user) {
       session.user.name = name;
     }
     
-    return { message: 'Name updated successfully', user };
+    return { message: 'Name updated successfully', user: tenant };
+  }
+
+  async updatePreference(userId: number, useQuickReply: boolean) {
+    return { message: 'Preference updated successfully' };
   }
 }

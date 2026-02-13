@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "prisma:generate:central": "prisma generate --schema=./prisma/schema-central.prisma",
+    "prisma:generate:tenant": "prisma generate --schema=./prisma/schema-tenant.prisma",
+    "prisma:generate:all": "npm run prisma:generate:central && npm run prisma:generate:tenant",
+    "prisma:migrate:central": "prisma migrate deploy --schema=./prisma/schema-central.prisma",
+    "prisma:migrate:tenant": "prisma migrate deploy --schema=./prisma/schema-tenant.prisma",
+    "migrate:multi-tenancy": "ts-node scripts/migrate-to-multi-tenancy.ts"
+  }
+}

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -14,10 +14,14 @@ import { ContactModule } from './contact/contact.module';
 import { AdminModule } from './admin/admin.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { GroupModule } from './group/group.module';
+import { TenantModule } from './tenant/tenant.module';
+import { TenantMiddleware } from './tenant/tenant.middleware';
+import { TestController } from './test.controller';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
+    TenantModule,
     AdminModule,
     UserModule,
     WhatsappModule,
@@ -31,7 +35,22 @@ import { GroupModule } from './group/group.module';
     SubscriptionModule,
     GroupModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, TestController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Tenant middleware disabled for now
+    // consumer
+    //   .apply(TenantMiddleware)
+    //   .exclude(
+    //     'admin/(.*)',
+    //     'user/login',
+    //     'user/register',
+    //     'subscription',
+    //     'subscription/(.*)',
+    //     'test/(.*)',
+    //   )
+    //   .forRoutes('*');
+  }
+}

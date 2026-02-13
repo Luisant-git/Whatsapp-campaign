@@ -29,7 +29,10 @@ export class ContactService {
     const prisma = this.getPrisma(tenantContext);
     const phone = this.formatPhoneNumber(data.phone);
 
-    const existing = await prisma.contact.findUnique({ where: { phone } });
+    const existing = await prisma.contact.findUnique({
+      where: { phone },
+    });
+
     if (existing) {
       throw new NotFoundException('Contact with this phone number already exists');
     }

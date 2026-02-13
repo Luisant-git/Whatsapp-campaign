@@ -12,7 +12,7 @@ export class SchedulerService {
     private campaignService: CampaignService
   ) {}
 
-  @Cron('0 * * * * *') // Run every minute
+  // @Cron('0 * * * * *') // Disabled for multi-tenancy migration
   async handleScheduledCampaigns() {
     const now = new Date();
     const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();

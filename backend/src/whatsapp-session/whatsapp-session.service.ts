@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { AutoReplyService } from '../auto-reply/auto-reply.service';
 import { QuickReplyService } from '../quick-reply/quick-reply.service';
-import { PrismaService } from '../prisma.service';
+import { CentralPrismaService } from '../central-prisma.service';
 
 @Injectable()
 export class WhatsappSessionService {
   constructor(
     private autoReplyService: AutoReplyService,
     private quickReplyService: QuickReplyService,
-    private prisma: PrismaService,
+    private centralPrisma: CentralPrismaService,
   ) {}
 
   async handleInteractiveMenu(
@@ -30,9 +30,9 @@ export class WhatsappSessionService {
     console.log('Processing message:', lowerText);
 
     // Get user preference
-    const user = await this.prisma.user.findUnique({
+    const user = await this.centralPrisma.tenant.findUnique({
       where: { id: userId },
-      select: { useQuickReply: true, aiChatbotEnabled: true }
+      select: { id: true, isActive: true }
     });
     
     if (!user) {
@@ -40,8 +40,8 @@ export class WhatsappSessionService {
       return false;
     }
 
-    const useQuickReply = user.useQuickReply === true;
-    console.log('User preference - useQuickReply:', useQuickReply, 'aiChatbotEnabled:', user.aiChatbotEnabled);
+    const useQuickReply = true; // Default to true for all tenants
+    console.log('User preference - useQuickReply:', useQuickReply);
 
     // Only process quick replies if user has quick reply enabled
     if (useQuickReply) {

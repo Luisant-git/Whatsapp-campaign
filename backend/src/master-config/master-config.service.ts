@@ -1,75 +1,51 @@
 import { Injectable, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
+import { TenantPrismaService } from '../tenant-prisma.service';
+import { TenantContext } from '../tenant/tenant.decorator';
 import { CreateMasterConfigDto, UpdateMasterConfigDto } from './dto/master-config.dto';
 
 @Injectable()
 export class MasterConfigService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenantPrisma: TenantPrismaService) {}
 
-  async create(createDto: CreateMasterConfigDto, userId: number) {
-    // Check if verify token is already used by another user
-    if (createDto.verifyToken) {
-      const tokenUsedByOtherUser = await this.prisma.masterConfig.findFirst({
-        where: {
-          verifyToken: createDto.verifyToken,
-          userId: { not: userId }
-        }
-      });
-      
-      if (tokenUsedByOtherUser) {
-        throw new ConflictException('This verify token is already used by another user');
-      }
-    }
+  private getPrisma(ctx: TenantContext) {
+    return this.tenantPrisma.getTenantClient(ctx.tenantId, ctx.dbUrl);
+  }
 
-    return this.prisma.masterConfig.create({
+  async create(createDto: CreateMasterConfigDto, tenantContext: TenantContext) {
+    const prisma = this.getPrisma(tenantContext);
+    return prisma.masterConfig.create({
       data: {
         ...createDto,
-        userId,
         isActive: createDto.isActive ?? true,
       },
     });
   }
 
-  async findAll(userId: number) {
-    return this.prisma.masterConfig.findMany({
-      where: { userId },
+  async findAll(tenantContext: TenantContext) {
+    const prisma = this.getPrisma(tenantContext);
+    return prisma.masterConfig.findMany({
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findOne(id: number, userId: number) {
-    return this.prisma.masterConfig.findFirst({
-      where: { id, userId },
+  async findOne(id: number, tenantContext: TenantContext) {
+    const prisma = this.getPrisma(tenantContext);
+    return prisma.masterConfig.findUnique({
+      where: { id },
     });
   }
 
-  async update(id: number, updateDto: UpdateMasterConfigDto, userId: number) {
-    const existingConfig = await this.prisma.masterConfig.findFirst({
-      where: { id, userId }
-    });
-
-    // Check if verify token is already used by another user
-    if (updateDto.verifyToken && updateDto.verifyToken !== existingConfig?.verifyToken) {
-      const tokenUsedByOtherUser = await this.prisma.masterConfig.findFirst({
-        where: {
-          verifyToken: updateDto.verifyToken,
-          userId: { not: userId }
-        }
-      });
-      
-      if (tokenUsedByOtherUser) {
-        throw new ConflictException('This verify token is already used by another user');
-      }
-    }
-
-    return this.prisma.masterConfig.update({
+  async update(id: number, updateDto: UpdateMasterConfigDto, tenantContext: TenantContext) {
+    const prisma = this.getPrisma(tenantContext);
+    return prisma.masterConfig.update({
       where: { id },
       data: updateDto,
     });
   }
 
-  async remove(id: number, userId: number) {
-    return this.prisma.masterConfig.delete({
+  async remove(id: number, tenantContext: TenantContext) {
+    const prisma = this.getPrisma(tenantContext);
+    return prisma.masterConfig.delete({
       where: { id },
     });
   }

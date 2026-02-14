@@ -21,5 +21,15 @@ npx prisma generate --schema=./prisma/schema-central.prisma
 npx prisma db push --schema=./prisma/schema-tenant.prisma
 npx prisma generate --schema=./prisma/schema-tenant.prisma
 
+If you want to apply schema changes to an existing database, run the following commands(OPTIONAL): 
+npx ts-node scripts/update-tenant-schemas.ts
+
 5.Start the server:
 npm run start:dev
+
+TIPS:
+if any doubt writing tenanat api refer test module
+test.dto.ts
+test.controller.ts
+test.service.ts
+test.module.ts

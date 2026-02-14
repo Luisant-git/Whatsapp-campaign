@@ -15,6 +15,7 @@ import { AdminModule } from './admin/admin.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { GroupModule } from './group/group.module';
 import { TenantModule } from './tenant/tenant.module';
+import { TestModule } from './test/test.module';
 import { TenantMiddleware } from './tenant/tenant.middleware';
 import { TestController } from './test.controller';
 
@@ -34,6 +35,7 @@ import { TestController } from './test.controller';
     ContactModule,
     SubscriptionModule,
     GroupModule,
+    TestModule,
   ],
   controllers: [AppController, TestController],
   providers: [AppService],

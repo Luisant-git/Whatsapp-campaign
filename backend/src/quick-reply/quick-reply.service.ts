@@ -1,17 +1,35 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
+import { TenantPrismaService } from '../tenant-prisma.service';
+import { CentralPrismaService } from '../central-prisma.service';
 
 @Injectable()
 export class QuickReplyService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private tenantPrisma: TenantPrismaService,
+    private centralPrisma: CentralPrismaService,
+  ) {}
+
+  private async getTenantContext(userId: number) {
+    const tenant = await this.centralPrisma.tenant.findUnique({
+      where: { id: userId },
+    });
+    if (!tenant) throw new Error('Tenant not found');
+    
+    const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+    return { tenantId: tenant.id.toString(), dbUrl };
+  }
+
+  private async getPrisma(userId: number) {
+    const ctx = await this.getTenantContext(userId);
+    return this.tenantPrisma.getTenantClient(ctx.tenantId, ctx.dbUrl);
+  }
 
   async getQuickReply(message: string, userId: number) {
+    const prisma = await this.getPrisma(userId);
     const lowerMessage = message.toLowerCase().trim();
-    console.log('Looking for quick reply with trigger:', lowerMessage);
 
-    const quickReply = await this.prisma.quickReply.findFirst({
+    const quickReply = await prisma.quickReply.findFirst({
       where: {
-        userId,
         isActive: true,
         triggers: {
           hasSome: [lowerMessage],
@@ -19,16 +37,15 @@ export class QuickReplyService {
       },
     });
 
-    console.log('Quick reply result:', quickReply);
     return quickReply;
   }
 
   async addQuickReply(userId: number, triggers: string[], buttons: string[]) {
-    return this.prisma.quickReply.create({
+    const prisma = await this.getPrisma(userId);
+    return prisma.quickReply.create({
       data: {
         triggers: triggers.map((t) => t.toLowerCase()),
         buttons,
-        userId,
       },
     });
   }
@@ -40,7 +57,8 @@ export class QuickReplyService {
     buttons: string[],
     isActive: boolean,
   ) {
-    return this.prisma.quickReply.update({
+    const prisma = await this.getPrisma(userId);
+    return prisma.quickReply.update({
       where: { id },
       data: {
         triggers: triggers.map((t) => t.toLowerCase()),
@@ -51,8 +69,9 @@ export class QuickReplyService {
   }
 
   async removeQuickReply(id: number, userId: number): Promise<boolean> {
+    const prisma = await this.getPrisma(userId);
     try {
-      await this.prisma.quickReply.delete({
+      await prisma.quickReply.delete({
         where: { id },
       });
       return true;
@@ -62,8 +81,8 @@ export class QuickReplyService {
   }
 
   async getAllQuickReplies(userId: number) {
-    return this.prisma.quickReply.findMany({
-      where: { userId },
+    const prisma = await this.getPrisma(userId);
+    return prisma.quickReply.findMany({
       orderBy: { createdAt: 'desc' },
     });
   }

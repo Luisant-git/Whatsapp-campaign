@@ -46,7 +46,7 @@ export class WhatsappService {
       
       // Check if manually edited to avoid auto-labeling
       const chatLabel = await this.prisma.chatLabel.findUnique({
-        where: { phone_userId: { phone: from, userId } },
+        where: { phone: from },
       });
 
       const isManuallyEdited = chatLabel?.manuallyEdited || false;
@@ -55,9 +55,9 @@ export class WhatsappService {
         if (lowerText === 'stop') {
           // Add Stop label
           await this.prisma.chatLabel.upsert({
-            where: { phone_userId: { phone: from, userId } },
+            where: { phone: from },
             update: { labels: { set: ['Stop'] } },
-            create: { phone: from, userId, labels: ['Stop'] },
+            create: { phone: from, labels: ['Stop'] },
           });
           this.logger.log(`Added 'Stop' label to ${from}`);
         } else if (lowerText === 'yes') {
@@ -69,9 +69,9 @@ export class WhatsappService {
           }
           
           await this.prisma.chatLabel.upsert({
-            where: { phone_userId: { phone: from, userId } },
+            where: { phone: from },
             update: { labels: { set: updatedLabels } },
-            create: { phone: from, userId, labels: ['Yes'] },
+            create: { phone: from, labels: ['Yes'] },
           });
           this.logger.log(`Removed 'Stop' label and added 'Yes' label to ${from}`);
         }
@@ -117,7 +117,6 @@ export class WhatsappService {
         mediaUrl,
         direction: 'incoming',
         status: 'received',
-        userId
       }
     });
 
@@ -130,9 +129,8 @@ export class WhatsappService {
         return;
       }
 
-      // Get user to check if AI chatbot is enabled
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
+      // Get tenant config to check if AI chatbot is enabled
+      const tenantConfig = await this.prisma.tenantConfig.findFirst({
         select: { aiChatbotEnabled: true }
       });
 
@@ -150,7 +148,7 @@ export class WhatsappService {
       );
 
       // Only try chatbot if session service didn't handle it AND AI chatbot is enabled
-      if (!sessionHandled && user?.aiChatbotEnabled) {
+      if (!sessionHandled && tenantConfig?.aiChatbotEnabled) {
         try {
           const chatResponse = await this.chatbotService.processMessage(userId, {
             message: text,
@@ -260,7 +258,6 @@ export class WhatsappService {
           message: `Interactive buttons: ${text}`,
           direction: 'outgoing',
           status: 'sent',
-          userId
         }
       });
 
@@ -304,7 +301,6 @@ export class WhatsappService {
           message,
           direction: 'outgoing',
           status: 'sent',
-          userId
         }
       });
 
@@ -349,7 +345,6 @@ export class WhatsappService {
           mediaUrl,
           direction: 'outgoing',
           status: 'sent',
-          userId
         }
       });
 
@@ -387,43 +382,19 @@ export class WhatsappService {
   }
 
   async findUserByPhoneNumberId(phoneNumberId: string): Promise<number | null> {
-    try {
-      const settings = await this.prisma.whatsAppSettings.findFirst({
-        where: { phoneNumberId },
-        select: { userId: true }
-      });
-      return settings?.userId || null;
-    } catch (error) {
-      this.logger.error('Error finding user by phone number ID:', error);
-      return null;
-    }
+    // In database-level multi-tenancy, this method is not applicable
+    // Return null or throw error
+    return null;
   }
 
   async findAllUsersByPhoneNumberId(phoneNumberId: string): Promise<number[]> {
-    try {
-      const settings = await this.prisma.whatsAppSettings.findMany({
-        where: { phoneNumberId },
-        select: { userId: true },
-        distinct: ['userId']
-      });
-      return settings.map(s => s.userId);
-    } catch (error) {
-      this.logger.error('Error finding users by phone number ID:', error);
-      return [];
-    }
+    // In database-level multi-tenancy, this method is not applicable
+    return [];
   }
 
   async findFirstActiveUser(): Promise<number | null> {
-    try {
-      const user = await this.prisma.user.findFirst({
-        where: { isActive: true },
-        select: { id: true }
-      });
-      return user?.id || null;
-    } catch (error) {
-      this.logger.error('Error finding first active user:', error);
-      return null;
-    }
+    // In database-level multi-tenancy, this method is not applicable
+    return null;
   }
 
   async validateVerifyToken(token: string): Promise<boolean> {
@@ -439,21 +410,13 @@ export class WhatsappService {
   }
 
   async findUserByVerifyToken(token: string): Promise<number | null> {
-    try {
-      const settings = await this.prisma.whatsAppSettings.findFirst({
-        where: { verifyToken: token },
-        select: { userId: true }
-      });
-      return settings?.userId || null;
-    } catch (error) {
-      this.logger.error('Error finding user by verify token:', error);
-      return null;
-    }
+    // In database-level multi-tenancy, this method is not applicable
+    return null;
   }
 
   async getMessages(userId: number, phoneNumber?: string) {
     return this.prisma.whatsAppMessage.findMany({
-      where: { userId, ...(phoneNumber && { from: phoneNumber }) },
+      where: { ...(phoneNumber && { from: phoneNumber }) },
       orderBy: { createdAt: 'asc' },
     });
   }
@@ -503,7 +466,6 @@ export class WhatsappService {
             message: `Template ${templateName} sent`,
             direction: 'outgoing',
             status: 'sent',
-            userId
           }
         });
 
@@ -597,7 +559,6 @@ export class WhatsappService {
             message: `Template ${templateName} sent to ${contact.name}`,
             direction: 'outgoing',
             status: 'sent',
-            userId
           }
         });
 
@@ -715,7 +676,6 @@ export class WhatsappService {
           message: `Order ${order.id} confirmation sent`,
           direction: 'outgoing',
           status: 'sent',
-          userId
         }
       });
 

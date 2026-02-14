@@ -7,7 +7,6 @@ export class SubscriptionController {
   constructor(private readonly subscriptionService: SubscriptionService) {}
 
   @Post()
-  @UseGuards(SessionGuard)
   create(@Body() data: any) {
     return this.subscriptionService.create(data);
   }
@@ -23,61 +22,55 @@ export class SubscriptionController {
   }
 
   @Get('current')
-  @UseGuards(SessionGuard)
   getCurrentPlan(@Session() session: any) {
-    return this.subscriptionService.getCurrentPlan(session.user.id);
+    const userId = session.userId || session.user?.id;
+    return this.subscriptionService.getCurrentPlan(userId);
   }
 
   @Get('my-orders')
-  @UseGuards(SessionGuard)
   getUserOrders(@Session() session: any) {
-    return this.subscriptionService.getUserOrders(session.user.id);
+    const userId = session.userId || session.user?.id;
+    return this.subscriptionService.getUserOrders(userId);
   }
 
   @Get('users')
-  @UseGuards(SessionGuard)
   getAllUserSubscriptions() {
     return this.subscriptionService.getAllUserSubscriptions();
   }
 
   @Get('orders/all')
-  @UseGuards(SessionGuard)
   getAllOrders() {
     return this.subscriptionService.getAllOrders();
   }
 
   @Put('orders/:id/status')
-  @UseGuards(SessionGuard)
   updateOrderStatus(@Param('id') id: string, @Body() data: { status: string }) {
     return this.subscriptionService.updateOrderStatus(+id, data.status);
   }
 
   @Put('set-current/:orderId')
-  @UseGuards(SessionGuard)
   setCurrentPlan(@Session() session: any, @Param('orderId') orderId: string) {
-    return this.subscriptionService.setCurrentPlan(session.user.id, +orderId);
+    const userId = session.userId || session.user?.id;
+    return this.subscriptionService.setCurrentPlan(userId, +orderId);
   }
 
   @Post('subscribe/:planId')
-  @UseGuards(SessionGuard)
   subscribe(@Session() session: any, @Param('planId') planId: string) {
-    return this.subscriptionService.subscribe(session.user.id, +planId);
+    const userId = session.userId || session.user?.id;
+    return this.subscriptionService.subscribe(userId, +planId);
   }
 
   @Get(':id')
-  @UseGuards(SessionGuard)
   findOne(@Param('id') id: string) {
     return this.subscriptionService.findOne(+id);
   }
 
   @Put(':id')
-  @UseGuards(SessionGuard)
   update(@Param('id') id: string, @Body() data: any) {
     return this.subscriptionService.update(+id, data);
   }
 
   @Delete(':id')
-  @UseGuards(SessionGuard)
   remove(@Param('id') id: string) {
     return this.subscriptionService.remove(+id);
   }

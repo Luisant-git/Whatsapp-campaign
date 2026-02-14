@@ -1,15 +1,35 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
+import { TenantPrismaService } from '../tenant-prisma.service';
+import { CentralPrismaService } from '../central-prisma.service';
 
 @Injectable()
 export class AutoReplyService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private tenantPrisma: TenantPrismaService,
+    private centralPrisma: CentralPrismaService,
+  ) {}
+
+  private async getTenantContext(userId: number) {
+    const tenant = await this.centralPrisma.tenant.findUnique({
+      where: { id: userId },
+    });
+    if (!tenant) throw new Error('Tenant not found');
+    
+    const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+    return { tenantId: tenant.id.toString(), dbUrl };
+  }
+
+  private async getPrisma(userId: number) {
+    const ctx = await this.getTenantContext(userId);
+    return this.tenantPrisma.getTenantClient(ctx.tenantId, ctx.dbUrl);
+  }
 
   async getAutoReply(message: string, userId: number): Promise<string | null> {
+    const prisma = await this.getPrisma(userId);
     const lowerMessage = message.toLowerCase().trim();
 
-    const autoReplies = await this.prisma.autoReply.findMany({
-      where: { userId, isActive: true },
+    const autoReplies = await prisma.autoReply.findMany({
+      where: { isActive: true },
     });
 
     for (const autoReply of autoReplies) {
@@ -26,11 +46,11 @@ export class AutoReplyService {
   }
 
   async addAutoReply(userId: number, triggers: string[], response: string) {
-    return this.prisma.autoReply.create({
+    const prisma = await this.getPrisma(userId);
+    return prisma.autoReply.create({
       data: {
         triggers,
         response,
-        userId,
       },
     });
   }
@@ -42,15 +62,17 @@ export class AutoReplyService {
     response: string,
     isActive: boolean,
   ) {
-    return this.prisma.autoReply.update({
+    const prisma = await this.getPrisma(userId);
+    return prisma.autoReply.update({
       where: { id },
       data: { triggers, response, isActive },
     });
   }
 
   async removeAutoReply(id: number, userId: number): Promise<boolean> {
+    const prisma = await this.getPrisma(userId);
     try {
-      await this.prisma.autoReply.delete({
+      await prisma.autoReply.delete({
         where: { id },
       });
       return true;
@@ -60,8 +82,8 @@ export class AutoReplyService {
   }
 
   async getAllAutoReplies(userId: number) {
-    return this.prisma.autoReply.findMany({
-      where: { userId },
+    const prisma = await this.getPrisma(userId);
+    return prisma.autoReply.findMany({
       orderBy: { createdAt: 'desc' },
     });
   }

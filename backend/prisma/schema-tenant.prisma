@@ -1,0 +1,192 @@
+// Tenant-specific database schema (no userId fields)
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/@prisma/client-tenant"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("TENANT_DATABASE_URL")
+}
+
+model TenantConfig {
+  id        Int      @id @default(autoincrement())
+  aiChatbotEnabled Boolean @default(false)
+  useQuickReply Boolean @default(true)
+  responsePriority String @default("quickreply")
+  customLabels String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MasterConfig {
+  id            Int      @id @default(autoincrement())
+  name          String   @unique
+  phoneNumberId String
+  accessToken   String
+  verifyToken   String
+  isActive      Boolean  @default(true)
+  settings      WhatsAppSettings[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model WhatsAppMessage {
+  id        Int      @id @default(autoincrement())
+  messageId String   @unique
+  to        String
+  from      String
+  message   String?
+  mediaType String?
+  mediaUrl  String?
+  direction String
+  status    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WhatsAppSettings {
+  id            Int      @id @default(autoincrement())
+  name          String?  @unique
+  templateName  String
+  phoneNumberId String
+  accessToken   String
+  verifyToken   String?
+  apiUrl        String
+  language      String   @default("en")
+  headerImageUrl String?
+  isDefault     Boolean  @default(false)
+  masterConfigId Int?
+  masterConfig  MasterConfig? @relation(fields: [masterConfigId], references: [id], onDelete: SetNull)
+  campaigns     Campaign[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Campaign {
+  id           Int      @id @default(autoincrement())
+  name         String
+  templateName String
+  parameters   Json?
+  status       String   @default("draft")
+  totalCount   Int      @default(0)
+  successCount Int      @default(0)
+  failedCount  Int      @default(0)
+  scheduleType String   @default("one-time")
+  scheduledDays String[] @default([])
+  scheduledTime String?
+  groupId       Int?
+  settingsId   Int
+  settings     WhatsAppSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  group        Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  contacts     CampaignContact[]
+  messages     CampaignMessage[]
+}
+
+model CampaignContact {
+  id         Int      @id @default(autoincrement())
+  name       String?
+  phone      String
+  group      String?
+  campaignId Int
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+}
+
+model CampaignMessage {
+  id         Int      @id @default(autoincrement())
+  messageId  String?
+  phone      String
+  name       String?
+  status     String
+  error      String?
+  campaignId Int
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Document {
+  id        Int      @id @default(autoincrement())
+  filename  String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ChatSession {
+  id        Int      @id @default(autoincrement())
+  phone     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  messages  ChatMessage[]
+}
+
+model ChatMessage {
+  id            Int         @id @default(autoincrement())
+  message       String
+  isFromUser    Boolean
+  sessionId     Int
+  session       ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+}
+
+model AutoReply {
+  id        Int      @id @default(autoincrement())
+  triggers  String[]
+  response  String   @db.Text
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model QuickReply {
+  id        Int      @id @default(autoincrement())
+  triggers  String[]
+  buttons   String[]
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Contact {
+  id               Int      @id @default(autoincrement())
+  name             String
+  email            String?
+  phone            String   @unique
+  place            String?
+  lastMessageDate  DateTime?
+  dob             DateTime?
+  anniversary     DateTime?
+  groupId           Int?
+  group             Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Group {
+  id                Int  @id @default(autoincrement())
+  name              String @unique
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  contact         Contact[]
+  campaign          Campaign[]
+}
+
+model ChatLabel {
+  id        Int      @id @default(autoincrement())
+  phone     String   @unique
+  labels    String[]
+  manuallyEdited Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Test {
+  id       Int     @id @default(autoincrement())
+  name     String
+}

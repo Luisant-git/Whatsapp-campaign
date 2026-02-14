@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { MasterConfigController } from './master-config.controller';
 import { MasterConfigService } from './master-config.service';
-import { PrismaService } from '../prisma.service';
+import { TenantPrismaService } from '../tenant-prisma.service';
 
 @Module({
   controllers: [MasterConfigController],
-  providers: [MasterConfigService, PrismaService],
+  providers: [MasterConfigService, TenantPrismaService],
   exports: [MasterConfigService],
 })
 export class MasterConfigModule {}

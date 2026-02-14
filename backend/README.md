@@ -1,67 +1,35 @@
-# WhatsApp Campaign Backend
+1.Install dependencies:
+npm install
 
-A NestJS backend for WhatsApp campaign management with bulk messaging capabilities.
+2.Create .env file with below config:
+PORT=your_port
+CENTRAL_DATABASE_URL=your_central_database_url
+TENANT_DATABASE_URL=your_tenant_database_url
+JWT_SECRET=your_jwt_secret
+UPLOAD_URL=your_upload_url
+FRONTEND_URL=your_frontend_url
+EMAIL_USER=your_email
+EMAIL_PASS=your_email_password
+GROQ_API_KEY=your_groq_api_key
+DEEPGRAM_API_KEY=your_deepgram_api_key
 
-## Features
+3.For Central Database (stores tenant metadata):
+npx prisma db push --schema=./prisma/schema-central.prisma
+npx prisma generate --schema=./prisma/schema-central.prisma
 
-- ✅ WhatsApp Business API integration
-- ✅ Bulk message sending with templates
-- ✅ Media file support (images, videos, documents)
-- ✅ Message status tracking
-- ✅ Interactive chat interface
-- ✅ Webhook handling for incoming messages
-- ✅ Swagger API documentation
+4.For Tenant Database (each tenant's data):
+npx prisma db push --schema=./prisma/schema-tenant.prisma
+npx prisma generate --schema=./prisma/schema-tenant.prisma
 
-## Setup
+If you want to apply schema changes to an existing database, run the following commands(OPTIONAL): 
+npx ts-node scripts/update-tenant-schemas.ts
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+5.Start the server:
+npm run start:dev
 
-2. **Configure environment variables:**
-   ```bash
-   cp .env.example .env
-   ```
-   Update `.env` with your WhatsApp Business API credentials.
-
-3. **Setup database:**
-   ```bash
-   npx prisma generate
-   npx prisma db push
-   ```
-
-4. **Start the server:**
-   ```bash
-   npm run start:dev
-   ```
-
-## API Endpoints
-
-### WhatsApp Messages
-- `GET /whatsapp/messages` - Get all messages
-- `GET /whatsapp/messages?phone=919876543210` - Get messages by phone
-- `POST /whatsapp/send-message` - Send single message
-- `POST /whatsapp/send-bulk` - Send bulk template messages
-- `POST /whatsapp/send-media` - Send media files
-- `GET /whatsapp/message-status/:messageId` - Get message status
-
-### Webhook
-- `GET /whatsapp/webhook` - Verify webhook
-- `POST /whatsapp/webhook` - Handle incoming messages
-
-## API Documentation
-
-Visit `http://localhost:3010/api` for interactive Swagger documentation.
-
-## Environment Variables
-
-```env
-DATABASE_URL="postgresql://username:password@localhost:5432/whatsapp_campaign"
-WHATSAPP_API_URL="https://graph.facebook.com/v18.0"
-WHATSAPP_PHONE_NUMBER_ID="your_phone_number_id"
-WHATSAPP_ACCESS_TOKEN="your_access_token"
-WHATSAPP_VERIFY_TOKEN="your_verify_token"
-UPLOAD_URL="http://localhost:3010/uploads"
-PORT=3010
-```
+TIPS:
+if any doubt writing tenanat api refer test module
+test.dto.ts
+test.controller.ts
+test.service.ts
+test.module.ts

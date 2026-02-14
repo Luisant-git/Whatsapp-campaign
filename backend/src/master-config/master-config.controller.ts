@@ -1,6 +1,8 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Session } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SessionGuard } from '../auth/session.guard';
+import { TenantContext } from '../tenant/tenant.decorator';
+import type { TenantContext as TenantContextType } from '../tenant/tenant.decorator';
 import { MasterConfigService } from './master-config.service';
 import { CreateMasterConfigDto, UpdateMasterConfigDto } from './dto/master-config.dto';
 
@@ -13,35 +15,35 @@ export class MasterConfigController {
   @Post()
   @ApiOperation({ summary: 'Create master config' })
   @ApiResponse({ status: 201, description: 'Master config created successfully' })
-  async create(@Session() session: any, @Body() createDto: CreateMasterConfigDto) {
-    return this.masterConfigService.create(createDto, session.user.id);
+  async create(@TenantContext() tenantContext: TenantContextType, @Body() createDto: CreateMasterConfigDto) {
+    return this.masterConfigService.create(createDto, tenantContext);
   }
 
   @Get()
   @ApiOperation({ summary: 'Get all master configs' })
   @ApiResponse({ status: 200, description: 'Master configs retrieved successfully' })
-  async findAll(@Session() session: any) {
-    return this.masterConfigService.findAll(session.user.id);
+  async findAll(@TenantContext() tenantContext: TenantContextType) {
+    return this.masterConfigService.findAll(tenantContext);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get master config by ID' })
   @ApiResponse({ status: 200, description: 'Master config retrieved successfully' })
-  async findOne(@Session() session: any, @Param('id') id: string) {
-    return this.masterConfigService.findOne(parseInt(id), session.user.id);
+  async findOne(@TenantContext() tenantContext: TenantContextType, @Param('id') id: string) {
+    return this.masterConfigService.findOne(parseInt(id), tenantContext);
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Update master config' })
   @ApiResponse({ status: 200, description: 'Master config updated successfully' })
-  async update(@Session() session: any, @Param('id') id: string, @Body() updateDto: UpdateMasterConfigDto) {
-    return this.masterConfigService.update(parseInt(id), updateDto, session.user.id);
+  async update(@TenantContext() tenantContext: TenantContextType, @Param('id') id: string, @Body() updateDto: UpdateMasterConfigDto) {
+    return this.masterConfigService.update(parseInt(id), updateDto, tenantContext);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete master config' })
   @ApiResponse({ status: 200, description: 'Master config deleted successfully' })
-  async remove(@Session() session: any, @Param('id') id: string) {
-    return this.masterConfigService.remove(parseInt(id), session.user.id);
+  async remove(@TenantContext() tenantContext: TenantContextType, @Param('id') id: string) {
+    return this.masterConfigService.remove(parseInt(id), tenantContext);
   }
 }

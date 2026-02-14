@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { PrismaService } from '../prisma.service';
+import { CentralPrismaService } from '../central-prisma.service';
 import { WhatsappSessionService } from '../whatsapp-session/whatsapp-session.service';
 import { SettingsService } from '../settings/settings.service';
 import { ChatbotService } from '../chatbot/chatbot.service';
@@ -11,10 +12,19 @@ export class WhatsappService {
 
   constructor(
     private prisma: PrismaService,
+    private centralPrisma: CentralPrismaService,
     private sessionService: WhatsappSessionService,
     private settingsService: SettingsService,
     private chatbotService: ChatbotService
   ) {}
+
+  async findAllUsersByPhoneNumberId(phoneNumberId: string): Promise<number[]> {
+    const mappings = await this.centralPrisma.phoneNumberMapping.findMany({
+      where: { phoneNumberId },
+      select: { tenantId: true }
+    });
+    return mappings.map(m => m.tenantId);
+  }
 
   private async getSettings(userId: number) {
     const settings = await this.settingsService.getCurrentSettings(userId);
@@ -374,10 +384,7 @@ export class WhatsappService {
     return null;
   }
 
-  async findAllUsersByPhoneNumberId(phoneNumberId: string): Promise<number[]> {
-    // In database-level multi-tenancy, this method is not applicable
-    return [];
-  }
+
 
   async findFirstActiveUser(): Promise<number | null> {
     // In database-level multi-tenancy, this method is not applicable

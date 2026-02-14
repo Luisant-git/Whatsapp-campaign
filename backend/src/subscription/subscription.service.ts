@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { CentralPrismaService } from '../central-prisma.service';
 
 @Injectable()
 export class SubscriptionService {
-  private prisma = new PrismaClient();
+  constructor(private prisma: CentralPrismaService) {}
 
   async create(data: any) {
     const plan = await this.prisma.subscriptionPlan.create({
@@ -67,7 +67,7 @@ export class SubscriptionService {
     // Create subscription order with pending status
     await this.prisma.subscriptionOrder.create({
       data: {
-        userId,
+        tenantId: userId,
         planId,
         amount: plan.price,
         startDate,
@@ -82,7 +82,7 @@ export class SubscriptionService {
   async getCurrentPlan(userId: number) {
     // Get the most recent active order based on creation date
     const latestOrder = await this.prisma.subscriptionOrder.findFirst({
-      where: { userId, status: 'active' },
+      where: { tenantId: userId, status: 'active' },
       orderBy: { createdAt: 'desc' },
       include: { plan: true }
     });
@@ -95,7 +95,7 @@ export class SubscriptionService {
     if (!latestOrder.isCurrentPlan) {
       // Unset all other current plans
       await this.prisma.subscriptionOrder.updateMany({
-        where: { userId, isCurrentPlan: true },
+        where: { tenantId: userId, isCurrentPlan: true },
         data: { isCurrentPlan: false }
       });
       
@@ -105,8 +105,8 @@ export class SubscriptionService {
         data: { isCurrentPlan: true }
       });
 
-      // Update user subscription
-      await this.prisma.user.update({
+      // Update tenant subscription
+      await this.prisma.tenant.update({
         where: { id: userId },
         data: {
           subscriptionId: latestOrder.planId,
@@ -127,14 +127,14 @@ export class SubscriptionService {
 
   async getUserOrders(userId: number) {
     return this.prisma.subscriptionOrder.findMany({
-      where: { userId },
+      where: { tenantId: userId },
       include: { plan: true },
       orderBy: { createdAt: 'desc' }
     });
   }
 
   async getAllUserSubscriptions() {
-    const users = await this.prisma.user.findMany({
+    const tenants = await this.prisma.tenant.findMany({
       where: { subscriptionId: { not: null } },
       select: {
         id: true,
@@ -147,16 +147,16 @@ export class SubscriptionService {
       orderBy: { subscriptionEndDate: 'desc' }
     });
 
-    return users.map(user => ({
-      ...user,
-      isActive: user.subscriptionEndDate && new Date(user.subscriptionEndDate) > new Date()
+    return tenants.map(tenant => ({
+      ...tenant,
+      isActive: tenant.subscriptionEndDate && new Date(tenant.subscriptionEndDate) > new Date()
     }));
   }
 
   async getAllOrders() {
     return this.prisma.subscriptionOrder.findMany({
       include: {
-        user: { select: { id: true, email: true, name: true } },
+        tenant: { select: { id: true, email: true, name: true } },
         plan: true
       },
       orderBy: { createdAt: 'desc' }
@@ -166,7 +166,7 @@ export class SubscriptionService {
   async updateOrderStatus(orderId: number, status: string) {
     const order = await this.prisma.subscriptionOrder.findUnique({
       where: { id: orderId },
-      include: { user: true, plan: true }
+      include: { tenant: true, plan: true }
     });
 
     if (!order) throw new Error('Order not found');
@@ -179,7 +179,7 @@ export class SubscriptionService {
     // If approved, automatically set as current plan if it's the most recent
     if (status === 'active') {
       const latestOrder = await this.prisma.subscriptionOrder.findFirst({
-        where: { userId: order.userId, status: 'active' },
+        where: { tenantId: order.tenantId, status: 'active' },
         orderBy: { createdAt: 'desc' }
       });
 
@@ -187,7 +187,7 @@ export class SubscriptionService {
       if (latestOrder && latestOrder.id === orderId) {
         // Unset other current plans
         await this.prisma.subscriptionOrder.updateMany({
-          where: { userId: order.userId, isCurrentPlan: true },
+          where: { tenantId: order.tenantId, isCurrentPlan: true },
           data: { isCurrentPlan: false }
         });
 
@@ -197,9 +197,9 @@ export class SubscriptionService {
           data: { isCurrentPlan: true }
         });
 
-        // Update user subscription
-        await this.prisma.user.update({
-          where: { id: order.userId },
+        // Update tenant subscription
+        await this.prisma.tenant.update({
+          where: { id: order.tenantId },
           data: {
             subscriptionId: order.planId,
             subscriptionStartDate: order.startDate,
@@ -215,7 +215,7 @@ export class SubscriptionService {
   async setCurrentPlan(userId: number, orderId: number) {
     // First, get the order to verify it belongs to user and is active
     const order = await this.prisma.subscriptionOrder.findFirst({
-      where: { id: orderId, userId, status: 'active' },
+      where: { id: orderId, tenantId: userId, status: 'active' },
       include: { plan: true }
     });
 
@@ -226,14 +226,14 @@ export class SubscriptionService {
     // Unset all current plans for user in a transaction
     await this.prisma.$transaction([
       this.prisma.subscriptionOrder.updateMany({
-        where: { userId },
+        where: { tenantId: userId },
         data: { isCurrentPlan: false }
       }),
       this.prisma.subscriptionOrder.update({
         where: { id: orderId },
         data: { isCurrentPlan: true }
       }),
-      this.prisma.user.update({
+      this.prisma.tenant.update({
         where: { id: userId },
         data: {
           subscriptionId: order.planId,

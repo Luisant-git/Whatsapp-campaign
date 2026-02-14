@@ -1,40 +1,32 @@
-// src/group/group.controller.ts
-import { Controller, Get, Post, Body, Patch, Param, Delete, Session, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, UseGuards } from '@nestjs/common';
 import { GroupService } from './group.service';
 import { CreateGroupDto } from './dto/create-group.dto';
-import { UpdateGroupDto } from './dto/update-group.dto';
 import { SessionGuard } from '../auth/session.guard';
+import { TenantContext } from '../tenant/tenant.decorator';
+import type { TenantContext as TenantContextType } from '../tenant/tenant.decorator';
 
 @Controller('group')
 @UseGuards(SessionGuard)
 export class GroupController {
   constructor(private readonly groupService: GroupService) {}
 
-  // Helper to get userId from session
-  private getUserId(session: Record<string, any>): number {
-    const userId = session.userId || session.user?.id;
-    if (!userId) throw new Error('User session not found');
-    return userId;
-  }
-
   @Post()
-  create(@Body() createGroupDto: CreateGroupDto, @Session() session: Record<string, any>) {
-    return this.groupService.create(createGroupDto, this.getUserId(session));
+  create(@Body() createGroupDto: CreateGroupDto, @TenantContext() ctx: TenantContextType) {
+    return this.groupService.create(createGroupDto, ctx);
   }
 
   @Get()
-  findAll(@Session() session: Record<string, any>) {
-    return this.groupService.findAll(this.getUserId(session));
+  findAll(@TenantContext() ctx: TenantContextType) {
+    return this.groupService.findAll(ctx);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @Session() session: Record<string, any>) {
-    return this.groupService.findOne(+id, this.getUserId(session));
+  findOne(@Param('id') id: string, @TenantContext() ctx: TenantContextType) {
+    return this.groupService.findOne(+id, ctx);
   }
 
-  
   @Delete(':id')
-  remove(@Param('id') id: string, @Session() session: Record<string, any>) {
-    return this.groupService.remove(+id, this.getUserId(session));
+  remove(@Param('id') id: string, @TenantContext() ctx: TenantContextType) {
+    return this.groupService.remove(+id, ctx);
   }
 }

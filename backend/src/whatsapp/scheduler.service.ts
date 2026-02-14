@@ -12,7 +12,7 @@ export class SchedulerService {
     private campaignService: CampaignService
   ) {}
 
-  @Cron('0 * * * * *') // Run every minute
+  // @Cron('0 * * * * *') // Disabled for multi-tenancy migration
   async handleScheduledCampaigns() {
     const now = new Date();
     const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
@@ -44,7 +44,7 @@ export class SchedulerService {
         this.logger.log(`Running scheduled campaign: ${campaign.name} (ID: ${campaign.id})`);
         
         try {
-          await this.campaignService.runCampaign(campaign.id, campaign.userId);
+          await this.campaignService.runCampaign(campaign.id, 0); // Pass 0 as userId since it's not used in database-level multi-tenancy
           this.logger.log(`Successfully executed scheduled campaign: ${campaign.name}`);
         } catch (error) {
           this.logger.error(`Failed to execute scheduled campaign ${campaign.name}:`, error);
@@ -64,7 +64,6 @@ export class SchedulerService {
   async getScheduledCampaigns(userId: number) {
     return this.prisma.campaign.findMany({
       where: {
-        userId,
         status: 'scheduled',
         scheduleType: 'time-based'
       },

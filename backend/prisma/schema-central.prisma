@@ -1,0 +1,69 @@
+// Central database - stores tenant metadata only
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/@prisma/client-central"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("CENTRAL_DATABASE_URL")
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String?
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Tenant {
+  id          Int      @id @default(autoincrement())
+  email       String   @unique
+  name        String?
+  password    String
+  isActive    Boolean  @default(true)
+  dbName      String   @unique
+  dbHost      String   @default("localhost")
+  dbPort      Int      @default(5432)
+  dbUser      String
+  dbPassword  String
+  subscriptionId Int?
+  subscriptionStartDate DateTime?
+  subscriptionEndDate DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  subscription SubscriptionPlan? @relation(fields: [subscriptionId], references: [id])
+  subscriptionOrders SubscriptionOrder[]
+}
+
+model SubscriptionPlan {
+  id          Int      @id @default(autoincrement())
+  name        String
+  price       Float
+  duration    Int
+  features    String[]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  tenants     Tenant[]
+  orders      SubscriptionOrder[]
+}
+
+model SubscriptionOrder {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int
+  planId      Int
+  amount      Float
+  startDate   DateTime
+  endDate     DateTime
+  status      String   @default("pending")
+  isCurrentPlan Boolean @default(false)
+  createdAt   DateTime @default(now())
+  
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan        SubscriptionPlan @relation(fields: [planId], references: [id])
+}

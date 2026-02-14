@@ -1,0 +1,276 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String?
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String?
+  password  String
+  isActive  Boolean  @default(true)
+  aiChatbotEnabled Boolean @default(false)
+  useQuickReply Boolean @default(true)
+  responsePriority String @default("quickreply") // quickreply, chatbot
+  customLabels String[] @default([])
+  subscriptionId Int?
+  subscriptionStartDate DateTime?
+  subscriptionEndDate DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  messages  WhatsAppMessage[]
+  settings  WhatsAppSettings[]
+  campaigns Campaign[]
+  documents Document[]
+  chatSessions ChatSession[]
+  masterConfigs MasterConfig[]
+  autoReplies AutoReply[]
+  quickReplies QuickReply[]
+  contacts  Contact[]
+  chatLabels ChatLabel[]
+  subscription SubscriptionPlan? @relation(fields: [subscriptionId], references: [id])
+  subscriptionOrders SubscriptionOrder[]
+  group       Group[]
+}
+
+model MasterConfig {
+  id            Int      @id @default(autoincrement())
+  name          String
+  phoneNumberId String
+  accessToken   String
+  verifyToken   String
+  isActive      Boolean  @default(true)
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  settings      WhatsAppSettings[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@unique([name, userId])
+}
+
+model WhatsAppMessage {
+  id        Int      @id @default(autoincrement())
+  messageId String   @unique
+  to        String
+  from      String
+  message   String?
+  mediaType String?
+  mediaUrl  String?
+  direction String   // 'incoming' or 'outgoing'
+  status    String   // 'sent', 'delivered', 'read', 'failed'
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WhatsAppSettings {
+  id            Int      @id @default(autoincrement())
+  name          String?  // Configuration name - made optional
+  templateName  String
+  phoneNumberId String
+  accessToken   String
+  verifyToken   String?
+  apiUrl        String
+  language      String   @default("en")
+  headerImageUrl String?
+  isDefault     Boolean  @default(false)
+  userId        Int
+  masterConfigId Int?
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  masterConfig  MasterConfig? @relation(fields: [masterConfigId], references: [id], onDelete: SetNull)
+  campaigns     Campaign[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@unique([name])
+}
+
+model Campaign {
+  id           Int      @id @default(autoincrement())
+  name         String
+  templateName String
+  parameters   Json?
+  status       String   @default("draft") // draft, running, completed, failed, scheduled
+  totalCount   Int      @default(0)
+  successCount Int      @default(0)
+  failedCount  Int      @default(0)
+  scheduleType String   @default("one-time") // one-time, time-based
+  scheduledDays String[] @default([])
+  scheduledTime String?
+  groupId       Int ?
+  userId       Int
+  settingsId   Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  settings     WhatsAppSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  group   Group ? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  contacts     CampaignContact[]
+  messages     CampaignMessage[]
+}
+
+model CampaignContact {
+  id         Int      @id @default(autoincrement())
+  name       String?
+  phone      String
+  group      String?
+  campaignId Int
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+}
+
+model CampaignMessage {
+  id         Int      @id @default(autoincrement())
+  messageId  String?
+  phone      String
+  name       String?
+  status     String   // sent, delivered, read, failed
+  error      String?
+  campaignId Int
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Document {
+  id        Int      @id @default(autoincrement())
+  filename  String
+  content   String   @db.Text
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ChatSession {
+  id        Int      @id @default(autoincrement())
+  phone     String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  messages  ChatMessage[]
+}
+
+model ChatMessage {
+  id            Int         @id @default(autoincrement())
+  message       String
+  isFromUser    Boolean
+  sessionId     Int
+  session       ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+}
+
+model AutoReply {
+  id        Int      @id @default(autoincrement())
+  triggers  String[] // Array of trigger words
+  response  String   @db.Text
+  isActive  Boolean  @default(true)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model QuickReply {
+  id        Int      @id @default(autoincrement())
+  triggers  String[]
+  buttons   String[]
+  isActive  Boolean  @default(true)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Contact {
+  id               Int      @id @default(autoincrement())
+  name             String
+  email            String?
+  phone            String
+  place            String?
+  lastMessageDate  DateTime?
+  dob             DateTime?
+  anniversary     DateTime?
+  groupId           Int ?
+  group             Group ? @relation(fields: [groupId],references: [id], onDelete: Cascade)
+  userId           Int
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  @@unique([phone, userId])
+}
+
+model Group {
+  id                Int  @id @default(autoincrement())
+  name              String 
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  contact         Contact[]
+  campaign          Campaign[]
+  userId           Int
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+@@unique([name, userId])  // composite unique
+}
+
+model ChatLabel {
+  id        Int      @id @default(autoincrement())
+  phone     String
+  labels    String[]
+  manuallyEdited Boolean @default(false)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([phone, userId])
+}
+
+model SubscriptionPlan {
+  id          Int      @id @default(autoincrement())
+  name        String
+  price       Float
+  duration    Int      // in days
+  features    String[] // Array of features
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  users       User[]
+  orders      SubscriptionOrder[]
+}
+
+model SubscriptionOrder {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  planId      Int
+  amount      Float
+  startDate   DateTime
+  endDate     DateTime
+  status      String   @default("pending") // pending, active, expired, cancelled
+  isCurrentPlan Boolean @default(false)
+  createdAt   DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan        SubscriptionPlan @relation(fields: [planId], references: [id])
+}

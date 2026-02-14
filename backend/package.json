@@ -40,6 +40,7 @@
     "class-validator": "^0.14.2",
     "connect-session-sequelize": "^8.0.2",
     "express-session": "^1.18.2",
+    "form-data": "^4.0.5",
     "groq-sdk": "^0.37.0",
     "mammoth": "^1.11.0",
     "multer": "^1.4.5-lts.1",

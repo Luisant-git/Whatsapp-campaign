@@ -489,6 +489,18 @@ export class WhatsappService {
     } else {
       settings = await this.getSettings(userId);
     }
+    
+    // Upload image to Meta if provided
+    let mediaId: string | null = null;
+    if (headerImageUrl && headerImageUrl.trim() !== '' && headerImageUrl.startsWith('http')) {
+      try {
+        mediaId = await this.uploadMediaToMeta(headerImageUrl, settings);
+        this.logger.log(`Image uploaded to Meta, media ID: ${mediaId}`);
+      } catch (error) {
+        this.logger.error('Failed to upload image to Meta:', error.message);
+      }
+    }
+    
     const results: Array<{ phoneNumber: string; success: boolean; messageId?: string; error?: string }> = [];
    
     for (const contact of contacts) {
@@ -501,28 +513,14 @@ export class WhatsappService {
       const formattedPhone = this.formatPhoneNumber(contact.phone);
 
       try {
-        this.logger.log(`Sending message to ${formattedPhone} with template ${templateName}`);
-        this.logger.log(`API URL: ${settings.apiUrl}/${settings.phoneNumberId}/messages`);
-        this.logger.log(`Template: ${templateName}, Language: ${settings.language}`);
-        
         const components: any[] = [];
         
-        // Only add header if explicitly provided via headerImageUrl parameter
-        if (headerImageUrl && headerImageUrl.trim() !== '' && headerImageUrl.startsWith('http')) {
-          this.logger.log(`Adding header image: ${headerImageUrl}`);
+        // Use media ID instead of link if available
+        if (mediaId) {
           components.push({
             type: 'header',
-            parameters: [
-              {
-                type: 'image',
-                image: {
-                  link: headerImageUrl
-                }
-              }
-            ]
+            parameters: [{ type: 'image', image: { id: mediaId } }]
           });
-        } else {
-          this.logger.log('No header image provided, sending template without header');
         }
         
         const requestBody = {
@@ -536,8 +534,6 @@ export class WhatsappService {
           }
         };
         
-        this.logger.log('Request body:', JSON.stringify(requestBody, null, 2));
-        
         const response = await axios.post(
           `${settings.apiUrl}/${settings.phoneNumberId}/messages`,
           requestBody,
@@ -548,8 +544,6 @@ export class WhatsappService {
             }
           }
         );
-        
-        this.logger.log('WhatsApp API Response:', JSON.stringify(response.data, null, 2));
 
         await this.prisma.whatsAppMessage.create({
           data: {
@@ -575,6 +569,38 @@ export class WhatsappService {
     }
 
     return results;
+  }
+
+  private async uploadMediaToMeta(imageUrl: string, settings: any): Promise<string> {
+    try {
+      // Download image
+      const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+      const FormData = require('form-data');
+      const form = new FormData();
+      
+      form.append('file', Buffer.from(imageResponse.data), {
+        filename: 'image.jpg',
+        contentType: imageResponse.headers['content-type'] || 'image/jpeg'
+      });
+      form.append('messaging_product', 'whatsapp');
+      
+      // Upload to Meta
+      const uploadResponse = await axios.post(
+        `${settings.apiUrl}/${settings.phoneNumberId}/media`,
+        form,
+        {
+          headers: {
+            'Authorization': `Bearer ${settings.accessToken}`,
+            ...form.getHeaders()
+          }
+        }
+      );
+      
+      return uploadResponse.data.id;
+    } catch (error) {
+      this.logger.error('Media upload to Meta failed:', error.response?.data || error.message);
+      throw error;
+    }
   }
 
   private validatePhoneNumber(phone: string): string | null {

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { PrismaService } from '../prisma.service';
 import { CentralPrismaService } from '../central-prisma.service';
+import { TenantPrismaService } from '../tenant-prisma.service';
 import { WhatsappSessionService } from '../whatsapp-session/whatsapp-session.service';
 import { SettingsService } from '../settings/settings.service';
 import { ChatbotService } from '../chatbot/chatbot.service';
@@ -13,6 +14,7 @@ export class WhatsappService {
   constructor(
     private prisma: PrismaService,
     private centralPrisma: CentralPrismaService,
+    private tenantPrisma: TenantPrismaService,
     private sessionService: WhatsappSessionService,
     private settingsService: SettingsService,
     private chatbotService: ChatbotService
@@ -35,6 +37,15 @@ export class WhatsappService {
   }
 
   async handleIncomingMessage(message: any, userId: number) {
+    // Get tenant database connection
+    const tenant = await this.centralPrisma.tenant.findUnique({ where: { id: userId } });
+    if (!tenant) {
+      this.logger.error(`Tenant ${userId} not found`);
+      return;
+    }
+    const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+    const prisma = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+
     const from = message.from;
     const messageId = message.id;
     let text = message.text?.body;
@@ -55,7 +66,7 @@ export class WhatsappService {
       const lowerText = text.toLowerCase().trim();
       
       // Check if manually edited to avoid auto-labeling
-      const chatLabel = await this.prisma.chatLabel.findUnique({
+      const chatLabel = await prisma.chatLabel.findUnique({
         where: { phone: from },
       });
 
@@ -64,7 +75,7 @@ export class WhatsappService {
       if (!isManuallyEdited) {
         if (lowerText === 'stop') {
           // Add Stop label
-          await this.prisma.chatLabel.upsert({
+          await prisma.chatLabel.upsert({
             where: { phone: from },
             update: { labels: { set: ['Stop'] } },
             create: { phone: from, labels: ['Stop'] },
@@ -78,7 +89,7 @@ export class WhatsappService {
             updatedLabels.push('Yes');
           }
           
-          await this.prisma.chatLabel.upsert({
+          await prisma.chatLabel.upsert({
             where: { phone: from },
             update: { labels: { set: updatedLabels } },
             create: { phone: from, labels: ['Yes'] },
@@ -108,7 +119,7 @@ export class WhatsappService {
     this.logger.log(`Storing incoming message: from=${from}, to=${from}, message=${text || (mediaType ? `${mediaType} file` : 'button click')}`);
     
     // Check if message already exists
-    const existingMessage = await this.prisma.whatsAppMessage.findUnique({
+    const existingMessage = await prisma.whatsAppMessage.findUnique({
       where: { messageId }
     });
 
@@ -117,7 +128,7 @@ export class WhatsappService {
       return;
     }
 
-    await this.prisma.whatsAppMessage.create({
+    await prisma.whatsAppMessage.create({
       data: {
         messageId,
         to: from,
@@ -140,7 +151,7 @@ export class WhatsappService {
       }
 
       // Get tenant config to check if AI chatbot is enabled
-      const tenantConfig = await this.prisma.tenantConfig.findFirst({
+      const tenantConfig = await prisma.tenantConfig.findFirst({
         select: { aiChatbotEnabled: true }
       });
 

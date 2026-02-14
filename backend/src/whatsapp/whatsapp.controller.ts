@@ -159,16 +159,23 @@ export class WhatsappController {
             const message = change.value.messages?.[0];
             if (message) {
               const phoneNumberId = change.value.metadata?.phone_number_id;
+              console.log('📞 Phone Number ID:', phoneNumberId);
               const userIds = await this.whatsappService.findAllUsersByPhoneNumberId(phoneNumberId);
+              console.log('👥 Found user IDs:', userIds);
               
               if (userIds && userIds.length > 0) {
                 for (const userId of userIds) {
+                  console.log('💾 Storing message for user:', userId);
                   await this.whatsappService.handleIncomingMessage(message, userId);
                 }
               } else {
+                console.log('⚠️ No mapping found, trying fallback');
                 const userId = await this.whatsappService.findFirstActiveUser();
+                console.log('🔄 Fallback user ID:', userId);
                 if (userId) {
                   await this.whatsappService.handleIncomingMessage(message, userId);
+                } else {
+                  console.log('❌ No user found at all');
                 }
               }
             }
@@ -182,6 +189,7 @@ export class WhatsappController {
         }
       }
     }
+    console.log('✅ Webhook processed successfully');
     return 'EVENT_RECEIVED';
   }
 

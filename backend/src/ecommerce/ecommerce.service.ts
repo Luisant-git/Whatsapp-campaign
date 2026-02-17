@@ -14,7 +14,8 @@ export class EcommerceService {
   private async getTenantClient(userId: number) {
     const tenant = await this.centralPrisma.tenant.findUnique({ where: { id: userId } });
     if (!tenant) throw new Error('Tenant not found');
-    return this.tenantPrisma.getTenantClient(userId.toString(), tenant.dbUrl);
+    const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}?schema=public`;
+    return this.tenantPrisma.getTenantClient(userId.toString(), dbUrl);
   }
 
   // Categories

@@ -80,7 +80,7 @@ export class EcommerceController {
       name: body.name,
       description: body.description,
       price: parseFloat(body.price),
-      imageUrl: file ? `/uploads/${file.filename}` : null,
+      imageUrl: file ? `${process.env.UPLOAD_URL}/${file.filename}` : null,
       subCategoryId: +body.subCategoryId,
     };
     return this.ecommerceService.createProduct(data);
@@ -116,7 +116,7 @@ export class EcommerceController {
       subCategoryId: +body.subCategoryId,
     };
     if (file) {
-      data.imageUrl = `/uploads/${file.filename}`;
+      data.imageUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
     }
     return this.ecommerceService.updateProduct(+id, data);
   }

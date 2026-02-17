@@ -106,17 +106,11 @@ export class WhatsappEcommerceService {
 
     const message = `*${product.name}*\n\n${product.description}\n\n💰 Price: ₹${product.price}\n\nReply "BUY" to purchase this product`;
 
-    if (product.imageUrl) {
-      const uploadUrl = process.env.UPLOAD_URL || 'http://localhost:3010/uploads';
-      // Remove leading slash if present to avoid double slashes
-      const imageUrl = product.imageUrl.startsWith('/') 
-        ? `${uploadUrl.replace(/\/uploads$/, '')}${product.imageUrl}`
-        : `${uploadUrl}/${product.imageUrl}`;
-      
+    if (product.imageUrl && product.imageUrl.trim() !== '' && product.imageUrl.startsWith('http')) {
       return this.sendWhatsAppMessage(phone, {
         type: 'image',
         image: {
-          link: imageUrl,
+          link: product.imageUrl,
           caption: message,
         },
       }, accessToken, phoneNumberId);

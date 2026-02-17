@@ -101,12 +101,20 @@ export class WhatsappEcommerceService {
 
     if (!product) return;
 
+    console.log('Product details:', {
+      id: product.id,
+      name: product.name,
+      imageUrl: product.imageUrl,
+      startsWithHttp: product.imageUrl?.startsWith('http')
+    });
+
     // Store product in session for purchase
     this.sessionService.setProductForPurchase(phone, productId);
 
     const message = `*${product.name}*\n\n${product.description}\n\n💰 Price: ₹${product.price}\n\nReply "BUY" to purchase this product`;
 
     if (product.imageUrl && product.imageUrl.trim() !== '' && product.imageUrl.startsWith('http')) {
+      console.log('Sending image message with URL:', product.imageUrl);
       return this.sendWhatsAppMessage(phone, {
         type: 'image',
         image: {
@@ -116,6 +124,7 @@ export class WhatsappEcommerceService {
       }, accessToken, phoneNumberId);
     }
 
+    console.log('Sending text message (no valid image URL)');
     return this.sendWhatsAppMessage(phone, {
       type: 'text',
       text: { body: message },

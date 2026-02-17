@@ -37,9 +37,18 @@ export class WhatsappService {
     
     // Handle interactive button clicks
     if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
+      const buttonId = message.interactive.button_reply.id;
       const buttonTitle = message.interactive.button_reply.title;
-      text = buttonTitle; // Use the button title as the message text
-      this.logger.log(`Button clicked: ${buttonTitle}`);
+      text = buttonId; // Use the button ID as the message text for ecommerce
+      this.logger.log(`Button clicked: ${buttonTitle} (ID: ${buttonId})`);
+    }
+
+    // Handle interactive list replies
+    if (message.type === 'interactive' && message.interactive?.type === 'list_reply') {
+      const listId = message.interactive.list_reply.id;
+      const listTitle = message.interactive.list_reply.title;
+      text = listId; // Use the list ID as the message text
+      this.logger.log(`List item selected: ${listTitle} (ID: ${listId})`);
     }
 
     // Check if message is "stop" or "yes" and handle labels

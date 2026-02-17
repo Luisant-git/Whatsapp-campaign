@@ -18,6 +18,7 @@ import { TenantModule } from './tenant/tenant.module';
 import { TestModule } from './test/test.module';
 import { TenantMiddleware } from './tenant/tenant.middleware';
 import { TestController } from './test.controller';
+import { CategoryModule } from './category/category.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { TestController } from './test.controller';
     SubscriptionModule,
     GroupModule,
     TestModule,
+    CategoryModule,
   ],
   controllers: [AppController, TestController],
   providers: [AppService],

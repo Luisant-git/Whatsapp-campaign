@@ -21,6 +21,8 @@ import {
   ChartNoAxesCombined,
   CreditCard,
   Tag,
+  Blocks,
+  LucideBlocks,
 } from "lucide-react";
 import { ToastProvider } from "./contexts/ToastContext";
 import WhatsAppChat from "./components/WhatsAppChat";
@@ -42,6 +44,8 @@ import "./styles/Settings.css";
 import "./styles/Profile.css";
 import Labels from "./components/Labels";
 import Blacklist from "./components/BlackList";
+import Category from "./components/Category";
+import Product from "./components/Product";
 
 function App() {
   const [activeView, setActiveView] = useState("chats");
@@ -214,7 +218,20 @@ function App() {
                 <Mail size={18} />
                 <span>Campaigns</span>
               </button>
-              
+              <button
+                className={`nav-item ${activeView === "category" ? "active" : ""}`}
+                onClick={() => handleMenuClick("category")}
+              >
+                <Blocks size={18} />
+                <span>Category</span>
+              </button>
+              <button
+                className={`nav-item ${activeView === "product" ? "active" : ""}`}
+                onClick={() => handleMenuClick("product")}
+              >
+                <LucideBlocks size={18} />
+                <span>Add Product</span>
+              </button>
               <button
                 className={`nav-item  ${activeView === "Templates" ? "active" : ""
                   }`}
@@ -372,6 +389,8 @@ function App() {
             {activeView === "blacklist" && <Blacklist />}
             {activeView === "labels" && <Labels />}
             {activeView === "campaigns" && <Campaigns />}
+            {activeView === "category" && <Category/>}
+            {activeView === "product" && <Product/>}
             {activeView === "auto-reply" && <AutoReply />}
             {activeView === "quick-reply" && useQuickReply && <QuickReply />}
             {activeView === "chatbot" && aiChatbotEnabled && <Chatbot />}

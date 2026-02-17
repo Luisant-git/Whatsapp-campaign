@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma.service';
 import { WhatsappSessionService } from '../whatsapp-session/whatsapp-session.service';
 import { SettingsService } from '../settings/settings.service';
 import { ChatbotService } from '../chatbot/chatbot.service';
+import { WhatsappEcommerceService } from '../ecommerce/whatsapp-ecommerce.service';
 
 @Injectable()
 export class WhatsappService {
@@ -13,7 +14,8 @@ export class WhatsappService {
     private prisma: PrismaService,
     private sessionService: WhatsappSessionService,
     private settingsService: SettingsService,
-    private chatbotService: ChatbotService
+    private chatbotService: ChatbotService,
+    private ecommerceService: WhatsappEcommerceService
   ) {}
 
   private async getSettings(userId: number) {
@@ -127,6 +129,20 @@ export class WhatsappService {
       if (lowerText === 'stop' || lowerText === 'yes') {
         this.logger.log(`Skipping auto-reply/chatbot for ${lowerText} message`);
         return;
+      }
+
+      // Check for ecommerce keywords first
+      if (['shop', 'catalog', 'products', 'buy'].includes(lowerText) || 
+          lowerText.startsWith('cat:') || 
+          lowerText.startsWith('sub:') || 
+          lowerText.startsWith('prod:')) {
+        try {
+          const settings = await this.getSettings(userId);
+          await this.ecommerceService.handleIncomingMessage(from, text, settings.accessToken, settings.phoneNumberId);
+          return;
+        } catch (error) {
+          this.logger.error('Ecommerce service error:', error);
+        }
       }
 
       // Get tenant config to check if AI chatbot is enabled

@@ -1,0 +1,182 @@
+import { Injectable } from '@nestjs/common';
+import { EcommerceService } from './ecommerce.service';
+import { ShoppingSessionService } from './shopping-session.service';
+import axios from 'axios';
+
+@Injectable()
+export class WhatsappEcommerceService {
+  constructor(
+    private ecommerceService: EcommerceService,
+    private sessionService: ShoppingSessionService,
+  ) {}
+
+  async handleIncomingMessage(phone: string, message: string, accessToken: string, phoneNumberId: string) {
+    const msg = message.toLowerCase().trim();
+
+    if (msg === 'shop' || msg === 'catalog' || msg === 'products') {
+      return this.sendCategoryList(phone, accessToken, phoneNumberId);
+    }
+
+    if (msg.startsWith('cat:')) {
+      const categoryId = parseInt(msg.split(':')[1]);
+      return this.sendSubCategoryList(phone, categoryId, accessToken, phoneNumberId);
+    }
+
+    if (msg.startsWith('sub:')) {
+      const subCategoryId = parseInt(msg.split(':')[1]);
+      return this.sendProductList(phone, subCategoryId, accessToken, phoneNumberId);
+    }
+
+    if (msg.startsWith('prod:')) {
+      const productId = parseInt(msg.split(':')[1]);
+      return this.sendProductDetails(phone, productId, accessToken, phoneNumberId);
+    }
+
+    return null;
+  }
+
+  async sendCategoryList(phone: string, accessToken: string, phoneNumberId: string) {
+    const categories = await this.ecommerceService.getCategories();
+
+    const buttons = categories.slice(0, 3).map((cat, idx) => ({
+      type: 'reply',
+      reply: { id: `cat:${cat.id}`, title: cat.name.substring(0, 20) },
+    }));
+
+    return this.sendWhatsAppMessage(phone, {
+      type: 'interactive',
+      interactive: {
+        type: 'button',
+        body: { text: '🛍️ Select a Category:' },
+        action: { buttons },
+      },
+    }, accessToken, phoneNumberId);
+  }
+
+  async sendSubCategoryList(phone: string, categoryId: number, accessToken: string, phoneNumberId: string) {
+    const subCategories = await this.ecommerceService.getSubCategories(categoryId);
+
+    const rows = subCategories.map((sub) => ({
+      id: `sub:${sub.id}`,
+      title: sub.name.substring(0, 24),
+    }));
+
+    return this.sendWhatsAppMessage(phone, {
+      type: 'interactive',
+      interactive: {
+        type: 'list',
+        body: { text: 'Choose a subcategory:' },
+        action: {
+          button: 'View Options',
+          sections: [{ title: 'Subcategories', rows }],
+        },
+      },
+    }, accessToken, phoneNumberId);
+  }
+
+  async sendProductList(phone: string, subCategoryId: number, accessToken: string, phoneNumberId: string) {
+    const products = await this.ecommerceService.getProducts(subCategoryId);
+
+    const rows = products.map((prod) => ({
+      id: `prod:${prod.id}`,
+      title: prod.name.substring(0, 24),
+      description: `₹${prod.price}`,
+    }));
+
+    return this.sendWhatsAppMessage(phone, {
+      type: 'interactive',
+      interactive: {
+        type: 'list',
+        body: { text: 'Select a product:' },
+        action: {
+          button: 'View Products',
+          sections: [{ title: 'Products', rows }],
+        },
+      },
+    }, accessToken, phoneNumberId);
+  }
+
+  async sendProductDetails(phone: string, productId: number, accessToken: string, phoneNumberId: string) {
+    const product = await this.ecommerceService.getProduct(productId);
+
+    if (!product) return;
+
+    // Store product in session for purchase
+    this.sessionService.setProductForPurchase(phone, productId);
+
+    const message = `*${product.name}*\n\n${product.description}\n\n💰 Price: ₹${product.price}\n\nReply "BUY" to purchase this product`;
+
+    if (product.imageUrl) {
+      return this.sendWhatsAppMessage(phone, {
+        type: 'image',
+        image: {
+          link: `${process.env.UPLOAD_URL}${product.imageUrl}`,
+          caption: message,
+        },
+      }, accessToken, phoneNumberId);
+    }
+
+    return this.sendWhatsAppMessage(phone, {
+      type: 'text',
+      text: { body: message },
+    }, accessToken, phoneNumberId);
+  }
+
+  async handleBuyRequest(phone: string, accessToken: string, phoneNumberId: string) {
+    const productId = this.sessionService.getProductForPurchase(phone);
+    if (!productId) {
+      return this.sendWhatsAppMessage(phone, {
+        type: 'text',
+        text: { body: 'Please select a product first. Send "shop" to browse products.' },
+      }, accessToken, phoneNumberId);
+    }
+
+    const product = await this.ecommerceService.getProduct(productId);
+    if (!product) return;
+
+    return this.sendWhatsAppMessage(phone, {
+      type: 'text',
+      text: {
+        body: `📦 *${product.name}* - ₹${product.price}\n\nPlease provide your details:\n\nNAME: Your Full Name\nADDRESS: Your Complete Address`,
+      },
+    }, accessToken, phoneNumberId);
+  }
+
+  async createOrderFromMessage(phone: string, message: string) {
+    const nameMatch = message.match(/NAME:\s*(.+)/i);
+    const addressMatch = message.match(/ADDRESS:\s*(.+)/i);
+
+    if (!nameMatch || !addressMatch) return false;
+
+    const productId = this.sessionService.getProductForPurchase(phone);
+    if (!productId) return false;
+
+    const product = await this.ecommerceService.getProduct(productId);
+    if (!product) return false;
+
+    await this.ecommerceService.createOrder({
+      customerName: nameMatch[1].trim(),
+      customerPhone: phone,
+      customerAddress: addressMatch[1].trim(),
+      productId,
+      quantity: 1,
+      totalAmount: product.price,
+    });
+
+    // Clear session after order
+    this.sessionService.clearSession(phone);
+
+    return true;
+  }
+
+  private async sendWhatsAppMessage(phone: string, message: any, accessToken: string, phoneNumberId: string) {
+    const url = `https://graph.facebook.com/v17.0/${phoneNumberId}/messages`;
+    return axios.post(url, {
+      messaging_product: 'whatsapp',
+      to: phone,
+      ...message,
+    }, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+  }
+}

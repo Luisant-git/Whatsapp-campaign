@@ -21,6 +21,10 @@ import {
   ChartNoAxesCombined,
   CreditCard,
   Tag,
+  Layers,
+  Package,
+  ShoppingCart,
+  Store,
 } from "lucide-react";
 import { ToastProvider } from "./contexts/ToastContext";
 import WhatsAppChat from "./components/WhatsAppChat";
@@ -36,6 +40,9 @@ import QuickReply from "./components/QuickReply";
 import Chatbot from "./components/Chatbot";
 import Contact from "./components/Contact";
 import Subscription from "./components/Subscription";
+import Categories from "./components/Categories";
+import Products from "./components/Products";
+import Orders from "./components/Orders";
 import "./App.css";
 import "./styles/Analytics.css";
 import "./styles/Settings.css";
@@ -52,6 +59,7 @@ function App() {
   const [useQuickReply, setUseQuickReply] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [contactsOpen, setContactsOpen] = useState(false);
+  const [ecommerceOpen, setEcommerceOpen] = useState(false);
 
   // Check session status only when needed (not on interval)
   useEffect(() => {
@@ -260,6 +268,52 @@ function App() {
                 <List size={18} />
                 <span>Reports</span>
               </button>
+
+              <div className="nav-item-group">
+                <button
+                  className={`nav-item ${ecommerceOpen &&
+                      !["categories", "products", "orders"].includes(activeView)
+                      ? "active"
+                      : ""
+                    }`}
+                  onClick={() => setEcommerceOpen((prev) => !prev)}
+                >
+                  <Store size={18} />
+                  <span>E-Commerce</span>
+                </button>
+
+                {ecommerceOpen && (
+                  <div className="nav-submenu">
+                    <button
+                      className={`nav-subitem ${activeView === "categories" ? "active" : ""
+                        }`}
+                      onClick={() => handleMenuClick("categories")}
+                    >
+                      <Layers size={16} />
+                      <span>Categories</span>
+                    </button>
+
+                    <button
+                      className={`nav-subitem ${activeView === "products" ? "active" : ""
+                        }`}
+                      onClick={() => handleMenuClick("products")}
+                    >
+                      <Package size={16} />
+                      <span>Products</span>
+                    </button>
+
+                    <button
+                      className={`nav-subitem ${activeView === "orders" ? "active" : ""
+                        }`}
+                      onClick={() => handleMenuClick("orders")}
+                    >
+                      <ShoppingCart size={16} />
+                      <span>Orders</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <button
                 className={`nav-item ${activeView === "master-config" ? "active" : ""
                   }`}
@@ -372,6 +426,9 @@ function App() {
             {activeView === "blacklist" && <Blacklist />}
             {activeView === "labels" && <Labels />}
             {activeView === "campaigns" && <Campaigns />}
+            {activeView === "categories" && <Categories />}
+            {activeView === "products" && <Products />}
+            {activeView === "orders" && <Orders />}
             {activeView === "auto-reply" && <AutoReply />}
             {activeView === "quick-reply" && useQuickReply && <QuickReply />}
             {activeView === "chatbot" && aiChatbotEnabled && <Chatbot />}

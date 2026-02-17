@@ -18,6 +18,7 @@ import { TenantModule } from './tenant/tenant.module';
 import { TestModule } from './test/test.module';
 import { TenantMiddleware } from './tenant/tenant.middleware';
 import { TestController } from './test.controller';
+import { EcommerceModule } from './ecommerce/ecommerce.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { TestController } from './test.controller';
     SubscriptionModule,
     GroupModule,
     TestModule,
+    EcommerceModule,
   ],
   controllers: [AppController, TestController],
   providers: [AppService],

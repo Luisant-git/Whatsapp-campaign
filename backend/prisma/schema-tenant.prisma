@@ -190,3 +190,51 @@ model Test {
   id       Int     @id @default(autoincrement())
   name     String
 }
+
+model Category {
+  id            Int      @id @default(autoincrement())
+  name          String   @unique
+  subCategories SubCategory[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model SubCategory {
+  id          Int      @id @default(autoincrement())
+  name        String
+  categoryId  Int
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  products    Product[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([name, categoryId])
+}
+
+model Product {
+  id            Int         @id @default(autoincrement())
+  name          String
+  description   String?     @db.Text
+  price         Float
+  imageUrl      String?
+  subCategoryId Int
+  isActive      Boolean     @default(true)
+  subCategory   SubCategory @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
+  orders        Order[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model Order {
+  id              Int      @id @default(autoincrement())
+  customerName    String
+  customerPhone   String
+  customerAddress String?  @db.Text
+  productId       Int
+  quantity        Int      @default(1)
+  totalAmount     Float
+  status          String   @default("pending")
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}

@@ -10,33 +10,33 @@ export class WhatsappEcommerceService {
     private sessionService: ShoppingSessionService,
   ) {}
 
-  async handleIncomingMessage(phone: string, message: string, accessToken: string, phoneNumberId: string) {
+  async handleIncomingMessage(phone: string, message: string, accessToken: string, phoneNumberId: string, userId: number) {
     const msg = message.toLowerCase().trim();
 
     if (msg === 'shop' || msg === 'catalog' || msg === 'products') {
-      return this.sendCategoryList(phone, accessToken, phoneNumberId);
+      return this.sendCategoryList(phone, accessToken, phoneNumberId, userId);
     }
 
     if (msg.startsWith('cat:')) {
       const categoryId = parseInt(msg.split(':')[1]);
-      return this.sendSubCategoryList(phone, categoryId, accessToken, phoneNumberId);
+      return this.sendSubCategoryList(phone, categoryId, accessToken, phoneNumberId, userId);
     }
 
     if (msg.startsWith('sub:')) {
       const subCategoryId = parseInt(msg.split(':')[1]);
-      return this.sendProductList(phone, subCategoryId, accessToken, phoneNumberId);
+      return this.sendProductList(phone, subCategoryId, accessToken, phoneNumberId, userId);
     }
 
     if (msg.startsWith('prod:')) {
       const productId = parseInt(msg.split(':')[1]);
-      return this.sendProductDetails(phone, productId, accessToken, phoneNumberId);
+      return this.sendProductDetails(phone, productId, accessToken, phoneNumberId, userId);
     }
 
     return null;
   }
 
-  async sendCategoryList(phone: string, accessToken: string, phoneNumberId: string) {
-    const categories = await this.ecommerceService.getCategories();
+  async sendCategoryList(phone: string, accessToken: string, phoneNumberId: string, userId: number) {
+    const categories = await this.ecommerceService.getCategories(userId);
 
     const buttons = categories.slice(0, 3).map((cat, idx) => ({
       type: 'reply',
@@ -53,8 +53,8 @@ export class WhatsappEcommerceService {
     }, accessToken, phoneNumberId);
   }
 
-  async sendSubCategoryList(phone: string, categoryId: number, accessToken: string, phoneNumberId: string) {
-    const subCategories = await this.ecommerceService.getSubCategories(categoryId);
+  async sendSubCategoryList(phone: string, categoryId: number, accessToken: string, phoneNumberId: string, userId: number) {
+    const subCategories = await this.ecommerceService.getSubCategories(categoryId, userId);
 
     const rows = subCategories.map((sub) => ({
       id: `sub:${sub.id}`,
@@ -74,8 +74,8 @@ export class WhatsappEcommerceService {
     }, accessToken, phoneNumberId);
   }
 
-  async sendProductList(phone: string, subCategoryId: number, accessToken: string, phoneNumberId: string) {
-    const products = await this.ecommerceService.getProducts(subCategoryId);
+  async sendProductList(phone: string, subCategoryId: number, accessToken: string, phoneNumberId: string, userId: number) {
+    const products = await this.ecommerceService.getProducts(subCategoryId, userId);
 
     const rows = products.map((prod) => ({
       id: `prod:${prod.id}`,
@@ -96,8 +96,8 @@ export class WhatsappEcommerceService {
     }, accessToken, phoneNumberId);
   }
 
-  async sendProductDetails(phone: string, productId: number, accessToken: string, phoneNumberId: string) {
-    const product = await this.ecommerceService.getProduct(productId);
+  async sendProductDetails(phone: string, productId: number, accessToken: string, phoneNumberId: string, userId: number) {
+    const product = await this.ecommerceService.getProduct(productId, userId);
 
     if (!product) return;
 

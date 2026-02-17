@@ -138,7 +138,7 @@ export class WhatsappService {
           lowerText.startsWith('prod:')) {
         try {
           const settings = await this.getSettings(userId);
-          await this.ecommerceService.handleIncomingMessage(from, text, settings.accessToken, settings.phoneNumberId);
+          await this.ecommerceService.handleIncomingMessage(from, text, settings.accessToken, settings.phoneNumberId, userId);
           return;
         } catch (error) {
           this.logger.error('Ecommerce service error:', error);

@@ -1,17 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { TenantPrismaService } from '../tenant-prisma.service';
+import { CentralPrismaService } from '../central-prisma.service';
 
 @Injectable()
 export class EcommerceService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private tenantPrisma: TenantPrismaService,
+    private centralPrisma: CentralPrismaService,
+  ) {}
+
+  private async getTenantClient(userId: number) {
+    const tenant = await this.centralPrisma.tenant.findUnique({ where: { id: userId } });
+    if (!tenant) throw new Error('Tenant not found');
+    return this.tenantPrisma.getTenantClient(userId.toString(), tenant.dbUrl);
+  }
 
   // Categories
   async createCategory(name: string) {
     return this.prisma.category.create({ data: { name } });
   }
 
-  async getCategories() {
-    return this.prisma.category.findMany({
+  async getCategories(userId?: number) {
+    const client = userId ? await this.getTenantClient(userId) : this.prisma;
+    return client.category.findMany({
       include: { subCategories: true },
     });
   }
@@ -34,8 +47,9 @@ export class EcommerceService {
     });
   }
 
-  async getSubCategories(categoryId?: number) {
-    return this.prisma.subCategory.findMany({
+  async getSubCategories(categoryId?: number, userId?: number) {
+    const client = userId ? await this.getTenantClient(userId) : this.prisma;
+    return client.subCategory.findMany({
       where: categoryId ? { categoryId } : {},
       include: { products: true },
     });
@@ -57,15 +71,17 @@ export class EcommerceService {
     return this.prisma.product.create({ data });
   }
 
-  async getProducts(subCategoryId?: number) {
-    return this.prisma.product.findMany({
+  async getProducts(subCategoryId?: number, userId?: number) {
+    const client = userId ? await this.getTenantClient(userId) : this.prisma;
+    return client.product.findMany({
       where: { isActive: true, ...(subCategoryId && { subCategoryId }) },
       include: { subCategory: { include: { category: true } } },
     });
   }
 
-  async getProduct(id: number) {
-    return this.prisma.product.findUnique({
+  async getProduct(id: number, userId?: number) {
+    const client = userId ? await this.getTenantClient(userId) : this.prisma;
+    return client.product.findUnique({
       where: { id },
       include: { subCategory: { include: { category: true } } },
     });

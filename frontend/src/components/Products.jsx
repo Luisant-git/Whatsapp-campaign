@@ -94,7 +94,7 @@ export default function Products() {
             {products.map((prod) => (
               <tr key={prod.id}>
                 <td>
-                  {prod.imageUrl && <img src={`http://localhost:3010${prod.imageUrl}`} alt={prod.name} className="product-image" />}
+                  {prod.imageUrl && <img src={prod.imageUrl.startsWith('http') ? prod.imageUrl : `http://localhost:3010${prod.imageUrl}`} alt={prod.name} className="product-image" />}
                 </td>
                 <td>
                   <div style={{fontWeight: 500}}>{prod.name}</div>
@@ -190,7 +190,7 @@ export default function Products() {
             {(form.image || editingProduct?.imageUrl) && (
               <div style={{marginTop: '10px', position: 'relative', display: 'inline-block', width: '200px'}}>
                 <img 
-                  src={form.image ? URL.createObjectURL(form.image) : `http://localhost:3010${editingProduct.imageUrl}`}
+                  src={form.image ? URL.createObjectURL(form.image) : (editingProduct.imageUrl.startsWith('http') ? editingProduct.imageUrl : `http://localhost:3010${editingProduct.imageUrl}`)}
                   alt="Preview" 
                   style={{
                     width: '100%',

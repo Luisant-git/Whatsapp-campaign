@@ -173,12 +173,13 @@ export default function Products() {
           </div>
           <div className="form-group">
             <label>Product Image</label>
+            <p style={{fontSize: '12px', color: '#6b7280', marginBottom: '8px'}}>Supported formats: JPEG, PNG (Max 5MB)</p>
             <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
               <label className="btn-secondary" style={{cursor: 'pointer', margin: 0}}>
                 {form.image ? 'Change Image' : 'Upload Image'}
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/jpg,image/png"
                   onChange={(e) => setForm({ ...form, image: e.target.files[0] })}
                   style={{display: 'none'}}
                 />
@@ -222,7 +223,12 @@ export default function Products() {
                     fontWeight: 'bold',
                     lineHeight: '1'
                   }}
-                  onClick={() => setForm({ ...form, image: null })}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setForm({ ...form, image: null });
+                    setEditingProduct(editingProduct ? { ...editingProduct, imageUrl: null } : null);
+                  }}
                   title="Remove image"
                 >
                   ×

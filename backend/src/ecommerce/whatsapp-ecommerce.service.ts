@@ -149,21 +149,26 @@ export class WhatsappEcommerceService {
       
       // Get content type and determine file extension
       const contentType = imageResponse.headers['content-type'] || 'image/jpeg';
-      const extensionMap = {
-        'image/jpeg': 'jpg',
-        'image/jpg': 'jpg',
-        'image/png': 'png',
-        'image/webp': 'webp',
-        'image/gif': 'gif'
-      };
-      const extension = extensionMap[contentType] || 'jpg';
+      
+      // WhatsApp only supports JPEG and PNG
+      let finalContentType = contentType;
+      let extension = 'jpg';
+      
+      if (contentType === 'image/png') {
+        finalContentType = 'image/png';
+        extension = 'png';
+      } else {
+        // Convert all other formats to JPEG
+        finalContentType = 'image/jpeg';
+        extension = 'jpg';
+      }
       
       // Upload to WhatsApp
       const FormData = require('form-data');
       const formData = new FormData();
       formData.append('file', imageBuffer, {
         filename: `product.${extension}`,
-        contentType: contentType,
+        contentType: finalContentType,
       });
       formData.append('messaging_product', 'whatsapp');
       

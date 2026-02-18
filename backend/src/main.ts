@@ -4,7 +4,8 @@ import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 const session = require('express-session');
-const FileStore = require('session-file-store')(session);
+const connectPgSimple = require('connect-pg-simple');
+const PgSession = connectPgSimple(session);
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -23,15 +24,15 @@ async function bootstrap() {
   // Configure session middleware
   app.use(
     session({
-      store: new FileStore({
-        path: join(__dirname, '..', 'sessions'),
-        ttl: 365 * 24 * 60 * 60,
-        retries: 0,
-        logFn: () => {},
+      store: new PgSession({
+        conString: process.env.CENTRAL_DATABASE_URL,
+        tableName: 'session',
+        createTableIfMissing: true,
       }),
       secret: process.env.SESSION_SECRET || 'your-session-secret',
       resave: false,
       saveUninitialized: false,
+      rolling: true,
       name: 'admin.sid',
       proxy: isProduction,
       cookie: {

@@ -113,22 +113,65 @@ export class WhatsappEcommerceService {
 
     const message = `*${product.name}*\n\n${product.description}\n\n💰 Price: ₹${product.price}\n\nReply "BUY" to purchase this product`;
 
+    // Try to upload image to WhatsApp and send by ID
     if (product.imageUrl && product.imageUrl.trim() !== '' && product.imageUrl.startsWith('http')) {
-      console.log('Sending image message with URL:', product.imageUrl);
-      return this.sendWhatsAppMessage(phone, {
-        type: 'image',
-        image: {
-          link: product.imageUrl,
-          caption: message,
-        },
-      }, accessToken, phoneNumberId);
+      try {
+        console.log('Uploading image to WhatsApp:', product.imageUrl);
+        const mediaId = await this.uploadMediaToWhatsApp(product.imageUrl, accessToken, phoneNumberId);
+        
+        if (mediaId) {
+          console.log('Sending image by media ID:', mediaId);
+          return this.sendWhatsAppMessage(phone, {
+            type: 'image',
+            image: {
+              id: mediaId,
+              caption: message,
+            },
+          }, accessToken, phoneNumberId);
+        }
+      } catch (error) {
+        console.log('Failed to upload image to WhatsApp:', error.message);
+      }
     }
 
-    console.log('Sending text message (no valid image URL)');
+    console.log('Sending text message');
     return this.sendWhatsAppMessage(phone, {
       type: 'text',
       text: { body: message },
     }, accessToken, phoneNumberId);
+  }
+
+  private async uploadMediaToWhatsApp(imageUrl: string, accessToken: string, phoneNumberId: string): Promise<string | null> {
+    try {
+      // Download image from your server
+      const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+      const imageBuffer = Buffer.from(imageResponse.data);
+      
+      // Get content type
+      const contentType = imageResponse.headers['content-type'] || 'image/jpeg';
+      
+      // Upload to WhatsApp
+      const FormData = require('form-data');
+      const formData = new FormData();
+      formData.append('file', imageBuffer, {
+        filename: 'product.jpg',
+        contentType: contentType,
+      });
+      formData.append('messaging_product', 'whatsapp');
+      
+      const uploadUrl = `https://graph.facebook.com/v17.0/${phoneNumberId}/media`;
+      const uploadResponse = await axios.post(uploadUrl, formData, {
+        headers: {
+          ...formData.getHeaders(),
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+      
+      return uploadResponse.data.id;
+    } catch (error) {
+      console.error('Error uploading media to WhatsApp:', error.message);
+      return null;
+    }
   }
 
   async handleBuyRequest(phone: string, accessToken: string, phoneNumberId: string) {

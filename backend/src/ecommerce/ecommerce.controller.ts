@@ -127,17 +127,17 @@ export class EcommerceController {
   }
 
   @Post('orders')
-  createOrder(@Body() body: any) {
-    return this.ecommerceService.createOrder(body);
+  createOrder(@Body() body: any, @Request() req) {
+    return this.ecommerceService.createOrder(body, req.session.userId);
   }
 
   @Get('orders')
-  getOrders() {
-    return this.ecommerceService.getOrders();
+  getOrders(@Request() req) {
+    return this.ecommerceService.getOrders(req.session.userId);
   }
 
   @Put('orders/:id/status')
-  updateOrderStatus(@Param('id') id: string, @Body() body: { status: string }) {
-    return this.ecommerceService.updateOrderStatus(+id, body.status);
+  updateOrderStatus(@Param('id') id: string, @Body() body: { status: string }, @Request() req) {
+    return this.ecommerceService.updateOrderStatus(+id, body.status, req.session.userId);
   }
 }

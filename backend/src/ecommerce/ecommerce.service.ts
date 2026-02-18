@@ -100,22 +100,25 @@ export class EcommerceService {
   }
 
   // Orders
-  async createOrder(data: any) {
-    return this.prisma.order.create({
+  async createOrder(data: any, userId?: number) {
+    const client = userId ? await this.getTenantClient(userId) : this.prisma;
+    return client.order.create({
       data,
       include: { product: true },
     });
   }
 
-  async getOrders() {
-    return this.prisma.order.findMany({
+  async getOrders(userId?: number) {
+    const client = userId ? await this.getTenantClient(userId) : this.prisma;
+    return client.order.findMany({
       include: { product: true },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async updateOrderStatus(id: number, status: string) {
-    return this.prisma.order.update({
+  async updateOrderStatus(id: number, status: string, userId?: number) {
+    const client = userId ? await this.getTenantClient(userId) : this.prisma;
+    return client.order.update({
       where: { id },
       data: { status },
     });

@@ -316,7 +316,7 @@ export class WhatsappEcommerceService {
         productId,
         quantity: 1,
         totalAmount: product.price,
-      });
+      }, userId);
       
       // Clear session after order
       this.sessionService.clearSession(phone);
@@ -344,7 +344,7 @@ export class WhatsappEcommerceService {
       productId,
       quantity: 1,
       totalAmount: product.price,
-    });
+    }, userId);
 
     // Clear session after order
     this.sessionService.clearSession(phone);

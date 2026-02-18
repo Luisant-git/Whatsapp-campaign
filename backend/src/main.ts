@@ -9,19 +9,21 @@ const PgSession = connectPgSimple(session);
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  
-  const isProduction = process.env.NODE_ENV === 'production';
-  
+
+  // Trust proxy for production (nginx/apache)
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   // Enable CORS first
   app.enableCors({
-    origin: isProduction
-      ? ['https://your-production-domain.com']
-      : ['http://localhost:5173', 'http://localhost:5174'],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    origin: true
+      ? ['https://whatsapp.luisant.cloud', 'https://whatsapp.admin.luisant.cloud']
+      : true,
     credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Cookie'],
+    exposedHeaders: ['Set-Cookie'],
   });
-  
-  // Configure session middleware
+
   app.use(
     session({
       store: new PgSession({
@@ -29,30 +31,31 @@ async function bootstrap() {
         tableName: 'session',
         createTableIfMissing: true,
       }),
+      name: 'admin.sid',
       secret: process.env.SESSION_SECRET || 'your-session-secret',
       resave: false,
       saveUninitialized: false,
-      rolling: true,
-      name: 'admin.sid',
-      proxy: isProduction,
       cookie: {
-        maxAge: 365 * 24 * 60 * 60 * 1000,
         httpOnly: true,
-        secure: isProduction,
-        sameSite: isProduction ? 'none' : 'lax',
+        secure: true,
+        sameSite: 'none',
+        maxAge: 365 * 24 * 60 * 60 * 1000,
       },
+      proxy: true,
     }),
   );
   
   // Serve static files from uploads directory
-  const uploadsPath = process.env.NODE_ENV === 'production' 
+  const uploadsPath = process.env.NODE_ENV === 'production'
     ? join(__dirname, '..', 'uploads')
     : join(process.cwd(), 'uploads');
-  
+
   app.useStaticAssets(uploadsPath, {
     prefix: '/uploads/',
   });
-  
+
+
+
   const config = new DocumentBuilder()
     .setTitle('WhatsApp Campaign API')
     .setDescription('API for WhatsApp Campaign Management with bulk messaging')
@@ -60,8 +63,10 @@ async function bootstrap() {
     .addTag('WhatsApp', 'WhatsApp messaging endpoints')
     .addTag('Admin', 'Admin authentication endpoints')
     .build();
-  
-  const document = SwaggerModule.createDocument(app, config);  
+
+
+  const document = SwaggerModule.createDocument(app, config);
+
   SwaggerModule.setup('api', app, document);
   
   await app.listen(process.env.PORT ?? 3010);

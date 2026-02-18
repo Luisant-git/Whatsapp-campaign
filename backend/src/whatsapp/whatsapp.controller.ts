@@ -96,49 +96,58 @@ export class WhatsappController {
     }
     
     if (body.object === 'whatsapp_business_account') {
-      for (const entry of body.entry) {
-        for (const change of entry.changes) {
-          if (change.field === 'messages') {
-            const message = change.value.messages?.[0];
-            if (message) {
-              console.log('Processing incoming message:', message);
-              const phoneNumberId = change.value.metadata?.phone_number_id;
-              console.log('Phone Number ID:', phoneNumberId);
-              
-              // Get user by verify token first
-              const userId = await this.whatsappService.findUserByVerifyToken(verifyToken);
-              console.log('User ID from verify token:', userId);
-              const userIds = userId ? [userId] : await this.whatsappService.findAllUsersByPhoneNumberId(phoneNumberId);
-              console.log('Final user IDs:', userIds);
-              
-              if (userIds && userIds.length > 0) {
-                // Store message for all users sharing this phone number
-                for (const userId of userIds) {
-                  await this.whatsappService.handleIncomingMessage(message, userId);
-                }
+      // Process webhook asynchronously - don't await
+      this.processWebhookAsync(verifyToken, body).catch(err => {
+        console.error('Async webhook processing error:', err);
+      });
+      
+      // Return immediately to WhatsApp
+      return 'EVENT_RECEIVED';
+    }
+    throw new HttpException('Not Found', HttpStatus.NOT_FOUND);
+  }
+
+  private async processWebhookAsync(verifyToken: string | null, body: any) {
+    for (const entry of body.entry) {
+      for (const change of entry.changes) {
+        if (change.field === 'messages') {
+          const message = change.value.messages?.[0];
+          if (message) {
+            console.log('Processing incoming message:', message);
+            const phoneNumberId = change.value.metadata?.phone_number_id;
+            console.log('Phone Number ID:', phoneNumberId);
+            
+            // Get user by verify token first
+            const userId = verifyToken ? await this.whatsappService.findUserByVerifyToken(verifyToken) : null;
+            console.log('User ID from verify token:', userId);
+            const userIds = userId ? [userId] : await this.whatsappService.findAllUsersByPhoneNumberId(phoneNumberId);
+            console.log('Final user IDs:', userIds);
+            
+            if (userIds && userIds.length > 0) {
+              // Store message for all users sharing this phone number
+              for (const userId of userIds) {
+                await this.whatsappService.handleIncomingMessage(message, userId);
+              }
+            } else {
+              // Fallback: try to find any active user
+              const userId = await this.whatsappService.findFirstActiveUser();
+              if (userId) {
+                await this.whatsappService.handleIncomingMessage(message, userId);
               } else {
-                // Fallback: try to find any active user
-                const userId = await this.whatsappService.findFirstActiveUser();
-                if (userId) {
-                  await this.whatsappService.handleIncomingMessage(message, userId);
-                } else {
-                  console.log('No user found for phone number ID:', phoneNumberId);
-                  console.log('Message not stored - no matching user configuration');
-                }
+                console.log('No user found for phone number ID:', phoneNumberId);
+                console.log('Message not stored - no matching user configuration');
               }
             }
-            const statuses = change.value.statuses;
-            if (statuses) {
-              for (const status of statuses) {
-                await this.whatsappService.updateMessageStatus(status.id, status.status);
-              }
+          }
+          const statuses = change.value.statuses;
+          if (statuses) {
+            for (const status of statuses) {
+              await this.whatsappService.updateMessageStatus(status.id, status.status);
             }
           }
         }
       }
-      return 'EVENT_RECEIVED';
     }
-    throw new HttpException('Not Found', HttpStatus.NOT_FOUND);
   }
 
   @Post('webhook')
@@ -153,34 +162,10 @@ export class WhatsappController {
     }
     
     if (body.object === 'whatsapp_business_account') {
-      for (const entry of body.entry) {
-        for (const change of entry.changes) {
-          if (change.field === 'messages') {
-            const message = change.value.messages?.[0];
-            if (message) {
-              const phoneNumberId = change.value.metadata?.phone_number_id;
-              const userIds = await this.whatsappService.findAllUsersByPhoneNumberId(phoneNumberId);
-              
-              if (userIds && userIds.length > 0) {
-                for (const userId of userIds) {
-                  await this.whatsappService.handleIncomingMessage(message, userId);
-                }
-              } else {
-                const userId = await this.whatsappService.findFirstActiveUser();
-                if (userId) {
-                  await this.whatsappService.handleIncomingMessage(message, userId);
-                }
-              }
-            }
-            const statuses = change.value.statuses;
-            if (statuses) {
-              for (const status of statuses) {
-                await this.whatsappService.updateMessageStatus(status.id, status.status);
-              }
-            }
-          }
-        }
-      }
+      // Process asynchronously
+      this.processWebhookAsync(null, body).catch(err => {
+        console.error('Async webhook processing error:', err);
+      });
     }
     return 'EVENT_RECEIVED';
   }

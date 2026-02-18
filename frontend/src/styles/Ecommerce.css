@@ -324,31 +324,31 @@
 
 .status-badge {
   display: inline-block;
-  padding: 4px 12px;
+  padding: 6px 14px;
   border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 700;
   text-transform: capitalize;
 }
 
 .status-pending {
-  background: #fef3c7;
-  color: #92400e;
+  background: #f59e0b;
+  color: #000000;
 }
 
 .status-processing {
-  background: #dbeafe;
-  color: #1e3a8a;
+  background: #2563eb;
+  color: #ffffff;
 }
 
 .status-completed {
-  background: #dcfce7;
-  color: #14532d;
+  background: #16a34a;
+  color: #ffffff;
 }
 
 .status-cancelled {
-  background: #fee2e2;
-  color: #991b1b;
+  background: #dc2626;
+  color: #ffffff;
 }
 
 .category-list {

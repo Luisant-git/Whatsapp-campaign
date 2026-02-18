@@ -4,7 +4,9 @@ interface ShoppingSession {
   phone: string;
   currentProductId?: number;
   paymentMethod?: string;
-  step: 'browsing' | 'buying' | 'details';
+  step: 'browsing' | 'buying' | 'details' | 'awaiting_name' | 'awaiting_address';
+  customerName?: string;
+  customerAddress?: string;
   timestamp: number;
 }
 
@@ -45,5 +47,25 @@ export class ShoppingSessionService {
 
   getPaymentMethod(phone: string): string | undefined {
     return this.getSession(phone)?.paymentMethod;
+  }
+
+  setCustomerName(phone: string, name: string) {
+    this.setSession(phone, { customerName: name, step: 'awaiting_address' });
+  }
+
+  getCustomerName(phone: string): string | undefined {
+    return this.getSession(phone)?.customerName;
+  }
+
+  setCustomerAddress(phone: string, address: string) {
+    this.setSession(phone, { customerAddress: address });
+  }
+
+  getCustomerAddress(phone: string): string | undefined {
+    return this.getSession(phone)?.customerAddress;
+  }
+
+  getStep(phone: string): string | undefined {
+    return this.getSession(phone)?.step;
   }
 }

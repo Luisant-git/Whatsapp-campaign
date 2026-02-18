@@ -211,13 +211,14 @@ export class WhatsappEcommerceService {
     const product = await this.ecommerceService.getProduct(productId, userId);
     if (!product) return;
 
-    // Store payment method
+    // Store payment method and set step to awaiting name
     this.sessionService.setPaymentMethod(phone, 'COD');
+    this.sessionService.setSession(phone, { step: 'awaiting_name' });
 
     return this.sendWhatsAppMessage(phone, {
       type: 'text',
       text: {
-        body: `📦 *Order Details*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\nPayment: Cash on Delivery\n\nPlease provide your details:\n\nNAME: Your Full Name\nADDRESS: Your Complete Address`,
+        body: `📦 *Order Details*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\nPayment: Cash on Delivery\n\nPlease provide your full name:`,
       },
     }, accessToken, phoneNumberId);
   }
@@ -289,6 +290,40 @@ export class WhatsappEcommerceService {
   }
 
   async createOrderFromMessage(phone: string, message: string, userId: number) {
+    const step = this.sessionService.getStep(phone);
+    
+    // Handle step-by-step order creation
+    if (step === 'awaiting_name') {
+      this.sessionService.setCustomerName(phone, message.trim());
+      return 'awaiting_address';
+    }
+    
+    if (step === 'awaiting_address') {
+      this.sessionService.setCustomerAddress(phone, message.trim());
+      
+      const productId = this.sessionService.getProductForPurchase(phone);
+      const customerName = this.sessionService.getCustomerName(phone);
+      
+      if (!productId || !customerName) return false;
+      
+      const product = await this.ecommerceService.getProduct(productId, userId);
+      if (!product) return false;
+      
+      await this.ecommerceService.createOrder({
+        customerName,
+        customerPhone: phone,
+        customerAddress: message.trim(),
+        productId,
+        quantity: 1,
+        totalAmount: product.price,
+      });
+      
+      // Clear session after order
+      this.sessionService.clearSession(phone);
+      return true;
+    }
+    
+    // Legacy format support: NAME: ... ADDRESS: ...
     const nameMatch = message.match(/NAME:\s*(.+)/i);
     const addressMatch = message.match(/ADDRESS:\s*(.+)/i);
 

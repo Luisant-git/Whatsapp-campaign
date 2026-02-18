@@ -169,6 +169,20 @@ export class WhatsappService {
         }
       }
 
+      // Check if user is in order flow (awaiting name or address)
+      try {
+        const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, userId);
+        if (orderResult === 'awaiting_address') {
+          await this.sendMessage(from, 'Thank you! Now please provide your complete delivery address:', userId);
+          return;
+        } else if (orderResult === true) {
+          await this.sendMessage(from, '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!', userId);
+          return;
+        }
+      } catch (error) {
+        this.logger.error('Order creation error:', error);
+      }
+
       // Get tenant config to check if AI chatbot is enabled
       const tenantConfig = await this.prisma.tenantConfig.findFirst({
         select: { aiChatbotEnabled: true }

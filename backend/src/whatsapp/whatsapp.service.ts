@@ -144,13 +144,28 @@ export class WhatsappService {
       if (['shop', 'catalog', 'products', 'buy'].includes(lowerText) || 
           lowerText.startsWith('cat:') || 
           lowerText.startsWith('sub:') || 
-          lowerText.startsWith('prod:')) {
+          lowerText.startsWith('prod:') ||
+          lowerText.startsWith('buy:') ||
+          lowerText === 'cod') {
         try {
           const settings = await this.getSettings(userId);
           await this.ecommerceService.handleIncomingMessage(from, text, settings.accessToken, settings.phoneNumberId, userId);
           return;
         } catch (error) {
           this.logger.error('Ecommerce service error:', error);
+        }
+      }
+
+      // Check if user is providing order details (NAME and ADDRESS)
+      if (lowerText.includes('name:') && lowerText.includes('address:')) {
+        try {
+          const orderCreated = await this.ecommerceService.createOrderFromMessage(from, text, userId);
+          if (orderCreated) {
+            await this.sendMessage(from, '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!', userId);
+            return;
+          }
+        } catch (error) {
+          this.logger.error('Order creation error:', error);
         }
       }
 

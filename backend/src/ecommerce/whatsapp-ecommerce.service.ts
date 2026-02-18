@@ -147,14 +147,22 @@ export class WhatsappEcommerceService {
       const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
       const imageBuffer = Buffer.from(imageResponse.data);
       
-      // Get content type
+      // Get content type and determine file extension
       const contentType = imageResponse.headers['content-type'] || 'image/jpeg';
+      const extensionMap = {
+        'image/jpeg': 'jpg',
+        'image/jpg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+        'image/gif': 'gif'
+      };
+      const extension = extensionMap[contentType] || 'jpg';
       
       // Upload to WhatsApp
       const FormData = require('form-data');
       const formData = new FormData();
       formData.append('file', imageBuffer, {
-        filename: 'product.jpg',
+        filename: `product.${extension}`,
         contentType: contentType,
       });
       formData.append('messaging_product', 'whatsapp');

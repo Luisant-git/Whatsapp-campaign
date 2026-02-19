@@ -58,10 +58,7 @@ export class MetaCatalogService {
               text: '🛍️ Browse our product catalog!'
             },
             action: {
-              name: 'catalog_message',
-              parameters: {
-                thumbnail_product_retailer_id: ''
-              }
+              name: 'catalog_message'
             }
           }
         },

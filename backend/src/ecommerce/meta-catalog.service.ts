@@ -61,7 +61,6 @@ export class MetaCatalogService {
           action: {
             name: 'catalog_message',
             parameters: {
-              catalog_id: this.catalogId,
               thumbnail_product_retailer_id: productRetailerId
             }
           }

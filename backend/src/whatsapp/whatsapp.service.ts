@@ -647,10 +647,11 @@ export class WhatsappService {
             }
             
             // Try session service for auto-reply/quick-reply
+            let sessionHandled = false;
             try {
               const whatsappSettings = await tenantClient.whatsAppSettings.findFirst();
               if (whatsappSettings) {
-                await this.sessionService.handleInteractiveMenu(from, text, settings.id, 
+                sessionHandled = await this.sessionService.handleInteractiveMenu(from, text, settings.id, 
                   async (to, msg, imageUrl) => {
                     if (imageUrl) {
                       return this.sendMediaMessageDirect(to, imageUrl, 'image', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient, msg);
@@ -664,6 +665,31 @@ export class WhatsappService {
               }
             } catch (error) {
               this.logger.error('Session service error:', error);
+            }
+            
+            // Try AI chatbot if session didn't handle it
+            if (!sessionHandled) {
+              try {
+                const tenantConfig = await tenantClient.tenantConfig.findFirst({
+                  select: { aiChatbotEnabled: true }
+                });
+                
+                if (tenantConfig?.aiChatbotEnabled) {
+                  const chatResponse = await this.chatbotService.processMessage(settings.id, {
+                    message: text,
+                    phone: from
+                  });
+                  
+                  if (chatResponse.response) {
+                    const whatsappSettings = await tenantClient.whatsAppSettings.findFirst();
+                    if (whatsappSettings) {
+                      await this.sendMessageDirect(from, chatResponse.response, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+                    }
+                  }
+                }
+              } catch (error) {
+                this.logger.error('Chatbot error:', error);
+              }
             }
           }
           

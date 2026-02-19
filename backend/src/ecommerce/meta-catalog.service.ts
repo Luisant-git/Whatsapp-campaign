@@ -58,17 +58,16 @@ export class MetaCatalogService {
             text: '🛍️ Browse our products!'
           },
           action: {
-            name: 'catalog_message'
+            name: 'catalog_message',
+            parameters: {
+              thumbnail_product_retailer_id: productRetailerId || 'product_1'
+            }
           }
         }
       };
 
-      // Only add thumbnail if productRetailerId is provided
-      if (productRetailerId) {
-        messagePayload.interactive.action.parameters = {
-          thumbnail_product_retailer_id: productRetailerId
-        };
-      }
+      // CRITICAL: Always include catalog_id
+      messagePayload.interactive.action.parameters.catalog_id = this.catalogId;
       
       const response = await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,

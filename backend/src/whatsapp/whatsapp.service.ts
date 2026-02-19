@@ -624,6 +624,46 @@ export class WhatsappService {
           });
           
           this.logger.log(`✓ Message stored successfully in tenant ${tenant.id}`);
+          
+          // Process auto-reply, ecommerce, chatbot
+          if (text) {
+            const lowerText = text.toLowerCase().trim();
+            
+            // Check for ecommerce keywords
+            if (['shop', 'catalog', 'products', 'buy'].includes(lowerText) || 
+                lowerText.startsWith('cat:') || 
+                lowerText.startsWith('sub:') || 
+                lowerText.startsWith('prod:') ||
+                lowerText.startsWith('buy:') ||
+                lowerText === 'cod') {
+              try {
+                const whatsappSettings = await tenantClient.whatsAppSettings.findFirst();
+                if (whatsappSettings) {
+                  await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, settings.id);
+                }
+              } catch (error) {
+                this.logger.error('Ecommerce service error:', error);
+              }
+            }
+            
+            // Try session service for auto-reply/quick-reply
+            try {
+              await this.sessionService.handleInteractiveMenu(from, text, settings.id, 
+                async (to, msg, imageUrl) => {
+                  if (imageUrl) {
+                    return this.sendMediaMessage(to, imageUrl, 'image', settings.id, msg);
+                  }
+                  return this.sendMessage(to, msg, settings.id);
+                },
+                async (to, msg, buttons) => {
+                  return this.sendButtonsMessage(to, msg, buttons, settings.id);
+                }
+              );
+            } catch (error) {
+              this.logger.error('Session service error:', error);
+            }
+          }
+          
           return;
         }
       }

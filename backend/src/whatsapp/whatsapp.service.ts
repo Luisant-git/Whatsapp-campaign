@@ -436,19 +436,45 @@ export class WhatsappService {
   }
 
   async findUserByPhoneNumberId(phoneNumberId: string): Promise<number | null> {
-    // In database-level multi-tenancy, this method is not applicable
-    // Return null or throw error
-    return null;
+    try {
+      const settings = await this.prisma.whatsAppSettings.findFirst({
+        where: { phoneNumberId },
+        select: { id: true }
+      });
+      return settings?.id || null;
+    } catch (error) {
+      this.logger.error('Error finding user by phone number ID:', error);
+      return null;
+    }
   }
 
   async findAllUsersByPhoneNumberId(phoneNumberId: string): Promise<number[]> {
-    // In database-level multi-tenancy, this method is not applicable
-    return [];
+    try {
+      const settings = await this.prisma.whatsAppSettings.findMany({
+        where: { phoneNumberId },
+        select: { id: true }
+      });
+      return settings.map(s => s.id);
+    } catch (error) {
+      this.logger.error('Error finding users by phone number ID:', error);
+      return [];
+    }
   }
 
   async findFirstActiveUser(): Promise<number | null> {
-    // In database-level multi-tenancy, this method is not applicable
-    return null;
+    try {
+      const settings = await this.prisma.whatsAppSettings.findFirst({
+        where: { 
+          accessToken: { not: '' },
+          phoneNumberId: { not: '' }
+        },
+        select: { id: true }
+      });
+      return settings?.id || null;
+    } catch (error) {
+      this.logger.error('Error finding first active user:', error);
+      return null;
+    }
   }
 
   async validateVerifyToken(token: string): Promise<boolean> {
@@ -464,8 +490,16 @@ export class WhatsappService {
   }
 
   async findUserByVerifyToken(token: string): Promise<number | null> {
-    // In database-level multi-tenancy, this method is not applicable
-    return null;
+    try {
+      const settings = await this.prisma.whatsAppSettings.findFirst({
+        where: { verifyToken: token },
+        select: { id: true }
+      });
+      return settings?.id || null;
+    } catch (error) {
+      this.logger.error('Error finding user by verify token:', error);
+      return null;
+    }
   }
 
   async getMessages(userId: number, phoneNumber?: string) {

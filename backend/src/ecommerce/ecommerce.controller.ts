@@ -16,12 +16,16 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { EcommerceService } from './ecommerce.service';
+import { MetaCatalogService } from './meta-catalog.service';
 import { SessionGuard } from '../auth/session.guard';
 
 @Controller('ecommerce')
 @UseGuards(SessionGuard)
 export class EcommerceController {
-  constructor(private ecommerceService: EcommerceService) {}
+  constructor(
+    private ecommerceService: EcommerceService,
+    private metaCatalogService: MetaCatalogService,
+  ) {}
 
   @Post('categories')
   createCategory(@Body() body: { name: string }) {
@@ -139,5 +143,11 @@ export class EcommerceController {
   @Put('orders/:id/status')
   updateOrderStatus(@Param('id') id: string, @Body() body: { status: string }, @Request() req) {
     return this.ecommerceService.updateOrderStatus(+id, body.status, req.session.userId);
+  }
+
+  @Post('products/:id/sync-meta')
+  async syncProductToMeta(@Param('id') id: string) {
+    const product = await this.ecommerceService.getProduct(+id);
+    return this.metaCatalogService.syncProductToCatalog(product);
   }
 }

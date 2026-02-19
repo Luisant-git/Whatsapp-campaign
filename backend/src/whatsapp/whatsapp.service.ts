@@ -577,7 +577,7 @@ export class WhatsappService {
     });
   }
 
-  async handleIncomingMessageWithoutContext(message: any, userId: number, phoneNumberId: string) {
+  async handleIncomingMessageWithoutContext(message: any, phoneNumberId: string) {
     try {
       const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
       
@@ -608,8 +608,8 @@ export class WhatsappService {
           });
           
           if (existingMessage) {
-            this.logger.log(`Message ${messageId} already exists, skipping`);
-            return;
+            this.logger.log(`Message ${messageId} already exists in tenant ${tenant.id}, skipping`);
+            continue;
           }
           
           await tenantClient.whatsAppMessage.create({
@@ -623,10 +623,11 @@ export class WhatsappService {
             }
           });
           
-          this.logger.log(`Message stored for tenant ${tenant.id}`);
+          this.logger.log(`✓ Message stored successfully in tenant ${tenant.id}`);
           return;
         }
       }
+      this.logger.warn(`No tenant found with phoneNumberId: ${phoneNumberId}`);
     } catch (error) {
       this.logger.error('Error handling incoming message:', error);
     }

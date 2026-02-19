@@ -176,20 +176,7 @@ export class WhatsappController {
                   const phoneNumberId = change.value.metadata?.phone_number_id;
                   console.log('Processing message for phone number ID:', phoneNumberId);
                   
-                  const userIds = await this.whatsappService.findAllUsersByPhoneNumberId(phoneNumberId);
-                  console.log('Found user IDs:', userIds);
-                 
-                  if (userIds && userIds.length > 0) {
-                    for (const userId of userIds) {
-                      await this.whatsappService.handleIncomingMessageWithoutContext(message, userId, phoneNumberId);
-                    }
-                  } else {
-                    const userId = await this.whatsappService.findFirstActiveUser();
-                    if (userId) {
-                      console.log(`Fallback processing for user ID: ${userId}`);
-                      await this.whatsappService.handleIncomingMessageWithoutContext(message, userId, phoneNumberId);
-                    }
-                  }
+                  await this.whatsappService.handleIncomingMessageWithoutContext(message, phoneNumberId);
                 } catch (msgError) {
                   console.error('Error processing message:', msgError);
                 }

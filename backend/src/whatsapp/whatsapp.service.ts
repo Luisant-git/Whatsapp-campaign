@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { PrismaService } from '../prisma.service';
+import { CentralPrismaService } from '../central-prisma.service';
+import { TenantPrismaService } from '../tenant-prisma.service';
 import { WhatsappSessionService } from '../whatsapp-session/whatsapp-session.service';
 import { SettingsService } from '../settings/settings.service';
 import { ChatbotService } from '../chatbot/chatbot.service';
@@ -12,6 +14,8 @@ export class WhatsappService {
 
   constructor(
     private prisma: PrismaService,
+    private centralPrisma: CentralPrismaService,
+    private tenantPrisma: TenantPrismaService,
     private sessionService: WhatsappSessionService,
     private settingsService: SettingsService,
     private chatbotService: ChatbotService,
@@ -437,11 +441,24 @@ export class WhatsappService {
 
   async findUserByPhoneNumberId(phoneNumberId: string): Promise<number | null> {
     try {
-      const settings = await this.prisma.whatsAppSettings.findFirst({
-        where: { phoneNumberId },
-        select: { id: true }
+      const tenants = await this.centralPrisma.tenant.findMany({
+        where: { isActive: true }
       });
-      return settings?.id || null;
+      
+      for (const tenant of tenants) {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+        
+        const settings = await tenantClient.whatsAppSettings.findFirst({
+          where: { phoneNumberId },
+          select: { id: true }
+        });
+        
+        if (settings) {
+          return settings.id;
+        }
+      }
+      return null;
     } catch (error) {
       this.logger.error('Error finding user by phone number ID:', error);
       return null;
@@ -450,11 +467,23 @@ export class WhatsappService {
 
   async findAllUsersByPhoneNumberId(phoneNumberId: string): Promise<number[]> {
     try {
-      const settings = await this.prisma.whatsAppSettings.findMany({
-        where: { phoneNumberId },
-        select: { id: true }
+      const userIds: number[] = [];
+      const tenants = await this.centralPrisma.tenant.findMany({
+        where: { isActive: true }
       });
-      return settings.map(s => s.id);
+      
+      for (const tenant of tenants) {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+        
+        const settings = await tenantClient.whatsAppSettings.findMany({
+          where: { phoneNumberId },
+          select: { id: true }
+        });
+        
+        userIds.push(...settings.map(s => s.id));
+      }
+      return userIds;
     } catch (error) {
       this.logger.error('Error finding users by phone number ID:', error);
       return [];
@@ -463,14 +492,27 @@ export class WhatsappService {
 
   async findFirstActiveUser(): Promise<number | null> {
     try {
-      const settings = await this.prisma.whatsAppSettings.findFirst({
-        where: { 
-          accessToken: { not: '' },
-          phoneNumberId: { not: '' }
-        },
-        select: { id: true }
+      const tenants = await this.centralPrisma.tenant.findMany({
+        where: { isActive: true }
       });
-      return settings?.id || null;
+      
+      for (const tenant of tenants) {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+        
+        const settings = await tenantClient.whatsAppSettings.findFirst({
+          where: { 
+            accessToken: { not: '' },
+            phoneNumberId: { not: '' }
+          },
+          select: { id: true }
+        });
+        
+        if (settings) {
+          return settings.id;
+        }
+      }
+      return null;
     } catch (error) {
       this.logger.error('Error finding first active user:', error);
       return null;
@@ -479,10 +521,23 @@ export class WhatsappService {
 
   async validateVerifyToken(token: string): Promise<boolean> {
     try {
-      const settings = await this.prisma.whatsAppSettings.findFirst({
-        where: { verifyToken: token }
+      const tenants = await this.centralPrisma.tenant.findMany({
+        where: { isActive: true }
       });
-      return !!settings;
+      
+      for (const tenant of tenants) {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+        
+        const settings = await tenantClient.whatsAppSettings.findFirst({
+          where: { verifyToken: token }
+        });
+        
+        if (settings) {
+          return true;
+        }
+      }
+      return false;
     } catch (error) {
       this.logger.error('Error validating verify token:', error);
       return false;
@@ -491,11 +546,24 @@ export class WhatsappService {
 
   async findUserByVerifyToken(token: string): Promise<number | null> {
     try {
-      const settings = await this.prisma.whatsAppSettings.findFirst({
-        where: { verifyToken: token },
-        select: { id: true }
+      const tenants = await this.centralPrisma.tenant.findMany({
+        where: { isActive: true }
       });
-      return settings?.id || null;
+      
+      for (const tenant of tenants) {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+        
+        const settings = await tenantClient.whatsAppSettings.findFirst({
+          where: { verifyToken: token },
+          select: { id: true }
+        });
+        
+        if (settings) {
+          return settings.id;
+        }
+      }
+      return null;
     } catch (error) {
       this.logger.error('Error finding user by verify token:', error);
       return null;

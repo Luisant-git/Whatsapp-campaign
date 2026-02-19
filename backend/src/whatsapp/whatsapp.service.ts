@@ -577,6 +577,84 @@ export class WhatsappService {
     });
   }
 
+  async handleIncomingMessageWithoutContext(message: any, userId: number, phoneNumberId: string) {
+    try {
+      const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
+      
+      for (const tenant of tenants) {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+        
+        const settings = await tenantClient.whatsAppSettings.findFirst({
+          where: { phoneNumberId },
+          select: { id: true }
+        });
+        
+        if (settings) {
+          const from = message.from;
+          const messageId = message.id;
+          let text = message.text?.body;
+          
+          if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
+            text = message.interactive.button_reply.id;
+          }
+          
+          if (message.type === 'interactive' && message.interactive?.type === 'list_reply') {
+            text = message.interactive.list_reply.id;
+          }
+          
+          const existingMessage = await tenantClient.whatsAppMessage.findUnique({
+            where: { messageId }
+          });
+          
+          if (existingMessage) {
+            this.logger.log(`Message ${messageId} already exists, skipping`);
+            return;
+          }
+          
+          await tenantClient.whatsAppMessage.create({
+            data: {
+              messageId,
+              to: from,
+              from,
+              message: text || 'media message',
+              direction: 'incoming',
+              status: 'received',
+            }
+          });
+          
+          this.logger.log(`Message stored for tenant ${tenant.id}`);
+          return;
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error handling incoming message:', error);
+    }
+  }
+
+  async updateMessageStatusWithoutContext(messageId: string, status: string, phoneNumberId: string) {
+    try {
+      const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
+      
+      for (const tenant of tenants) {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+        
+        const updated = await tenantClient.whatsAppMessage.updateMany({
+          where: { messageId },
+          data: { status }
+        });
+        
+        if (updated.count > 0) {
+          this.logger.log(`Message ${messageId} status updated to ${status}`);
+          return;
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error updating message status:', error);
+    }
+  }
+
   async sendBulkTemplateMessage(phoneNumbers: string[], templateName: string, userId: number, parameters?: any[]) {
     const settings = await this.getSettings(userId);
     const results: Array<{ phoneNumber: string; success: boolean; messageId?: string; error?: string }> = [];

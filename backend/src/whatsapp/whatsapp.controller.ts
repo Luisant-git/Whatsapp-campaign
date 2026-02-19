@@ -181,13 +181,13 @@ export class WhatsappController {
                  
                   if (userIds && userIds.length > 0) {
                     for (const userId of userIds) {
-                      await this.whatsappService.handleIncomingMessage(message, userId);
+                      await this.whatsappService.handleIncomingMessageWithoutContext(message, userId, phoneNumberId);
                     }
                   } else {
                     const userId = await this.whatsappService.findFirstActiveUser();
                     if (userId) {
                       console.log(`Fallback processing for user ID: ${userId}`);
-                      await this.whatsappService.handleIncomingMessage(message, userId);
+                      await this.whatsappService.handleIncomingMessageWithoutContext(message, userId, phoneNumberId);
                     }
                   }
                 } catch (msgError) {
@@ -199,7 +199,7 @@ export class WhatsappController {
               if (statuses) {
                 for (const status of statuses) {
                   try {
-                    await this.whatsappService.updateMessageStatus(status.id, status.status);
+                    await this.whatsappService.updateMessageStatusWithoutContext(status.id, status.status, change.value.metadata?.phone_number_id);
                   } catch (statusError) {
                     console.error('Error updating status:', statusError);
                   }

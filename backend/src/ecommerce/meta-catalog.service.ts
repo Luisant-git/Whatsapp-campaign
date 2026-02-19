@@ -45,17 +45,19 @@ export class MetaCatalogService {
 
   async sendCatalogMessage(phone: string, phoneNumberId: string) {
     try {
+      console.log('Sending catalog message to:', phone);
+      console.log('Using catalog ID:', this.catalogId);
+      
       const response = await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,
         {
           messaging_product: 'whatsapp',
-          recipient_type: 'individual',
           to: phone,
           type: 'interactive',
           interactive: {
             type: 'catalog_message',
             body: {
-              text: '🛍️ Browse our product catalog!'
+              text: '🛍️ Browse our products!'
             },
             action: {
               name: 'catalog_message',
@@ -73,10 +75,15 @@ export class MetaCatalogService {
         }
       );
 
+      console.log('Catalog message sent successfully:', response.data);
       return { success: true, data: response.data };
     } catch (error) {
-      console.error('Send catalog error:', error.response?.data || error.message);
-      throw new Error('Failed to send catalog message');
+      console.error('Send catalog error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      throw new Error(error.response?.data?.error?.message || 'Failed to send catalog message');
     }
   }
 }

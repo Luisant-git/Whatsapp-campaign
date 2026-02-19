@@ -648,17 +648,20 @@ export class WhatsappService {
             
             // Try session service for auto-reply/quick-reply
             try {
-              await this.sessionService.handleInteractiveMenu(from, text, settings.id, 
-                async (to, msg, imageUrl) => {
-                  if (imageUrl) {
-                    return this.sendMediaMessage(to, imageUrl, 'image', settings.id, msg);
+              const whatsappSettings = await tenantClient.whatsAppSettings.findFirst();
+              if (whatsappSettings) {
+                await this.sessionService.handleInteractiveMenu(from, text, settings.id, 
+                  async (to, msg, imageUrl) => {
+                    if (imageUrl) {
+                      return this.sendMediaMessageDirect(to, imageUrl, 'image', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient, msg);
+                    }
+                    return this.sendMessageDirect(to, msg, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+                  },
+                  async (to, msg, buttons) => {
+                    return this.sendButtonsMessageDirect(to, msg, buttons, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
                   }
-                  return this.sendMessage(to, msg, settings.id);
-                },
-                async (to, msg, buttons) => {
-                  return this.sendButtonsMessage(to, msg, buttons, settings.id);
-                }
-              );
+                );
+              }
             } catch (error) {
               this.logger.error('Session service error:', error);
             }
@@ -693,6 +696,130 @@ export class WhatsappService {
       }
     } catch (error) {
       this.logger.error('Error updating message status:', error);
+    }
+  }
+
+  async sendMessageDirect(to: string, message: string, accessToken: string, phoneNumberId: string, tenantClient: any) {
+    try {
+      const response = await axios.post(
+        `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          to,
+          type: 'text',
+          text: { body: message }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      await tenantClient.whatsAppMessage.create({
+        data: {
+          messageId: response.data.messages[0].id,
+          to,
+          from: to,
+          message,
+          direction: 'outgoing',
+          status: 'sent',
+        }
+      });
+
+      return { success: true, messageId: response.data.messages[0].id };
+    } catch (error) {
+      this.logger.error('WhatsApp API Error:', error.response?.data || error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async sendMediaMessageDirect(to: string, mediaUrl: string, mediaType: string, accessToken: string, phoneNumberId: string, tenantClient: any, caption?: string) {
+    try {
+      const response = await axios.post(
+        `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          to,
+          type: mediaType,
+          [mediaType]: { link: mediaUrl, caption }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      await tenantClient.whatsAppMessage.create({
+        data: {
+          messageId: response.data.messages[0].id,
+          to,
+          from: to,
+          message: caption || `${mediaType} file`,
+          mediaType,
+          mediaUrl,
+          direction: 'outgoing',
+          status: 'sent',
+        }
+      });
+
+      return { success: true, messageId: response.data.messages[0].id };
+    } catch (error) {
+      this.logger.error('WhatsApp Media API Error:', error.response?.data || error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async sendButtonsMessageDirect(to: string, text: string, buttons: string[], accessToken: string, phoneNumberId: string, tenantClient: any) {
+    try {
+      const interactiveButtons = buttons.slice(0, 3).map((button, index) => ({
+        type: 'reply',
+        reply: {
+          id: `btn_${index}`,
+          title: button.length > 20 ? button.substring(0, 20) : button
+        }
+      }));
+      
+      const response = await axios.post(
+        `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          to,
+          type: 'interactive',
+          interactive: {
+            type: 'button',
+            body: { text },
+            action: {
+              buttons: interactiveButtons
+            }
+          }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      await tenantClient.whatsAppMessage.create({
+        data: {
+          messageId: response.data.messages[0].id,
+          to,
+          from: to,
+          message: `Interactive buttons: ${text}`,
+          direction: 'outgoing',
+          status: 'sent',
+        }
+      });
+
+      return { success: true, messageId: response.data.messages[0].id };
+    } catch (error) {
+      this.logger.error('WhatsApp Buttons API Error:', error.response?.data || error.message);
+      return { success: false, error: error.message };
     }
   }
 

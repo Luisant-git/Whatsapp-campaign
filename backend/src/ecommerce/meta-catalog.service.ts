@@ -43,12 +43,13 @@ export class MetaCatalogService {
     }
   }
 
-  async sendCatalogMessage(phone: string, phoneNumberId: string, productRetailerId?: string) {
+  async sendCatalogMessage(phone: string, phoneNumberId: string, productRetailerId: string) {
     try {
       console.log('Sending catalog message to:', phone);
       console.log('Using catalog ID:', this.catalogId);
+      console.log('Using product retailer ID:', productRetailerId);
       
-      const messagePayload: any = {
+      const messagePayload = {
         messaging_product: 'whatsapp',
         to: phone,
         type: 'interactive',
@@ -60,14 +61,12 @@ export class MetaCatalogService {
           action: {
             name: 'catalog_message',
             parameters: {
-              thumbnail_product_retailer_id: productRetailerId || 'product_1'
+              catalog_id: this.catalogId,
+              thumbnail_product_retailer_id: productRetailerId
             }
           }
         }
       };
-
-      // CRITICAL: Always include catalog_id
-      messagePayload.interactive.action.parameters.catalog_id = this.catalogId;
       
       const response = await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,

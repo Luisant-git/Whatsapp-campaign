@@ -637,12 +637,18 @@ export class WhatsappService {
                 lowerText.startsWith('buy:') ||
                 lowerText === 'cod') {
               try {
+                this.logger.log(`🛒 Ecommerce keyword detected: ${lowerText}`);
                 const whatsappSettings = await tenantClient.whatsAppSettings.findFirst();
                 if (whatsappSettings) {
+                  this.logger.log(`Found WhatsApp settings for tenant ${tenant.id}`);
                   await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, settings.id);
+                  this.logger.log(`✅ Ecommerce message handled successfully`);
+                } else {
+                  this.logger.error(`❌ No WhatsApp settings found for tenant ${tenant.id}`);
                 }
               } catch (error) {
-                this.logger.error('Ecommerce service error:', error);
+                this.logger.error('❌ Ecommerce service error:', error.message);
+                this.logger.error('Error details:', error.response?.data || error);
               }
             }
             

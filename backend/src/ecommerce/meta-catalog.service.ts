@@ -43,27 +43,36 @@ export class MetaCatalogService {
     }
   }
 
-  async sendCatalogMessage(phone: string, phoneNumberId: string) {
+  async sendCatalogMessage(phone: string, phoneNumberId: string, productRetailerId?: string) {
     try {
       console.log('Sending catalog message to:', phone);
       console.log('Using catalog ID:', this.catalogId);
       
+      const messagePayload: any = {
+        messaging_product: 'whatsapp',
+        to: phone,
+        type: 'interactive',
+        interactive: {
+          type: 'catalog_message',
+          body: {
+            text: '🛍️ Browse our products!'
+          },
+          action: {
+            name: 'catalog_message'
+          }
+        }
+      };
+
+      // Only add thumbnail if productRetailerId is provided
+      if (productRetailerId) {
+        messagePayload.interactive.action.parameters = {
+          thumbnail_product_retailer_id: productRetailerId
+        };
+      }
+      
       const response = await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,
-        {
-          messaging_product: 'whatsapp',
-          to: phone,
-          type: 'interactive',
-          interactive: {
-            type: 'catalog_message',
-            body: {
-              text: '🛍️ Browse our products!'
-            },
-            action: {
-              name: 'catalog_message'
-            }
-          }
-        },
+        messagePayload,
         {
           headers: {
             'Authorization': `Bearer ${this.accessToken}`,

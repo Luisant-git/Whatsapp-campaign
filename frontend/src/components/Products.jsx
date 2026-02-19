@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { ecommerceApi } from '../api/ecommerce';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Upload } from 'lucide-react';
 import '../styles/Ecommerce.css';
 
 export default function Products() {
   const [subCategories, setSubCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showMetaModal, setShowMetaModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [form, setForm] = useState({
     name: '', description: '', price: '', subCategoryId: '', image: null
@@ -64,13 +65,64 @@ export default function Products() {
     }
   };
 
+  const handleMetaSubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append('name', form.name);
+    formData.append('description', form.description);
+    formData.append('price', form.price);
+    formData.append('subCategoryId', form.subCategoryId);
+    if (form.image) formData.append('image', form.image);
+
+    try {
+      const result = await ecommerceApi.createProduct(formData);
+      await ecommerceApi.syncProductToMeta(result.data.id);
+      alert('✅ Product added to database and Meta Catalog!');
+    } catch (error) {
+      alert('❌ Failed: ' + (error.response?.data?.message || error.message));
+    }
+    
+    setForm({ name: '', description: '', price: '', subCategoryId: '', image: null });
+    setShowMetaModal(false);
+    loadData();
+  };
+
+  const handleSyncToMeta = async (prod) => {
+    try {
+      await ecommerceApi.syncProductToMeta(prod.id);
+      alert(`✅ ${prod.name} synced to Meta Catalog successfully!`);
+    } catch (error) {
+      alert(`❌ Failed to sync: ${error.response?.data?.message || error.message}`);
+    }
+  };
+
   return (
     <div className="ecommerce-container">
       <div className="ecommerce-header">
         <div className="header-left">
           <h2>Products</h2>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn-primary">+ Add Product</button>
+        <div style={{display: 'flex', gap: '10px'}}>
+          <button onClick={() => setShowModal(true)} className="btn-primary">+ Add Product</button>
+          <button 
+            onClick={() => setShowMetaModal(true)} 
+            style={{
+              background: '#25d366',
+              color: 'white',
+              border: 'none',
+              padding: '10px 20px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontSize: '14px'
+            }}
+          >
+            <Upload size={18} /> Add to Meta Catalog
+          </button>
+        </div>
       </div>
 
       <div className="filters-section">
@@ -237,6 +289,141 @@ export default function Products() {
             )}
           </div>
               <button type="submit" className="btn-primary">{editingProduct ? 'Update' : 'Add'} Product</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showMetaModal && (
+        <div className="modal-overlay" onClick={() => setShowMetaModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                <Upload size={20} color="#25d366" /> Add to Meta Catalog
+              </h3>
+              <button className="modal-close" onClick={() => setShowMetaModal(false)}>×</button>
+            </div>
+            <form onSubmit={handleMetaSubmit}>
+          <div className="form-group">
+            <label>Product Name</label>
+            <input
+              className="form-input"
+              placeholder="e.g., iPhone 15 Pro"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Description</label>
+            <textarea
+              className="form-textarea"
+              placeholder="Product description..."
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+          </div>
+          <div className="form-group">
+            <label>Price (₹)</label>
+            <input
+              className="form-input"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={form.price}
+              onChange={(e) => setForm({ ...form, price: e.target.value })}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>SubCategory</label>
+            <select
+              className="form-select"
+              value={form.subCategoryId}
+              onChange={(e) => setForm({ ...form, subCategoryId: e.target.value })}
+              required
+            >
+              <option value="">Select subcategory...</option>
+              {subCategories.map((sub) => (
+                <option key={sub.id} value={sub.id}>{sub.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Product Image</label>
+            <p style={{fontSize: '12px', color: '#6b7280', marginBottom: '8px'}}>Supported formats: JPEG, PNG (Max 5MB)</p>
+            <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
+              <label className="btn-secondary" style={{cursor: 'pointer', margin: 0}}>
+                {form.image ? 'Change Image' : 'Upload Image'}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png"
+                  onChange={(e) => setForm({ ...form, image: e.target.files[0] })}
+                  style={{display: 'none'}}
+                />
+              </label>
+              {form.image && (
+                <span style={{fontSize: '12px', color: '#25d366'}}>✓ {form.image.name}</span>
+              )}
+            </div>
+            {form.image && (
+              <div style={{marginTop: '10px', position: 'relative', display: 'inline-block', width: '200px'}}>
+                <img 
+                  src={URL.createObjectURL(form.image)}
+                  alt="Preview" 
+                  style={{
+                    width: '100%',
+                    height: '150px',
+                    borderRadius: '4px',
+                    border: '2px solid #e2e8f0',
+                    objectFit: 'cover',
+                    display: 'block'
+                  }}
+                />
+                <button 
+                  type="button"
+                  style={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    width: '28px',
+                    height: '28px',
+                    padding: '0',
+                    border: 'none',
+                    borderRadius: '50%',
+                    background: 'rgba(239, 68, 68, 0.9)',
+                    color: 'white',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '18px',
+                    fontWeight: 'bold',
+                    lineHeight: '1'
+                  }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setForm({ ...form, image: null });
+                  }}
+                  title="Remove image"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+          </div>
+              <button type="submit" style={{
+                background: '#25d366',
+                color: 'white',
+                border: 'none',
+                padding: '12px 24px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '500',
+                fontSize: '14px',
+                width: '100%'
+              }}>Add to Meta Catalog</button>
             </form>
           </div>
         </div>

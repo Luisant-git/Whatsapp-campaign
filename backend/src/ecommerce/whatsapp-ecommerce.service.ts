@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { EcommerceService } from './ecommerce.service';
 import { ShoppingSessionService } from './shopping-session.service';
+import { MetaCatalogService } from './meta-catalog.service';
 import axios from 'axios';
 
 @Injectable()
@@ -8,13 +9,14 @@ export class WhatsappEcommerceService {
   constructor(
     private ecommerceService: EcommerceService,
     private sessionService: ShoppingSessionService,
+    private metaCatalogService: MetaCatalogService,
   ) {}
 
   async handleIncomingMessage(phone: string, message: string, accessToken: string, phoneNumberId: string, userId: number) {
     const msg = message.toLowerCase().trim();
 
     if (msg === 'shop' || msg === 'catalog' || msg === 'products') {
-      return this.sendCategoryList(phone, accessToken, phoneNumberId, userId);
+      return this.metaCatalogService.sendCatalogMessage(phone, phoneNumberId);
     }
 
     if (msg.startsWith('cat:')) {

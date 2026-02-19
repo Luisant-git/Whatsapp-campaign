@@ -78,7 +78,9 @@ export class MetaCatalogService {
       console.error('Send catalog error details:', {
         message: error.message,
         response: error.response?.data,
-        status: error.response?.status
+        status: error.response?.status,
+        catalogId: this.catalogId,
+        phoneNumberId: phoneNumberId
       });
       throw new Error(error.response?.data?.error?.message || 'Failed to send catalog message');
     }

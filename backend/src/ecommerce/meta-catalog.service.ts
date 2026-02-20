@@ -130,14 +130,23 @@ export class MetaCatalogService {
   }
 
   async handleOrderMessage(phone: string, phoneNumberId: string, order: any, userId: number) {
-    const step = this.sessionService.getStep(phone);
+    // Extract product info from Meta Catalog order
+    const productItems = order.product_items || [];
     
-    if (!step || step === 'browsing') {
-      this.sessionService.setSession(phone, { step: 'awaiting_name' });
-      return this.sendTextMessage(phone, phoneNumberId, '📦 Great! To complete your order, please provide your full name:');
+    if (productItems.length > 0) {
+      const firstProduct = productItems[0];
+      const retailerId = firstProduct.product_retailer_id;
+      
+      // Extract product ID from retailer_id (format: product_123)
+      const productId = retailerId ? parseInt(retailerId.replace('product_', '')) : null;
+      
+      if (productId) {
+        this.sessionService.setProductForPurchase(phone, productId);
+      }
     }
     
-    return null;
+    this.sessionService.setSession(phone, { step: 'awaiting_name' });
+    return this.sendTextMessage(phone, phoneNumberId, '📦 Great! To complete your order, please provide your full name:');
   }
 
   async handleCustomerResponse(phone: string, phoneNumberId: string, message: string, userId: number) {

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import axios from 'axios';
 import { EcommerceService } from './ecommerce.service';
+import { ShoppingSessionService } from './shopping-session.service';
 
 @Injectable()
 export class MetaCatalogService {
@@ -8,7 +9,10 @@ export class MetaCatalogService {
   private readonly accessToken = process.env.META_ACCESS_TOKEN;
   private readonly apiUrl = 'https://graph.facebook.com/v18.0';
 
-  constructor(private ecommerceService: EcommerceService) {}
+  constructor(
+    private ecommerceService: EcommerceService,
+    private sessionService: ShoppingSessionService
+  ) {}
 
   async syncProductToCatalog(product: any) {
     try {
@@ -49,7 +53,6 @@ export class MetaCatalogService {
 
   async sendCatalogMessage(phone: string, phoneNumberId: string, userId?: number) {
     try {
-      // Fetch products from Meta Catalog to get actual retailer IDs
       const catalogProducts = await axios.get(
         `${this.apiUrl}/${this.catalogId}/products?fields=id,retailer_id,name,availability`,
         {
@@ -61,7 +64,6 @@ export class MetaCatalogService {
       
       console.log('Products in Meta Catalog:', JSON.stringify(catalogProducts.data, null, 2));
       
-      // Filter only available products
       const availableProducts = catalogProducts.data.data.filter(p => 
         p.availability === 'in stock' || !p.availability
       );
@@ -124,6 +126,88 @@ export class MetaCatalogService {
         phoneNumberId: phoneNumberId
       });
       throw new Error(error.response?.data?.error?.message || 'Failed to send catalog message');
+    }
+  }
+
+  async handleOrderMessage(phone: string, phoneNumberId: string, order: any, userId: number) {
+    const step = this.sessionService.getStep(phone);
+    
+    if (!step || step === 'browsing') {
+      this.sessionService.setSession(phone, { step: 'awaiting_name' });
+      return this.sendTextMessage(phone, phoneNumberId, '📦 Great! To complete your order, please provide your full name:');
+    }
+    
+    return null;
+  }
+
+  async handleCustomerResponse(phone: string, phoneNumberId: string, message: string, userId: number) {
+    const step = this.sessionService.getStep(phone);
+    
+    if (step === 'awaiting_name') {
+      this.sessionService.setCustomerName(phone, message);
+      return this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your complete delivery address:');
+    }
+    
+    if (step === 'awaiting_address') {
+      this.sessionService.setCustomerAddress(phone, message);
+      return this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your city:');
+    }
+    
+    if (step === 'awaiting_city') {
+      this.sessionService.setCustomerCity(phone, message);
+      return this.sendTextMessage(phone, phoneNumberId, 'Thank you! Finally, please provide your pincode:');
+    }
+    
+    if (step === 'awaiting_pincode') {
+      this.sessionService.setCustomerPincode(phone, message);
+      
+      const session = this.sessionService.getSession(phone);
+      const productId = session?.currentProductId;
+      
+      if (productId) {
+        const product = await this.ecommerceService.getProduct(productId, userId);
+        if (product) {
+          const fullAddress = `${session.customerAddress}, ${session.customerCity}, ${message}`;
+          
+          await this.ecommerceService.createOrder({
+            customerName: session.customerName,
+            customerPhone: phone,
+            customerAddress: fullAddress,
+            productId,
+            quantity: 1,
+            totalAmount: product.price,
+          }, userId);
+          
+          this.sessionService.clearSession(phone);
+          return this.sendTextMessage(phone, phoneNumberId, '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!');
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  private async sendTextMessage(phone: string, phoneNumberId: string, text: string) {
+    try {
+      await axios.post(
+        `${this.apiUrl}/${phoneNumberId}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          to: phone,
+          type: 'text',
+          text: { body: text }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return { success: true };
+    } catch (error) {
+      console.error('Send text message error:', error.response?.data || error.message);
+      throw error;
     }
   }
 }

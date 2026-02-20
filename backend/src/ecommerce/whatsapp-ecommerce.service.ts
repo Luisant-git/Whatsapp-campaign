@@ -9,7 +9,7 @@ export class WhatsappEcommerceService {
   constructor(
     private ecommerceService: EcommerceService,
     private sessionService: ShoppingSessionService,
-    private metaCatalogService: MetaCatalogService,
+    public metaCatalogService: MetaCatalogService,
   ) {}
 
   async handleIncomingMessage(phone: string, message: string, accessToken: string, phoneNumberId: string, userId: number) {
@@ -302,19 +302,33 @@ export class WhatsappEcommerceService {
     
     if (step === 'awaiting_address') {
       this.sessionService.setCustomerAddress(phone, message.trim());
+      return 'awaiting_city';
+    }
+    
+    if (step === 'awaiting_city') {
+      this.sessionService.setCustomerCity(phone, message.trim());
+      return 'awaiting_pincode';
+    }
+    
+    if (step === 'awaiting_pincode') {
+      this.sessionService.setCustomerPincode(phone, message.trim());
       
       const productId = this.sessionService.getProductForPurchase(phone);
       const customerName = this.sessionService.getCustomerName(phone);
+      const customerAddress = this.sessionService.getCustomerAddress(phone);
+      const customerCity = this.sessionService.getCustomerCity(phone);
       
-      if (!productId || !customerName) return false;
+      if (!productId || !customerName || !customerAddress || !customerCity) return false;
       
       const product = await this.ecommerceService.getProduct(productId, userId);
       if (!product) return false;
       
+      const fullAddress = `${customerAddress}, ${customerCity}, ${message.trim()}`;
+      
       await this.ecommerceService.createOrder({
         customerName,
         customerPhone: phone,
-        customerAddress: message.trim(),
+        customerAddress: fullAddress,
         productId,
         quantity: 1,
         totalAmount: product.price,
@@ -325,33 +339,7 @@ export class WhatsappEcommerceService {
       return true;
     }
     
-    // Legacy format support: NAME: ... ADDRESS: ...
-    const nameMatch = message.match(/NAME:\s*(.+)/i);
-    const addressMatch = message.match(/ADDRESS:\s*(.+)/i);
-
-    if (!nameMatch || !addressMatch) return false;
-
-    const productId = this.sessionService.getProductForPurchase(phone);
-    if (!productId) return false;
-
-    const product = await this.ecommerceService.getProduct(productId, userId);
-    if (!product) return false;
-
-    const paymentMethod = this.sessionService.getPaymentMethod(phone) || 'COD';
-
-    await this.ecommerceService.createOrder({
-      customerName: nameMatch[1].trim(),
-      customerPhone: phone,
-      customerAddress: addressMatch[1].trim(),
-      productId,
-      quantity: 1,
-      totalAmount: product.price,
-    }, userId);
-
-    // Clear session after order
-    this.sessionService.clearSession(phone);
-
-    return true;
+    return false;
   }
 
   private async sendWhatsAppMessage(phone: string, message: any, accessToken: string, phoneNumberId: string) {

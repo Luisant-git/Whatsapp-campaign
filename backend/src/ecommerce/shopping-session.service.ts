@@ -4,9 +4,11 @@ interface ShoppingSession {
   phone: string;
   currentProductId?: number;
   paymentMethod?: string;
-  step: 'browsing' | 'buying' | 'details' | 'awaiting_name' | 'awaiting_address';
+  step: 'browsing' | 'buying' | 'details' | 'awaiting_name' | 'awaiting_address' | 'awaiting_city' | 'awaiting_pincode';
   customerName?: string;
   customerAddress?: string;
+  customerCity?: string;
+  customerPincode?: string;
   timestamp: number;
 }
 
@@ -58,11 +60,27 @@ export class ShoppingSessionService {
   }
 
   setCustomerAddress(phone: string, address: string) {
-    this.setSession(phone, { customerAddress: address });
+    this.setSession(phone, { customerAddress: address, step: 'awaiting_city' });
   }
 
   getCustomerAddress(phone: string): string | undefined {
     return this.getSession(phone)?.customerAddress;
+  }
+
+  setCustomerCity(phone: string, city: string) {
+    this.setSession(phone, { customerCity: city, step: 'awaiting_pincode' });
+  }
+
+  getCustomerCity(phone: string): string | undefined {
+    return this.getSession(phone)?.customerCity;
+  }
+
+  setCustomerPincode(phone: string, pincode: string) {
+    this.setSession(phone, { customerPincode: pincode });
+  }
+
+  getCustomerPincode(phone: string): string | undefined {
+    return this.getSession(phone)?.customerPincode;
   }
 
   getStep(phone: string): string | undefined {

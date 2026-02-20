@@ -39,6 +39,20 @@ export class WhatsappService {
     const document = message.document;
     const audio = message.audio;
     
+    // Handle Meta Catalog order messages
+    if (message.type === 'order') {
+      const order = message.order;
+      this.logger.log('Meta Catalog order received:', JSON.stringify(order, null, 2));
+      
+      const settings = await this.getSettings(userId);
+      const metaCatalogService = this.ecommerceService['metaCatalogService'];
+      
+      if (metaCatalogService) {
+        await metaCatalogService.handleOrderMessage(from, settings.phoneNumberId, order, userId);
+      }
+      return;
+    }
+    
     // Handle interactive button clicks
     if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
       const buttonId = message.interactive.button_reply.id;
@@ -173,11 +187,25 @@ export class WhatsappService {
         }
       }
 
-      // Check if user is in order flow (awaiting name or address)
+      // Check if user is in order flow (awaiting name, address, city, or pincode)
       try {
+        const settings = await this.getSettings(userId);
+        const metaCatalogService = this.ecommerceService['metaCatalogService'];
+        
+        if (metaCatalogService) {
+          const handled = await metaCatalogService.handleCustomerResponse(from, settings.phoneNumberId, text, userId);
+          if (handled) return;
+        }
+        
         const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, userId);
         if (orderResult === 'awaiting_address') {
           await this.sendMessage(from, 'Thank you! Now please provide your complete delivery address:', userId);
+          return;
+        } else if (orderResult === 'awaiting_city') {
+          await this.sendMessage(from, 'Thank you! Now please provide your city:', userId);
+          return;
+        } else if (orderResult === 'awaiting_pincode') {
+          await this.sendMessage(from, 'Thank you! Finally, please provide your pincode:', userId);
           return;
         } else if (orderResult === true) {
           await this.sendMessage(from, '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!', userId);

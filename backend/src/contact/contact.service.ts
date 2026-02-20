@@ -71,6 +71,7 @@ export class ContactService {
     const stopPhones = stopLabeled.map((x) => x.phone);
 
     const where: any = {
+      isActive: true, 
       ...(stopPhones.length ? { phone: { notIn: stopPhones } } : {}),
     };
 
@@ -152,10 +153,32 @@ export class ContactService {
     return prisma.contact.update({ where: { id }, data: updateData });
   }
 
-  async remove(id: number, tenantContext: TenantContext) {
-    const prisma = this.getPrisma(tenantContext);
-    return prisma.contact.delete({ where: { id } });
-  }
+
+  // ✅ THESE MUST BE HERE, INSIDE CLASS
+ async findTrash(tenantContext: TenantContext) {
+  const prisma = this.getPrisma(tenantContext);
+  return prisma.contact.findMany({
+    where: { isActive: false },
+    orderBy: { updatedAt: 'desc' },
+    include: { group: { select: { name: true } } },
+  });
+}
+
+async restore(id: number, tenantContext: TenantContext) {
+  const prisma = this.getPrisma(tenantContext);
+  return prisma.contact.update({
+    where: { id },
+    data: { isActive: true },
+  });
+}
+async remove(id: number, tenantContext: TenantContext) {
+  const prisma = this.getPrisma(tenantContext);
+
+  return prisma.contact.update({
+    where: { id },
+    data: { isActive: false },
+  });
+}
 
   async updateDeliveryStatus(
     phone: string,

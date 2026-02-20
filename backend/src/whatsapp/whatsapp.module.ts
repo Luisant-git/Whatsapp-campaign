@@ -9,9 +9,10 @@ import { CentralPrismaService } from '../central-prisma.service';
 import { WhatsappSessionModule } from '../whatsapp-session/whatsapp-session.module';
 import { SettingsModule } from '../settings/settings.module';
 import { ChatbotService } from '../chatbot/chatbot.service';
+import { EcommerceModule } from '../ecommerce/ecommerce.module';
 
 @Module({
-  imports: [WhatsappSessionModule, SettingsModule],
+  imports: [WhatsappSessionModule, SettingsModule, EcommerceModule],
   controllers: [WhatsappController],
   providers: [WhatsappService, CampaignService, SchedulerService, PrismaService, TenantPrismaService, CentralPrismaService, ChatbotService],
   exports: [WhatsappService, CampaignService, SchedulerService]

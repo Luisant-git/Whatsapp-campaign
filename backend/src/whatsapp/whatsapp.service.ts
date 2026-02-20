@@ -6,6 +6,7 @@ import { TenantPrismaService } from '../tenant-prisma.service';
 import { WhatsappSessionService } from '../whatsapp-session/whatsapp-session.service';
 import { SettingsService } from '../settings/settings.service';
 import { ChatbotService } from '../chatbot/chatbot.service';
+import { WhatsappEcommerceService } from '../ecommerce/whatsapp-ecommerce.service';
 
 @Injectable()
 export class WhatsappService {
@@ -17,16 +18,9 @@ export class WhatsappService {
     private tenantPrisma: TenantPrismaService,
     private sessionService: WhatsappSessionService,
     private settingsService: SettingsService,
-    private chatbotService: ChatbotService
+    private chatbotService: ChatbotService,
+    private ecommerceService: WhatsappEcommerceService
   ) {}
-
-  async findAllUsersByPhoneNumberId(phoneNumberId: string): Promise<number[]> {
-    const mappings = await this.centralPrisma.phoneNumberMapping.findMany({
-      where: { phoneNumberId },
-      select: { tenantId: true }
-    });
-    return mappings.map(m => m.tenantId);
-  }
 
   private async getSettings(userId: number) {
     const settings = await this.settingsService.getCurrentSettings(userId);
@@ -37,15 +31,6 @@ export class WhatsappService {
   }
 
   async handleIncomingMessage(message: any, userId: number) {
-    // Get tenant database connection
-    const tenant = await this.centralPrisma.tenant.findUnique({ where: { id: userId } });
-    if (!tenant) {
-      this.logger.error(`Tenant ${userId} not found`);
-      return;
-    }
-    const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-    const prisma = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-
     const from = message.from;
     const messageId = message.id;
     let text = message.text?.body;
@@ -56,9 +41,18 @@ export class WhatsappService {
     
     // Handle interactive button clicks
     if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
+      const buttonId = message.interactive.button_reply.id;
       const buttonTitle = message.interactive.button_reply.title;
-      text = buttonTitle; // Use the button title as the message text
-      this.logger.log(`Button clicked: ${buttonTitle}`);
+      text = buttonId; // Use the button ID as the message text for ecommerce
+      this.logger.log(`Button clicked: ${buttonTitle} (ID: ${buttonId})`);
+    }
+
+    // Handle interactive list replies
+    if (message.type === 'interactive' && message.interactive?.type === 'list_reply') {
+      const listId = message.interactive.list_reply.id;
+      const listTitle = message.interactive.list_reply.title;
+      text = listId; // Use the list ID as the message text
+      this.logger.log(`List item selected: ${listTitle} (ID: ${listId})`);
     }
 
     // Check if message is "stop" or "yes" and handle labels
@@ -66,7 +60,7 @@ export class WhatsappService {
       const lowerText = text.toLowerCase().trim();
       
       // Check if manually edited to avoid auto-labeling
-      const chatLabel = await prisma.chatLabel.findUnique({
+      const chatLabel = await this.prisma.chatLabel.findUnique({
         where: { phone: from },
       });
 
@@ -75,7 +69,7 @@ export class WhatsappService {
       if (!isManuallyEdited) {
         if (lowerText === 'stop') {
           // Add Stop label
-          await prisma.chatLabel.upsert({
+          await this.prisma.chatLabel.upsert({
             where: { phone: from },
             update: { labels: { set: ['Stop'] } },
             create: { phone: from, labels: ['Stop'] },
@@ -89,7 +83,7 @@ export class WhatsappService {
             updatedLabels.push('Yes');
           }
           
-          await prisma.chatLabel.upsert({
+          await this.prisma.chatLabel.upsert({
             where: { phone: from },
             update: { labels: { set: updatedLabels } },
             create: { phone: from, labels: ['Yes'] },
@@ -119,7 +113,7 @@ export class WhatsappService {
     this.logger.log(`Storing incoming message: from=${from}, to=${from}, message=${text || (mediaType ? `${mediaType} file` : 'button click')}`);
     
     // Check if message already exists
-    const existingMessage = await prisma.whatsAppMessage.findUnique({
+    const existingMessage = await this.prisma.whatsAppMessage.findUnique({
       where: { messageId }
     });
 
@@ -128,7 +122,7 @@ export class WhatsappService {
       return;
     }
 
-    await prisma.whatsAppMessage.create({
+    await this.prisma.whatsAppMessage.create({
       data: {
         messageId,
         to: from,
@@ -150,8 +144,51 @@ export class WhatsappService {
         return;
       }
 
+      // Check for ecommerce keywords first
+      if (['shop', 'catalog', 'products', 'buy'].includes(lowerText) || 
+          lowerText.startsWith('cat:') || 
+          lowerText.startsWith('sub:') || 
+          lowerText.startsWith('prod:') ||
+          lowerText.startsWith('buy:') ||
+          lowerText === 'cod') {
+        try {
+          const settings = await this.getSettings(userId);
+          await this.ecommerceService.handleIncomingMessage(from, text, settings.accessToken, settings.phoneNumberId, userId);
+          return;
+        } catch (error) {
+          this.logger.error('Ecommerce service error:', error);
+        }
+      }
+
+      // Check if user is providing order details (NAME and ADDRESS)
+      if (lowerText.includes('name:') && lowerText.includes('address:')) {
+        try {
+          const orderCreated = await this.ecommerceService.createOrderFromMessage(from, text, userId);
+          if (orderCreated) {
+            await this.sendMessage(from, '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!', userId);
+            return;
+          }
+        } catch (error) {
+          this.logger.error('Order creation error:', error);
+        }
+      }
+
+      // Check if user is in order flow (awaiting name or address)
+      try {
+        const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, userId);
+        if (orderResult === 'awaiting_address') {
+          await this.sendMessage(from, 'Thank you! Now please provide your complete delivery address:', userId);
+          return;
+        } else if (orderResult === true) {
+          await this.sendMessage(from, '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!', userId);
+          return;
+        }
+      } catch (error) {
+        this.logger.error('Order creation error:', error);
+      }
+
       // Get tenant config to check if AI chatbot is enabled
-      const tenantConfig = await prisma.tenantConfig.findFirst({
+      const tenantConfig = await this.prisma.tenantConfig.findFirst({
         select: { aiChatbotEnabled: true }
       });
 
@@ -377,41 +414,160 @@ export class WhatsappService {
   }
 
   async updateMessageStatus(messageId: string, status: string) {
-    // Webhooks don't have tenant context, so we skip updating message status
-    // Message status updates would need to be handled differently in multi-tenant setup
-    this.logger.log(`Message ${messageId} status: ${status} (not persisted in multi-tenant mode)`);
-    return { messageId, status };
+    try {
+      await this.prisma.whatsAppMessage.updateMany({
+        where: { messageId },
+        data: { status }
+      });
+      this.logger.log(`Message ${messageId} status updated to ${status}`);
+      return { messageId, status };
+    } catch (error) {
+      this.logger.error('Error updating message status:', error);
+      return null;
+    }
   }
 
   async getMessageStatus(messageId: string) {
-    // In multi-tenant mode, message status queries need tenant context
-    this.logger.log(`Message status query for ${messageId} (not available in multi-tenant mode)`);
-    return 'unknown';
+    try {
+      const message = await this.prisma.whatsAppMessage.findFirst({
+        where: { messageId }
+      });
+      return message?.status || 'unknown';
+    } catch (error) {
+      this.logger.error('Error getting message status:', error);
+      return 'unknown';
+    }
   }
 
   async findUserByPhoneNumberId(phoneNumberId: string): Promise<number | null> {
-    // In database-level multi-tenancy, this method is not applicable
-    // Return null or throw error
-    return null;
+    try {
+      const tenants = await this.centralPrisma.tenant.findMany({
+        where: { isActive: true }
+      });
+      
+      for (const tenant of tenants) {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+        
+        const settings = await tenantClient.whatsAppSettings.findFirst({
+          where: { phoneNumberId },
+          select: { id: true }
+        });
+        
+        if (settings) {
+          return settings.id;
+        }
+      }
+      return null;
+    } catch (error) {
+      this.logger.error('Error finding user by phone number ID:', error);
+      return null;
+    }
   }
 
-
+  async findAllUsersByPhoneNumberId(phoneNumberId: string): Promise<number[]> {
+    try {
+      const userIds: number[] = [];
+      const tenants = await this.centralPrisma.tenant.findMany({
+        where: { isActive: true }
+      });
+      
+      for (const tenant of tenants) {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+        
+        const settings = await tenantClient.whatsAppSettings.findMany({
+          where: { phoneNumberId },
+          select: { id: true }
+        });
+        
+        userIds.push(...settings.map(s => s.id));
+      }
+      return userIds;
+    } catch (error) {
+      this.logger.error('Error finding users by phone number ID:', error);
+      return [];
+    }
+  }
 
   async findFirstActiveUser(): Promise<number | null> {
-    // In database-level multi-tenancy, this method is not applicable
-    return null;
+    try {
+      const tenants = await this.centralPrisma.tenant.findMany({
+        where: { isActive: true }
+      });
+      
+      for (const tenant of tenants) {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+        
+        const settings = await tenantClient.whatsAppSettings.findFirst({
+          where: { 
+            accessToken: { not: '' },
+            phoneNumberId: { not: '' }
+          },
+          select: { id: true }
+        });
+        
+        if (settings) {
+          return settings.id;
+        }
+      }
+      return null;
+    } catch (error) {
+      this.logger.error('Error finding first active user:', error);
+      return null;
+    }
   }
 
   async validateVerifyToken(token: string): Promise<boolean> {
-    // In multi-tenant mode, verify token validation needs to check all tenant databases
-    // For now, return true to allow webhooks
-    this.logger.log(`Verify token validation for ${token} (bypassed in multi-tenant mode)`);
-    return true;
+    try {
+      const tenants = await this.centralPrisma.tenant.findMany({
+        where: { isActive: true }
+      });
+      
+      for (const tenant of tenants) {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+        
+        const settings = await tenantClient.whatsAppSettings.findFirst({
+          where: { verifyToken: token }
+        });
+        
+        if (settings) {
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      this.logger.error('Error validating verify token:', error);
+      return false;
+    }
   }
 
   async findUserByVerifyToken(token: string): Promise<number | null> {
-    // In database-level multi-tenancy, this method is not applicable
-    return null;
+    try {
+      const tenants = await this.centralPrisma.tenant.findMany({
+        where: { isActive: true }
+      });
+      
+      for (const tenant of tenants) {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+        
+        const settings = await tenantClient.whatsAppSettings.findFirst({
+          where: { verifyToken: token },
+          select: { id: true }
+        });
+        
+        if (settings) {
+          return settings.id;
+        }
+      }
+      return null;
+    } catch (error) {
+      this.logger.error('Error finding user by verify token:', error);
+      return null;
+    }
   }
 
   async getMessages(userId: number, phoneNumber?: string) {
@@ -419,6 +575,284 @@ export class WhatsappService {
       where: { ...(phoneNumber && { from: phoneNumber }) },
       orderBy: { createdAt: 'asc' },
     });
+  }
+
+  async handleIncomingMessageWithoutContext(message: any, phoneNumberId: string) {
+    try {
+      const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
+      
+      for (const tenant of tenants) {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+        
+        const settings = await tenantClient.whatsAppSettings.findFirst({
+          where: { phoneNumberId },
+          select: { id: true }
+        });
+        
+        if (settings) {
+          const from = message.from;
+          const messageId = message.id;
+          let text = message.text?.body;
+          
+          if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
+            text = message.interactive.button_reply.id;
+          }
+          
+          if (message.type === 'interactive' && message.interactive?.type === 'list_reply') {
+            text = message.interactive.list_reply.id;
+          }
+          
+          const existingMessage = await tenantClient.whatsAppMessage.findUnique({
+            where: { messageId }
+          });
+          
+          if (existingMessage) {
+            this.logger.log(`Message ${messageId} already exists in tenant ${tenant.id}, skipping`);
+            continue;
+          }
+          
+          await tenantClient.whatsAppMessage.create({
+            data: {
+              messageId,
+              to: from,
+              from,
+              message: text || 'media message',
+              direction: 'incoming',
+              status: 'received',
+            }
+          });
+          
+          this.logger.log(`✓ Message stored successfully in tenant ${tenant.id}`);
+          
+          // Process auto-reply, ecommerce, chatbot
+          if (text) {
+            const lowerText = text.toLowerCase().trim();
+            
+            // Check for ecommerce keywords
+            if (['shop', 'catalog', 'products', 'buy'].includes(lowerText) || 
+                lowerText.startsWith('cat:') || 
+                lowerText.startsWith('sub:') || 
+                lowerText.startsWith('prod:') ||
+                lowerText.startsWith('buy:') ||
+                lowerText === 'cod') {
+              try {
+                this.logger.log(`🛒 Ecommerce keyword detected: ${lowerText}`);
+                const whatsappSettings = await tenantClient.whatsAppSettings.findFirst();
+                if (whatsappSettings) {
+                  this.logger.log(`Found WhatsApp settings for tenant ${tenant.id}`);
+                  await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, settings.id);
+                  this.logger.log(`✅ Ecommerce message handled successfully`);
+                } else {
+                  this.logger.error(`❌ No WhatsApp settings found for tenant ${tenant.id}`);
+                }
+              } catch (error) {
+                this.logger.error('❌ Ecommerce service error:', error.message);
+                this.logger.error('Error details:', error.response?.data || error);
+              }
+            }
+            
+            // Try session service for auto-reply/quick-reply
+            let sessionHandled = false;
+            try {
+              const whatsappSettings = await tenantClient.whatsAppSettings.findFirst();
+              if (whatsappSettings) {
+                sessionHandled = await this.sessionService.handleInteractiveMenu(from, text, settings.id, 
+                  async (to, msg, imageUrl) => {
+                    if (imageUrl) {
+                      return this.sendMediaMessageDirect(to, imageUrl, 'image', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient, msg);
+                    }
+                    return this.sendMessageDirect(to, msg, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+                  },
+                  async (to, msg, buttons) => {
+                    return this.sendButtonsMessageDirect(to, msg, buttons, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+                  }
+                );
+              }
+            } catch (error) {
+              this.logger.error('Session service error:', error);
+            }
+            
+            // Try AI chatbot if session didn't handle it
+            if (!sessionHandled) {
+              try {
+                const tenantConfig = await tenantClient.tenantConfig.findFirst({
+                  select: { aiChatbotEnabled: true }
+                });
+                
+                if (tenantConfig?.aiChatbotEnabled) {
+                  const chatResponse = await this.chatbotService.processMessage(settings.id, {
+                    message: text,
+                    phone: from
+                  });
+                  
+                  if (chatResponse.response) {
+                    const whatsappSettings = await tenantClient.whatsAppSettings.findFirst();
+                    if (whatsappSettings) {
+                      await this.sendMessageDirect(from, chatResponse.response, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+                    }
+                  }
+                }
+              } catch (error) {
+                this.logger.error('Chatbot error:', error);
+              }
+            }
+          }
+          
+          return;
+        }
+      }
+      this.logger.warn(`No tenant found with phoneNumberId: ${phoneNumberId}`);
+    } catch (error) {
+      this.logger.error('Error handling incoming message:', error);
+    }
+  }
+
+  async updateMessageStatusWithoutContext(messageId: string, status: string, phoneNumberId: string) {
+    try {
+      const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
+      
+      for (const tenant of tenants) {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+        
+        const updated = await tenantClient.whatsAppMessage.updateMany({
+          where: { messageId },
+          data: { status }
+        });
+        
+        if (updated.count > 0) {
+          this.logger.log(`Message ${messageId} status updated to ${status}`);
+          return;
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error updating message status:', error);
+    }
+  }
+
+  async sendMessageDirect(to: string, message: string, accessToken: string, phoneNumberId: string, tenantClient: any) {
+    try {
+      const response = await axios.post(
+        `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          to,
+          type: 'text',
+          text: { body: message }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      await tenantClient.whatsAppMessage.create({
+        data: {
+          messageId: response.data.messages[0].id,
+          to,
+          from: to,
+          message,
+          direction: 'outgoing',
+          status: 'sent',
+        }
+      });
+
+      return { success: true, messageId: response.data.messages[0].id };
+    } catch (error) {
+      this.logger.error('WhatsApp API Error:', error.response?.data || error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async sendMediaMessageDirect(to: string, mediaUrl: string, mediaType: string, accessToken: string, phoneNumberId: string, tenantClient: any, caption?: string) {
+    try {
+      const response = await axios.post(
+        `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          to,
+          type: mediaType,
+          [mediaType]: { link: mediaUrl, caption }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      await tenantClient.whatsAppMessage.create({
+        data: {
+          messageId: response.data.messages[0].id,
+          to,
+          from: to,
+          message: caption || `${mediaType} file`,
+          mediaType,
+          mediaUrl,
+          direction: 'outgoing',
+          status: 'sent',
+        }
+      });
+
+      return { success: true, messageId: response.data.messages[0].id };
+    } catch (error) {
+      this.logger.error('WhatsApp Media API Error:', error.response?.data || error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async sendButtonsMessageDirect(to: string, text: string, buttons: string[], accessToken: string, phoneNumberId: string, tenantClient: any) {
+    try {
+      const interactiveButtons = buttons.slice(0, 3).map((button, index) => ({
+        type: 'reply',
+        reply: {
+          id: `btn_${index}`,
+          title: button.length > 20 ? button.substring(0, 20) : button
+        }
+      }));
+      
+      const response = await axios.post(
+        `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          to,
+          type: 'interactive',
+          interactive: {
+            type: 'button',
+            body: { text },
+            action: {
+              buttons: interactiveButtons
+            }
+          }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      await tenantClient.whatsAppMessage.create({
+        data: {
+          messageId: response.data.messages[0].id,
+          to,
+          from: to,
+          message: `Interactive buttons: ${text}`,
+          direction: 'outgoing',
+          status: 'sent',
+        }
+      });
+
+      return { success: true, messageId: response.data.messages[0].id };
+    } catch (error) {
+      this.logger.error('WhatsApp Buttons API Error:', error.response?.data || error.message);
+      return { success: false, error: error.message };
+    }
   }
 
   async sendBulkTemplateMessage(phoneNumbers: string[], templateName: string, userId: number, parameters?: any[]) {
@@ -489,18 +923,6 @@ export class WhatsappService {
     } else {
       settings = await this.getSettings(userId);
     }
-    
-    // Upload image to Meta if provided
-    let mediaId: string | null = null;
-    if (headerImageUrl && headerImageUrl.trim() !== '' && headerImageUrl.startsWith('http')) {
-      try {
-        mediaId = await this.uploadMediaToMeta(headerImageUrl, settings);
-        this.logger.log(`Image uploaded to Meta, media ID: ${mediaId}`);
-      } catch (error) {
-        this.logger.error('Failed to upload image to Meta:', error.message);
-      }
-    }
-    
     const results: Array<{ phoneNumber: string; success: boolean; messageId?: string; error?: string }> = [];
    
     for (const contact of contacts) {
@@ -513,14 +935,28 @@ export class WhatsappService {
       const formattedPhone = this.formatPhoneNumber(contact.phone);
 
       try {
+        this.logger.log(`Sending message to ${formattedPhone} with template ${templateName}`);
+        this.logger.log(`API URL: ${settings.apiUrl}/${settings.phoneNumberId}/messages`);
+        this.logger.log(`Template: ${templateName}, Language: ${settings.language}`);
+        
         const components: any[] = [];
         
-        // Use media ID instead of link if available
-        if (mediaId) {
+        // Only add header if explicitly provided via headerImageUrl parameter
+        if (headerImageUrl && headerImageUrl.trim() !== '' && headerImageUrl.startsWith('http')) {
+          this.logger.log(`Adding header image: ${headerImageUrl}`);
           components.push({
             type: 'header',
-            parameters: [{ type: 'image', image: { id: mediaId } }]
+            parameters: [
+              {
+                type: 'image',
+                image: {
+                  link: headerImageUrl
+                }
+              }
+            ]
           });
+        } else {
+          this.logger.log('No header image provided, sending template without header');
         }
         
         const requestBody = {
@@ -534,6 +970,8 @@ export class WhatsappService {
           }
         };
         
+        this.logger.log('Request body:', JSON.stringify(requestBody, null, 2));
+        
         const response = await axios.post(
           `${settings.apiUrl}/${settings.phoneNumberId}/messages`,
           requestBody,
@@ -544,6 +982,8 @@ export class WhatsappService {
             }
           }
         );
+        
+        this.logger.log('WhatsApp API Response:', JSON.stringify(response.data, null, 2));
 
         await this.prisma.whatsAppMessage.create({
           data: {
@@ -569,38 +1009,6 @@ export class WhatsappService {
     }
 
     return results;
-  }
-
-  private async uploadMediaToMeta(imageUrl: string, settings: any): Promise<string> {
-    try {
-      // Download image
-      const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-      const FormData = require('form-data');
-      const form = new FormData();
-      
-      form.append('file', Buffer.from(imageResponse.data), {
-        filename: 'image.jpg',
-        contentType: imageResponse.headers['content-type'] || 'image/jpeg'
-      });
-      form.append('messaging_product', 'whatsapp');
-      
-      // Upload to Meta
-      const uploadResponse = await axios.post(
-        `${settings.apiUrl}/${settings.phoneNumberId}/media`,
-        form,
-        {
-          headers: {
-            'Authorization': `Bearer ${settings.accessToken}`,
-            ...form.getHeaders()
-          }
-        }
-      );
-      
-      return uploadResponse.data.id;
-    } catch (error) {
-      this.logger.error('Media upload to Meta failed:', error.response?.data || error.message);
-      throw error;
-    }
   }
 
   private validatePhoneNumber(phone: string): string | null {

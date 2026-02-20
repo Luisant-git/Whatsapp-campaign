@@ -32,6 +32,7 @@ model Tenant {
   subscriptionId Int?
   subscriptionStartDate DateTime?
   subscriptionEndDate DateTime?
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
@@ -48,11 +49,14 @@ model PhoneNumberMapping {
   createdAt     DateTime @default(now())
 }
 
+
+
 model SubscriptionPlan {
   id          Int      @id @default(autoincrement())
   name        String
   price       Float
   duration    Int
+  userLimit   Int ?  
   features    String[]
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())

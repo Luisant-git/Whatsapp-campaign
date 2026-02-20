@@ -326,3 +326,10 @@
 .btn-secondary:hover {
   background: #e0e0e0;
 }
+.multi-select {
+  width: 100%;
+  min-height: 120px;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}

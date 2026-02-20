@@ -136,4 +136,32 @@ export class PrismaService {
     }
     return this.client.tenantConfig;
   }
+
+  get category() {
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.category;
+  }
+
+  get subCategory() {
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.subCategory;
+  }
+
+  get product() {
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.product;
+  }
+
+  get order() {
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.order;
+  }
 }

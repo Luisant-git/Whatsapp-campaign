@@ -48,39 +48,23 @@ export class MetaCatalogService {
 
   async sendCatalogMessage(phone: string, phoneNumberId: string, userId?: number) {
     try {
-      const products = await this.ecommerceService.getProducts(undefined, userId);
-      console.log('📦 Products fetched:', products.length);
-      console.log('Product IDs:', products.map(p => `product_${p.id}`));
-      
-      const productItems = products.map(p => ({ product_retailer_id: `product_${p.id}` }));
-      console.log('Product items for catalog:', JSON.stringify(productItems, null, 2));
-      
       const messagePayload = {
         messaging_product: 'whatsapp',
         to: phone,
         type: 'interactive',
         interactive: {
-          type: 'product_list',
-          header: {
-            type: 'text',
-            text: 'Our Products'
-          },
+          type: 'catalog_message',
           body: {
-            text: '🛍️ Browse our collection!'
+            text: '🛍️ Check out our products!'
           },
           action: {
-            catalog_id: this.catalogId,
-            sections: [
-              {
-                title: 'Available Products',
-                product_items: productItems
-              }
-            ]
+            name: 'catalog_message'
+          },
+          footer: {
+            text: 'Browse our full catalog'
           }
         }
       };
-      
-      console.log('Sending catalog message payload:', JSON.stringify(messagePayload, null, 2));
       
       const response = await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,

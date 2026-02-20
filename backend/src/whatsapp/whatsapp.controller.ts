@@ -514,4 +514,4 @@ export class WhatsappController {
     res.send(result.data);
   }
 
-}
+} 

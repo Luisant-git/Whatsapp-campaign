@@ -3,7 +3,10 @@ import { Injectable } from '@nestjs/common';
 interface ShoppingSession {
   phone: string;
   currentProductId?: number;
-  step: 'browsing' | 'buying' | 'details';
+  paymentMethod?: string;
+  step: 'browsing' | 'buying' | 'details' | 'awaiting_name' | 'awaiting_address';
+  customerName?: string;
+  customerAddress?: string;
   timestamp: number;
 }
 
@@ -36,5 +39,33 @@ export class ShoppingSessionService {
 
   getProductForPurchase(phone: string): number | undefined {
     return this.getSession(phone)?.currentProductId;
+  }
+
+  setPaymentMethod(phone: string, method: string) {
+    this.setSession(phone, { paymentMethod: method });
+  }
+
+  getPaymentMethod(phone: string): string | undefined {
+    return this.getSession(phone)?.paymentMethod;
+  }
+
+  setCustomerName(phone: string, name: string) {
+    this.setSession(phone, { customerName: name, step: 'awaiting_address' });
+  }
+
+  getCustomerName(phone: string): string | undefined {
+    return this.getSession(phone)?.customerName;
+  }
+
+  setCustomerAddress(phone: string, address: string) {
+    this.setSession(phone, { customerAddress: address });
+  }
+
+  getCustomerAddress(phone: string): string | undefined {
+    return this.getSession(phone)?.customerAddress;
+  }
+
+  getStep(phone: string): string | undefined {
+    return this.getSession(phone)?.step;
   }
 }

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { EcommerceService } from './ecommerce.service';
 import { ShoppingSessionService } from './shopping-session.service';
+import { MetaCatalogService } from './meta-catalog.service';
 import axios from 'axios';
 
 @Injectable()
@@ -8,13 +9,14 @@ export class WhatsappEcommerceService {
   constructor(
     private ecommerceService: EcommerceService,
     private sessionService: ShoppingSessionService,
+    private metaCatalogService: MetaCatalogService,
   ) {}
 
   async handleIncomingMessage(phone: string, message: string, accessToken: string, phoneNumberId: string, userId: number) {
     const msg = message.toLowerCase().trim();
 
     if (msg === 'shop' || msg === 'catalog' || msg === 'products') {
-      return this.sendCategoryList(phone, accessToken, phoneNumberId, userId);
+      return this.metaCatalogService.sendCatalogMessage(phone, phoneNumberId);
     }
 
     if (msg.startsWith('cat:')) {
@@ -30,6 +32,15 @@ export class WhatsappEcommerceService {
     if (msg.startsWith('prod:')) {
       const productId = parseInt(msg.split(':')[1]);
       return this.sendProductDetails(phone, productId, accessToken, phoneNumberId, userId);
+    }
+
+    if (msg.startsWith('buy:')) {
+      const productId = parseInt(msg.split(':')[1]);
+      return this.handleBuyNow(phone, productId, accessToken, phoneNumberId, userId);
+    }
+
+    if (msg === 'cod') {
+      return this.handleCODPayment(phone, accessToken, phoneNumberId, userId);
     }
 
     return null;
@@ -111,9 +122,9 @@ export class WhatsappEcommerceService {
     // Store product in session for purchase
     this.sessionService.setProductForPurchase(phone, productId);
 
-    const message = `*${product.name}*\n\n${product.description}\n\n💰 Price: ₹${product.price}\n\nReply "BUY" to purchase this product`;
+    const message = `*${product.name}*\n\n${product.description}\n\n💰 Price: ₹${product.price}`;
 
-    // Try to upload image to WhatsApp and send by ID
+    // Try to upload image to WhatsApp and send by ID with Buy Now button
     if (product.imageUrl && product.imageUrl.trim() !== '' && product.imageUrl.startsWith('http')) {
       try {
         console.log('Uploading image to WhatsApp:', product.imageUrl);
@@ -121,12 +132,28 @@ export class WhatsappEcommerceService {
         
         if (mediaId) {
           console.log('Sending image by media ID:', mediaId);
-          return this.sendWhatsAppMessage(phone, {
+          // Send image first
+          await this.sendWhatsAppMessage(phone, {
             type: 'image',
             image: {
               id: mediaId,
               caption: message,
             },
+          }, accessToken, phoneNumberId);
+          
+          // Then send Buy Now button
+          return this.sendWhatsAppMessage(phone, {
+            type: 'interactive',
+            interactive: {
+              type: 'button',
+              body: { text: 'Click below to purchase:' },
+              action: {
+                buttons: [{
+                  type: 'reply',
+                  reply: { id: `buy:${productId}`, title: '🛒 Buy Now' }
+                }]
+              }
+            }
           }, accessToken, phoneNumberId);
         }
       } catch (error) {
@@ -134,10 +161,67 @@ export class WhatsappEcommerceService {
       }
     }
 
-    console.log('Sending text message');
+    // Send text with Buy Now button
+    console.log('Sending text message with button');
+    return this.sendWhatsAppMessage(phone, {
+      type: 'interactive',
+      interactive: {
+        type: 'button',
+        body: { text: message },
+        action: {
+          buttons: [{
+            type: 'reply',
+            reply: { id: `buy:${productId}`, title: '🛒 Buy Now' }
+          }]
+        }
+      }
+    }, accessToken, phoneNumberId);
+  }
+
+  async handleBuyNow(phone: string, productId: number, accessToken: string, phoneNumberId: string, userId: number) {
+    const product = await this.ecommerceService.getProduct(productId, userId);
+    if (!product) return;
+
+    // Store product in session
+    this.sessionService.setProductForPurchase(phone, productId);
+
+    // Show payment options
+    return this.sendWhatsAppMessage(phone, {
+      type: 'interactive',
+      interactive: {
+        type: 'button',
+        body: { text: `💳 Select Payment Method\n\n*${product.name}*\nTotal: ₹${product.price}` },
+        action: {
+          buttons: [{
+            type: 'reply',
+            reply: { id: 'cod', title: '💵 Cash on Delivery' }
+          }]
+        }
+      }
+    }, accessToken, phoneNumberId);
+  }
+
+  async handleCODPayment(phone: string, accessToken: string, phoneNumberId: string, userId: number) {
+    const productId = this.sessionService.getProductForPurchase(phone);
+    if (!productId) {
+      return this.sendWhatsAppMessage(phone, {
+        type: 'text',
+        text: { body: 'Please select a product first. Send "shop" to browse products.' },
+      }, accessToken, phoneNumberId);
+    }
+
+    const product = await this.ecommerceService.getProduct(productId, userId);
+    if (!product) return;
+
+    // Store payment method and set step to awaiting name
+    this.sessionService.setPaymentMethod(phone, 'COD');
+    this.sessionService.setSession(phone, { step: 'awaiting_name' });
+
     return this.sendWhatsAppMessage(phone, {
       type: 'text',
-      text: { body: message },
+      text: {
+        body: `📦 *Order Details*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\nPayment: Cash on Delivery\n\nPlease provide your full name:`,
+      },
     }, accessToken, phoneNumberId);
   }
 
@@ -207,7 +291,41 @@ export class WhatsappEcommerceService {
     }, accessToken, phoneNumberId);
   }
 
-  async createOrderFromMessage(phone: string, message: string) {
+  async createOrderFromMessage(phone: string, message: string, userId: number) {
+    const step = this.sessionService.getStep(phone);
+    
+    // Handle step-by-step order creation
+    if (step === 'awaiting_name') {
+      this.sessionService.setCustomerName(phone, message.trim());
+      return 'awaiting_address';
+    }
+    
+    if (step === 'awaiting_address') {
+      this.sessionService.setCustomerAddress(phone, message.trim());
+      
+      const productId = this.sessionService.getProductForPurchase(phone);
+      const customerName = this.sessionService.getCustomerName(phone);
+      
+      if (!productId || !customerName) return false;
+      
+      const product = await this.ecommerceService.getProduct(productId, userId);
+      if (!product) return false;
+      
+      await this.ecommerceService.createOrder({
+        customerName,
+        customerPhone: phone,
+        customerAddress: message.trim(),
+        productId,
+        quantity: 1,
+        totalAmount: product.price,
+      }, userId);
+      
+      // Clear session after order
+      this.sessionService.clearSession(phone);
+      return true;
+    }
+    
+    // Legacy format support: NAME: ... ADDRESS: ...
     const nameMatch = message.match(/NAME:\s*(.+)/i);
     const addressMatch = message.match(/ADDRESS:\s*(.+)/i);
 
@@ -216,8 +334,10 @@ export class WhatsappEcommerceService {
     const productId = this.sessionService.getProductForPurchase(phone);
     if (!productId) return false;
 
-    const product = await this.ecommerceService.getProduct(productId);
+    const product = await this.ecommerceService.getProduct(productId, userId);
     if (!product) return false;
+
+    const paymentMethod = this.sessionService.getPaymentMethod(phone) || 'COD';
 
     await this.ecommerceService.createOrder({
       customerName: nameMatch[1].trim(),
@@ -226,7 +346,7 @@ export class WhatsappEcommerceService {
       productId,
       quantity: 1,
       totalAmount: product.price,
-    });
+    }, userId);
 
     // Clear session after order
     this.sessionService.clearSession(phone);

@@ -55,7 +55,6 @@ model WhatsAppSettings {
   apiUrl        String
   language      String   @default("en")
   headerImageUrl String?
-  webhookCallbackUrl String?
   isDefault     Boolean  @default(false)
   masterConfigId Int?
   masterConfig  MasterConfig? @relation(fields: [masterConfigId], references: [id], onDelete: SetNull)

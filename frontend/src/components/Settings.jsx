@@ -651,19 +651,6 @@ const Settings = ({ onNavigate }) => {
               </div>
 
               <div className="form-group">
-                <label>Webhook Callback URL (Optional)</label>
-                <small style={{display: 'block', marginBottom: '8px', color: '#666'}}>
-                  Add if your template has button callback URL (e.g., https://enquiry.api.luisant.cloud/api/webhook)
-                </small>
-                <input
-                  type="text"
-                  placeholder="https://your-domain.com/api/webhook"
-                  value={currentSettings.webhookCallbackUrl || ''}
-                  onChange={(e) => handleInputChange("webhookCallbackUrl", e.target.value)}
-                />
-              </div>
-
-              <div className="form-group">
                 <label>Header Media (Optional)</label>
                 <small style={{display: 'block', marginBottom: '8px', color: '#666'}}>
                   Only add if your WhatsApp template has a media header parameter

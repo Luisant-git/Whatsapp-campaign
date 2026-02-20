@@ -53,15 +53,30 @@ export class MetaCatalogService {
         to: phone,
         type: 'interactive',
         interactive: {
-          type: 'catalog_message',
-          body: {
-            text: '🛍️ Check out our products!'
+          type: 'product_list',
+          header: {
+            type: 'text',
+            text: 'Our Products'
           },
-          action: {
-            name: 'catalog_message'
+          body: {
+            text: '🛍️ Check out our collection!'
           },
           footer: {
-            text: 'Browse our full catalog'
+            text: 'Tap to view details'
+          },
+          action: {
+            catalog_id: this.catalogId,
+            sections: [
+              {
+                title: 'Available Now',
+                product_items: [
+                  { product_retailer_id: 'product_5' },
+                  { product_retailer_id: 'product_6' },
+                  { product_retailer_id: 'product_17' },
+                  { product_retailer_id: 'product_18' }
+                ]
+              }
+            ]
           }
         }
       };

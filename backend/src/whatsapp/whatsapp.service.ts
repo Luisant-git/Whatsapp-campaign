@@ -994,6 +994,22 @@ export class WhatsappService {
           this.logger.log('No header media provided, sending template without header');
         }
         
+        // Add button component with callback URL if webhookCallbackUrl is provided
+        if (settings.webhookCallbackUrl && settings.webhookCallbackUrl.trim() !== '') {
+          this.logger.log(`Adding button callback URL: ${settings.webhookCallbackUrl}`);
+          components.push({
+            type: 'button',
+            sub_type: 'url',
+            index: '0',
+            parameters: [
+              {
+                type: 'text',
+                text: formattedPhone
+              }
+            ]
+          });
+        }
+        
         const requestBody = {
           messaging_product: 'whatsapp',
           to: formattedPhone,

@@ -1,11 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import axios from 'axios';
+import { EcommerceService } from './ecommerce.service';
 
 @Injectable()
 export class MetaCatalogService {
   private readonly catalogId = process.env.META_CATALOG_ID;
   private readonly accessToken = process.env.META_ACCESS_TOKEN;
   private readonly apiUrl = 'https://graph.facebook.com/v18.0';
+
+  constructor(private ecommerceService: EcommerceService) {}
 
   async syncProductToCatalog(product: any) {
     try {
@@ -23,6 +26,7 @@ export class MetaCatalogService {
         condition: 'new',
         brand: 'Store',
         image_url: imageUrl,
+        url: product.link || imageUrl,
       };
 
       const response = await axios.post(
@@ -43,28 +47,64 @@ export class MetaCatalogService {
     }
   }
 
-  async sendCatalogMessage(phone: string, phoneNumberId: string) {
+  async sendCatalogMessage(phone: string, phoneNumberId: string, userId?: number) {
     try {
+      // Fetch products from Meta Catalog to get actual retailer IDs
+      const catalogProducts = await axios.get(
+        `${this.apiUrl}/${this.catalogId}/products?fields=id,retailer_id,name,availability`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+          },
+        }
+      );
+      
+      console.log('Products in Meta Catalog:', JSON.stringify(catalogProducts.data, null, 2));
+      
+      // Filter only available products
+      const availableProducts = catalogProducts.data.data.filter(p => 
+        p.availability === 'in stock' || !p.availability
+      );
+      
+      console.log('Available products:', availableProducts.length);
+      
+      const productItems = availableProducts.map(p => ({
+        product_retailer_id: p.retailer_id
+      }));
+      
+      console.log('Product items to send:', productItems);
+      
+      const messagePayload = {
+        messaging_product: 'whatsapp',
+        to: phone,
+        type: 'interactive',
+        interactive: {
+          type: 'product_list',
+          header: {
+            type: 'text',
+            text: 'Our Products'
+          },
+          body: {
+            text: '🛍️ Check out our collection!'
+          },
+          footer: {
+            text: 'Tap to view details'
+          },
+          action: {
+            catalog_id: this.catalogId,
+            sections: [
+              {
+                title: 'Available Now',
+                product_items: productItems.slice(0, 30)
+              }
+            ]
+          }
+        }
+      };
+      
       const response = await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,
-        {
-          messaging_product: 'whatsapp',
-          recipient_type: 'individual',
-          to: phone,
-          type: 'interactive',
-          interactive: {
-            type: 'catalog_message',
-            body: {
-              text: '🛍️ Browse our product catalog!'
-            },
-            action: {
-              name: 'catalog_message',
-              parameters: {
-                thumbnail_product_retailer_id: ''
-              }
-            }
-          }
-        },
+        messagePayload,
         {
           headers: {
             'Authorization': `Bearer ${this.accessToken}`,
@@ -73,10 +113,17 @@ export class MetaCatalogService {
         }
       );
 
+      console.log('Catalog message sent successfully:', response.data);
       return { success: true, data: response.data };
     } catch (error) {
-      console.error('Send catalog error:', error.response?.data || error.message);
-      throw new Error('Failed to send catalog message');
+      console.error('Send catalog error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        catalogId: this.catalogId,
+        phoneNumberId: phoneNumberId
+      });
+      throw new Error(error.response?.data?.error?.message || 'Failed to send catalog message');
     }
   }
 }

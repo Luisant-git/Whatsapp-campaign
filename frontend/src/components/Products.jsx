@@ -10,7 +10,7 @@ export default function Products() {
   const [showMetaModal, setShowMetaModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [form, setForm] = useState({
-    name: '', description: '', price: '', subCategoryId: '', image: null
+    name: '', description: '', price: '', subCategoryId: '', image: null, link: ''
   });
 
   useEffect(() => {
@@ -53,7 +53,8 @@ export default function Products() {
       description: prod.description || '',
       price: prod.price,
       subCategoryId: prod.subCategoryId,
-      image: null
+      image: null,
+      link: prod.link || ''
     });
     setShowModal(true);
   };
@@ -67,11 +68,41 @@ export default function Products() {
 
   const handleMetaSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate image dimensions
+    if (form.image) {
+      const img = new Image();
+      const imageUrl = URL.createObjectURL(form.image);
+      
+      img.onload = async () => {
+        URL.revokeObjectURL(imageUrl);
+        
+        if (img.width < 500 || img.height < 500) {
+          alert('❌ Image must be at least 500×500 pixels. Current size: ' + img.width + '×' + img.height);
+          return;
+        }
+        
+        await submitMetaProduct();
+      };
+      
+      img.onerror = () => {
+        URL.revokeObjectURL(imageUrl);
+        alert('❌ Failed to load image');
+      };
+      
+      img.src = imageUrl;
+    } else {
+      alert('❌ Image is required for Meta Catalog');
+    }
+  };
+  
+  const submitMetaProduct = async () => {
     const formData = new FormData();
     formData.append('name', form.name);
     formData.append('description', form.description);
     formData.append('price', form.price);
     formData.append('subCategoryId', form.subCategoryId);
+    formData.append('link', form.link);
     if (form.image) formData.append('image', form.image);
 
     try {
@@ -82,7 +113,7 @@ export default function Products() {
       alert('❌ Failed: ' + (error.response?.data?.message || error.message));
     }
     
-    setForm({ name: '', description: '', price: '', subCategoryId: '', image: null });
+    setForm({ name: '', description: '', price: '', subCategoryId: '', image: null, link: '' });
     setShowMetaModal(false);
     loadData();
   };
@@ -350,8 +381,18 @@ export default function Products() {
             </select>
           </div>
           <div className="form-group">
-            <label>Product Image</label>
-            <p style={{fontSize: '12px', color: '#6b7280', marginBottom: '8px'}}>Supported formats: JPEG, PNG (Max 5MB)</p>
+            <label>Link</label>
+            <input
+              className="form-input"
+              type="url"
+              placeholder="https://example.com/product"
+              value={form.link}
+              onChange={(e) => setForm({ ...form, link: e.target.value })}
+            />
+          </div>
+          <div className="form-group">
+            <label>Product Image <span style={{color: '#ef4444'}}>*</span></label>
+            <p style={{fontSize: '12px', color: '#ef4444', marginBottom: '8px', fontWeight: '500'}}>Required: Minimum 500×500 pixels | JPEG, PNG (Max 5MB)</p>
             <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
               <label className="btn-secondary" style={{cursor: 'pointer', margin: 0}}>
                 {form.image ? 'Change Image' : 'Upload Image'}

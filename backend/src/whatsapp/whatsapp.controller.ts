@@ -109,13 +109,13 @@ export class WhatsappController {
                  
                   let userId = await this.whatsappService.findUserByVerifyToken(verifyToken);
                   console.log('User ID from verify token:', userId);
-                 
+                  
                   if (!userId) {
                     const userIds = await this.whatsappService.findAllUsersByPhoneNumberId(phoneNumberId);
                     console.log('User IDs from phone number ID:', userIds);
                     userId = userIds.length > 0 ? userIds[0] : null;
                   }
-                 
+                  
                   if (!userId) {
                     userId = await this.whatsappService.findFirstActiveUser();
                     console.log('Fallback user ID:', userId);
@@ -131,7 +131,7 @@ export class WhatsappController {
                   console.error('Error processing message:', msgError);
                 }
               }
-             
+              
               const statuses = change.value.statuses;
               if (statuses) {
                 for (const status of statuses) {
@@ -175,13 +175,13 @@ export class WhatsappController {
                 try {
                   const phoneNumberId = change.value.metadata?.phone_number_id;
                   console.log('Processing message for phone number ID:', phoneNumberId);
-                 
+                  
                   await this.whatsappService.handleIncomingMessageWithoutContext(message, phoneNumberId);
                 } catch (msgError) {
                   console.error('Error processing message:', msgError);
                 }
               }
-             
+              
               const statuses = change.value.statuses;
               if (statuses) {
                 for (const status of statuses) {
@@ -533,4 +533,3 @@ export class WhatsappController {
   }
  
 }
- 

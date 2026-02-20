@@ -86,6 +86,7 @@ export class EcommerceController {
       price: parseFloat(body.price),
       imageUrl: file ? `${process.env.UPLOAD_URL}/${file.filename}` : null,
       subCategoryId: +body.subCategoryId,
+      link: body.link || null,
     };
     return this.ecommerceService.createProduct(data);
   }

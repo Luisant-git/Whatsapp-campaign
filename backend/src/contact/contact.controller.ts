@@ -70,6 +70,19 @@ export class ContactController {
   ) {
     return this.contactService.getContactsByGroup(+groupId, tenantContext);
   }
+  
+  @Get('trash')
+  getTrash(@TenantContext() tenantContext: TenantContextType) {
+    return this.contactService.findTrash(tenantContext);
+  }
+  
+  @Patch(':id/restore')
+  restore(
+    @Param('id') id: string,
+    @TenantContext() tenantContext: TenantContextType,
+  ) {
+    return this.contactService.restore(+id, tenantContext);
+  }
 
   @Patch('delivery-status')
   updateDeliveryStatus(

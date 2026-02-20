@@ -20,6 +20,8 @@ import { TenantMiddleware } from './tenant/tenant.middleware';
 import { TestController } from './test.controller';
 import { EcommerceModule } from './ecommerce/ecommerce.module';
 
+import { SubuserModule } from './subuser/subuser.module';
+
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -38,6 +40,8 @@ import { EcommerceModule } from './ecommerce/ecommerce.module';
     GroupModule,
     TestModule,
     EcommerceModule,
+   
+    SubuserModule,
   ],
   controllers: [AppController, TestController],
   providers: [AppService],
@@ -55,6 +59,7 @@ export class AppModule implements NestModule {
         'test/(.*)',
         'whatsapp/webhook',
         'whatsapp/webhook/(.*)',
+          
       )
       .forRoutes('*');
   }

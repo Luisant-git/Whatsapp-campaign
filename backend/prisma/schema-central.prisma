@@ -32,18 +32,31 @@ model Tenant {
   subscriptionId Int?
   subscriptionStartDate DateTime?
   subscriptionEndDate DateTime?
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
   subscription SubscriptionPlan? @relation(fields: [subscriptionId], references: [id])
   subscriptionOrders SubscriptionOrder[]
+  phoneNumbers PhoneNumberMapping[]
 }
+
+model PhoneNumberMapping {
+  id            Int      @id @default(autoincrement())
+  phoneNumberId String   @unique
+  tenantId      Int
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+}
+
+
 
 model SubscriptionPlan {
   id          Int      @id @default(autoincrement())
   name        String
   price       Float
   duration    Int
+  userLimit   Int ?  
   features    String[]
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())

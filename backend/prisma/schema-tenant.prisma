@@ -162,6 +162,7 @@ model Contact {
   lastMessageDate  DateTime?
   dob             DateTime?
   anniversary     DateTime?
+  isActive         Boolean ? @default(true)
   groupId           Int?
   group             Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
   createdAt        DateTime @default(now())
@@ -238,4 +239,19 @@ model Order {
   product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+
+model SubUser {
+  id           Int      @id @default(autoincrement())
+
+  username     String
+  mobileNumber String   @unique
+  designation  String?
+  isActive     Boolean  @default(true)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([username])
 }

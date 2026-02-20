@@ -22,7 +22,12 @@ export const contactAPI = {
 
   delete: (id) =>
     axios.delete(`${API_BASE_URL}/contact/${id}`, { withCredentials: true }),
-
+  
+  getTrash: () =>
+    axios.get(`${API_BASE_URL}/contact/trash`, { withCredentials: true }),
+  
+  restore: (id) =>
+    axios.patch(`${API_BASE_URL}/contact/${id}/restore`, {}, { withCredentials: true }),
   /* -------------------- DELIVERY -------------------- */
   getDeliveryStats: () =>
     axios.get(`${API_BASE_URL}/contact/delivery-stats`, { withCredentials: true }),

@@ -39,16 +39,33 @@ export class WhatsappService {
     const document = message.document;
     const audio = message.audio;
     
-    // Handle Meta Catalog order messages
+    this.logger.log(`📨 Incoming message type: ${message.type}`);
+    
+    // Handle Meta Catalog order messages (when order management is enabled)
     if (message.type === 'order') {
       const order = message.order;
-      this.logger.log('Meta Catalog order received:', JSON.stringify(order, null, 2));
+      this.logger.log('🛒 Meta Catalog order received:', JSON.stringify(order, null, 2));
       
       const settings = await this.getSettings(userId);
       const metaCatalogService = this.ecommerceService['metaCatalogService'];
       
       if (metaCatalogService) {
         await metaCatalogService.handleOrderMessage(from, settings.phoneNumberId, order, userId);
+      }
+      return;
+    }
+    
+    // Handle interactive nfm_reply (catalog cart sent)
+    if (message.type === 'interactive' && message.interactive?.type === 'nfm_reply') {
+      this.logger.log('🛒 Catalog cart message received');
+      const nfmReply = message.interactive.nfm_reply;
+      const orderData = JSON.parse(nfmReply.response_json || '{}');
+      
+      const settings = await this.getSettings(userId);
+      const metaCatalogService = this.ecommerceService['metaCatalogService'];
+      
+      if (metaCatalogService && orderData) {
+        await metaCatalogService.handleOrderMessage(from, settings.phoneNumberId, orderData, userId);
       }
       return;
     }
@@ -623,6 +640,22 @@ export class WhatsappService {
           const messageId = message.id;
           let text = message.text?.body;
           
+          // Handle Meta Catalog order messages
+          if (message.type === 'order') {
+            const order = message.order;
+            this.logger.log('🛒 Meta Catalog order received:', JSON.stringify(order, null, 2));
+            
+            const whatsappSettings = await tenantClient.whatsAppSettings.findFirst();
+            if (whatsappSettings) {
+              const metaCatalogService = this.ecommerceService['metaCatalogService'];
+              if (metaCatalogService) {
+                await metaCatalogService.handleOrderMessage(from, whatsappSettings.phoneNumberId, order, settings.id);
+                this.logger.log('✅ Order message handled');
+              }
+            }
+            return;
+          }
+          
           if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
             text = message.interactive.button_reply.id;
           }
@@ -657,6 +690,19 @@ export class WhatsappService {
           if (text) {
             const lowerText = text.toLowerCase().trim();
             
+            // Check if user is in Meta Catalog order flow first
+            const whatsappSettings = await tenantClient.whatsAppSettings.findFirst();
+            if (whatsappSettings) {
+              const metaCatalogService = this.ecommerceService['metaCatalogService'];
+              if (metaCatalogService) {
+                const handled = await metaCatalogService.handleCustomerResponse(from, whatsappSettings.phoneNumberId, text, settings.id);
+                if (handled) {
+                  this.logger.log('✅ Meta Catalog order flow handled');
+                  return;
+                }
+              }
+            }
+            
             // Check for ecommerce keywords
             if (['shop', 'catalog', 'products', 'buy'].includes(lowerText) || 
                 lowerText.startsWith('cat:') || 
@@ -666,7 +712,6 @@ export class WhatsappService {
                 lowerText === 'cod') {
               try {
                 this.logger.log(`🛒 Ecommerce keyword detected: ${lowerText}`);
-                const whatsappSettings = await tenantClient.whatsAppSettings.findFirst();
                 if (whatsappSettings) {
                   this.logger.log(`Found WhatsApp settings for tenant ${tenant.id}`);
                   await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, settings.id);

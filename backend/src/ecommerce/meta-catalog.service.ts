@@ -187,8 +187,10 @@ export class MetaCatalogService {
             totalAmount: product.price,
           }, userId);
           
+          const confirmationMessage = `✅ *Order Confirmed*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`;
+          
           this.sessionService.clearSession(phone);
-          return this.sendTextMessage(phone, phoneNumberId, '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!');
+          return this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
         }
       }
     }

@@ -51,7 +51,7 @@ export class MetaCatalogService {
     try {
       // Fetch products from Meta Catalog to get actual retailer IDs
       const catalogProducts = await axios.get(
-        `${this.apiUrl}/${this.catalogId}/products?fields=id,retailer_id,name`,
+        `${this.apiUrl}/${this.catalogId}/products?fields=id,retailer_id,name,availability`,
         {
           headers: {
             'Authorization': `Bearer ${this.accessToken}`,
@@ -59,9 +59,16 @@ export class MetaCatalogService {
         }
       );
       
-      console.log('Products in Meta Catalog:', catalogProducts.data);
+      console.log('Products in Meta Catalog:', JSON.stringify(catalogProducts.data, null, 2));
       
-      const productItems = catalogProducts.data.data.map(p => ({
+      // Filter only available products
+      const availableProducts = catalogProducts.data.data.filter(p => 
+        p.availability === 'in stock' || !p.availability
+      );
+      
+      console.log('Available products:', availableProducts.length);
+      
+      const productItems = availableProducts.map(p => ({
         product_retailer_id: p.retailer_id
       }));
       

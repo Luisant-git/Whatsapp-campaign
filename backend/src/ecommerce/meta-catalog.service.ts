@@ -51,7 +51,7 @@ export class MetaCatalogService {
     try {
       // Fetch products from Meta Catalog to get actual retailer IDs
       const catalogProducts = await axios.get(
-        `${this.apiUrl}/${this.catalogId}/products?fields=id,retailer_id,name,availability,image_url,price,review_status`,
+        `${this.apiUrl}/${this.catalogId}/products?fields=id,retailer_id,name,availability`,
         {
           headers: {
             'Authorization': `Bearer ${this.accessToken}`,
@@ -60,10 +60,6 @@ export class MetaCatalogService {
       );
       
       console.log('Products in Meta Catalog:', JSON.stringify(catalogProducts.data, null, 2));
-      
-      // Check product_21 specifically
-      const product21 = catalogProducts.data.data.find(p => p.retailer_id === 'product_21');
-      console.log('product_21 details:', JSON.stringify(product21, null, 2));
       
       // Filter only available products
       const availableProducts = catalogProducts.data.data.filter(p => 

@@ -640,6 +640,22 @@ export class WhatsappService {
           const messageId = message.id;
           let text = message.text?.body;
           
+          // Handle Meta Catalog order messages
+          if (message.type === 'order') {
+            const order = message.order;
+            this.logger.log('🛒 Meta Catalog order received:', JSON.stringify(order, null, 2));
+            
+            const whatsappSettings = await tenantClient.whatsAppSettings.findFirst();
+            if (whatsappSettings) {
+              const metaCatalogService = this.ecommerceService['metaCatalogService'];
+              if (metaCatalogService) {
+                await metaCatalogService.handleOrderMessage(from, whatsappSettings.phoneNumberId, order, settings.id);
+                this.logger.log('✅ Order message handled');
+              }
+            }
+            return;
+          }
+          
           if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
             text = message.interactive.button_reply.id;
           }

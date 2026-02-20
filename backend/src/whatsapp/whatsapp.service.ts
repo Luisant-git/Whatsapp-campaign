@@ -674,6 +674,19 @@ export class WhatsappService {
           if (text) {
             const lowerText = text.toLowerCase().trim();
             
+            // Check if user is in Meta Catalog order flow first
+            const whatsappSettings = await tenantClient.whatsAppSettings.findFirst();
+            if (whatsappSettings) {
+              const metaCatalogService = this.ecommerceService['metaCatalogService'];
+              if (metaCatalogService) {
+                const handled = await metaCatalogService.handleCustomerResponse(from, whatsappSettings.phoneNumberId, text, settings.id);
+                if (handled) {
+                  this.logger.log('✅ Meta Catalog order flow handled');
+                  return;
+                }
+              }
+            }
+            
             // Check for ecommerce keywords
             if (['shop', 'catalog', 'products', 'buy'].includes(lowerText) || 
                 lowerText.startsWith('cat:') || 
@@ -683,7 +696,6 @@ export class WhatsappService {
                 lowerText === 'cod') {
               try {
                 this.logger.log(`🛒 Ecommerce keyword detected: ${lowerText}`);
-                const whatsappSettings = await tenantClient.whatsAppSettings.findFirst();
                 if (whatsappSettings) {
                   this.logger.log(`Found WhatsApp settings for tenant ${tenant.id}`);
                   await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, settings.id);

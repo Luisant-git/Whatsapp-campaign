@@ -11,6 +11,7 @@ export class SubscriptionService {
         name: data.name,
         price: parseFloat(data.price),
         duration: parseInt(data.duration),
+        userLimit: parseInt(data.userLimit),
         features: data.features || [],
         isActive: data.isActive !== false
       }
@@ -44,6 +45,7 @@ export class SubscriptionService {
         name: data.name,
         price: data.price ? parseFloat(data.price) : undefined,
         duration: data.duration ? parseInt(data.duration) : undefined,
+        userLimit: data.userLimit ? parseInt(data.userLimit) : undefined,
         features: data.features,
         isActive: data.isActive
       }

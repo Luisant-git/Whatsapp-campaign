@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getSubscriptions, getCurrentPlan, subscribeToPlan, getUserOrders } from '../api/subscription';
-import { Check, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Check, Clock, CheckCircle, XCircle, AlertCircle, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import '../styles/Subscription.css';
 
@@ -102,6 +102,13 @@ const Subscription = () => {
                 <span className="label">Price</span>
                 <span className="value">₹{currentPlan.subscription.price}</span>
               </div>
+              <div className="info-item">
+  <span className="label">User Limit</span>
+  <span className="value">
+    {currentPlan.subscription.userLimit} Users
+  </span>
+</div>
+
             </div>
           </div>
         </div>
@@ -137,6 +144,16 @@ const Subscription = () => {
                 <span className="amount">{plan.price}</span>
                 <span className="duration">/{plan.duration} days</span>
               </div>
+              <div className="plan-userLimitRow">
+  <div className="plan-userLeft">
+    <span className="plan-userIcon">
+      <Users size={16} />
+    </span>
+    <span className="plan-userText">User limit</span>
+  </div>
+
+  <span className="plan-userPill">Up to {plan.userLimit} users</span>
+</div>
               <ul className="plan-features">
                 {plan.features.map((feature, index) => (
                   <li key={index}>
@@ -211,6 +228,10 @@ const Subscription = () => {
             <div className="modal-plan-info">
               <p className="plan-name">{selectedPlan.name}</p>
               <p className="plan-price">₹{selectedPlan.price} for {selectedPlan.duration} days</p>
+              <p className="plan-user-limit">
+  User Limit: {selectedPlan.userLimit} Users
+</p>
+
             </div>
             <p className="confirm-text">Are you sure you want to subscribe to this plan?</p>
             <div className="modal-actions">

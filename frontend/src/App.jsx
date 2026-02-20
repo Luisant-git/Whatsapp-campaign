@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   MessageSquare,
@@ -25,6 +26,7 @@ import {
   Package,
   ShoppingCart,
   Store,
+  UserIcon,
 } from "lucide-react";
 import { ToastProvider } from "./contexts/ToastContext";
 import WhatsAppChat from "./components/WhatsAppChat";
@@ -49,6 +51,8 @@ import "./styles/Settings.css";
 import "./styles/Profile.css";
 import Labels from "./components/Labels";
 import Blacklist from "./components/BlackList";
+import CreateUser from "./components/CreateUser";
+
 
 function App() {
   const [activeView, setActiveView] = useState("chats");
@@ -223,14 +227,7 @@ function App() {
                 <span>Campaigns</span>
               </button>
               
-              <button
-                className={`nav-item  ${activeView === "Templates" ? "active" : ""
-                  }`}
-                onClick={() => handleMenuClick("settings")}
-              >
-                <Sliders size={16} />
-                <span>Templates</span>
-              </button>
+             
               <button
                 className={`nav-item ${activeView === "auto-reply" ? "active" : ""
                   }`}
@@ -347,6 +344,22 @@ function App() {
                       <Tag size={16} />
                       <span>Labels</span>
                     </button>
+                    <button
+                      className={`nav-subitem ${activeView === "createuser" ? "active" : ""
+                        }`}
+                      onClick={() => handleMenuClick("createuser")}
+                    >
+                      <UserIcon size={16} />
+                      <span>Create user</span>
+                    </button>
+                    <button
+                className={`nav-subitem   ${activeView === "Templates" ? "active" : ""
+                  }`}
+                onClick={() => handleMenuClick("settings")}
+              >
+                <Sliders size={16} />
+                <span>Templates</span>
+              </button>
                   </div>
                 )}
               </div>
@@ -425,6 +438,7 @@ function App() {
             {activeView === "contacts" && <Contact />}
             {activeView === "blacklist" && <Blacklist />}
             {activeView === "labels" && <Labels />}
+            {activeView === "createuser" && <CreateUser/>}
             {activeView === "campaigns" && <Campaigns />}
             {activeView === "categories" && <Categories />}
             {activeView === "products" && <Products />}
@@ -445,3 +459,4 @@ function App() {
 }
 
 export default App;
+

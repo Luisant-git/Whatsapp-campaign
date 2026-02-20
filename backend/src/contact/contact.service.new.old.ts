@@ -74,9 +74,9 @@ export class ContactService {
     const stopPhones = stopLabeled.map((x) => x.phone);
 
     const where: any = {
+      isActive: true, // ✅ only active contacts
       ...(stopPhones.length ? { phone: { notIn: stopPhones } } : {}),
     };
-
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -154,10 +154,14 @@ export class ContactService {
 
     return prisma.contact.update({ where: { id }, data: updateData });
   }
-
+ 
   async remove(id: number, tenantContext: TenantContext) {
     const prisma = this.getPrisma(tenantContext);
-    return prisma.contact.delete({ where: { id } });
+  
+    return prisma.contact.update({
+      where: { id },
+      data: { isActive: false }
+    });
   }
 
   async updateDeliveryStatus(
@@ -182,6 +186,9 @@ export class ContactService {
     });
   }
 
+  
+  
+ 
   async getLabels(tenantContext: TenantContext) {
     const prisma = this.getPrisma(tenantContext);
     const labels = await prisma.chatLabel.findMany({});

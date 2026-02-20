@@ -39,16 +39,22 @@ export class WhatsappService {
     const document = message.document;
     const audio = message.audio;
     
+    this.logger.log(`📨 Incoming message type: ${message.type}`);
+    this.logger.log(`📨 Full message object: ${JSON.stringify(message, null, 2)}`);
+    
     // Handle Meta Catalog order messages
     if (message.type === 'order') {
       const order = message.order;
-      this.logger.log('Meta Catalog order received:', JSON.stringify(order, null, 2));
+      this.logger.log('🛍️ Meta Catalog order received:', JSON.stringify(order, null, 2));
       
       const settings = await this.getSettings(userId);
       const metaCatalogService = this.ecommerceService['metaCatalogService'];
       
       if (metaCatalogService) {
+        this.logger.log('✅ Calling metaCatalogService.handleOrderMessage');
         await metaCatalogService.handleOrderMessage(from, settings.phoneNumberId, order, userId);
+      } else {
+        this.logger.error('❌ metaCatalogService not found!');
       }
       return;
     }

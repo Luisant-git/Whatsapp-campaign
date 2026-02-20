@@ -1,13 +1,13 @@
-import { 
-  Controller, 
-  Post, 
-  Get, 
+import {
+  Controller,
+  Post,
+  Get,
   Put,
   Delete,
-  Body, 
-  Query, 
+  Body,
+  Query,
   Param,
-  UseInterceptors, 
+  UseInterceptors,
   UploadedFile,
   UploadedFiles,
   HttpStatus,
@@ -23,7 +23,7 @@ import { WhatsappService } from './whatsapp.service';
 import { CampaignService } from './campaign.service';
 import { SendMessageDto, SendBulkDto, SendMediaDto, MessageResponseDto, BulkMessageResultDto, WhatsAppMessageDto, UploadResponseDto, AnalyticsDto, WhatsAppSettingsDto, CreateCampaignDto, UpdateCampaignDto, CampaignResponseDto } from './dto';
 import { SessionGuard } from '../auth/session.guard';
-
+ 
 @ApiTags('WhatsApp')
 @Controller('whatsapp')
 export class WhatsappController {
@@ -31,7 +31,7 @@ export class WhatsappController {
     private readonly whatsappService: WhatsappService,
     private readonly campaignService: CampaignService
   ) {}
-
+ 
   @Get('webhook/:verifyToken')
   @ApiOperation({ summary: 'Verify WhatsApp webhook' })
   @ApiParam({ name: 'verifyToken', required: true, description: 'Verify token from settings' })
@@ -45,16 +45,16 @@ export class WhatsappController {
     console.log('Timestamp:', new Date().toISOString());
     console.log('URL Param - verifyToken:', verifyToken);
     console.log('Query Params:', JSON.stringify(query, null, 2));
-    
+   
     const mode = query['hub.mode'];
     const token = query['hub.verify_token'];
     const challenge = query['hub.challenge'];
-    
+   
     console.log('Mode:', mode);
     console.log('Token from query:', token);
     console.log('Token from URL:', verifyToken);
     console.log('Tokens match:', token === verifyToken);
-
+ 
     if (mode === 'subscribe' && token === verifyToken) {
       const isValidToken = await this.whatsappService.validateVerifyToken(verifyToken);
       console.log('Token valid in database:', isValidToken);
@@ -66,7 +66,7 @@ export class WhatsappController {
     console.log('✗ Webhook verification failed');
     throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);
   }
-
+ 
   // Catch-all for debugging - remove after testing
   @Get('webhook')
   @ApiOperation({ summary: 'Catch-all webhook GET for debugging' })
@@ -78,113 +78,131 @@ export class WhatsappController {
     console.log('Please update Meta Console with: /whatsapp/webhook/YOUR_TOKEN');
     throw new HttpException('Forbidden - Token required in URL', HttpStatus.FORBIDDEN);
   }
-
+ 
   @Post('webhook/:verifyToken')
   @ApiOperation({ summary: 'Handle incoming WhatsApp webhooks' })
   @ApiParam({ name: 'verifyToken', required: true, description: 'Verify token from settings' })
   @ApiResponse({ status: 200, description: 'Webhook processed successfully' })
   @ApiResponse({ status: 404, description: 'Not Found' })
   async handleWebhook(@Param('verifyToken') verifyToken: string, @Body() body: any) {
-    console.log('\n=== WEBHOOK POST RECEIVED ===');
-    console.log('Timestamp:', new Date().toISOString());
-    console.log('Verify Token:', verifyToken);
-    console.log('Body:', JSON.stringify(body, null, 2));
-    
-    if (!body || !body.object) {
-      console.log('⚠️ Empty or invalid webhook body');
-      return 'EVENT_RECEIVED';
-    }
-    
-    if (body.object === 'whatsapp_business_account') {
-      for (const entry of body.entry) {
-        for (const change of entry.changes) {
-          if (change.field === 'messages') {
-            const message = change.value.messages?.[0];
-            if (message) {
-              console.log('Processing incoming message:', message);
-              const phoneNumberId = change.value.metadata?.phone_number_id;
-              console.log('Phone Number ID:', phoneNumberId);
-              
-              // Get user by verify token first
-              const userId = await this.whatsappService.findUserByVerifyToken(verifyToken);
-              console.log('User ID from verify token:', userId);
-              const userIds = userId ? [userId] : await this.whatsappService.findAllUsersByPhoneNumberId(phoneNumberId);
-              console.log('Final user IDs:', userIds);
-              
-              if (userIds && userIds.length > 0) {
-                // Store message for all users sharing this phone number
-                for (const userId of userIds) {
-                  await this.whatsappService.handleIncomingMessage(message, userId);
-                }
-              } else {
-                // Fallback: try to find any active user
-                const userId = await this.whatsappService.findFirstActiveUser();
-                if (userId) {
-                  await this.whatsappService.handleIncomingMessage(message, userId);
-                } else {
-                  console.log('No user found for phone number ID:', phoneNumberId);
-                  console.log('Message not stored - no matching user configuration');
+    try {
+      console.log('\n=== WEBHOOK POST RECEIVED ===');
+      console.log('Timestamp:', new Date().toISOString());
+      console.log('Verify Token:', verifyToken);
+      console.log('Body:', JSON.stringify(body, null, 2));
+     
+      if (!body || !body.object) {
+        console.log('⚠️ Empty or invalid webhook body');
+        return 'EVENT_RECEIVED';
+      }
+     
+      if (body.object === 'whatsapp_business_account') {
+        for (const entry of body.entry) {
+          for (const change of entry.changes) {
+            if (change.field === 'messages') {
+              const message = change.value.messages?.[0];
+              if (message) {
+                try {
+                  console.log('Processing incoming message:', message);
+                  const phoneNumberId = change.value.metadata?.phone_number_id;
+                  console.log('Phone Number ID:', phoneNumberId);
+                 
+                  let userId = await this.whatsappService.findUserByVerifyToken(verifyToken);
+                  console.log('User ID from verify token:', userId);
+                 
+                  if (!userId) {
+                    const userIds = await this.whatsappService.findAllUsersByPhoneNumberId(phoneNumberId);
+                    console.log('User IDs from phone number ID:', userIds);
+                    userId = userIds.length > 0 ? userIds[0] : null;
+                  }
+                 
+                  if (!userId) {
+                    userId = await this.whatsappService.findFirstActiveUser();
+                    console.log('Fallback user ID:', userId);
+                  }
+                 
+                  if (userId) {
+                    console.log(`✓ Processing message for user ID: ${userId}`);
+                    await this.whatsappService.handleIncomingMessage(message, userId);
+                  } else {
+                    console.log('✗ No user found for phone number ID:', phoneNumberId);
+                  }
+                } catch (msgError) {
+                  console.error('Error processing message:', msgError);
                 }
               }
-            }
-            const statuses = change.value.statuses;
-            if (statuses) {
-              for (const status of statuses) {
-                await this.whatsappService.updateMessageStatus(status.id, status.status);
+             
+              const statuses = change.value.statuses;
+              if (statuses) {
+                for (const status of statuses) {
+                  try {
+                    await this.whatsappService.updateMessageStatus(status.id, status.status);
+                  } catch (statusError) {
+                    console.error('Error updating status:', statusError);
+                  }
+                }
               }
             }
           }
         }
+        return 'EVENT_RECEIVED';
       }
+      throw new HttpException('Not Found', HttpStatus.NOT_FOUND);
+    } catch (error) {
+      console.error('Webhook error:', error);
       return 'EVENT_RECEIVED';
     }
-    throw new HttpException('Not Found', HttpStatus.NOT_FOUND);
   }
-
+ 
   @Post('webhook')
   @ApiOperation({ summary: 'Handle webhook without token parameter' })
   async catchAllWebhookPost(@Body() body: any) {
-    console.log('\n⚠️ WEBHOOK POST WITHOUT TOKEN');
-    console.log('Timestamp:', new Date().toISOString());
-    console.log('Body:', JSON.stringify(body, null, 2));
-    
-    if (!body || !body.object) {
-      return 'EVENT_RECEIVED';
-    }
-    
-    if (body.object === 'whatsapp_business_account') {
-      for (const entry of body.entry) {
-        for (const change of entry.changes) {
-          if (change.field === 'messages') {
-            const message = change.value.messages?.[0];
-            if (message) {
-              const phoneNumberId = change.value.metadata?.phone_number_id;
-              const userIds = await this.whatsappService.findAllUsersByPhoneNumberId(phoneNumberId);
-              
-              if (userIds && userIds.length > 0) {
-                for (const userId of userIds) {
-                  await this.whatsappService.handleIncomingMessage(message, userId);
-                }
-              } else {
-                const userId = await this.whatsappService.findFirstActiveUser();
-                if (userId) {
-                  await this.whatsappService.handleIncomingMessage(message, userId);
+    try {
+      console.log('\n⚠️ WEBHOOK POST WITHOUT TOKEN');
+      console.log('Timestamp:', new Date().toISOString());
+      console.log('Body:', JSON.stringify(body, null, 2));
+     
+      if (!body || !body.object) {
+        return 'EVENT_RECEIVED';
+      }
+     
+      if (body.object === 'whatsapp_business_account') {
+        for (const entry of body.entry) {
+          for (const change of entry.changes) {
+            if (change.field === 'messages') {
+              const message = change.value.messages?.[0];
+              if (message) {
+                try {
+                  const phoneNumberId = change.value.metadata?.phone_number_id;
+                  console.log('Processing message for phone number ID:', phoneNumberId);
+                 
+                  await this.whatsappService.handleIncomingMessageWithoutContext(message, phoneNumberId);
+                } catch (msgError) {
+                  console.error('Error processing message:', msgError);
                 }
               }
-            }
-            const statuses = change.value.statuses;
-            if (statuses) {
-              for (const status of statuses) {
-                await this.whatsappService.updateMessageStatus(status.id, status.status);
+             
+              const statuses = change.value.statuses;
+              if (statuses) {
+                for (const status of statuses) {
+                  try {
+                    await this.whatsappService.updateMessageStatusWithoutContext(status.id, status.status, change.value.metadata?.phone_number_id);
+                  } catch (statusError) {
+                    console.error('Error updating status:', statusError);
+                  }
+                }
               }
             }
           }
         }
       }
+      return 'EVENT_RECEIVED';
+    } catch (error) {
+      console.error('Webhook error:', error);
+      return 'EVENT_RECEIVED';
     }
-    return 'EVENT_RECEIVED';
   }
-
+ 
   @Get('messages')
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Get WhatsApp messages' })
@@ -193,7 +211,7 @@ export class WhatsappController {
   async getMessages(@Session() session: any, @Query('phone') phone?: string) {
     return this.whatsappService.getMessages(session.user.id, phone);
   }
-
+ 
   @Post('send-message')
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Send a WhatsApp message' })
@@ -202,7 +220,7 @@ export class WhatsappController {
   async sendMessage(@Session() session: any, @Body() sendMessageDto: SendMessageDto) {
     return this.whatsappService.sendMessage(sendMessageDto.to, sendMessageDto.message, session.user.id);
   }
-
+ 
   @Post('send-bulk')
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Send bulk WhatsApp messages using templates and create campaign' })
@@ -211,9 +229,9 @@ export class WhatsappController {
   async sendBulk(@Session() session: any, @Body() body: any) {
     // Handle nested structure from frontend
     const sendBulkDto = body.contacts || body;
-    
+   
     let contacts = [];
-    
+   
     if (Array.isArray(sendBulkDto.contacts)) {
       contacts = sendBulkDto.contacts;
     } else if (Array.isArray(sendBulkDto.phoneNumbers)) {
@@ -221,7 +239,7 @@ export class WhatsappController {
     } else {
       throw new Error('No valid contacts provided');
     }
-    
+   
     const campaignName = body.name || sendBulkDto.name || `Bulk Campaign - ${new Date().toLocaleDateString()}`;
     const campaign = await this.campaignService.createCampaign({
       name: campaignName,
@@ -233,7 +251,7 @@ export class WhatsappController {
       scheduledTime: sendBulkDto.scheduledTime,
       groupId: sendBulkDto.groupId, // ✅ Added this line
     }, session.user.id);
-
+ 
     // If one-time, run immediately; if time-based, just return campaign info
     if (sendBulkDto.scheduleType === 'time-based') {
       return {
@@ -245,14 +263,14 @@ export class WhatsappController {
     } else {
       // Run the campaign immediately
       const result = await this.campaignService.runCampaign(campaign.id, session.user.id);
-      
+     
       return {
         campaignName,
         ...result
       };
     }
   }
-
+ 
   @Post('send-media')
   @ApiOperation({ summary: 'Send WhatsApp media message' })
   @ApiConsumes('multipart/form-data')
@@ -270,11 +288,11 @@ export class WhatsappController {
     fileFilter: (req, file, cb) => {
       const allowedTypes = /jpeg|jpg|png|gif|webp|mp4|avi|mov|mkv|pdf|doc|docx|xls|xlsx|ppt|pptx|mp3|wav|ogg|aac|m4a/;
       const extname = allowedTypes.test(file.originalname.toLowerCase());
-      const mimetype = allowedTypes.test(file.mimetype) || 
-                       file.mimetype.includes('document') || 
-                       file.mimetype.includes('spreadsheet') || 
+      const mimetype = allowedTypes.test(file.mimetype) ||
+                       file.mimetype.includes('document') ||
+                       file.mimetype.includes('spreadsheet') ||
                        file.mimetype.includes('presentation');
-      
+     
       if (mimetype || extname) {
         return cb(null, true);
       } else {
@@ -293,21 +311,21 @@ export class WhatsappController {
     if (!file) {
       throw new HttpException('File is required', HttpStatus.BAD_REQUEST);
     }
-
+ 
     const mediaUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
     const mediaType = file.mimetype.startsWith('image') ? 'image' :
                       file.mimetype.startsWith('video') ? 'video' :
                       file.mimetype.startsWith('audio') ? 'audio' : 'document';
-    
+   
     return this.whatsappService.sendMediaMessage(
-      sendMediaDto.to, 
-      mediaUrl, 
-      mediaType, 
+      sendMediaDto.to,
+      mediaUrl,
+      mediaType,
       session.user.id,
       sendMediaDto.caption
     );
   }
-
+ 
   @Get('message-status/:messageId')
   @ApiOperation({ summary: 'Get message status by ID' })
   @ApiParam({ name: 'messageId', description: 'WhatsApp message ID' })
@@ -315,7 +333,7 @@ export class WhatsappController {
   async getMessageStatus(@Param('messageId') messageId: string) {
     return this.whatsappService.getMessageStatus(messageId);
   }
-
+ 
   @Post('upload')
   @ApiOperation({ summary: 'Upload media file for WhatsApp' })
   @ApiConsumes('multipart/form-data')
@@ -331,11 +349,11 @@ export class WhatsappController {
     fileFilter: (req, file, cb) => {
       const allowedTypes = /jpeg|jpg|png|gif|webp|mp4|avi|mov|mkv|pdf|doc|docx|xls|xlsx|ppt|pptx|mp3|wav|ogg|aac|m4a/;
       const extname = allowedTypes.test(file.originalname.toLowerCase());
-      const mimetype = allowedTypes.test(file.mimetype) || 
-                       file.mimetype.includes('document') || 
-                       file.mimetype.includes('spreadsheet') || 
+      const mimetype = allowedTypes.test(file.mimetype) ||
+                       file.mimetype.includes('document') ||
+                       file.mimetype.includes('spreadsheet') ||
                        file.mimetype.includes('presentation');
-      
+     
       if (mimetype || extname) {
         return cb(null, true);
       } else {
@@ -350,12 +368,12 @@ export class WhatsappController {
     if (!file) {
       throw new HttpException('File is required', HttpStatus.BAD_REQUEST);
     }
-
+ 
     const mediaUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
     const mediaType = file.mimetype.startsWith('image') ? 'image' :
                       file.mimetype.startsWith('video') ? 'video' :
                       file.mimetype.startsWith('audio') ? 'audio' : 'document';
-    
+   
     return {
       success: true,
       filename: file.filename,
@@ -366,7 +384,7 @@ export class WhatsappController {
       mimetype: file.mimetype
     };
   }
-
+ 
   @Post('upload-multiple')
   @ApiOperation({ summary: 'Upload multiple media files for WhatsApp' })
   @ApiConsumes('multipart/form-data')
@@ -382,11 +400,11 @@ export class WhatsappController {
     fileFilter: (req, file, cb) => {
       const allowedTypes = /jpeg|jpg|png|gif|webp|mp4|avi|mov|mkv|pdf|doc|docx|xls|xlsx|ppt|pptx|mp3|wav|ogg|aac|m4a/;
       const extname = allowedTypes.test(file.originalname.toLowerCase());
-      const mimetype = allowedTypes.test(file.mimetype) || 
-                       file.mimetype.includes('document') || 
-                       file.mimetype.includes('spreadsheet') || 
+      const mimetype = allowedTypes.test(file.mimetype) ||
+                       file.mimetype.includes('document') ||
+                       file.mimetype.includes('spreadsheet') ||
                        file.mimetype.includes('presentation');
-      
+     
       if (mimetype || extname) {
         return cb(null, true);
       } else {
@@ -401,13 +419,13 @@ export class WhatsappController {
     if (!files || files.length === 0) {
       throw new HttpException('At least one file is required', HttpStatus.BAD_REQUEST);
     }
-
+ 
     const results = files.map(file => {
       const mediaUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
       const mediaType = file.mimetype.startsWith('image') ? 'image' :
                         file.mimetype.startsWith('video') ? 'video' :
                         file.mimetype.startsWith('audio') ? 'audio' : 'document';
-      
+     
       return {
         success: true,
         filename: file.filename,
@@ -418,10 +436,10 @@ export class WhatsappController {
         mimetype: file.mimetype
       };
     });
-
+ 
     return results;
   }
-
+ 
   // Campaign endpoints
   @Post('campaigns')
   @UseGuards(SessionGuard)
@@ -430,7 +448,7 @@ export class WhatsappController {
   async createCampaign(@Session() session: any, @Body() createCampaignDto: CreateCampaignDto) {
     return this.campaignService.createCampaign(createCampaignDto, session.user.id);
   }
-
+ 
   @Get('campaigns')
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Get all campaigns' })
@@ -439,7 +457,7 @@ export class WhatsappController {
   async getCampaigns(@Session() session: any, @Query('settingsName') settingsName?: string) {
     return this.campaignService.getCampaigns(session.user.id, settingsName);
   }
-
+ 
   @Get('campaigns/:id')
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Get campaign by ID' })
@@ -448,7 +466,7 @@ export class WhatsappController {
   async getCampaign(@Session() session: any, @Param('id') id: string) {
     return this.campaignService.getCampaign(parseInt(id), session.user.id);
   }
-
+ 
   @Put('campaigns/:id')
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Update campaign' })
@@ -457,7 +475,7 @@ export class WhatsappController {
   async updateCampaign(@Session() session: any, @Param('id') id: string, @Body() updateCampaignDto: UpdateCampaignDto) {
     return this.campaignService.updateCampaign(parseInt(id), updateCampaignDto, session.user.id);
   }
-
+ 
   @Post('campaigns/:id/run')
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Run/Rerun campaign' })
@@ -466,7 +484,7 @@ export class WhatsappController {
   async runCampaign(@Session() session: any, @Param('id') id: string) {
     return this.campaignService.runCampaign(parseInt(id), session.user.id);
   }
-
+ 
   @Delete('campaigns/:id')
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Delete campaign' })
@@ -475,17 +493,17 @@ export class WhatsappController {
   async deleteCampaign(@Session() session: any, @Param('id') id: string) {
     return this.campaignService.deleteCampaign(parseInt(id), session.user.id);
   }
-
+ 
   @Get('campaigns/scheduled')
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Get scheduled campaigns' })
   @ApiResponse({ status: 200, description: 'Scheduled campaigns retrieved successfully' })
   async getScheduledCampaigns(@Session() session: any) {
-    return this.campaignService.getCampaigns(session.user.id).then(campaigns => 
+    return this.campaignService.getCampaigns(session.user.id).then(campaigns =>
       campaigns.filter(c => c.status === 'scheduled')
     );
   }
-
+ 
   @Get('campaigns/:id/results')
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Get campaign results with response tracking' })
@@ -494,7 +512,7 @@ export class WhatsappController {
   async getCampaignResults(@Session() session: any, @Param('id') id: string) {
     return this.campaignService.getCampaignResults(parseInt(id), session.user.id);
   }
-
+ 
   @Get('campaigns/:id/results/download')
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Download campaign results as CSV or Excel' })
@@ -502,16 +520,17 @@ export class WhatsappController {
   @ApiQuery({ name: 'format', enum: ['csv', 'xlsx'], description: 'Download format' })
   @ApiResponse({ status: 200, description: 'Campaign results file downloaded' })
   async downloadCampaignResults(
-    @Session() session: any, 
+    @Session() session: any,
     @Param('id') id: string,
     @Query('format') format: 'csv' | 'xlsx' = 'csv',
     @Res() res: any
   ) {
     const result = await this.campaignService.downloadCampaignResults(parseInt(id), session.user.id, format);
-    
+   
     res.setHeader('Content-Type', result.contentType);
     res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
     res.send(result.data);
   }
-
-} 
+ 
+}
+ 

@@ -1,11 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import axios from 'axios';
+import { EcommerceService } from './ecommerce.service';
 
 @Injectable()
 export class MetaCatalogService {
   private readonly catalogId = process.env.META_CATALOG_ID;
   private readonly accessToken = process.env.META_ACCESS_TOKEN;
   private readonly apiUrl = 'https://graph.facebook.com/v18.0';
+
+  constructor(private ecommerceService: EcommerceService) {}
 
   async syncProductToCatalog(product: any) {
     try {
@@ -43,22 +46,32 @@ export class MetaCatalogService {
     }
   }
 
-  async sendCatalogMessage(phone: string, phoneNumberId: string, productRetailerId?: string) {
+  async sendCatalogMessage(phone: string, phoneNumberId: string, userId?: number) {
     try {
-      console.log('Sending catalog message to:', phone);
-      console.log('Using catalog ID:', this.catalogId);
+      const products = await this.ecommerceService.getProducts(undefined, userId);
+      const productItems = products.map(p => ({ product_retailer_id: `product_${p.id}` }));
       
       const messagePayload = {
         messaging_product: 'whatsapp',
         to: phone,
         type: 'interactive',
         interactive: {
-          type: 'catalog_message',
+          type: 'product_list',
+          header: {
+            type: 'text',
+            text: 'Our Products'
+          },
           body: {
-            text: '🛍️ Browse our products!'
+            text: '🛍️ Browse our collection!'
           },
           action: {
-            name: 'catalog_message'
+            catalog_id: this.catalogId,
+            sections: [
+              {
+                title: 'Available Products',
+                product_items: productItems
+              }
+            ]
           }
         }
       };

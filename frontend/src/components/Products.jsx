@@ -10,7 +10,7 @@ export default function Products() {
   const [showMetaModal, setShowMetaModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [form, setForm] = useState({
-    name: '', description: '', price: '', subCategoryId: '', image: null
+    name: '', description: '', price: '', subCategoryId: '', image: null, link: ''
   });
 
   useEffect(() => {
@@ -53,7 +53,8 @@ export default function Products() {
       description: prod.description || '',
       price: prod.price,
       subCategoryId: prod.subCategoryId,
-      image: null
+      image: null,
+      link: prod.link || ''
     });
     setShowModal(true);
   };
@@ -72,6 +73,7 @@ export default function Products() {
     formData.append('description', form.description);
     formData.append('price', form.price);
     formData.append('subCategoryId', form.subCategoryId);
+    formData.append('link', form.link);
     if (form.image) formData.append('image', form.image);
 
     try {
@@ -82,7 +84,7 @@ export default function Products() {
       alert('❌ Failed: ' + (error.response?.data?.message || error.message));
     }
     
-    setForm({ name: '', description: '', price: '', subCategoryId: '', image: null });
+    setForm({ name: '', description: '', price: '', subCategoryId: '', image: null, link: '' });
     setShowMetaModal(false);
     loadData();
   };
@@ -348,6 +350,16 @@ export default function Products() {
                 <option key={sub.id} value={sub.id}>{sub.name}</option>
               ))}
             </select>
+          </div>
+          <div className="form-group">
+            <label>Link</label>
+            <input
+              className="form-input"
+              type="url"
+              placeholder="https://example.com/product"
+              value={form.link}
+              onChange={(e) => setForm({ ...form, link: e.target.value })}
+            />
           </div>
           <div className="form-group">
             <label>Product Image</label>

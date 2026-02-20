@@ -26,6 +26,7 @@ export class MetaCatalogService {
         condition: 'new',
         brand: 'Store',
         image_url: imageUrl,
+        url: product.link || imageUrl,
       };
 
       const response = await axios.post(

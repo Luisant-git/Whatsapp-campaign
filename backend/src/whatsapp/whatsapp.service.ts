@@ -971,20 +971,27 @@ export class WhatsappService {
         
         // Only add header if explicitly provided via headerImageUrl parameter
         if (headerImageUrl && headerImageUrl.trim() !== '' && headerImageUrl.startsWith('http')) {
-          this.logger.log(`Adding header image: ${headerImageUrl}`);
+          this.logger.log(`Adding header media: ${headerImageUrl}`);
+          
+          // Detect if it's a video or image based on file extension
+          const isVideo = /\.(mp4|avi|mov)$/i.test(headerImageUrl);
+          const mediaType = isVideo ? 'video' : 'image';
+          
+          this.logger.log(`Detected media type: ${mediaType}`);
+          
           components.push({
             type: 'header',
             parameters: [
               {
-                type: 'image',
-                image: {
+                type: mediaType,
+                [mediaType]: {
                   link: headerImageUrl
                 }
               }
             ]
           });
         } else {
-          this.logger.log('No header image provided, sending template without header');
+          this.logger.log('No header media provided, sending template without header');
         }
         
         const requestBody = {

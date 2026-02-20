@@ -43,11 +43,10 @@ export class MetaCatalogService {
     }
   }
 
-  async sendCatalogMessage(phone: string, phoneNumberId: string, productRetailerId: string) {
+  async sendCatalogMessage(phone: string, phoneNumberId: string, productRetailerId?: string) {
     try {
       console.log('Sending catalog message to:', phone);
       console.log('Using catalog ID:', this.catalogId);
-      console.log('Using product retailer ID:', productRetailerId);
       
       const messagePayload = {
         messaging_product: 'whatsapp',
@@ -59,10 +58,7 @@ export class MetaCatalogService {
             text: '🛍️ Browse our products!'
           },
           action: {
-            name: 'catalog_message',
-            parameters: {
-              thumbnail_product_retailer_id: productRetailerId
-            }
+            name: 'catalog_message'
           }
         }
       };

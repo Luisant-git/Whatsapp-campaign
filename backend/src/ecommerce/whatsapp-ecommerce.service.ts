@@ -16,10 +16,7 @@ export class WhatsappEcommerceService {
     const msg = message.toLowerCase().trim();
 
     if (msg === 'shop' || msg === 'catalog' || msg === 'products') {
-      // Get first product to use as thumbnail
-      const products = await this.ecommerceService.getProducts(undefined, userId);
-      const firstProductRetailerId = products.length > 0 ? `product_${products[0].id}` : 'product_1';
-      return this.metaCatalogService.sendCatalogMessage(phone, phoneNumberId, firstProductRetailerId);
+      return this.metaCatalogService.sendCatalogMessage(phone, phoneNumberId, userId);
     }
 
     if (msg.startsWith('cat:')) {

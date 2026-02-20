@@ -73,7 +73,7 @@ export class MetaCatalogService {
                   { product_retailer_id: 'product_5' },
                   { product_retailer_id: 'product_6' },
                   { product_retailer_id: 'product_17' },
-                  { product_retailer_id: 'product_18' }
+                  { product_retailer_id: 'product_19' }
                 ]
               }
             ]

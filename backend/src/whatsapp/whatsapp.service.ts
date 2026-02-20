@@ -40,21 +40,32 @@ export class WhatsappService {
     const audio = message.audio;
     
     this.logger.log(`📨 Incoming message type: ${message.type}`);
-    this.logger.log(`📨 Full message object: ${JSON.stringify(message, null, 2)}`);
     
-    // Handle Meta Catalog order messages
+    // Handle Meta Catalog order messages (when order management is enabled)
     if (message.type === 'order') {
       const order = message.order;
-      this.logger.log('🛍️ Meta Catalog order received:', JSON.stringify(order, null, 2));
+      this.logger.log('🛒 Meta Catalog order received:', JSON.stringify(order, null, 2));
       
       const settings = await this.getSettings(userId);
       const metaCatalogService = this.ecommerceService['metaCatalogService'];
       
       if (metaCatalogService) {
-        this.logger.log('✅ Calling metaCatalogService.handleOrderMessage');
         await metaCatalogService.handleOrderMessage(from, settings.phoneNumberId, order, userId);
-      } else {
-        this.logger.error('❌ metaCatalogService not found!');
+      }
+      return;
+    }
+    
+    // Handle interactive nfm_reply (catalog cart sent)
+    if (message.type === 'interactive' && message.interactive?.type === 'nfm_reply') {
+      this.logger.log('🛒 Catalog cart message received');
+      const nfmReply = message.interactive.nfm_reply;
+      const orderData = JSON.parse(nfmReply.response_json || '{}');
+      
+      const settings = await this.getSettings(userId);
+      const metaCatalogService = this.ecommerceService['metaCatalogService'];
+      
+      if (metaCatalogService && orderData) {
+        await metaCatalogService.handleOrderMessage(from, settings.phoneNumberId, orderData, userId);
       }
       return;
     }

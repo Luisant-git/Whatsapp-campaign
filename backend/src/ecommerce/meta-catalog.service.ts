@@ -48,6 +48,24 @@ export class MetaCatalogService {
 
   async sendCatalogMessage(phone: string, phoneNumberId: string, userId?: number) {
     try {
+      // Fetch products from Meta Catalog to get actual retailer IDs
+      const catalogProducts = await axios.get(
+        `${this.apiUrl}/${this.catalogId}/products?fields=id,retailer_id,name`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+          },
+        }
+      );
+      
+      console.log('Products in Meta Catalog:', catalogProducts.data);
+      
+      const productItems = catalogProducts.data.data.map(p => ({
+        product_retailer_id: p.retailer_id
+      }));
+      
+      console.log('Product items to send:', productItems);
+      
       const messagePayload = {
         messaging_product: 'whatsapp',
         to: phone,
@@ -69,12 +87,7 @@ export class MetaCatalogService {
             sections: [
               {
                 title: 'Available Now',
-                product_items: [
-                  { product_retailer_id: 'product_5' },
-                  { product_retailer_id: 'product_6' },
-                  { product_retailer_id: 'product_17' },
-                  { product_retailer_id: 'product_19' }
-                ]
+                product_items: productItems.slice(0, 30)
               }
             ]
           }

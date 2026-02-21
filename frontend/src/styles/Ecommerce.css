@@ -351,6 +351,21 @@
   color: #ffffff;
 }
 
+.status-active {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.status-blocked {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.status-vip {
+  background: #f59e0b;
+  color: #000000;
+}
+
 .category-list {
   list-style: none;
   padding: 0;

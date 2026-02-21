@@ -123,4 +123,40 @@ export class EcommerceService {
       data: { status },
     });
   }
+
+  async getCustomers(userId?: number) {
+    const client = userId ? await this.getTenantClient(userId) : this.prisma;
+    const orders = await client.order.findMany({
+      include: { product: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const customerMap = new Map();
+    orders.forEach(order => {
+      const phone = order.customerPhone;
+      if (!customerMap.has(phone)) {
+        customerMap.set(phone, {
+          customerName: order.customerName,
+          customerPhone: phone,
+          customerAddress: order.customerAddress,
+          totalOrders: 0,
+          totalSpent: 0,
+          lastOrderDate: order.createdAt,
+          orders: []
+        });
+      }
+      const customer = customerMap.get(phone);
+      customer.totalOrders++;
+      customer.totalSpent += order.totalAmount;
+      customer.orders.push({
+        id: order.id,
+        productName: order.product?.name,
+        amount: order.totalAmount,
+        status: order.status,
+        date: order.createdAt
+      });
+    });
+
+    return Array.from(customerMap.values());
+  }
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ecommerceApi } from '../api/ecommerce';
-import { Pencil, Trash2, Upload } from 'lucide-react';
+import { Pencil, Trash2, Upload, Search } from 'lucide-react';
 import '../styles/Ecommerce.css';
 
 export default function Products() {
@@ -9,6 +9,7 @@ export default function Products() {
   const [showModal, setShowModal] = useState(false);
   const [showMetaModal, setShowMetaModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [form, setForm] = useState({
     name: '', description: '', price: '', subCategoryId: '', image: null, link: ''
   });
@@ -127,6 +128,12 @@ export default function Products() {
     }
   };
 
+  const filteredProducts = products.filter(p =>
+    p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.subCategory?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="ecommerce-container">
       <div className="ecommerce-header">
@@ -157,8 +164,19 @@ export default function Products() {
       </div>
 
       <div className="filters-section">
+        <div style={{position: 'relative', width: '300px'}}>
+          <Search size={18} style={{position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af'}} />
+          <input
+            type="text"
+            className="form-input"
+            placeholder="Search products..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{paddingLeft: '40px', padding: '8px 12px 8px 40px'}}
+          />
+        </div>
         <div className="total-count">
-          Total: {products.length} Product{products.length !== 1 ? 's' : ''}
+          Showing: {filteredProducts.length} Product{filteredProducts.length !== 1 ? 's' : ''}
         </div>
       </div>
 
@@ -174,7 +192,7 @@ export default function Products() {
             </tr>
           </thead>
           <tbody>
-            {products.map((prod) => (
+            {filteredProducts.map((prod) => (
               <tr key={prod.id}>
                 <td>
                   {prod.imageUrl && <img src={prod.imageUrl.startsWith('http') ? prod.imageUrl : `http://localhost:3010${prod.imageUrl}`} alt={prod.name} className="product-image" />}

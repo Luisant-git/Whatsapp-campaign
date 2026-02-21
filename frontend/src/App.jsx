@@ -45,6 +45,7 @@ import Subscription from "./components/Subscription";
 import Categories from "./components/Categories";
 import Products from "./components/Products";
 import Orders from "./components/Orders";
+import Customers from "./components/Customers";
 import "./App.css";
 import "./styles/Analytics.css";
 import "./styles/Settings.css";
@@ -269,7 +270,7 @@ function App() {
               <div className="nav-item-group">
                 <button
                   className={`nav-item ${ecommerceOpen &&
-                      !["categories", "products", "orders"].includes(activeView)
+                      !["categories", "products", "orders", "customers"].includes(activeView)
                       ? "active"
                       : ""
                     }`}
@@ -306,6 +307,15 @@ function App() {
                     >
                       <ShoppingCart size={16} />
                       <span>Orders</span>
+                    </button>
+
+                    <button
+                      className={`nav-subitem ${activeView === "customers" ? "active" : ""
+                        }`}
+                      onClick={() => handleMenuClick("customers")}
+                    >
+                      <Users size={16} />
+                      <span>Customers</span>
                     </button>
                   </div>
                 )}
@@ -443,6 +453,7 @@ function App() {
             {activeView === "categories" && <Categories />}
             {activeView === "products" && <Products />}
             {activeView === "orders" && <Orders />}
+            {activeView === "customers" && <Customers />}
             {activeView === "auto-reply" && <AutoReply />}
             {activeView === "quick-reply" && useQuickReply && <QuickReply />}
             {activeView === "chatbot" && aiChatbotEnabled && <Chatbot />}

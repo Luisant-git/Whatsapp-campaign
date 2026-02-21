@@ -151,4 +151,9 @@ export class EcommerceController {
     const product = await this.ecommerceService.getProduct(+id);
     return this.metaCatalogService.syncProductToCatalog(product);
   }
+
+  @Get('customers')
+  getCustomers(@Request() req) {
+    return this.ecommerceService.getCustomers(req.session.userId);
+  }
 }

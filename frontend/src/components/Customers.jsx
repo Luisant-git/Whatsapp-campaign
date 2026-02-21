@@ -15,17 +15,7 @@ export default function Customers() {
 
   const loadCustomers = async () => {
     const res = await ecommerceApi.getCustomers();
-    const customersWithStatus = res.data.map(c => ({
-      ...c,
-      status: c.status || 'active'
-    }));
-    setCustomers(customersWithStatus);
-  };
-
-  const updateCustomerStatus = async (phone, status) => {
-    setCustomers(customers.map(c => 
-      c.customerPhone === phone ? { ...c, status } : c
-    ));
+    setCustomers(res.data);
   };
 
   const filteredCustomers = customers.filter(c =>
@@ -88,7 +78,6 @@ export default function Customers() {
               <th>Total Orders</th>
               <th>Total Spent</th>
               <th>Last Order</th>
-              <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -104,30 +93,13 @@ export default function Customers() {
                 <td style={{fontWeight: 600, color: '#10b981'}}>₹{customer.totalSpent}</td>
                 <td>{new Date(customer.lastOrderDate).toLocaleDateString()}</td>
                 <td>
-                  <span className={`status-badge status-${customer.status}`}>
-                    {customer.status}
-                  </span>
-                </td>
-                <td>
-                  <div style={{display: 'flex', gap: '6px'}}>
-                    <select
-                      className="form-select"
-                      value={customer.status}
-                      onChange={(e) => updateCustomerStatus(customer.customerPhone, e.target.value)}
-                      style={{padding: '4px 8px', fontSize: '12px', minWidth: '100px'}}
-                    >
-                      <option value="active">Active</option>
-                      <option value="blocked">Blocked</option>
-                      <option value="vip">VIP</option>
-                    </select>
-                    <button
-                      style={{background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', transition: 'all 0.2s'}}
-                      onClick={() => setViewCustomer(customer)}
-                      title="View Orders"
-                    >
-                      <Eye size={16} />
-                    </button>
-                  </div>
+                  <button
+                    style={{background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', transition: 'all 0.2s'}}
+                    onClick={() => setViewCustomer(customer)}
+                    title="View Orders"
+                  >
+                    <Eye size={16} />
+                  </button>
                 </td>
               </tr>
             ))}

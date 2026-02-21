@@ -149,6 +149,7 @@ export default function Orders() {
               <th>Amount</th>
               <th>Date</th>
               <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -166,6 +167,11 @@ export default function Orders() {
                 <td style={{fontWeight: 600}}>₹{order.totalAmount}</td>
                 <td style={{fontSize: '13px'}}>
                   {new Date(order.createdAt).toLocaleDateString()}
+                </td>
+                <td>
+                  <span className={`status-badge status-${order.status}`}>
+                    {order.status}
+                  </span>
                 </td>
                 <td>
                   <select

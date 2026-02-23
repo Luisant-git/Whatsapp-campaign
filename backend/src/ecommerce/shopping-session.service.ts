@@ -16,6 +16,8 @@ interface ShoppingSession {
 
 @Injectable()
 export class ShoppingSessionService {
+  private memoryCache = new Map<string, ShoppingSession>();
+  
   constructor(
     private tenantPrisma: TenantPrismaService,
     private centralPrisma: CentralPrismaService
@@ -29,13 +31,18 @@ export class ShoppingSessionService {
   }
 
   async setSession(phone: string, data: Partial<ShoppingSession>, tenantId?: number) {
-    if (!tenantId) return; // Skip if no tenant context
+    if (!tenantId) return;
     
-    const client = await this.getTenantClient(tenantId);
-    const existing = await this.getSession(phone, tenantId);
+    const cacheKey = `${tenantId}:${phone}`;
+    const existing = this.memoryCache.get(cacheKey) || await this.getSession(phone, tenantId);
     const sessionData = { ...existing, ...data, timestamp: Date.now() };
     
-    await client.shoppingSession.upsert({
+    // Update memory cache immediately
+    this.memoryCache.set(cacheKey, sessionData);
+    
+    // Update database in background
+    const client = await this.getTenantClient(tenantId);
+    client.shoppingSession.upsert({
       where: { phone },
       update: {
         currentProductId: sessionData.currentProductId,
@@ -57,12 +64,21 @@ export class ShoppingSessionService {
         customerCity: sessionData.customerCity,
         customerPincode: sessionData.customerPincode,
       },
-    });
+    }).catch(e => console.error('DB save error:', e));
   }
 
   async getSession(phone: string, tenantId?: number): Promise<ShoppingSession | undefined> {
     if (!tenantId) return undefined;
     
+    const cacheKey = `${tenantId}:${phone}`;
+    
+    // Check memory cache first
+    const cached = this.memoryCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < 30 * 60 * 1000) {
+      return cached;
+    }
+    
+    // Fallback to database
     const client = await this.getTenantClient(tenantId);
     const session = await client.shoppingSession.findUnique({
       where: { phone },
@@ -76,7 +92,7 @@ export class ShoppingSessionService {
       return undefined;
     }
     
-    return {
+    const sessionData = {
       phone: session.phone,
       currentProductId: session.currentProductId ?? undefined,
       paymentMethod: session.paymentMethod ?? undefined,
@@ -87,10 +103,18 @@ export class ShoppingSessionService {
       customerPincode: session.customerPincode ?? undefined,
       timestamp,
     };
+    
+    // Update cache
+    this.memoryCache.set(cacheKey, sessionData);
+    
+    return sessionData;
   }
 
   async clearSession(phone: string, tenantId?: number) {
     if (!tenantId) return;
+    
+    const cacheKey = `${tenantId}:${phone}`;
+    this.memoryCache.delete(cacheKey);
     
     const client = await this.getTenantClient(tenantId);
     await client.shoppingSession.delete({

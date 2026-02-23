@@ -111,7 +111,7 @@ export class WhatsappEcommerceService {
     const product = await this.ecommerceService.getProduct(productId, userId);
     if (!product) return;
 
-    await this.sessionService.setProductForPurchase(phone, productId);
+    await this.sessionService.setProductForPurchase(phone, productId, userId);
 
     const message = `*${product.name}*\n\n${product.description}\n\n💰 Price: ₹${product.price}`;
 
@@ -134,7 +134,7 @@ export class WhatsappEcommerceService {
     const product = await this.ecommerceService.getProduct(productId, userId);
     if (!product) return;
 
-    await this.sessionService.setProductForPurchase(phone, productId);
+    await this.sessionService.setProductForPurchase(phone, productId, userId);
 
     return this.sendWhatsAppMessage(phone, {
       type: 'interactive',
@@ -152,7 +152,7 @@ export class WhatsappEcommerceService {
   }
 
   async handleCODPayment(phone: string, accessToken: string, phoneNumberId: string, userId: number) {
-    const productId = await this.sessionService.getProductForPurchase(phone);
+    const productId = await this.sessionService.getProductForPurchase(phone, userId);
     if (!productId) {
       return this.sendWhatsAppMessage(phone, {
         type: 'text',
@@ -163,8 +163,8 @@ export class WhatsappEcommerceService {
     const product = await this.ecommerceService.getProduct(productId, userId);
     if (!product) return;
 
-    await this.sessionService.setPaymentMethod(phone, 'COD');
-    await this.sessionService.setSession(phone, { step: 'awaiting_name' });
+    await this.sessionService.setPaymentMethod(phone, 'COD', userId);
+    await this.sessionService.setSession(phone, { step: 'awaiting_name' }, userId);
 
     return this.sendWhatsAppMessage(phone, {
       type: 'text',
@@ -175,30 +175,30 @@ export class WhatsappEcommerceService {
   }
 
   async createOrderFromMessage(phone: string, message: string, userId: number) {
-    const step = await this.sessionService.getStep(phone);
+    const step = await this.sessionService.getStep(phone, userId);
     
     if (step === 'awaiting_name') {
-      await this.sessionService.setCustomerName(phone, message.trim());
+      await this.sessionService.setCustomerName(phone, message.trim(), userId);
       return 'awaiting_address';
     }
     
     if (step === 'awaiting_address') {
-      await this.sessionService.setCustomerAddress(phone, message.trim());
+      await this.sessionService.setCustomerAddress(phone, message.trim(), userId);
       return 'awaiting_city';
     }
     
     if (step === 'awaiting_city') {
-      await this.sessionService.setCustomerCity(phone, message.trim());
+      await this.sessionService.setCustomerCity(phone, message.trim(), userId);
       return 'awaiting_pincode';
     }
     
     if (step === 'awaiting_pincode') {
-      await this.sessionService.setCustomerPincode(phone, message.trim());
+      await this.sessionService.setCustomerPincode(phone, message.trim(), userId);
       
-      const productId = await this.sessionService.getProductForPurchase(phone);
-      const customerName = await this.sessionService.getCustomerName(phone);
-      const customerAddress = await this.sessionService.getCustomerAddress(phone);
-      const customerCity = await this.sessionService.getCustomerCity(phone);
+      const productId = await this.sessionService.getProductForPurchase(phone, userId);
+      const customerName = await this.sessionService.getCustomerName(phone, userId);
+      const customerAddress = await this.sessionService.getCustomerAddress(phone, userId);
+      const customerCity = await this.sessionService.getCustomerCity(phone, userId);
       
       if (!productId || !customerName || !customerAddress || !customerCity) return false;
       
@@ -216,7 +216,7 @@ export class WhatsappEcommerceService {
         totalAmount: product.price,
       }, userId);
       
-      await this.sessionService.clearSession(phone);
+      await this.sessionService.clearSession(phone, userId);
       return true;
     }
     

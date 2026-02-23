@@ -34,7 +34,7 @@ export class ShoppingSessionService {
     if (!tenantId) return;
     
     const cacheKey = `${tenantId}:${phone}`;
-    const existing = this.memoryCache.get(cacheKey) || await this.getSession(phone, tenantId);
+    const existing = this.memoryCache.get(cacheKey);
     const sessionData: ShoppingSession = { 
       phone,
       step: 'browsing',
@@ -46,31 +46,32 @@ export class ShoppingSessionService {
     // Update memory cache immediately
     this.memoryCache.set(cacheKey, sessionData);
     
-    // Update database in background
-    const client = await this.getTenantClient(tenantId);
-    client.shoppingSession.upsert({
-      where: { phone },
-      update: {
-        currentProductId: sessionData.currentProductId,
-        paymentMethod: sessionData.paymentMethod,
-        step: sessionData.step,
-        customerName: sessionData.customerName,
-        customerAddress: sessionData.customerAddress,
-        customerCity: sessionData.customerCity,
-        customerPincode: sessionData.customerPincode,
-        updatedAt: new Date(),
-      },
-      create: {
-        phone,
-        currentProductId: sessionData.currentProductId,
-        paymentMethod: sessionData.paymentMethod,
-        step: sessionData.step || 'browsing',
-        customerName: sessionData.customerName,
-        customerAddress: sessionData.customerAddress,
-        customerCity: sessionData.customerCity,
-        customerPincode: sessionData.customerPincode,
-      },
-    }).catch(e => console.error('DB save error:', e));
+    // Update database in background (fire and forget)
+    this.getTenantClient(tenantId).then(client => {
+      client.shoppingSession.upsert({
+        where: { phone },
+        update: {
+          currentProductId: sessionData.currentProductId,
+          paymentMethod: sessionData.paymentMethod,
+          step: sessionData.step,
+          customerName: sessionData.customerName,
+          customerAddress: sessionData.customerAddress,
+          customerCity: sessionData.customerCity,
+          customerPincode: sessionData.customerPincode,
+          updatedAt: new Date(),
+        },
+        create: {
+          phone,
+          currentProductId: sessionData.currentProductId,
+          paymentMethod: sessionData.paymentMethod,
+          step: sessionData.step,
+          customerName: sessionData.customerName,
+          customerAddress: sessionData.customerAddress,
+          customerCity: sessionData.customerCity,
+          customerPincode: sessionData.customerPincode,
+        },
+      }).catch(e => console.error('DB save error:', e));
+    }).catch(e => console.error('Tenant client error:', e));
   }
 
   async getSession(phone: string, tenantId?: number): Promise<ShoppingSession | undefined> {
@@ -78,42 +79,15 @@ export class ShoppingSessionService {
     
     const cacheKey = `${tenantId}:${phone}`;
     
-    // Check memory cache first
+    // ONLY use memory cache - no database query
     const cached = this.memoryCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < 30 * 60 * 1000) {
       return cached;
     }
     
-    // Fallback to database
-    const client = await this.getTenantClient(tenantId);
-    const session = await client.shoppingSession.findUnique({
-      where: { phone },
-    });
-    
-    if (!session) return undefined;
-    
-    const timestamp = session.updatedAt.getTime();
-    if (Date.now() - timestamp > 30 * 60 * 1000) {
-      await this.clearSession(phone, tenantId);
-      return undefined;
-    }
-    
-    const sessionData = {
-      phone: session.phone,
-      currentProductId: session.currentProductId ?? undefined,
-      paymentMethod: session.paymentMethod ?? undefined,
-      step: session.step as any,
-      customerName: session.customerName ?? undefined,
-      customerAddress: session.customerAddress ?? undefined,
-      customerCity: session.customerCity ?? undefined,
-      customerPincode: session.customerPincode ?? undefined,
-      timestamp,
-    };
-    
-    // Update cache
-    this.memoryCache.set(cacheKey, sessionData);
-    
-    return sessionData;
+    // Session expired or not found
+    this.memoryCache.delete(cacheKey);
+    return undefined;
   }
 
   async clearSession(phone: string, tenantId?: number) {

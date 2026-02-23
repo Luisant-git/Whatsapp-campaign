@@ -176,24 +176,33 @@ export class WhatsappEcommerceService {
 
   async createOrderFromMessage(phone: string, message: string, userId: number) {
     const step = await this.sessionService.getStep(phone, userId);
+    const trimmedMsg = message.trim();
     
     if (step === 'awaiting_name') {
-      await this.sessionService.setCustomerName(phone, message.trim(), userId);
+      const existingName = await this.sessionService.getCustomerName(phone, userId);
+      if (existingName === trimmedMsg) return false; // Duplicate
+      await this.sessionService.setCustomerName(phone, trimmedMsg, userId);
       return 'awaiting_address';
     }
     
     if (step === 'awaiting_address') {
-      await this.sessionService.setCustomerAddress(phone, message.trim(), userId);
+      const existingAddress = await this.sessionService.getCustomerAddress(phone, userId);
+      if (existingAddress === trimmedMsg) return false; // Duplicate
+      await this.sessionService.setCustomerAddress(phone, trimmedMsg, userId);
       return 'awaiting_city';
     }
     
     if (step === 'awaiting_city') {
-      await this.sessionService.setCustomerCity(phone, message.trim(), userId);
+      const existingCity = await this.sessionService.getCustomerCity(phone, userId);
+      if (existingCity === trimmedMsg) return false; // Duplicate
+      await this.sessionService.setCustomerCity(phone, trimmedMsg, userId);
       return 'awaiting_pincode';
     }
     
     if (step === 'awaiting_pincode') {
-      await this.sessionService.setCustomerPincode(phone, message.trim(), userId);
+      const existingPincode = await this.sessionService.getCustomerPincode(phone, userId);
+      if (existingPincode === trimmedMsg) return false; // Duplicate
+      await this.sessionService.setCustomerPincode(phone, trimmedMsg, userId);
       
       const productId = await this.sessionService.getProductForPurchase(phone, userId);
       const customerName = await this.sessionService.getCustomerName(phone, userId);
@@ -205,7 +214,7 @@ export class WhatsappEcommerceService {
       const product = await this.ecommerceService.getProduct(productId, userId);
       if (!product) return false;
       
-      const fullAddress = `${customerAddress}, ${customerCity}, ${message.trim()}`;
+      const fullAddress = `${customerAddress}, ${customerCity}, ${trimmedMsg}`;
       
       await this.ecommerceService.createOrder({
         customerName,

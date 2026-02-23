@@ -164,10 +164,7 @@ export class MetaCatalogService {
 
   async handleCustomerResponse(phone: string, phoneNumberId: string, message: string, userId: number) {
     try {
-      const step = await Promise.race([
-        this.sessionService.getStep(phone, userId),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
-      ]) as string | undefined;
+      const step = await this.sessionService.getStep(phone, userId);
       
       if (!step) {
         return false;
@@ -177,19 +174,19 @@ export class MetaCatalogService {
       
       if (step === 'awaiting_name') {
         await this.sessionService.setCustomerName(phone, message, userId);
-        this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your complete delivery address:');
+        await this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your complete delivery address:');
         return true;
       }
       
       if (step === 'awaiting_address') {
         await this.sessionService.setCustomerAddress(phone, message, userId);
-        this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your city:');
+        await this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your city:');
         return true;
       }
       
       if (step === 'awaiting_city') {
         await this.sessionService.setCustomerCity(phone, message, userId);
-        this.sendTextMessage(phone, phoneNumberId, 'Thank you! Finally, please provide your pincode:');
+        await this.sendTextMessage(phone, phoneNumberId, 'Thank you! Finally, please provide your pincode:');
         return true;
       }
       
@@ -215,8 +212,8 @@ export class MetaCatalogService {
             
             const confirmationMessage = `✅ *Order Confirmed*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`;
             
-            this.sessionService.clearSession(phone, userId).catch(e => console.error('Session clear error:', e));
-            this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
+            await this.sessionService.clearSession(phone, userId).catch(e => console.error('Session clear error:', e));
+            await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
             return true;
           }
         }

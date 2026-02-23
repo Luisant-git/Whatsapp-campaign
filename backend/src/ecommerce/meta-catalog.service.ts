@@ -150,36 +150,36 @@ export class MetaCatalogService {
   }
 
   async handleCustomerResponse(phone: string, phoneNumberId: string, message: string, userId: number) {
-    const step = this.sessionService.getStep(phone);
+    const step = await this.sessionService.getStep(phone);
     
     if (!step) {
-      return false; // No active session
+      return false;
     }
     
     console.log(`[Meta Catalog] Customer ${phone} in step: ${step}, message: ${message}`);
     
     if (step === 'awaiting_name') {
-      this.sessionService.setCustomerName(phone, message);
+      await this.sessionService.setCustomerName(phone, message);
       await this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your complete delivery address:');
       return true;
     }
     
     if (step === 'awaiting_address') {
-      this.sessionService.setCustomerAddress(phone, message);
+      await this.sessionService.setCustomerAddress(phone, message);
       await this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your city:');
       return true;
     }
     
     if (step === 'awaiting_city') {
-      this.sessionService.setCustomerCity(phone, message);
+      await this.sessionService.setCustomerCity(phone, message);
       await this.sendTextMessage(phone, phoneNumberId, 'Thank you! Finally, please provide your pincode:');
       return true;
     }
     
     if (step === 'awaiting_pincode') {
-      this.sessionService.setCustomerPincode(phone, message);
+      await this.sessionService.setCustomerPincode(phone, message);
       
-      const session = this.sessionService.getSession(phone);
+      const session = await this.sessionService.getSession(phone);
       const productId = session?.currentProductId;
       
       if (productId) {
@@ -198,7 +198,7 @@ export class MetaCatalogService {
           
           const confirmationMessage = `✅ *Order Confirmed*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`;
           
-          this.sessionService.clearSession(phone);
+          await this.sessionService.clearSession(phone);
           await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
           return true;
         }

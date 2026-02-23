@@ -49,7 +49,7 @@ export class WhatsappEcommerceService {
   async sendCategoryList(phone: string, accessToken: string, phoneNumberId: string, userId: number) {
     const categories = await this.ecommerceService.getCategories(userId);
 
-    const buttons = categories.slice(0, 3).map((cat, idx) => ({
+    const buttons = categories.slice(0, 3).map((cat) => ({
       type: 'reply',
       reply: { id: `cat:${cat.id}`, title: cat.name.substring(0, 20) },
     }));
@@ -109,60 +109,12 @@ export class WhatsappEcommerceService {
 
   async sendProductDetails(phone: string, productId: number, accessToken: string, phoneNumberId: string, userId: number) {
     const product = await this.ecommerceService.getProduct(productId, userId);
-
     if (!product) return;
 
-    console.log('Product details:', {
-      id: product.id,
-      name: product.name,
-      imageUrl: product.imageUrl,
-      startsWithHttp: product.imageUrl?.startsWith('http')
-    });
-
-    // Store product in session for purchase
-    this.sessionService.setProductForPurchase(phone, productId);
+    await this.sessionService.setProductForPurchase(phone, productId);
 
     const message = `*${product.name}*\n\n${product.description}\n\n💰 Price: ₹${product.price}`;
 
-    // Try to upload image to WhatsApp and send by ID with Buy Now button
-    if (product.imageUrl && product.imageUrl.trim() !== '' && product.imageUrl.startsWith('http')) {
-      try {
-        console.log('Uploading image to WhatsApp:', product.imageUrl);
-        const mediaId = await this.uploadMediaToWhatsApp(product.imageUrl, accessToken, phoneNumberId);
-        
-        if (mediaId) {
-          console.log('Sending image by media ID:', mediaId);
-          // Send image first
-          await this.sendWhatsAppMessage(phone, {
-            type: 'image',
-            image: {
-              id: mediaId,
-              caption: message,
-            },
-          }, accessToken, phoneNumberId);
-          
-          // Then send Buy Now button
-          return this.sendWhatsAppMessage(phone, {
-            type: 'interactive',
-            interactive: {
-              type: 'button',
-              body: { text: 'Click below to purchase:' },
-              action: {
-                buttons: [{
-                  type: 'reply',
-                  reply: { id: `buy:${productId}`, title: '🛒 Buy Now' }
-                }]
-              }
-            }
-          }, accessToken, phoneNumberId);
-        }
-      } catch (error) {
-        console.log('Failed to upload image to WhatsApp:', error.message);
-      }
-    }
-
-    // Send text with Buy Now button
-    console.log('Sending text message with button');
     return this.sendWhatsAppMessage(phone, {
       type: 'interactive',
       interactive: {
@@ -182,10 +134,8 @@ export class WhatsappEcommerceService {
     const product = await this.ecommerceService.getProduct(productId, userId);
     if (!product) return;
 
-    // Store product in session
-    this.sessionService.setProductForPurchase(phone, productId);
+    await this.sessionService.setProductForPurchase(phone, productId);
 
-    // Show payment options
     return this.sendWhatsAppMessage(phone, {
       type: 'interactive',
       interactive: {
@@ -202,7 +152,7 @@ export class WhatsappEcommerceService {
   }
 
   async handleCODPayment(phone: string, accessToken: string, phoneNumberId: string, userId: number) {
-    const productId = this.sessionService.getProductForPurchase(phone);
+    const productId = await this.sessionService.getProductForPurchase(phone);
     if (!productId) {
       return this.sendWhatsAppMessage(phone, {
         type: 'text',
@@ -213,9 +163,8 @@ export class WhatsappEcommerceService {
     const product = await this.ecommerceService.getProduct(productId, userId);
     if (!product) return;
 
-    // Store payment method and set step to awaiting name
-    this.sessionService.setPaymentMethod(phone, 'COD');
-    this.sessionService.setSession(phone, { step: 'awaiting_name' });
+    await this.sessionService.setPaymentMethod(phone, 'COD');
+    await this.sessionService.setSession(phone, { step: 'awaiting_name' });
 
     return this.sendWhatsAppMessage(phone, {
       type: 'text',
@@ -225,98 +174,31 @@ export class WhatsappEcommerceService {
     }, accessToken, phoneNumberId);
   }
 
-  private async uploadMediaToWhatsApp(imageUrl: string, accessToken: string, phoneNumberId: string): Promise<string | null> {
-    try {
-      // Download image from your server
-      const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-      const imageBuffer = Buffer.from(imageResponse.data);
-      
-      // Get content type and determine file extension
-      const contentType = imageResponse.headers['content-type'] || 'image/jpeg';
-      
-      // WhatsApp only supports JPEG and PNG
-      let finalContentType = contentType;
-      let extension = 'jpg';
-      
-      if (contentType === 'image/png') {
-        finalContentType = 'image/png';
-        extension = 'png';
-      } else {
-        // Convert all other formats to JPEG
-        finalContentType = 'image/jpeg';
-        extension = 'jpg';
-      }
-      
-      // Upload to WhatsApp
-      const FormData = require('form-data');
-      const formData = new FormData();
-      formData.append('file', imageBuffer, {
-        filename: `product.${extension}`,
-        contentType: finalContentType,
-      });
-      formData.append('messaging_product', 'whatsapp');
-      
-      const uploadUrl = `https://graph.facebook.com/v17.0/${phoneNumberId}/media`;
-      const uploadResponse = await axios.post(uploadUrl, formData, {
-        headers: {
-          ...formData.getHeaders(),
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
-      
-      return uploadResponse.data.id;
-    } catch (error) {
-      console.error('Error uploading media to WhatsApp:', error.message);
-      return null;
-    }
-  }
-
-  async handleBuyRequest(phone: string, accessToken: string, phoneNumberId: string) {
-    const productId = this.sessionService.getProductForPurchase(phone);
-    if (!productId) {
-      return this.sendWhatsAppMessage(phone, {
-        type: 'text',
-        text: { body: 'Please select a product first. Send "shop" to browse products.' },
-      }, accessToken, phoneNumberId);
-    }
-
-    const product = await this.ecommerceService.getProduct(productId);
-    if (!product) return;
-
-    return this.sendWhatsAppMessage(phone, {
-      type: 'text',
-      text: {
-        body: `📦 *${product.name}* - ₹${product.price}\n\nPlease provide your details:\n\nNAME: Your Full Name\nADDRESS: Your Complete Address`,
-      },
-    }, accessToken, phoneNumberId);
-  }
-
   async createOrderFromMessage(phone: string, message: string, userId: number) {
-    const step = this.sessionService.getStep(phone);
+    const step = await this.sessionService.getStep(phone);
     
-    // Handle step-by-step order creation
     if (step === 'awaiting_name') {
-      this.sessionService.setCustomerName(phone, message.trim());
+      await this.sessionService.setCustomerName(phone, message.trim());
       return 'awaiting_address';
     }
     
     if (step === 'awaiting_address') {
-      this.sessionService.setCustomerAddress(phone, message.trim());
+      await this.sessionService.setCustomerAddress(phone, message.trim());
       return 'awaiting_city';
     }
     
     if (step === 'awaiting_city') {
-      this.sessionService.setCustomerCity(phone, message.trim());
+      await this.sessionService.setCustomerCity(phone, message.trim());
       return 'awaiting_pincode';
     }
     
     if (step === 'awaiting_pincode') {
-      this.sessionService.setCustomerPincode(phone, message.trim());
+      await this.sessionService.setCustomerPincode(phone, message.trim());
       
-      const productId = this.sessionService.getProductForPurchase(phone);
-      const customerName = this.sessionService.getCustomerName(phone);
-      const customerAddress = this.sessionService.getCustomerAddress(phone);
-      const customerCity = this.sessionService.getCustomerCity(phone);
+      const productId = await this.sessionService.getProductForPurchase(phone);
+      const customerName = await this.sessionService.getCustomerName(phone);
+      const customerAddress = await this.sessionService.getCustomerAddress(phone);
+      const customerCity = await this.sessionService.getCustomerCity(phone);
       
       if (!productId || !customerName || !customerAddress || !customerCity) return false;
       
@@ -334,8 +216,7 @@ export class WhatsappEcommerceService {
         totalAmount: product.price,
       }, userId);
       
-      // Clear session after order
-      this.sessionService.clearSession(phone);
+      await this.sessionService.clearSession(phone);
       return true;
     }
     

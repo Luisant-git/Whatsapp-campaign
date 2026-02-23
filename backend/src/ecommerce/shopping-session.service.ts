@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma.service';
 
 interface ShoppingSession {
   phone: string;
@@ -14,76 +15,126 @@ interface ShoppingSession {
 
 @Injectable()
 export class ShoppingSessionService {
-  private sessions: Map<string, ShoppingSession> = new Map();
+  constructor(private prisma: PrismaService) {}
 
-  setSession(phone: string, data: Partial<ShoppingSession>) {
-    const existing = this.sessions.get(phone) || { phone, step: 'browsing', timestamp: Date.now() };
-    this.sessions.set(phone, { ...existing, ...data, timestamp: Date.now() });
+  async setSession(phone: string, data: Partial<ShoppingSession>) {
+    const existing = await this.getSession(phone);
+    const sessionData = { ...existing, ...data, timestamp: Date.now() };
+    
+    await this.prisma.shoppingSession.upsert({
+      where: { phone },
+      update: {
+        currentProductId: sessionData.currentProductId,
+        paymentMethod: sessionData.paymentMethod,
+        step: sessionData.step,
+        customerName: sessionData.customerName,
+        customerAddress: sessionData.customerAddress,
+        customerCity: sessionData.customerCity,
+        customerPincode: sessionData.customerPincode,
+        updatedAt: new Date(),
+      },
+      create: {
+        phone,
+        currentProductId: sessionData.currentProductId,
+        paymentMethod: sessionData.paymentMethod,
+        step: sessionData.step || 'browsing',
+        customerName: sessionData.customerName,
+        customerAddress: sessionData.customerAddress,
+        customerCity: sessionData.customerCity,
+        customerPincode: sessionData.customerPincode,
+      },
+    });
   }
 
-  getSession(phone: string): ShoppingSession | undefined {
-    const session = this.sessions.get(phone);
+  async getSession(phone: string): Promise<ShoppingSession | undefined> {
+    const session = await this.prisma.shoppingSession.findUnique({
+      where: { phone },
+    });
+    
+    if (!session) return undefined;
+    
     // Clear old sessions (30 minutes)
-    if (session && Date.now() - session.timestamp > 30 * 60 * 1000) {
-      this.sessions.delete(phone);
+    const timestamp = session.updatedAt.getTime();
+    if (Date.now() - timestamp > 30 * 60 * 1000) {
+      await this.clearSession(phone);
       return undefined;
     }
-    return session;
+    
+    return {
+      phone: session.phone,
+      currentProductId: session.currentProductId ?? undefined,
+      paymentMethod: session.paymentMethod ?? undefined,
+      step: session.step as any,
+      customerName: session.customerName ?? undefined,
+      customerAddress: session.customerAddress ?? undefined,
+      customerCity: session.customerCity ?? undefined,
+      customerPincode: session.customerPincode ?? undefined,
+      timestamp,
+    };
   }
 
-  clearSession(phone: string) {
-    this.sessions.delete(phone);
+  async clearSession(phone: string) {
+    await this.prisma.shoppingSession.delete({
+      where: { phone },
+    }).catch(() => {});
   }
 
-  setProductForPurchase(phone: string, productId: number) {
-    this.setSession(phone, { currentProductId: productId, step: 'buying' });
+  async setProductForPurchase(phone: string, productId: number) {
+    await this.setSession(phone, { currentProductId: productId, step: 'buying' });
   }
 
-  getProductForPurchase(phone: string): number | undefined {
-    return this.getSession(phone)?.currentProductId;
+  async getProductForPurchase(phone: string): Promise<number | undefined> {
+    const session = await this.getSession(phone);
+    return session?.currentProductId;
   }
 
-  setPaymentMethod(phone: string, method: string) {
-    this.setSession(phone, { paymentMethod: method });
+  async setPaymentMethod(phone: string, method: string) {
+    await this.setSession(phone, { paymentMethod: method });
   }
 
-  getPaymentMethod(phone: string): string | undefined {
-    return this.getSession(phone)?.paymentMethod;
+  async getPaymentMethod(phone: string): Promise<string | undefined> {
+    const session = await this.getSession(phone);
+    return session?.paymentMethod;
   }
 
-  setCustomerName(phone: string, name: string) {
-    this.setSession(phone, { customerName: name, step: 'awaiting_address' });
+  async setCustomerName(phone: string, name: string) {
+    await this.setSession(phone, { customerName: name, step: 'awaiting_address' });
   }
 
-  getCustomerName(phone: string): string | undefined {
-    return this.getSession(phone)?.customerName;
+  async getCustomerName(phone: string): Promise<string | undefined> {
+    const session = await this.getSession(phone);
+    return session?.customerName;
   }
 
-  setCustomerAddress(phone: string, address: string) {
-    this.setSession(phone, { customerAddress: address, step: 'awaiting_city' });
+  async setCustomerAddress(phone: string, address: string) {
+    await this.setSession(phone, { customerAddress: address, step: 'awaiting_city' });
   }
 
-  getCustomerAddress(phone: string): string | undefined {
-    return this.getSession(phone)?.customerAddress;
+  async getCustomerAddress(phone: string): Promise<string | undefined> {
+    const session = await this.getSession(phone);
+    return session?.customerAddress;
   }
 
-  setCustomerCity(phone: string, city: string) {
-    this.setSession(phone, { customerCity: city, step: 'awaiting_pincode' });
+  async setCustomerCity(phone: string, city: string) {
+    await this.setSession(phone, { customerCity: city, step: 'awaiting_pincode' });
   }
 
-  getCustomerCity(phone: string): string | undefined {
-    return this.getSession(phone)?.customerCity;
+  async getCustomerCity(phone: string): Promise<string | undefined> {
+    const session = await this.getSession(phone);
+    return session?.customerCity;
   }
 
-  setCustomerPincode(phone: string, pincode: string) {
-    this.setSession(phone, { customerPincode: pincode });
+  async setCustomerPincode(phone: string, pincode: string) {
+    await this.setSession(phone, { customerPincode: pincode });
   }
 
-  getCustomerPincode(phone: string): string | undefined {
-    return this.getSession(phone)?.customerPincode;
+  async getCustomerPincode(phone: string): Promise<string | undefined> {
+    const session = await this.getSession(phone);
+    return session?.customerPincode;
   }
 
-  getStep(phone: string): string | undefined {
-    return this.getSession(phone)?.step;
+  async getStep(phone: string): Promise<string | undefined> {
+    const session = await this.getSession(phone);
+    return session?.step;
   }
 }

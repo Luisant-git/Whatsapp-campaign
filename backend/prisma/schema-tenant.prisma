@@ -241,6 +241,23 @@ model Order {
   updatedAt       DateTime @updatedAt
 }
 
+model ShoppingSession {
+  id               Int      @id @default(autoincrement())
+  phone            String   @unique
+  currentProductId Int?
+  paymentMethod    String?
+  step             String   @default("browsing")
+  customerName     String?
+  customerAddress  String?  @db.Text
+  customerCity     String?
+  customerPincode  String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  @@index([phone])
+  @@index([updatedAt])
+}
+
 
 model SubUser {
   id           Int      @id @default(autoincrement())

@@ -24,89 +24,82 @@ export class ContactService {
     }
     return cleanPhone;
   }
-
   async create(data: any, tenantContext: TenantContext) {
     const prisma = this.getPrisma(tenantContext);
     const phone = this.formatPhoneNumber(data.phone);
-
+  
     const existing = await prisma.contact.findUnique({ where: { phone } });
     if (existing) {
       throw new NotFoundException('Contact with this phone number already exists');
     }
-
-    const contactData: any = {
-      name: data.name,
-      phone,
-      email: data.email,
-      place: data.place,
-      dob: data.dob ? new Date(data.dob) : null,
-      anniversary: data.anniversary ? new Date(data.anniversary) : null,
-    };
-
-    if (data.group) {
-      contactData.group = {
-        connectOrCreate: {
-          where: { name: data.group },
-          create: { name: data.group },
-        },
-      };
-    }
-
-    return prisma.contact.create({ data: contactData });
+  
+    const groupId = data.groupId ? Number(data.groupId) : undefined;
+  
+    return prisma.contact.create({
+      data: {
+        name: data.name,
+        phone,
+        email: data.email,
+        place: data.place,
+        dob: data.dob ? new Date(data.dob) : null,
+        anniversary: data.anniversary ? new Date(data.anniversary) : null,
+  
+        // ✅ only connect if groupId exists
+        ...(groupId ? { group: { connect: { id: groupId } } } : {}),
+      },
+      include: { group: true },
+    });
   }
-
   async findAll(
     tenantContext: TenantContext,
-    page: number = 1,
-    limit: number = 10,
-    search: string = '',
+    page = 1,
+    limit = 10,
+    search = '',
+    groupId?: number,
   ) {
     const prisma = this.getPrisma(tenantContext);
-    const skip = (page - 1) * limit;
-
-    const stopLabeled = await prisma.chatLabel.findMany({
-      where: { labels: { hasSome: ['Stop', 'stop'] } },
-      select: { phone: true },
-    });
-    const stopPhones = stopLabeled.map((x) => x.phone);
-
+  
     const where: any = {
-      isActive: true, 
-      ...(stopPhones.length ? { phone: { notIn: stopPhones } } : {}),
+      isActive: true, // ✅ IMPORTANT: only active contacts
     };
-
-    if (search) {
+  
+    if (search?.trim()) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { phone: { contains: search } },
-        { group: { name: { contains: search, mode: 'insensitive' } } },
+        { name: { contains: search.trim(), mode: 'insensitive' } },
+        { phone: { contains: search.trim() } },
       ];
     }
-
-    const [contacts, total] = await Promise.all([
+  
+    if (groupId) {
+      where.groupId = groupId;
+    }
+  
+    const [data, total] = await Promise.all([
       prisma.contact.findMany({
         where,
-        skip,
-        take: limit,
+        include: { group: true },
         orderBy: { createdAt: 'desc' },
-        include: { group: { select: { name: true } } },
+        skip: (page - 1) * limit,
+        take: limit,
       }),
       prisma.contact.count({ where }),
     ]);
-
+  
     return {
-      data: contacts,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      data,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
   async getContactsByGroup(groupId: number, tenantContext: TenantContext) {
     const prisma = this.getPrisma(tenantContext);
     return prisma.contact.findMany({
-      where: { groupId },
+      where: { groupId, isActive: true }, // ✅
       select: { id: true, name: true, phone: true },
       orderBy: { name: 'asc' },
     });
@@ -128,29 +121,34 @@ export class ContactService {
     });
   }
 
+  
   async update(id: number, data: any, tenantContext: TenantContext) {
     const prisma = this.getPrisma(tenantContext);
-    const phone = this.formatPhoneNumber(data.phone);
-
+  
     const updateData: any = {
       name: data.name,
-      phone,
       email: data.email,
       place: data.place,
       dob: data.dob ? new Date(data.dob) : null,
       anniversary: data.anniversary ? new Date(data.anniversary) : null,
     };
-
-    if (data.group) {
-      updateData.group = {
-        connectOrCreate: {
-          where: { name: data.group },
-          create: { name: data.group },
-        },
-      };
+  
+    // ✅ only update phone if provided
+    if (data.phone) {
+      updateData.phone = this.formatPhoneNumber(data.phone);
     }
-
-    return prisma.contact.update({ where: { id }, data: updateData });
+  
+    // ✅ update group by groupId if provided
+    if (data.groupId) {
+      updateData.group = { connect: { id: Number(data.groupId) } };
+      // OR updateData.groupId = Number(data.groupId);
+    }
+  
+    return prisma.contact.update({
+      where: { id },
+      data: updateData,
+      include: { group: true }, // ✅
+    });
   }
 
 

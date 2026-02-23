@@ -5,6 +5,9 @@ import { getMessages, sendMessage, sendMediaMessage, getLabels, updateLabels, ge
 import { useLabelsSocket } from '../hooks/useLabelsSocket';
 import { MoreVertical } from 'lucide-react';
 import '../styles/WhatsAppChat.scss';
+import { contactAPI } from '../api/contact';
+import { groupAPI } from '../api/group';
+import { Users } from 'lucide-react';
 
 // Simple play/pause icons
 const PlayIcon = () => (
@@ -27,22 +30,22 @@ const MicIcon = () => (
 // Document icons
 const FileTextIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-    <polyline points="14,2 14,8 20,8"/>
-    <line x1="16" y1="13" x2="8" y2="13"/>
-    <line x1="16" y1="17" x2="8" y2="17"/>
-    <polyline points="10,9 9,9 8,9"/>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14,2 14,8 20,8" />
+    <line x1="16" y1="13" x2="8" y2="13" />
+    <line x1="16" y1="17" x2="8" y2="17" />
+    <polyline points="10,9 9,9 8,9" />
   </svg>
 );
 
 const DownloadIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-    <polyline points="7,10 12,15 17,10"/>
-    <line x1="12" y1="15" x2="12" y2="3"/>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7,10 12,15 17,10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
   </svg>
 );
- 
+
 const WhatsAppChat = () => {
   const [messages, setMessages] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
@@ -79,6 +82,10 @@ const WhatsAppChat = () => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [manuallyEditedPhones, setManuallyEditedPhones] = useState({});
   const [userId, setUserId] = useState(null);
+  
+const [showGroupMenu, setShowGroupMenu] = useState(null); // which phone's group menu is open
+const [groups, setGroups] = useState([]);                 // all contact groups
+const [phoneGroupId, setPhoneGroupId] = useState({});     // phone -> current groupId
 
   useLabelsSocket(
     userId,
@@ -86,32 +93,106 @@ const WhatsAppChat = () => {
     (phone) => setManuallyEditedPhones(prev => ({ ...prev, [phone]: true }))
   );
 
+  const UNREAD_TAB = "__unread__";
 
-  
+  const fetchGroups = async () => {
+    if (!API_BASE_URL) return;
+    try {
+      const resp = await groupAPI.getAll();
+      const arr = Array.isArray(resp.data) ? resp.data : resp.data.data || [];
+      setGroups(arr.map((g) => ({ id: g.id, name: g.name })));
+    } catch (err) {
+      console.error('Failed to fetch groups', err);
+    }
+  };
 
- 
   useEffect(() => {
     if (!API_BASE_URL) return;
-  
+
     fetchUserId();
     const init = async () => {
       await fetchManuallyEdited();
       await fetchLabels();
-      fetchMessages(true); // Skip auto-labeling on initial load
+      fetchMessages(true); 
+      // Skip auto-labeling on initial load
     };
     init();
     fetchCustomLabels();
-  
+    fetchGroups();  
+
     // Optional polling every 15 seconds (adjust as needed)
     const interval = setInterval(() => {
       fetchManuallyEdited();
       fetchMessages();
       fetchCustomLabels();
     }, 30000);
-  
-    return () => clearInterval(interval);
-  }, []); 
 
+    return () => clearInterval(interval);
+  }, []);
+
+
+  // Find existing contact by phone or create if missing
+const getOrCreateContactByPhone = async (phone) => {
+  if (!API_BASE_URL || !phone) return null;
+
+  try {
+    const resp = await contactAPI.getAll(1, 1, phone, "");
+    let list = resp?.data?.data || resp?.data || [];
+    if (!Array.isArray(list)) list = [list].filter(Boolean);
+
+    if (list.length > 0) return list[0];
+
+    const createResp = await contactAPI.create({ name: phone, phone });
+    return createResp.data?.data || createResp.data;
+  } catch (err) {
+    console.error("Error getOrCreateContactByPhone", err);
+    throw err;
+  }
+};
+
+// Load current groupId for this phone
+const preloadGroupForPhone = async (phone) => {
+  try {
+    const contact = await getOrCreateContactByPhone(phone);
+    if (!contact) return;
+    const currentGroupId = contact.group?.id || contact.groupId || "";
+    setPhoneGroupId((prev) => ({
+      ...prev,
+      [phone]: currentGroupId || "",
+    }));
+  } catch (err) {
+    console.error("Failed to preload group for phone", phone, err);
+  }
+};
+
+// Toggle group checkbox: assign / unassign group
+const handleToggleGroupForPhone = async (phone, groupId) => {
+  try {
+    const contact = await getOrCreateContactByPhone(phone);
+    if (!contact) {
+      toast.error("Unable to find or create contact for this number");
+      return;
+    }
+
+    const current =
+      phoneGroupId[phone] || contact.group?.id || contact.groupId || "";
+    const newGroupId = current === groupId ? null : groupId;
+
+    await contactAPI.update(contact.id, {
+      name: contact.name || phone,
+      phone: contact.phone || phone,
+      groupId: newGroupId,
+    });
+
+    setPhoneGroupId((prev) => ({
+      ...prev,
+      [phone]: newGroupId || "",
+    }));
+  } catch (err) {
+    console.error("Failed to update group", err);
+    toast.error("Failed to update group");
+  }
+};
   const fetchUserId = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/profile`, { credentials: 'include' });
@@ -133,52 +214,64 @@ const WhatsAppChat = () => {
       console.error('Failed to fetch manually edited phones', err);
     }
   };
-  
-  
+
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (showLabelMenu && !event.target.closest('.label-menu') && !event.target.closest('.label-menu-btn')) {
+      // close label menu
+      if (
+        showLabelMenu &&
+        !event.target.closest('.label-menu') &&
+        !event.target.closest('.label-menu-btn')
+      ) {
         setShowLabelMenu(null);
+      }
+      // close group menu
+      if (
+        showGroupMenu &&
+        !event.target.closest('.group-menu') &&
+        !event.target.closest('.group-menu-btn')
+      ) {
+        setShowGroupMenu(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showLabelMenu]);
+  }, [showLabelMenu, showGroupMenu]);
 
   // Mark chat as read whenever it is opened
-useEffect(() => {
-  if (!selectedChat) return;
+  useEffect(() => {
+    if (!selectedChat) return;
 
-  // All messages for this chat
-  const currentMessages = messages.filter((m) => m.from === selectedChat);
-  if (currentMessages.length === 0) return;
+    // All messages for this chat
+    const currentMessages = messages.filter((m) => m.from === selectedChat);
+    if (currentMessages.length === 0) return;
 
-  // Time of last message
-  const lastMsgTime = new Date(
-    currentMessages[currentMessages.length - 1].createdAt
-  ).toISOString();
+    // Time of last message
+    const lastMsgTime = new Date(
+      currentMessages[currentMessages.length - 1].createdAt
+    ).toISOString();
 
-  const prevRead = readMessages[selectedChat];
+    const prevRead = readMessages[selectedChat];
 
-  // Only update if this last message is newer than what we stored
-  if (!prevRead || new Date(lastMsgTime) > new Date(prevRead)) {
-    const newReadMessages = {
-      ...readMessages,
-      [selectedChat]: lastMsgTime,
-    };
-    setReadMessages(newReadMessages);
-    localStorage.setItem('readMessages', JSON.stringify(newReadMessages));
-  }
-}, [selectedChat, messages]);
+    // Only update if this last message is newer than what we stored
+    if (!prevRead || new Date(lastMsgTime) > new Date(prevRead)) {
+      const newReadMessages = {
+        ...readMessages,
+        [selectedChat]: lastMsgTime,
+      };
+      setReadMessages(newReadMessages);
+      localStorage.setItem('readMessages', JSON.stringify(newReadMessages));
+    }
+  }, [selectedChat, messages]);
 
-  
+
   const fetchMessages = async (skipAutoLabeling = false) => {
     if (!API_BASE_URL) return;
     try {
       const messages = await getMessages();
       console.log('Fetched messages:', messages);
       setMessages(messages);
-  
+
       const lastIncomingByPhone = {};
       messages.forEach((msg) => {
         if (msg.direction !== 'incoming') return;
@@ -188,7 +281,7 @@ useEffect(() => {
           lastIncomingByPhone[phone] = msg;
         }
       });
-  
+
       // ONLY auto-manage if NOT skipping and manuallyEditedPhones is loaded
       if (!skipAutoLabeling && (Object.keys(manuallyEditedPhones).length > 0 || manuallyEditedPhones.constructor === Object)) {
         Object.entries(lastIncomingByPhone).forEach(([phone, msg]) => {
@@ -246,7 +339,7 @@ useEffect(() => {
           uniqueChats[msg.from].unreadCount++;
         }
       });
-  
+
       setChats(
         Object.values(uniqueChats).sort(
           (a, b) => new Date(b.lastTime) - new Date(a.lastTime),
@@ -277,14 +370,14 @@ useEffect(() => {
       console.error('Error fetching custom labels:', error);
     }
   };
-  
+
   const handleSendMessage = async () => {
     if ((!messageText.trim() && !selectedFile) || !selectedChat) return;
 
-    const mediaType = selectedFile ? 
-      (selectedFile.type.startsWith('image') ? 'image' : 
-       selectedFile.type.startsWith('video') ? 'video' : 
-       selectedFile.type.startsWith('audio') ? 'audio' : 'document') : null;
+    const mediaType = selectedFile ?
+      (selectedFile.type.startsWith('image') ? 'image' :
+        selectedFile.type.startsWith('video') ? 'video' :
+          selectedFile.type.startsWith('audio') ? 'audio' : 'document') : null;
 
     const tempMessage = {
       id: Date.now(),
@@ -319,7 +412,7 @@ useEffect(() => {
       setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
     }
   };
- 
+
   const groupMessagesByDate = (messages) => {
     const groups = {};
     messages.forEach(msg => {
@@ -337,10 +430,10 @@ useEffect(() => {
   };
   useEffect(() => {
     if (!customLabels.length) return;
-  
+
     // Load colors from localStorage (same as Labels.jsx)
     const savedColors = JSON.parse(localStorage.getItem('label_colors') || '{}');
-    
+
     setLabelColors(prev => {
       const updated = { ...prev };
       customLabels.forEach((label, index) => {
@@ -352,7 +445,7 @@ useEffect(() => {
       return updated;
     });
   }, [customLabels]);
-  
+
   const filterMessagesByDate = (messages) => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -393,31 +486,31 @@ useEffect(() => {
 
   const getFileIcon = (fileName) => {
     const ext = fileName?.split('.').pop()?.toLowerCase();
-    
+
     if (ext === 'pdf') return (
       <div className="file-type-icon pdf">
         <span className="file-text">PDF</span>
       </div>
     );
-    
+
     if (['doc', 'docx'].includes(ext)) return (
       <div className="file-type-icon doc">
         <span className="file-text">DOC</span>
       </div>
     );
-    
+
     if (['xls', 'xlsx'].includes(ext)) return (
       <div className="file-type-icon xls">
         <span className="file-text">XLS</span>
       </div>
     );
-    
+
     if (['ppt', 'pptx'].includes(ext)) return (
       <div className="file-type-icon ppt">
         <span className="file-text">PPT</span>
       </div>
     );
-    
+
     return (
       <div className="file-type-icon default">
         <span className="file-text">FILE</span>
@@ -427,12 +520,12 @@ useEffect(() => {
 
   const getFileTypeInfo = (fileName) => {
     const ext = fileName?.split('.').pop()?.toLowerCase();
-    
+
     if (ext === 'pdf') return { type: 'PDF', pages: '30 pages' };
     if (['doc', 'docx'].includes(ext)) return { type: 'DOC', pages: '15 pages' };
     if (['xls', 'xlsx'].includes(ext)) return { type: 'XLS', pages: '5 sheets' };
     if (['ppt', 'pptx'].includes(ext)) return { type: 'PPT', pages: '20 slides' };
-    
+
     return { type: 'FILE', pages: '1 file' };
   };
 
@@ -498,10 +591,10 @@ useEffect(() => {
 
   const filteredMessages = selectedChat
     ? filterMessagesByDate(messages.filter(m => m.from === selectedChat))
-        .filter(msg => 
-          messageSearchQuery === '' || 
-          (msg.message && msg.message.toLowerCase().includes(messageSearchQuery.toLowerCase()))
-        )
+      .filter(msg =>
+        messageSearchQuery === '' ||
+        (msg.message && msg.message.toLowerCase().includes(messageSearchQuery.toLowerCase()))
+      )
     : [];
 
   const groupedMessages = groupMessagesByDate(filteredMessages);
@@ -519,13 +612,13 @@ useEffect(() => {
   const availableLabels = customLabels; // ONLY DB labels
   const MAX_VISIBLE = 2;
 
-const visibleLabels = customLabels.slice(0, MAX_VISIBLE);
-const hiddenLabels = customLabels.slice(MAX_VISIBLE);
+  const visibleLabels = customLabels.slice(0, MAX_VISIBLE);
+  const hiddenLabels = customLabels.slice(MAX_VISIBLE);
 
 
 
 
-  
+
 
   // Load from localStorage for any missing colors
   const savedColors = JSON.parse(localStorage.getItem('label_colors') || '{}');
@@ -555,10 +648,10 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
   const addLabelForPhone = async (phone, label) => {
     const existing = chatLabels[phone] || [];
     if (existing.includes(label)) return; // already has it
-  
+
     const updated = { ...chatLabels, [phone]: [...existing, label] };
     setChatLabels(updated);
-  
+
     try {
       await updateLabels(phone, updated[phone]);
     } catch (error) {
@@ -572,10 +665,10 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
     const newLabels = currentLabels.includes(label)
       ? currentLabels.filter((l) => l !== label)
       : [...currentLabels, label];
-  
+
     // Optimistically update UI
     setChatLabels(prev => ({ ...prev, [phone]: newLabels }));
-  
+
     try {
       const response = await updateLabels(phone, newLabels);
       console.log('✅ Label saved to database:', phone, newLabels, response);
@@ -587,22 +680,27 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
     }
   };
   const filteredChats = chats
-    .filter(chat => chat.phone.toLowerCase().includes(searchQuery.toLowerCase()))
-    .filter(chat => {
-      if (selectedLabel === 'all') return true;
+    .filter((chat) => chat.phone.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter((chat) => {
+      if (selectedLabel === "all") return true;
+
+      // UNREAD filter
+      if (selectedLabel === UNREAD_TAB) return chat.unreadCount > 0;
+
+      // normal label filter (DB labels)
       return chatLabels[chat.phone]?.includes(selectedLabel);
     });
- 
+
   return (
     <div className="whatsapp-chat">
       <div className={`chat-sidebar ${selectedChat ? 'hide-mobile' : ''}`}>
         <div className="sidebar-header">
-          
-         
+
+
           <div className="search-box">
             <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8"/>
-              <path d="m21 21-4.35-4.35"/>
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
             </svg>
             <input
               type="text"
@@ -618,57 +716,63 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
           </div>
           <div className="wa-label-tabs">
 
-{/* ALL */}
-<button
-  className={`wa-tab ${selectedLabel === 'all' ? 'active' : ''}`}
-  onClick={() => setSelectedLabel('all')}
->
-  All
-</button>
+            {/* ALL */}
+            <button
+              className={`wa-tab ${selectedLabel === 'all' ? 'active' : ''}`}
+              onClick={() => setSelectedLabel('all')}
+            >
+              All
+            </button>
+            <button
+              className={`wa-tab ${selectedLabel === UNREAD_TAB ? "active" : ""}`}
+              onClick={() => setSelectedLabel(UNREAD_TAB)}
+            >
+              Unread
+            </button>
 
-{/* FIRST 3 LABELS */}
-{visibleLabels.map(label => (
-  <button
-    key={label}
-    className={`wa-tab ${selectedLabel === label ? 'active' : ''}`}
-    onClick={() => setSelectedLabel(label)}
-  >
-    {label}
-  </button>
-))}
+            {/* FIRST 3 LABELS */}
+            {visibleLabels.map(label => (
+              <button
+                key={label}
+                className={`wa-tab ${selectedLabel === label ? 'active' : ''}`}
+                onClick={() => setSelectedLabel(label)}
+              >
+                {label}
+              </button>
+            ))}
 
-{/* DROPDOWN */}
-{hiddenLabels.length > 0 && (
-  <div className="wa-dropdown">
-    <button
-      className="wa-tab more-btn"
-      onClick={() => setShowMoreMenu(prev => !prev)}
-    >
-      ⋯
-    </button>
+            {/* DROPDOWN */}
+            {hiddenLabels.length > 0 && (
+              <div className="wa-dropdown">
+                <button
+                  className="wa-tab more-btn"
+                  onClick={() => setShowMoreMenu(prev => !prev)}
+                >
+                  ⋯
+                </button>
 
-    {showMoreMenu && (
-      <div className="wa-dropdown-menu">
-        {hiddenLabels.map(label => (
-          <div
-            key={label}
-            className={`wa-dropdown-item ${selectedLabel === label ? 'active' : ''}`}
-            onClick={() => {
-              setSelectedLabel(label);
-              setShowMoreMenu(false);
-            }}
-          >
-            {label}
+                {showMoreMenu && (
+                  <div className="wa-dropdown-menu">
+                    {hiddenLabels.map(label => (
+                      <div
+                        key={label}
+                        className={`wa-dropdown-item ${selectedLabel === label ? 'active' : ''}`}
+                        onClick={() => {
+                          setSelectedLabel(label);
+                          setShowMoreMenu(false);
+                        }}
+                      >
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        ))}
-      </div>
-    )}
-  </div>
-)}
-</div>
 
 
- 
+
 
 
         </div>
@@ -695,87 +799,150 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
               <div className="chat-last-msg">{chat.lastMessage}</div>
               {chatLabels[chat.phone]?.length > 0 && (
                 <div className="chat-labels">
-                 {chatLabels[chat.phone].map(label => (
-  <span
-    key={label}
-    className="label-tag"
-    style={{ backgroundColor: labelColors[label] || '#9e9e9e' }}
-  >
-    {label}
-  </span>
-))}
+                  {chatLabels[chat.phone].map(label => (
+                    <span
+                      key={label}
+                      className="label-tag"
+                      style={{ backgroundColor: labelColors[label] || '#9e9e9e' }}
+                    >
+                      {label}
+                    </span>
+                  ))}
 
                 </div>
               )}
             </div>
-            <button 
-              className="label-menu-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowLabelMenu(showLabelMenu === chat.phone ? null : chat.phone);
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>
-              </svg>
-            </button>
-            {showLabelMenu === chat.phone && (
-              <div className="label-menu" onClick={(e) => e.stopPropagation()}>
-                {availableLabels.map(label => {
-                  const isCustom = customLabels.includes(label);
-                  return (
-                    <div 
-                      key={label}
-                      className="label-option"
-                    >
-                      <input 
-                        type="checkbox" 
-                        checked={chatLabels[chat.phone]?.includes(label) || false}
-                        onChange={() => toggleLabel(chat.phone, label)}
-                      />
-                      <span style={{ color: labelColors[label] || '#9e9e9e' }}>{label}</span>
-                      
-                    </div>
-                  );
-                })}
-               
-              </div>
-            )}
+            {/* GROUP Menu */}
+            
+{/* ACTIONS (Group + Label on same row, top-right) */}
+<div
+  style={{
+    position: "absolute",
+    top: 15,
+    right: 10,
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+  }}
+  onClick={(e) => e.stopPropagation()}
+>
+  {/* GROUP BUTTON + DROPDOWN */}
+  <div style={{ position: "relative" }}>
+  <button
+    className="group-menu-btn label-menu-btn"
+    title="Set group"
+    style={{ right: 35, top:-5 }}  // test overrides
+    onClick={async (e) => {
+      e.stopPropagation();
+      const phone = chat.phone;
+      if (showGroupMenu === phone) {
+        setShowGroupMenu(null);
+        return;
+      }
+      setShowGroupMenu(phone);
+      await preloadGroupForPhone(phone);
+    }}
+  >
+    <Users size={18} />
+  </button>
+
+
+    {showGroupMenu === chat.phone && (
+      <div
+        className="group-menu label-menu"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {groups.length === 0 ? (
+          <div className="label-option" style={{ fontSize: 13, color: "#6b7280" }}>
+            No groups
+          </div>
+        ) : (
+          groups.map((g) => (
+            <div key={g.id} className="label-option">
+              <input
+                type="checkbox"
+                checked={(phoneGroupId[chat.phone] || "") === g.id}
+                onChange={() => handleToggleGroupForPhone(chat.phone, g.id)}
+              />
+              <span>{g.name}</span>
+            </div>
+          ))
+        )}
+      </div>
+    )}
+  </div>
+
+  {/* LABEL BUTTON + DROPDOWN */}
+  <div style={{ position: "relative" }}>
+    <button
+      className="label-menu-btn"
+      style={{ top:-5 }} 
+      onClick={(e) => {
+        e.stopPropagation();
+        setShowLabelMenu(showLabelMenu === chat.phone ? null : chat.phone);
+      }}
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z" />
+      </svg>
+    </button>
+
+    {showLabelMenu === chat.phone && (
+      <div className="label-menu" onClick={(e) => e.stopPropagation()}>
+        {availableLabels.map(label => (
+          <div key={label} className="label-option">
+            <input
+              type="checkbox"
+              checked={chatLabels[chat.phone]?.includes(label) || false}
+              onChange={() => toggleLabel(chat.phone, label)}
+            />
+            <span style={{ color: labelColors[label] || '#9e9e9e' }}>
+              {label}
+            </span>
           </div>
         ))}
       </div>
- 
+    )}
+  </div>
+</div>
+            
+            
+
+          </div>
+        ))}
+      </div>
+
       <div className={`chat-main ${selectedChat ? 'show-mobile' : ''}`}>
         {selectedChat ? (
           <>
             <div className="chat-header">
               <button className="back-btn" onClick={() => setSelectedChat(null)}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M19 12H5M12 19l-7-7 7-7"/>
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
                 </svg>
               </button>
               <h3>{selectedChat}</h3>
               <div className="header-actions">
                 <button className="icon-btn search-btn" onClick={() => setShowMobileSearchModal(true)}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="8"/>
-                    <path d="m21 21-4.35-4.35"/>
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" />
                   </svg>
                 </button>
                 <button className="icon-btn filter-btn" onClick={() => setShowMobileDateModal(true)}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
                   </svg>
                 </button>
                 <button className="icon-btn calendar-btn" onClick={() => setShowMobileCalendarModal(true)}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+                    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z" />
                   </svg>
                 </button>
                 <div className="message-search desktop-only">
                   <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="8"/>
-                    <path d="m21 21-4.35-4.35"/>
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" />
                   </svg>
                   <input
                     type="text"
@@ -791,7 +958,7 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
                 </div>
                 <div className="date-filter desktop-only">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
                   </svg>
                   <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}>
                     <option value="all">All Messages</option>
@@ -803,12 +970,12 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
                   </select>
                 </div>
                 <div className="calendar-picker desktop-only">
-                  <button 
+                  <button
                     className="calendar-btn"
                     onClick={() => setShowDatePicker(!showDatePicker)}
                   >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+                      <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z" />
                     </svg>
                   </button>
                   {showDatePicker && (
@@ -824,19 +991,19 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
                 </div>
               </div>
             </div>
-            
+
             {showMobileSearchModal && (
               <div className="mobile-fullscreen-search">
                 <div className="search-header">
                   <button className="back-btn" onClick={() => setShowMobileSearchModal(false)}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M19 12H5M12 19l-7-7 7-7"/>
+                      <path d="M19 12H5M12 19l-7-7 7-7" />
                     </svg>
                   </button>
                   <div className="search-input-wrapper">
                     <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="11" cy="11" r="8"/>
-                      <path d="m21 21-4.35-4.35"/>
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="m21 21-4.35-4.35" />
                     </svg>
                     <input
                       type="text"
@@ -852,20 +1019,20 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
                 </div>
               </div>
             )}
-            
+
             {showMobileDateModal && (
               <div className="mobile-fullscreen-filter">
                 <div className="filter-header">
                   <button className="back-btn" onClick={() => setShowMobileDateModal(false)}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M19 12H5M12 19l-7-7 7-7"/>
+                      <path d="M19 12H5M12 19l-7-7 7-7" />
                     </svg>
                   </button>
                   <h3>Filter by Date</h3>
                 </div>
                 <div className="filter-options">
                   {['all', 'today', 'yesterday', 'week', 'month'].map(filter => (
-                    <div 
+                    <div
                       key={filter}
                       className={`filter-option ${dateFilter === filter ? 'active' : ''}`}
                       onClick={() => { setDateFilter(filter); setShowMobileDateModal(false); }}
@@ -873,7 +1040,7 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
                       <span>{filter === 'all' ? 'All Messages' : filter === 'today' ? 'Today' : filter === 'yesterday' ? 'Yesterday' : filter === 'week' ? 'Last 7 Days' : 'Last 30 Days'}</span>
                       {dateFilter === filter && (
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00a884" strokeWidth="2">
-                          <polyline points="20 6 9 17 4 12"/>
+                          <polyline points="20 6 9 17 4 12" />
                         </svg>
                       )}
                     </div>
@@ -881,7 +1048,7 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
                 </div>
               </div>
             )}
-            
+
             {showMobileCalendarModal && (
               <div className="mobile-calendar-modal" onClick={() => setShowMobileCalendarModal(false)}>
                 <div className="calendar-modal-content" onClick={(e) => e.stopPropagation()}>
@@ -922,13 +1089,13 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
                           const progress = audioProgress[audioId] || 0;
                           const duration = audioDurations[audioId] || 0;
                           const currentTime = audioCurrentTime[audioId] || 0;
-                          
+
                           return (
                             <div className="whatsapp-audio-message">
                               <div className="audio-icon">
                                 <MicIcon />
                               </div>
-                              <div 
+                              <div
                                 className="audio-play-icon"
                                 onClick={() => {
                                   const audioElement = audioRefs.current[audioId];
@@ -941,8 +1108,8 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
                               </div>
                               <div className="audio-progress-container">
                                 <div className="audio-progress-bar">
-                                  <div 
-                                    className="audio-progress-fill" 
+                                  <div
+                                    className="audio-progress-fill"
                                     style={{ width: `${progress}%` }}
                                   ></div>
                                   <div className="audio-progress-dot" style={{ left: `${progress}%` }}></div>
@@ -951,7 +1118,7 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
                               <span className="audio-time">
                                 {isPlaying ? formatAudioTime(currentTime) : formatAudioTime(duration)}
                               </span>
-                              <audio 
+                              <audio
                                 ref={(el) => {
                                   if (el) {
                                     audioRefs.current[audioId] = el;
@@ -961,7 +1128,7 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
                                 onLoadedMetadata={(e) => handleAudioLoadedMetadata(audioId, e.target)}
                                 onTimeUpdate={(e) => handleAudioTimeUpdate(audioId, e.target)}
                                 onEnded={() => handleAudioEnded(audioId)}
-                                style={{display: 'none'}} 
+                                style={{ display: 'none' }}
                               />
                             </div>
                           );
@@ -974,10 +1141,10 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
                                 <div className="document-title">
                                   {msg.mediaUrl ? (msg.mediaUrl.split('/').pop()?.replace(/\.[^/.]+$/, '') || msg.fileName || 'Document') : (msg.fileName || 'Document')}
                                 </div>
-                                <a 
-                                  href={msg.mediaUrl} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer" 
+                                <a
+                                  href={msg.mediaUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
                                   className="document-download-btn"
                                 >
                                   <DownloadIcon />
@@ -1026,7 +1193,7 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
               <div className="input-wrapper">
                 <button className="attach-btn" onClick={() => fileInputRef.current?.click()}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
                   </svg>
                 </button>
                 <input
@@ -1049,5 +1216,5 @@ const hiddenLabels = customLabels.slice(MAX_VISIBLE);
     </div>
   );
 };
- 
+
 export default WhatsAppChat;

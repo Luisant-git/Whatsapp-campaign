@@ -27,6 +27,10 @@ import {
   ShoppingCart,
   Store,
   UserIcon,
+  UserCheckIcon,
+  UserX2Icon,
+  UserSquare2Icon,
+  UserPlus2,
 } from "lucide-react";
 import { ToastProvider } from "./contexts/ToastContext";
 import WhatsAppChat from "./components/WhatsAppChat";
@@ -53,6 +57,7 @@ import "./styles/Profile.css";
 import Labels from "./components/Labels";
 import Blacklist from "./components/BlackList";
 import CreateUser from "./components/CreateUser";
+import UngroupedContact from "./components/UngroupedContact";
 
 
 function App() {
@@ -65,6 +70,7 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [contactsOpen, setContactsOpen] = useState(false);
   const [ecommerceOpen, setEcommerceOpen] = useState(false);
+  const [campaignsOpen, setCampaignsOpen] = useState(false);
 
   // Check session status only when needed (not on interval)
   useEffect(() => {
@@ -188,9 +194,9 @@ function App() {
               <div className="nav-item-group">
                 <button
                   className={`nav-item ${contactsOpen &&
-                      !["contacts", "blacklist"].includes(activeView)
-                      ? "active"
-                      : ""
+                    !["contacts", "blacklist"].includes(activeView)
+                    ? "active"
+                    : ""
                     }`}
                   onClick={() => setContactsOpen((prev) => !prev)}
                 >
@@ -217,18 +223,51 @@ function App() {
                       <X size={16} />
                       <span>Blacklist</span>
                     </button>
+
+                    <button
+                      className={`nav-subitem ${activeView === "ungroupedcontact" ? "active" : ""
+                        }`}
+                      onClick={() => handleMenuClick("ungroupedcontact")}
+                    >
+                      <UserPlus2 size={16} />
+                      <span>Ungrouped </span>
+                    </button>
                   </div>
                 )}
               </div>
-              <button
-                className={`nav-item ${activeView === "bulk" ? "active" : ""}`}
-                onClick={() => handleMenuClick("bulk")}
-              >
-                <Mail size={18} />
-                <span>Campaigns</span>
-              </button>
-              
-             
+              <div className="nav-item-group">
+  <button
+    className={`nav-item ${
+      campaignsOpen && !["bulk", "campaigns"].includes(activeView) ? "active" : ""
+    }`}
+    onClick={() => setCampaignsOpen((prev) => !prev)}
+  >
+    <Mail size={18} />
+    <span>Campaigns</span>
+  </button>
+
+  {campaignsOpen && (
+    <div className="nav-submenu">
+      <button
+        className={`nav-subitem ${activeView === "bulk" ? "active" : ""}`}
+        onClick={() => handleMenuClick("bulk")}
+      >
+        <Mail size={16} />
+        <span>Compose Campaign</span>
+      </button>
+
+      <button
+        className={`nav-subitem ${activeView === "campaigns" ? "active" : ""}`}
+        onClick={() => handleMenuClick("campaigns")}
+      >
+        <List size={16} />
+        <span>Campaign Reports</span>
+      </button>
+    </div>
+  )}
+</div>
+
+
               <button
                 className={`nav-item ${activeView === "auto-reply" ? "active" : ""
                   }`}
@@ -258,21 +297,14 @@ function App() {
                 </button>
               )}
 
-<button
-                className={`nav-item ${activeView === "campaigns" ? "active" : ""
-                  }`}
-                onClick={() => handleMenuClick("campaigns")}
-              >
-                <List size={18} />
-                <span>Reports</span>
-              </button>
+              
 
               <div className="nav-item-group">
                 <button
                   className={`nav-item ${ecommerceOpen &&
-                      !["categories", "products", "orders", "customers"].includes(activeView)
-                      ? "active"
-                      : ""
+                    !["categories", "products", "orders"].includes(activeView)
+                    ? "active"
+                    : ""
                     }`}
                   onClick={() => setEcommerceOpen((prev) => !prev)}
                 >
@@ -333,8 +365,8 @@ function App() {
               <div className="nav-item-group">
                 <button
                   className={`nav-item ${settingsOpen && !["settings", "labels"].includes(activeView)
-                      ? "active"
-                      : ""
+                    ? "active"
+                    : ""
                     }`}
                   onClick={() => setSettingsOpen((prev) => !prev)}
                 >
@@ -360,16 +392,16 @@ function App() {
                       onClick={() => handleMenuClick("createuser")}
                     >
                       <UserIcon size={16} />
-                      <span>Create user</span>
+                      <span>Create User</span>
                     </button>
                     <button
-                className={`nav-subitem   ${activeView === "Templates" ? "active" : ""
-                  }`}
-                onClick={() => handleMenuClick("settings")}
-              >
-                <Sliders size={16} />
-                <span>Templates</span>
-              </button>
+                      className={`nav-subitem   ${activeView === "Templates" ? "active" : ""
+                        }`}
+                      onClick={() => handleMenuClick("settings")}
+                    >
+                      <Sliders size={16} />
+                      <span>Templates</span>
+                    </button>
                   </div>
                 )}
               </div>
@@ -447,8 +479,9 @@ function App() {
             {activeView === "bulk" && <BulkWhatsApp />}
             {activeView === "contacts" && <Contact />}
             {activeView === "blacklist" && <Blacklist />}
+            {activeView === "ungroupedcontact" && <UngroupedContact/>}
             {activeView === "labels" && <Labels />}
-            {activeView === "createuser" && <CreateUser/>}
+            {activeView === "createuser" && <CreateUser />}
             {activeView === "campaigns" && <Campaigns />}
             {activeView === "categories" && <Categories />}
             {activeView === "products" && <Products />}

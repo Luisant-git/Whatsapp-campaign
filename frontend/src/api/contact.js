@@ -3,13 +3,15 @@ import { API_BASE_URL } from './config';
 
 export const contactAPI = {
   /* -------------------- CONTACTS -------------------- */
-  getAll: (page = 1, limit = 10, search = '') =>
+  
+  getAll: (page, limit, search, groupId) =>
     axios.get(`${API_BASE_URL}/contact`, {
-      params: { page, limit, search },
       withCredentials: true,
+      params: { page, limit, search, groupId: groupId || undefined },
     }),
+
     getContacts: (id) =>
-      axios.get(`${API_BASE_URL}/group/${id}/contacts`, { withCredentials: true }),
+      axios.get(`${API_BASE_URL}/contact/group/${id}/contacts`, { withCredentials: true }),
     
   getOne: (id) =>
     axios.get(`${API_BASE_URL}/contact/${id}`, { withCredentials: true }),

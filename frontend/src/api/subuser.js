@@ -1,6 +1,6 @@
 // src/api/subuser.js
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3010';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010';
 
 /**
  * Parse backend error response safely
@@ -18,7 +18,7 @@ const parseError = async (res, fallback) => {
  * Base request wrapper
  */
 const request = async (endpoint, options = {}, fallbackError) => {
-  const res = await fetch(`${API_URL}${endpoint}`, {
+  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
     credentials: 'include',
     headers: {
       Accept: 'application/json',

@@ -649,7 +649,7 @@ export class WhatsappService {
             if (whatsappSettings) {
               const metaCatalogService = this.ecommerceService['metaCatalogService'];
               if (metaCatalogService) {
-                await metaCatalogService.handleOrderMessage(from, whatsappSettings.phoneNumberId, order, settings.id);
+                await metaCatalogService.handleOrderMessage(from, whatsappSettings.phoneNumberId, order, tenant.id);
                 this.logger.log('✅ Order message handled');
               }
             }
@@ -695,7 +695,7 @@ export class WhatsappService {
             if (whatsappSettings) {
               const metaCatalogService = this.ecommerceService['metaCatalogService'];
               if (metaCatalogService) {
-                const handled = await metaCatalogService.handleCustomerResponse(from, whatsappSettings.phoneNumberId, text, settings.id);
+                const handled = await metaCatalogService.handleCustomerResponse(from, whatsappSettings.phoneNumberId, text, tenant.id);
                 if (handled) {
                   this.logger.log('✅ Meta Catalog order flow handled');
                   return;

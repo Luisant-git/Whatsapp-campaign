@@ -8,6 +8,8 @@ export class MetaCatalogService {
   private readonly catalogId = process.env.META_CATALOG_ID;
   private readonly accessToken = process.env.META_ACCESS_TOKEN;
   private readonly apiUrl = 'https://graph.facebook.com/v18.0';
+  private catalogCache: { products: any[], timestamp: number } | null = null;
+  private readonly CACHE_TTL = 300000; // 5 minutes
 
   constructor(
     private ecommerceService: EcommerceService,
@@ -53,14 +55,27 @@ export class MetaCatalogService {
 
   async sendCatalogMessage(phone: string, phoneNumberId: string, userId?: number) {
     try {
-      const catalogProducts = await axios.get(
-        `${this.apiUrl}/${this.catalogId}/products?fields=id,retailer_id,name,availability`,
-        {
-          headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
-          },
-        }
-      );
+      // Check cache first
+      let catalogProducts;
+      if (this.catalogCache && (Date.now() - this.catalogCache.timestamp) < this.CACHE_TTL) {
+        console.log('Using cached catalog products');
+        catalogProducts = { data: { data: this.catalogCache.products } };
+      } else {
+        console.log('Fetching fresh catalog products');
+        catalogProducts = await axios.get(
+          `${this.apiUrl}/${this.catalogId}/products?fields=id,retailer_id,name,availability`,
+          {
+            headers: {
+              'Authorization': `Bearer ${this.accessToken}`,
+            },
+          }
+        );
+        // Update cache
+        this.catalogCache = {
+          products: catalogProducts.data.data,
+          timestamp: Date.now()
+        };
+      }
       
       console.log('Products in Meta Catalog:', JSON.stringify(catalogProducts.data, null, 2));
       

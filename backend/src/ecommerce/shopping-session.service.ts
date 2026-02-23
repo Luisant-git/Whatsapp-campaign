@@ -87,15 +87,14 @@ export class ShoppingSessionService {
     
     // If not in cache, try loading from database with timeout
     try {
-      const dbPromise = this.getTenantClient(tenantId).then(client => 
-        client.shoppingSession.findUnique({ where: { phone } })
-      );
+      const client = await this.getTenantClient(tenantId);
+      const dbPromise = client.shoppingSession.findUnique({ where: { phone } });
       
-      const timeoutPromise = new Promise((_, reject) => 
+      const timeoutPromise = new Promise<never>((_, reject) => 
         setTimeout(() => reject(new Error('DB timeout')), 2000)
       );
       
-      const session = await Promise.race([dbPromise, timeoutPromise]) as any;
+      const session = await Promise.race([dbPromise, timeoutPromise]);
       
       if (session) {
         const timestamp = session.updatedAt.getTime();
@@ -104,7 +103,7 @@ export class ShoppingSessionService {
             phone: session.phone,
             currentProductId: session.currentProductId ?? undefined,
             paymentMethod: session.paymentMethod ?? undefined,
-            step: session.step as any,
+            step: (session.step || 'browsing') as ShoppingSession['step'],
             customerName: session.customerName ?? undefined,
             customerAddress: session.customerAddress ?? undefined,
             customerCity: session.customerCity ?? undefined,
@@ -117,7 +116,7 @@ export class ShoppingSessionService {
         }
       }
     } catch (e) {
-      console.error('DB load error:', e.message);
+      console.error('DB load error:', e?.message || e);
     }
     
     this.memoryCache.delete(cacheKey);
@@ -130,10 +129,12 @@ export class ShoppingSessionService {
     const cacheKey = `${tenantId}:${phone}`;
     this.memoryCache.delete(cacheKey);
     
-    const client = await this.getTenantClient(tenantId);
-    await client.shoppingSession.delete({
-      where: { phone },
-    }).catch(() => {});
+    try {
+      const client = await this.getTenantClient(tenantId);
+      await client.shoppingSession.delete({ where: { phone } });
+    } catch (e) {
+      console.error('Clear session error:', e?.message || e);
+    }
   }
 
   async setProductForPurchase(phone: string, productId: number, tenantId?: number) {

@@ -161,25 +161,25 @@ export class MetaCatalogService {
       console.log(`[Meta Catalog] Customer ${phone} in step: ${step}, message: ${message}`);
       
       if (step === 'awaiting_name') {
-        this.sessionService.setCustomerName(phone, message, userId).catch(e => console.error('Session save error:', e));
+        await this.sessionService.setCustomerName(phone, message, userId);
         this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your complete delivery address:');
         return true;
       }
       
       if (step === 'awaiting_address') {
-        this.sessionService.setCustomerAddress(phone, message, userId).catch(e => console.error('Session save error:', e));
+        await this.sessionService.setCustomerAddress(phone, message, userId);
         this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your city:');
         return true;
       }
       
       if (step === 'awaiting_city') {
-        this.sessionService.setCustomerCity(phone, message, userId).catch(e => console.error('Session save error:', e));
+        await this.sessionService.setCustomerCity(phone, message, userId);
         this.sendTextMessage(phone, phoneNumberId, 'Thank you! Finally, please provide your pincode:');
         return true;
       }
       
       if (step === 'awaiting_pincode') {
-        this.sessionService.setCustomerPincode(phone, message, userId).catch(e => console.error('Session save error:', e));
+        await this.sessionService.setCustomerPincode(phone, message, userId);
         
         const session = await this.sessionService.getSession(phone, userId);
         const productId = session?.currentProductId;

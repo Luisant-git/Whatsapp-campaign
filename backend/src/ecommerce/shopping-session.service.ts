@@ -35,7 +35,13 @@ export class ShoppingSessionService {
     
     const cacheKey = `${tenantId}:${phone}`;
     const existing = this.memoryCache.get(cacheKey) || await this.getSession(phone, tenantId);
-    const sessionData = { ...existing, ...data, timestamp: Date.now() };
+    const sessionData: ShoppingSession = { 
+      phone,
+      step: 'browsing',
+      timestamp: Date.now(),
+      ...existing, 
+      ...data
+    };
     
     // Update memory cache immediately
     this.memoryCache.set(cacheKey, sessionData);

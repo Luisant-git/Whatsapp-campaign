@@ -696,15 +696,12 @@ export class WhatsappService {
       text = message.interactive.list_reply.id;
     }
     
-    // Check duplicate in background, don't block
-    const existingCheck = tenantClient.whatsAppMessage.findUnique({ where: { messageId } })
-      .then(existing => {
-        if (existing) {
-          this.logger.log(`Message ${messageId} already exists`);
-          return true;
-        }
-        return false;
-      });
+    // Quick duplicate check
+    const existingMessage = await tenantClient.whatsAppMessage.findUnique({ where: { messageId } });
+    if (existingMessage) {
+      this.logger.log(`Message ${messageId} already exists, skipping`);
+      return;
+    }
     
     // Store message in background
     tenantClient.whatsAppMessage.create({
@@ -718,9 +715,9 @@ export class WhatsappService {
       }
     }).catch(e => this.logger.error('Message store error:', e.message));
     
-    this.logger.log(`✓ Message processing started`);
+    this.logger.log(`✓ Message stored successfully`);
     
-    // Process immediately without waiting for DB
+    // Process immediately
     if (text) {
       const lowerText = text.toLowerCase().trim();
       

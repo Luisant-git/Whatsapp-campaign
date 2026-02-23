@@ -696,16 +696,18 @@ export class WhatsappService {
       text = message.interactive.list_reply.id;
     }
     
-    const existingMessage = await tenantClient.whatsAppMessage.findUnique({
-      where: { messageId }
-    });
+    // Check duplicate in background, don't block
+    const existingCheck = tenantClient.whatsAppMessage.findUnique({ where: { messageId } })
+      .then(existing => {
+        if (existing) {
+          this.logger.log(`Message ${messageId} already exists`);
+          return true;
+        }
+        return false;
+      });
     
-    if (existingMessage) {
-      this.logger.log(`Message ${messageId} already exists, skipping`);
-      return;
-    }
-    
-    await tenantClient.whatsAppMessage.create({
+    // Store message in background
+    tenantClient.whatsAppMessage.create({
       data: {
         messageId,
         to: from,
@@ -714,24 +716,25 @@ export class WhatsappService {
         direction: 'incoming',
         status: 'received',
       }
-    });
+    }).catch(e => this.logger.error('Message store error:', e.message));
     
-    this.logger.log(`✓ Message stored successfully`);
+    this.logger.log(`✓ Message processing started`);
     
-    // Process auto-reply, ecommerce, chatbot
+    // Process immediately without waiting for DB
     if (text) {
       const lowerText = text.toLowerCase().trim();
       
-      // Check if user is in Meta Catalog order flow first
+      // Get settings once
       const whatsappSettings = await tenantClient.whatsAppSettings.findFirst();
-      if (whatsappSettings) {
-        const metaCatalogService = this.ecommerceService['metaCatalogService'];
-        if (metaCatalogService) {
-          const handled = await metaCatalogService.handleCustomerResponse(from, whatsappSettings.phoneNumberId, text, tenantId);
-          if (handled) {
-            this.logger.log('✅ Meta Catalog order flow handled');
-            return;
-          }
+      if (!whatsappSettings) return;
+      
+      // Check if user is in Meta Catalog order flow first
+      const metaCatalogService = this.ecommerceService['metaCatalogService'];
+      if (metaCatalogService) {
+        const handled = await metaCatalogService.handleCustomerResponse(from, whatsappSettings.phoneNumberId, text, tenantId);
+        if (handled) {
+          this.logger.log('✅ Meta Catalog order flow handled');
+          return;
         }
       }
       
@@ -742,79 +745,48 @@ export class WhatsappService {
           lowerText.startsWith('prod:') ||
           lowerText.startsWith('buy:') ||
           lowerText === 'cod') {
-        try {
-          this.logger.log(`🛒 Ecommerce keyword detected: ${lowerText}`);
-          if (whatsappSettings) {
-            await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantId);
-            this.logger.log(`✅ Ecommerce message handled successfully`);
-          }
-          return;
-        } catch (error) {
-          this.logger.error('❌ Ecommerce service error:', error.message);
-        }
+        await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantId);
+        this.logger.log(`✅ Ecommerce keyword handled`);
+        return;
       }
       
-      // Check if user is in order flow (awaiting name, address, city, pincode)
-      try {
-        if (whatsappSettings) {
-          const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, tenantId);
-          if (orderResult === 'awaiting_address') {
-            await this.sendMessageDirect(from, 'Thank you! Now please provide your complete delivery address:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
-            return;
-          } else if (orderResult === 'awaiting_city') {
-            await this.sendMessageDirect(from, 'Thank you! Now please provide your city:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
-            return;
-          } else if (orderResult === 'awaiting_pincode') {
-            await this.sendMessageDirect(from, 'Thank you! Finally, please provide your pincode:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
-            return;
-          } else if (orderResult === true) {
-            await this.sendMessageDirect(from, '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
-            return;
-          }
-        }
-      } catch (error) {
-        this.logger.error('Order flow error:', error);
+      // Check if user is in order flow
+      const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, tenantId);
+      if (orderResult === 'awaiting_address') {
+        await this.sendMessageDirect(from, 'Thank you! Now please provide your complete delivery address:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+        return;
+      } else if (orderResult === 'awaiting_city') {
+        await this.sendMessageDirect(from, 'Thank you! Now please provide your city:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+        return;
+      } else if (orderResult === 'awaiting_pincode') {
+        await this.sendMessageDirect(from, 'Thank you! Finally, please provide your pincode:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+        return;
+      } else if (orderResult === true) {
+        await this.sendMessageDirect(from, '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+        return;
       }
       
       // Try session service for auto-reply/quick-reply
-      let sessionHandled = false;
-      try {
-        if (whatsappSettings) {
-          sessionHandled = await this.sessionService.handleInteractiveMenu(from, text, settingsId, 
-            async (to, msg, imageUrl) => {
-              if (imageUrl) {
-                return this.sendMediaMessageDirect(to, imageUrl, 'image', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient, msg);
-              }
-              return this.sendMessageDirect(to, msg, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
-            },
-            async (to, msg, buttons) => {
-              return this.sendButtonsMessageDirect(to, msg, buttons, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
-            }
-          );
+      const sessionHandled = await this.sessionService.handleInteractiveMenu(from, text, settingsId, 
+        async (to, msg, imageUrl) => {
+          if (imageUrl) {
+            return this.sendMediaMessageDirect(to, imageUrl, 'image', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient, msg);
+          }
+          return this.sendMessageDirect(to, msg, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+        },
+        async (to, msg, buttons) => {
+          return this.sendButtonsMessageDirect(to, msg, buttons, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
         }
-      } catch (error) {
-        this.logger.error('Session service error:', error);
-      }
+      ).catch(e => { this.logger.error('Session error:', e); return false; });
       
       // Try AI chatbot if session didn't handle it
       if (!sessionHandled) {
-        try {
-          const tenantConfig = await tenantClient.tenantConfig.findFirst({
-            select: { aiChatbotEnabled: true }
-          });
-          
-          if (tenantConfig?.aiChatbotEnabled) {
-            const chatResponse = await this.chatbotService.processMessage(settingsId, {
-              message: text,
-              phone: from
-            });
-            
-            if (chatResponse.response && whatsappSettings) {
-              await this.sendMessageDirect(from, chatResponse.response, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
-            }
+        const tenantConfig = await tenantClient.tenantConfig.findFirst({ select: { aiChatbotEnabled: true } });
+        if (tenantConfig?.aiChatbotEnabled) {
+          const chatResponse = await this.chatbotService.processMessage(settingsId, { message: text, phone: from });
+          if (chatResponse.response) {
+            await this.sendMessageDirect(from, chatResponse.response, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
           }
-        } catch (error) {
-          this.logger.error('Chatbot error:', error);
         }
       }
     }

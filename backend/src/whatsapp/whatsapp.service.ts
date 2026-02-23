@@ -626,6 +626,8 @@ export class WhatsappService {
 
   async handleIncomingMessageWithoutContext(message: any, phoneNumberId: string) {
     try {
+      this.logger.log(`📨 Webhook received - Phone: ${message.from}, Type: ${message.type}, Text: ${message.text?.body || 'N/A'}`);
+      
       // Check cache first
       const cached = this.phoneNumberIdCache.get(phoneNumberId);
       if (cached && (Date.now() - cached.timestamp) < this.CACHE_TTL) {

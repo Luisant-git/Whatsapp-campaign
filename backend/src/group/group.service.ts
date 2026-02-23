@@ -42,9 +42,15 @@ export class GroupService {
 
   async update(id: number, name: string, tenantContext: TenantContext) {
     const prisma = this.getPrisma(tenantContext);
-    const group = await this.findOne(id, tenantContext);
+  
+    if (!name || !name.trim()) {
+      throw new Error('Group name is required');
+    }
+  
+    await this.findOne(id, tenantContext);
+  
     return prisma.group.update({
-      where: { id: group.id },
+      where: { id },
       data: { name: name.trim() },
     });
   }

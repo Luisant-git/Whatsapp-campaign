@@ -765,4 +765,20 @@
     padding: 10px 14px;
     font-size: 12px;
   }
+
+  
+}
+.btn-blue {
+  color: #2563eb !important;
+  border-color: #93c5fd !important;
+}
+
+.btn-red {
+  color: #dc2626 !important;
+  border-color: #fca5a5 !important;
+}
+
+.btn-green {
+  color: #16a34a !important;
+  border-color: #86efac !important;
 }

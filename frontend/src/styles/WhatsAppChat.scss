@@ -1300,6 +1300,7 @@
         }
       }
 
+     
       .input-wrapper {
         display: flex;
         gap: 10px;
@@ -1354,6 +1355,8 @@
       }
     }
 
+    
+
     .no-chat-selected {
       flex: 1;
       display: flex;
@@ -1374,6 +1377,71 @@
     }
   }
 }
+
+
+  /* GROUP BUTTON: same look, 4px left of label button */
+  .group-menu-btn {
+    position: absolute;
+    right: 14px;   /* label is right:10px → 4px more left */
+    top: 15px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #8696a0;
+    transition: all 0.2s;
+
+    &:hover {
+      background: #e0e0e0;
+      color: #25d366;
+    }
+  }
+
+  /* GROUP DROPDOWN: same style as label dropdown, aligned under group icon */
+  .group-menu {
+    position: absolute;
+    right: 44px;   /* label-menu is 40px → 4px more left */
+    top: 10px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    padding: 4px 0;
+    z-index: 100;
+    min-width: 180px;
+
+    .label-option {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: background 0.2s;
+
+      &:hover {
+        background: #f5f5f5;
+      }
+
+      input[type="checkbox"],
+      input[type="radio"] {
+        cursor: pointer;
+        width: 18px;
+        height: 18px;
+        accent-color: #00a884;
+      }
+
+      span {
+        font-size: 14px;
+        font-weight: 400;
+        color: #111b21;
+        flex: 1;
+      }
+    }
+  }
+
 
 @media (max-width: 1024px) {
   .whatsapp-chat .chat-sidebar {

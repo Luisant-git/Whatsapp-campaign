@@ -54,12 +54,14 @@ export class ContactController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
+    @Query('groupId') groupId?: string,   // ✅ add this
   ) {
     return this.contactService.findAll(
       tenantContext,
       page ? parseInt(page) : 1,
       limit ? parseInt(limit) : 10,
       search || '',
+      groupId ? parseInt(groupId) : undefined,  // ✅ pass to service
     );
   }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Users,
   Search,
@@ -27,55 +27,55 @@ import {
 import { useToast } from "../contexts/ToastContext";
 
 export default function Contact() {
-  // ---------- UI state ----------
   const [tab, setTab] = useState("active"); // "active" | "trash"
 
   const [contacts, setContacts] = useState([]);
   const [trashContacts, setTrashContacts] = useState([]);
 
-  // groups as objects: [{id,name}]
+  // groups: [{id,name}]
   const [groups, setGroups] = useState([]);
-  const [selectedGroupFilter, setSelectedGroupFilter] = useState("");
 
+  // IMPORTANT: filter by groupId (stable)
+  const [selectedGroupFilterId, setSelectedGroupFilterId] = useState("");
+
+  const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [page, setPage] = useState(1);
 
-  // Entries dropdown
+  const [page, setPage] = useState(1);
   const [entries, setEntries] = useState(10);
   const limit = entries;
 
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-  const [loading, setLoading] = useState(false); // list loading
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [validationError, setValidationError] = useState("");
 
-  // multi-select
   const [selectedIds, setSelectedIds] = useState([]);
 
-  // ---------- modals ----------
+  // modals
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showGroupModal, setShowGroupModal] = useState(false);
-  const [showManageGroups, setShowManageGroups] = useState(false);
+  const [showGroupsModal, setShowGroupsModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
 
   const [editingContact, setEditingContact] = useState(null);
   const [viewContact, setViewContact] = useState(null);
 
-  // group edit in manage modal
-  const [editingGroup, setEditingGroup] = useState(null); // {id,name}
-  const [editingGroupName, setEditingGroupName] = useState("");
+  // group modal state
+  const [groupSearch, setGroupSearch] = useState("");
+  const [newGroupName, setNewGroupName] = useState(""); // used for add + edit
+  const [editingGroupId, setEditingGroupId] = useState(null); // which group is being edited
 
-  // ---------- Bulk import ----------
+  // bulk import
   const [uploadedData, setUploadedData] = useState([]);
   const [fileName, setFileName] = useState("");
-  const [selectedGroup, setSelectedGroup] = useState("");
+  const [selectedGroupIdForImport, setSelectedGroupIdForImport] = useState("");
   const [importing, setImporting] = useState(false);
 
   const { showSuccess, showError } = useToast();
 
-  // ---------- form data ----------
+  // form data: store groupId (not name)
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -83,21 +83,20 @@ export default function Contact() {
     place: "",
     dob: "",
     anniversary: "",
-    group: "",
+    groupId: "",
   });
-  const [groupName, setGroupName] = useState("");
 
-  // ---------- debounce search ----------
+  // debounce
   const debounceTimer = useRef(null);
-  const debouncedSearch = (query) => {
+  const debouncedSearch = (val) => {
     clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {
       setPage(1);
-      setSearchQuery(query);
+      setSearchQuery(val.trim());
     }, 400);
   };
 
-  // ---------- selection helpers ----------
+  // selection
   const toggleSelect = (id) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -113,28 +112,39 @@ export default function Contact() {
 
   const clearSelection = () => setSelectedIds([]);
 
-  // ---------- API calls ----------
+  // fetch groups
+  const fetchGroups = async () => {
+    try {
+      const resp = await groupAPI.getAll();
+      const arr = Array.isArray(resp.data) ? resp.data : resp.data.data || [];
+      setGroups(arr.map((g) => ({ id: g.id, name: g.name })));
+    } catch (err) {
+      console.error("Failed to fetch groups", err);
+    }
+  };
+
+  // fetch contacts (send groupId)
   const fetchContacts = async (
     pg = page,
     lim = limit,
     search = searchQuery,
-    group = selectedGroupFilter
+    groupId = selectedGroupFilterId
   ) => {
     setLoading(true);
     setError("");
     try {
-      // NOTE: contactAPI.getAll must accept group param
-      const resp = await contactAPI.getAll(pg, lim, search, group);
-      const { data, pagination } = resp.data;
+      const resp = await contactAPI.getAll(pg, lim, search, groupId);
 
+      const { data, pagination } = resp.data;
       setContacts(data || []);
 
       if (pagination) {
         setTotal(pagination.total || 0);
         setTotalPages(pagination.totalPages || 0);
       } else {
-        setTotal(resp.data.total || 0);
-        setTotalPages(Math.ceil((resp.data.total || 0) / lim));
+        const t = resp.data.total || 0;
+        setTotal(t);
+        setTotalPages(Math.ceil(t / lim));
       }
     } catch (err) {
       console.error("Failed to fetch contacts", err);
@@ -159,52 +169,87 @@ export default function Contact() {
     }
   };
 
-  const fetchGroups = async () => {
-    try {
-      const resp = await groupAPI.getAll();
-      const arr = Array.isArray(resp.data) ? resp.data : resp.data.data || [];
+  // Create or update group using same input
+  const handleSaveGroup = async () => {
+    const name = newGroupName.trim();
+    if (!name) {
+      showError("Please enter group name");
+      return;
+    }
 
-      // expecting [{id,name}] from backend
-      setGroups(arr.map((g) => ({ id: g.id, name: g.name })));
-    } catch (err) {
-      console.error("Failed to fetch groups", err);
+    try {
+      if (editingGroupId) {
+        await groupAPI.update(editingGroupId, { name });
+        showSuccess("Group updated");
+      } else {
+        await groupAPI.create({ name });
+        showSuccess("Group created");
+      }
+
+      setNewGroupName("");
+      setEditingGroupId(null);
+      await fetchGroups();
+    } catch (e) {
+      console.error(e);
+      showError(
+        editingGroupId ? "Failed to update group" : "Failed to create group"
+      );
     }
   };
 
-  // ---------- effects ----------
+  const handleEditGroupClick = (group) => {
+    setEditingGroupId(group.id);
+    setNewGroupName(group.name); // fill the top input with group name
+  };
+
+  const handleCancelEditGroup = () => {
+    setEditingGroupId(null);
+    setNewGroupName("");
+  };
+
+  const handleDeleteGroup = async (id, name) => {
+    if (!window.confirm(`Delete group "${name}"?`)) return;
+    try {
+      await groupAPI.delete(id);
+      showSuccess("Group deleted");
+      await fetchGroups();
+
+      // if deleted group was selected in filter, reset
+      if (String(selectedGroupFilterId) === String(id)) {
+        setSelectedGroupFilterId("");
+        setPage(1);
+      }
+    } catch (e) {
+      console.error(e);
+      showError("Failed to delete group");
+    }
+  };
+
   useEffect(() => {
     fetchGroups();
   }, []);
 
   useEffect(() => {
     clearSelection();
-
     if (tab === "active") {
-      fetchContacts(page, limit, searchQuery, selectedGroupFilter);
+      fetchContacts(page, limit, searchQuery, selectedGroupFilterId);
     } else {
       fetchTrash();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, page, limit, searchQuery, selectedGroupFilter]);
+  }, [tab, page, limit, searchQuery, selectedGroupFilterId]);
 
-  // ---------- handlers ----------
-  const handleAddGroup = async () => {
-    if (!groupName.trim()) {
-      showError("Please enter a group name");
-      return;
-    }
-
-    try {
-      await groupAPI.create({ name: groupName.trim() });
-      await fetchGroups();
-      showSuccess(`Successfully created group "${groupName.trim()}"`);
-      setGroupName("");
-      setShowGroupModal(false);
-    } catch (err) {
-      console.error("Error creating group", err);
-      showError("Failed to create group. Please try again.");
-    }
-  };
+  // contact create/update
+  const resetForm = () =>
+    setFormData({
+      name: "",
+      phone: "",
+      email: "",
+      place: "",
+      dob: "",
+      anniversary: "",
+      groupId: "",
+    });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -212,14 +257,14 @@ export default function Contact() {
     const phone = formData.phone.replace(/[^0-9]/g, "");
 
     if (!formData.name.trim()) {
-      setValidationError("Please enter a valid name and 10‑digit phone number.");
+      setValidationError("Please enter a valid name.");
       return;
     }
     if (!editingContact && phone.length !== 10) {
       setValidationError("Please enter a valid 10‑digit phone number.");
       return;
     }
-    if (!formData.group) {
+    if (!formData.groupId) {
       setValidationError("Please select a group.");
       return;
     }
@@ -229,15 +274,25 @@ export default function Contact() {
     setError("");
 
     try {
+      const payload = {
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email || undefined,
+        place: formData.place || undefined,
+        dob: formData.dob || undefined,
+        anniversary: formData.anniversary || undefined,
+        groupId: formData.groupId,
+      };
+
       if (editingContact) {
-        await contactAPI.update(editingContact.id, formData);
+        await contactAPI.update(editingContact.id, payload);
         showSuccess(`Successfully updated contact "${formData.name}"`);
       } else {
-        await contactAPI.create(formData);
+        await contactAPI.create(payload);
         showSuccess(`Successfully created contact "${formData.name}"`);
       }
 
-      await fetchContacts(page, limit, searchQuery, selectedGroupFilter);
+      await fetchContacts(page, limit, searchQuery, selectedGroupFilterId);
       setShowAddModal(false);
       setEditingContact(null);
       resetForm();
@@ -257,12 +312,10 @@ export default function Contact() {
     if (!window.confirm("Move this contact to Trash?")) return;
     setLoading(true);
     setError("");
-
     try {
       await contactAPI.delete(id);
       showSuccess("Moved to Trash");
-
-      await fetchContacts(page, limit, searchQuery, selectedGroupFilter);
+      await fetchContacts(page, limit, searchQuery, selectedGroupFilterId);
       setSelectedIds((prev) => prev.filter((x) => x !== id));
     } catch (err) {
       console.error("Delete error", err);
@@ -289,24 +342,15 @@ export default function Contact() {
   };
 
   const handleMultiDelete = async () => {
-    if (selectedIds.length === 0) {
-      showError("Select contacts first");
-      return;
-    }
-
-    if (
-      !window.confirm(
-        `Are you sure you want to delete ${selectedIds.length} contacts?`
-      )
-    )
-      return;
+    if (selectedIds.length === 0) return showError("Select contacts first");
+    if (!window.confirm(`Delete ${selectedIds.length} contacts?`)) return;
 
     setLoading(true);
     try {
       await Promise.all(selectedIds.map((id) => contactAPI.delete(id)));
       showSuccess(`Deleted ${selectedIds.length} contacts`);
       clearSelection();
-      await fetchContacts(page, limit, searchQuery, selectedGroupFilter);
+      await fetchContacts(page, limit, searchQuery, selectedGroupFilterId);
     } catch (err) {
       console.error(err);
       showError("Failed to delete some contacts");
@@ -316,11 +360,7 @@ export default function Contact() {
   };
 
   const handleMultiRestore = async () => {
-    if (selectedIds.length === 0) {
-      showError("Select contacts first");
-      return;
-    }
-
+    if (selectedIds.length === 0) return showError("Select contacts first");
     if (!window.confirm(`Restore ${selectedIds.length} contacts?`)) return;
 
     setLoading(true);
@@ -337,18 +377,7 @@ export default function Contact() {
     }
   };
 
-  const resetForm = () =>
-    setFormData({
-      name: "",
-      phone: "",
-      email: "",
-      place: "",
-      dob: "",
-      anniversary: "",
-      group: "",
-    });
-
-  // ---------- Bulk Import ----------
+  // Bulk import
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -373,10 +402,10 @@ export default function Contact() {
               "",
             phone: String(
               row["Phone"] ||
-                row["phone"] ||
-                row["Phone Number"] ||
-                row["phone number"] ||
-                ""
+              row["phone"] ||
+              row["Phone Number"] ||
+              row["phone number"] ||
+              ""
             ).trim(),
             group: row["Group"] || row["group"] || "",
             email: row["Email"] || row["email"] || "",
@@ -397,20 +426,27 @@ export default function Contact() {
   };
 
   const handleBulkImportSubmit = async () => {
-    if (uploadedData.length === 0) {
-      showError("Please upload a file first");
-      return;
-    }
-
+    if (uploadedData.length === 0)
+      return showError("Please upload a file first");
     setImporting(true);
 
     let successCount = 0;
     let failCount = 0;
     const duplicateNumbers = [];
 
+    // helper: map group name -> id
+    const groupNameToId = new Map(
+      groups.map((g) => [g.name.toLowerCase(), g.id])
+    );
+
     try {
       for (const c of uploadedData) {
         try {
+          const groupId =
+            (c.group
+              ? groupNameToId.get(String(c.group).toLowerCase())
+              : null) || (selectedGroupIdForImport || null);
+
           await contactAPI.create({
             name: c.name,
             phone: c.phone,
@@ -418,8 +454,9 @@ export default function Contact() {
             place: c.place || undefined,
             dob: c.dob || undefined,
             anniversary: c.anniversary || undefined,
-            group: c.group || selectedGroup || undefined,
+            groupId: groupId || undefined,
           });
+
           successCount++;
         } catch (err) {
           const msg = err.response?.data?.message || err.message || "";
@@ -434,9 +471,7 @@ export default function Contact() {
     }
 
     if (successCount > 0)
-      showSuccess(
-        `Imported ${successCount} contact${successCount > 1 ? "s" : ""}`
-      );
+      showSuccess(`Imported ${successCount} contact${successCount > 1 ? "s" : ""}`);
     if (duplicateNumbers.length > 0)
       showError(`Already registered numbers: ${duplicateNumbers.join(", ")}`);
     if (failCount > 0 && duplicateNumbers.length === 0)
@@ -446,13 +481,12 @@ export default function Contact() {
     setFileName("");
     setShowBulkModal(false);
 
-    // refresh list
     setTab("active");
     setPage(1);
-    fetchContacts(1, limit, searchQuery, selectedGroupFilter);
+    fetchContacts(1, limit, searchQuery, selectedGroupFilterId);
   };
 
-  // ---------- helper ----------
+  // helpers
   const formatDate = (dateStr) => {
     if (!dateStr) return "—";
     try {
@@ -465,6 +499,24 @@ export default function Contact() {
   };
 
   const currentList = tab === "active" ? contacts : trashContacts;
+
+  const controlStyle = useMemo(
+    () => ({
+      height: 40,
+      padding: "0 10px",
+      borderRadius: 8,
+      border: "1px solid #e5e7eb",
+      background: "#fff",
+      outline: "none",
+    }),
+    []
+  );
+
+  const filteredGroups = useMemo(() => {
+    const q = groupSearch.trim().toLowerCase();
+    if (!q) return groups;
+    return groups.filter((g) => g.name.toLowerCase().includes(q));
+  }, [groups, groupSearch]);
 
   return (
     <div className="contact-container">
@@ -479,16 +531,9 @@ export default function Contact() {
           <div className="header-actions">
             <button
               className="btn-secondary"
-              onClick={() => setShowManageGroups(true)}
+              onClick={() => setShowGroupsModal(true)}
             >
-              Manage Groups
-            </button>
-
-            <button
-              className="btn-secondary"
-              onClick={() => setShowGroupModal(true)}
-            >
-              + Add Group
+              Groups
             </button>
 
             <button
@@ -512,118 +557,135 @@ export default function Contact() {
         )}
       </div>
 
-      {/* Entries + Trash toggle + Bulk action bar (BEFORE Search Bar) */}
+      {/* Top controls */}
       <div
         style={{
           display: "flex",
+          alignItems: "center",
           justifyContent: "space-between",
           gap: 12,
           marginBottom: 12,
-          flexWrap: "wrap",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span>Show</span>
+        {/* LEFT: entries / group / search */}
+        <div
+          style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}
+        >
+          {/* Show entries */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span>Show</span>
+            <select
+              value={entries}
+              onChange={(e) => {
+                setEntries(Number(e.target.value));
+                setPage(1);
+              }}
+              disabled={tab === "trash"}
+              style={controlStyle}
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span>entries</span>
+          </div>
+
+          {/* Group filter */}
           <select
-            value={entries}
+            value={selectedGroupFilterId}
             onChange={(e) => {
-              setEntries(Number(e.target.value));
+              setSelectedGroupFilterId(e.target.value);
               setPage(1);
             }}
-            disabled={tab === "trash"} // trash not paginated in this sample
+            disabled={tab === "trash"}
+            style={{ ...controlStyle, minWidth: 180 }}
           >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
+            <option value="">All Groups</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
           </select>
-          <span>entries</span>
+
+          {/* Search */}
+          <div className="search-bar" style={{ flex: 1, minWidth: 220 }}>
+            <Search size={20} />
+            <input
+              value={searchInput}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSearchInput(v);
+                debouncedSearch(v);
+              }}
+              placeholder="Search name, contact..."
+              disabled={tab === "trash"}
+            />
+          </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8 }}>
+        {/* RIGHT: count + buttons */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            justifyContent: "flex-end",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {/* Count */}
+          <div className="total-count">
+            {tab === "active"
+              ? `Total: ${total}`
+              : `Trash: ${trashContacts.length}`}
+          </div>
+
+          {/* View Trash / View Contacts toggle */}
           <button
-            className="btn-secondary"
+            className="btn-secondary btn-blue"
             onClick={() => {
               setTab((prev) => (prev === "active" ? "trash" : "active"));
               setPage(1);
               clearSelection();
             }}
           >
-            <Trash2 size={18} />
+            {tab === "active" ? (
+              // When on Contacts -> show "View Trash"
+              <Trash2 size={18} />
+            ) : (
+              // When on Trash -> show "View Contacts"
+              <Users size={18} />
+            )}
             <span style={{ marginLeft: 6 }}>
-              {tab === "active" ? "Trash" : "Contacts"}
+              {tab === "active" ? "View Trash" : "View Contacts"}
             </span>
           </button>
-
+          {/* Delete / Restore selected */}
           {tab === "active" ? (
             <button
-              className="btn-secondary"
+              className="btn-secondary btn-red"
               onClick={handleMultiDelete}
               disabled={selectedIds.length === 0 || loading}
             >
               <Trash2 size={18} />
-              <span style={{ marginLeft: 6 }}>Delete Selected</span>
+              <span style={{ marginLeft: 6 }}>Delete</span>
             </button>
           ) : (
             <button
-              className="btn-secondary"
+              className="btn-secondary btn-green"
               onClick={handleMultiRestore}
               disabled={selectedIds.length === 0 || loading}
             >
               <RotateCcw size={18} />
-              <span style={{ marginLeft: 6 }}>Restore Selected</span>
+              <span style={{ marginLeft: 6 }}>Restore</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Group dropdown + Search + Count */}
-      <div className="filters-section" style={{ gap: 10 }}>
-        {/* Group filter dropdown BEFORE Search */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <select
-            value={selectedGroupFilter}
-            onChange={(e) => {
-              setSelectedGroupFilter(e.target.value);
-              setPage(1);
-            }}
-            disabled={tab === "trash"} // implement trash group filtering later if needed
-            style={{ padding: "8px", borderRadius: 6 }}
-          >
-            <option value="">All Groups</option>
-            {groups.map((g) => (
-              <option key={g.id} value={g.name}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="search-bar">
-          <Search size={20} />
-          <input
-            type="text"
-            placeholder={
-              tab === "active"
-                ? "Search by contact, name or group..."
-                : "Search disabled in trash"
-            }
-            defaultValue={searchQuery}
-            onChange={(e) => debouncedSearch(e.target.value)}
-            disabled={tab === "trash"}
-          />
-        </div>
-
-        <div className="total-count">
-          {tab === "active"
-            ? `Total: ${total} Contact${total !== 1 ? "s" : ""}`
-            : `Trash: ${trashContacts.length} Contact${
-                trashContacts.length !== 1 ? "s" : ""
-              }`}
-        </div>
-      </div>
-
-      {/* Error banner */}
+      {/* Error */}
       {error && (
         <div
           className="error-banner"
@@ -651,7 +713,11 @@ export default function Contact() {
       ) : currentList.length === 0 ? (
         <div className="empty-state">
           <Users size={48} />
-          <p>{tab === "active" ? "No contacts yet." : "No contacts in trash."}</p>
+          <p>
+            {tab === "active"
+              ? "No contacts found."
+              : "No contacts in trash."}
+          </p>
         </div>
       ) : (
         <div className="table-container">
@@ -699,98 +765,104 @@ export default function Contact() {
 
             <tbody>
               {tab === "active"
-                ? contacts.map((c, i) => (
-                    <tr key={c.id}>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(c.id)}
-                          onChange={() => toggleSelect(c.id)}
-                        />
-                      </td>
-                      <td>{(page - 1) * limit + i + 1}</td>
-                      <td>{c.name}</td>
-                      <td>{c.phone}</td>
-                      <td>{c.group?.name || "N/A"}</td>
-                      <td>{c.email || "N/A"}</td>
-                      <td>{c.place || "N/A"}</td>
-                      <td>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: "8px",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          <button
-                            className="btn-icon"
-                            title="View"
-                            style={{ color: "#0ea5e9" }}
-                            onClick={() => setViewContact(c)}
-                          >
-                            <Eye size={16} />
-                          </button>
-
-                          <button
-                            className="btn-icon"
-                            title="Edit"
-                            style={{ color: "#22c55e" }}
-                            onClick={() => {
-                              setShowAddModal(true);
-                              setEditingContact(c);
-                              setFormData({
-                                ...c,
-                                group: c.group?.name || "",
-                              });
-                            }}
-                          >
-                            <Edit2 size={16} />
-                          </button>
-
-                          <button
-                            className="btn-icon"
-                            title="Delete"
-                            style={{ color: "#ef4444" }}
-                            onClick={() => handleDelete(c.id)}
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                : trashContacts.map((c) => (
-                    <tr key={c.id}>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(c.id)}
-                          onChange={() => toggleSelect(c.id)}
-                        />
-                      </td>
-                      <td>{c.name}</td>
-                      <td>{c.phone}</td>
-                      <td>{c.group?.name || "N/A"}</td>
-                      <td>
+                ? contacts .filter((c) => c.group || c.groupId)    // ONLY grouped contacts
+                .map((c, i) => (
+                  <tr key={c.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(c.id)}
+                        onChange={() => toggleSelect(c.id)}
+                      />
+                    </td>
+                    <td>{(page - 1) * limit + i + 1}</td>
+                    <td>{c.name}</td>
+                    <td>{c.phone}</td>
+                    <td>{c.group?.name || "N/A"}</td>
+                    <td>{c.email || "N/A"}</td>
+                    <td>{c.place || "N/A"}</td>
+                    <td>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "8px",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
                         <button
                           className="btn-icon"
-                          title="Restore"
-                          style={{ color: "#22c55e" }}
-                          onClick={() => handleRestore(c.id)}
+                          title="View"
+                          style={{ color: "#0ea5e9" }}
+                          onClick={() => setViewContact(c)}
                         >
-                          <RotateCcw size={16} />
+                          <Eye size={16} />
                         </button>
-                      </td>
-                    </tr>
-                  ))}
+
+                        <button
+                          className="btn-icon"
+                          title="Edit"
+                          style={{ color: "#22c55e" }}
+                          onClick={() => {
+                            setShowAddModal(true);
+                            setEditingContact(c);
+                            setFormData({
+                              name: c.name || "",
+                              phone: c.phone || "",
+                              email: c.email || "",
+                              place: c.place || "",
+                              dob: c.dob || "",
+                              anniversary: c.anniversary || "",
+                              groupId: c.group?.id || "",
+                            });
+                          }}
+                        >
+                          <Edit2 size={16} />
+                        </button>
+
+                        <button
+                          className="btn-icon"
+                          title="Delete"
+                          style={{ color: "#ef4444" }}
+                          onClick={() => handleDelete(c.id)}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+                : trashContacts.map((c) => (
+                  <tr key={c.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(c.id)}
+                        onChange={() => toggleSelect(c.id)}
+                      />
+                    </td>
+                    <td>{c.name}</td>
+                    <td>{c.phone}</td>
+                    <td>{c.group?.name || "N/A"}</td>
+                    <td>
+                      <button
+                        className="btn-icon"
+                        title="Restore"
+                        style={{ color: "#22c55e" }}
+                        onClick={() => handleRestore(c.id)}
+                      >
+                        <RotateCcw size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
       )}
 
-      {/* Pagination (only active tab) */}
+      {/* Pagination */}
       {tab === "active" && totalPages > 1 && (
         <div className="pagination">
           <button
@@ -817,137 +889,172 @@ export default function Contact() {
 
       {/* -------------------- MODALS -------------------- */}
 
-      {/* Manage Groups Modal */}
-      {showManageGroups && (
-        <div className="modal-overlay" onClick={() => setShowManageGroups(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      {/* Groups Modal */}
+      {showGroupsModal && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowGroupsModal(false)}
+        >
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 700 }}
+          >
             <div className="modal-header">
-              <h3>Manage Groups</h3>
-              <button className="close-btn" onClick={() => setShowManageGroups(false)}>
+              <h3>Groups</h3>
+              <button
+                className="close-btn"
+                onClick={() => setShowGroupsModal(false)}
+              >
                 <X size={20} />
               </button>
             </div>
 
-            <div style={{ display: "grid", gap: 10 }}>
-              {groups.length === 0 ? (
-                <div>No groups</div>
-              ) : (
-                groups.map((g) => (
-                  <div
-                    key={g.id}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: 10,
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 8,
-                      gap: 10,
-                    }}
+            {/* Search + Add / Update */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                marginBottom: 12,
+              }}
+            >
+              {/* Search bar on top */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  ...controlStyle,
+                  padding: "0 10px",
+                }}
+              >
+                <Search size={18} />
+                <input
+                  type="text"
+                  placeholder="Search group..."
+                  value={groupSearch}
+                  onChange={(e) => setGroupSearch(e.target.value)}
+                  style={{
+                    border: "none",
+                    outline: "none",
+                    width: "100%",
+                    height: 38,
+                    background: "transparent",
+                  }}
+                />
+              </div>
+
+              {/* Add / Update Group row */}
+              <div
+                style={{ display: "flex", gap: 10, alignItems: "center" }}
+              >
+                <input
+                  type="text"
+                  placeholder="Enter group name"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  style={{ ...controlStyle, flex: 1, minWidth: 220 }}
+                />
+
+                <button
+                  className="btn-primary"
+                  type="button"
+                  onClick={handleSaveGroup}
+                >
+                  {editingGroupId ? "Update Group" : "Add Group"}
+                </button>
+
+                {editingGroupId && (
+                  <button
+                    className="btn-secondary"
+                    type="button"
+                    onClick={handleCancelEditGroup}
                   >
-                    {editingGroup?.id === g.id ? (
-                      <input
-                        value={editingGroupName}
-                        onChange={(e) => setEditingGroupName(e.target.value)}
-                        style={{ flex: 1, padding: 8 }}
-                      />
-                    ) : (
-                      <div style={{ fontWeight: 600, flex: 1 }}>{g.name}</div>
-                    )}
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </div>
 
-                    <div style={{ display: "flex", gap: 8 }}>
-                      {editingGroup?.id === g.id ? (
-                        <>
-                          <button
-                            className="btn-primary"
-                            onClick={async () => {
-                              if (!editingGroupName.trim()) return showError("Enter group name");
-                              try {
-                                await groupAPI.update(g.id, { name: editingGroupName.trim() });
-                                showSuccess("Group updated");
-                                setEditingGroup(null);
-                                setEditingGroupName("");
-                                fetchGroups();
-                              } catch (e) {
-                                showError("Failed to update group");
-                              }
+            {/* Groups table */}
+            <div
+              className="table-container"
+              style={{ maxHeight: 320, overflowY: "auto" }}
+            >
+              <table className="contacts-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 80 }}>S.No</th>
+                    <th>Group Name</th>
+                    <th style={{ width: 160, textAlign: "center" }}>
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredGroups.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={3}
+                        style={{ textAlign: "center", padding: 14 }}
+                      >
+                        No groups found
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredGroups.map((g, idx) => (
+                      <tr key={g.id}>
+                        <td>{idx + 1}</td>
+                        <td>{g.name}</td>
+                        <td>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 8,
+                              whiteSpace: "nowrap",
                             }}
                           >
-                            Save
-                          </button>
-                          <button
-                            className="btn-secondary"
-                            onClick={() => {
-                              setEditingGroup(null);
-                              setEditingGroupName("");
-                            }}
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            className="btn-secondary"
-                            onClick={() => {
-                              setEditingGroup(g);
-                              setEditingGroupName(g.name);
-                            }}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="btn-secondary"
-                            style={{ color: "#ef4444" }}
-                            onClick={async () => {
-                              if (!window.confirm(`Delete group "${g.name}"?`)) return;
-                              try {
-                                await groupAPI.delete(g.id);
-                                showSuccess("Group deleted");
-                                fetchGroups();
-                              } catch (e) {
-                                showError("Failed to delete group");
-                              }
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+                            {/* Edit icon: fills top input and switches button to Update */}
+                            <button
+                              className="btn-icon"
+                              title="Edit"
+                              style={{ color: "#22c55e" }}
+                              type="button"
+                              onClick={() => handleEditGroupClick(g)}
+                            >
+                              <Edit2 size={16} />
+                            </button>
 
-      {/* Add Group Modal */}
-      {showGroupModal && (
-        <div className="modal-overlay" onClick={() => setShowGroupModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Add Group</h3>
-              <button className="close-btn" onClick={() => setShowGroupModal(false)}>
-                <X size={20} />
-              </button>
+                            {/* Delete icon */}
+                            <button
+                              className="btn-icon"
+                              title="Delete"
+                              style={{ color: "#ef4444" }}
+                              type="button"
+                              onClick={() =>
+                                handleDeleteGroup(g.id, g.name)
+                              }
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
-            <div className="form-group">
-              <label>Group Name *</label>
-              <input
-                type="text"
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                placeholder="Enter group name"
-              />
-            </div>
+
             <div className="modal-actions">
-              <button className="btn-secondary" onClick={() => setShowGroupModal(false)}>
-                Cancel
-              </button>
-              <button className="btn-primary" onClick={handleAddGroup}>
-                Add Group
+              <button
+                className="btn-secondary"
+                onClick={() => setShowGroupsModal(false)}
+              >
+                Close
               </button>
             </div>
           </div>
@@ -956,11 +1063,20 @@ export default function Contact() {
 
       {/* Bulk Import Modal */}
       {showBulkModal && (
-        <div className="modal-overlay" onClick={() => !importing && setShowBulkModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="modal-overlay"
+          onClick={() => !importing && setShowBulkModal(false)}
+        >
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
               <h3>Bulk Import Contacts</h3>
-              <button className="close-btn" onClick={() => !importing && setShowBulkModal(false)}>
+              <button
+                className="close-btn"
+                onClick={() => !importing && setShowBulkModal(false)}
+              >
                 <X size={20} />
               </button>
             </div>
@@ -974,7 +1090,10 @@ export default function Contact() {
                 <li>Email, Place, DOB, Anniversary (optional)</li>
               </ul>
 
-              <div className="file-upload-container" style={{ marginTop: "12px" }}>
+              <div
+                className="file-upload-container"
+                style={{ marginTop: "12px" }}
+              >
                 <input
                   type="file"
                   accept=".xlsx,.xls,.csv"
@@ -1001,15 +1120,21 @@ export default function Contact() {
                     }}
                   >
                     <IoCheckmarkOutline size={18} color="#16a34a" />
-                    <span>{uploadedData.length} contacts ready to import</span>
+                    <span>
+                      {uploadedData.length} contacts ready to import
+                    </span>
                     <button
+                      type="button"
                       onClick={() => {
                         if (importing) return;
                         setUploadedData([]);
                         setFileName("");
                       }}
-                      style={{ background: "none", border: "none", cursor: "pointer" }}
-                      type="button"
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
                       disabled={importing}
                     >
                       <IoCloseOutline size={18} />
@@ -1022,20 +1147,25 @@ export default function Contact() {
                 <label>Select Group (optional)</label>
                 <select
                   className="form-input"
-                  value={selectedGroup}
-                  onChange={(e) => setSelectedGroup(e.target.value)}
+                  value={selectedGroupIdForImport}
+                  onChange={(e) =>
+                    setSelectedGroupIdForImport(e.target.value)
+                  }
                   disabled={importing}
                 >
                   <option value="">No Group</option>
                   {groups.map((g) => (
-                    <option key={g.id} value={g.name}>
+                    <option key={g.id} value={g.id}>
                       {g.name}
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="modal-actions" style={{ marginTop: "16px" }}>
+              <div
+                className="modal-actions"
+                style={{ marginTop: "16px" }}
+              >
                 <button
                   className="btn-secondary"
                   onClick={() => setShowBulkModal(false)}
@@ -1058,11 +1188,21 @@ export default function Contact() {
 
       {/* View Contact Modal */}
       {viewContact && (
-        <div className="modal-overlay" onClick={() => setViewContact(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "600px" }}>
+        <div
+          className="modal-overlay"
+          onClick={() => setViewContact(null)}
+        >
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 600 }}
+          >
             <div className="modal-header">
               <h3>Contact Details</h3>
-              <button className="close-btn" onClick={() => setViewContact(null)}>
+              <button
+                className="close-btn"
+                onClick={() => setViewContact(null)}
+              >
                 <X size={20} />
               </button>
             </div>
@@ -1075,13 +1215,28 @@ export default function Contact() {
                 padding: "10px 0",
               }}
             >
-              <p><strong>Name:</strong> {viewContact.name}</p>
-              <p><strong>Mobile:</strong> {viewContact.phone}</p>
-              <p><strong>Group:</strong> {viewContact.group?.name || "N/A"}</p>
-              <p><strong>Email:</strong> {viewContact.email || "N/A"}</p>
-              <p><strong>Place:</strong> {viewContact.place || "N/A"}</p>
-              <p><strong>DOB:</strong> {formatDate(viewContact.dob) || "N/A"}</p>
-              <p><strong>Anniversary:</strong> {formatDate(viewContact.anniversary) || "N/A"}</p>
+              <p>
+                <strong>Name:</strong> {viewContact.name}
+              </p>
+              <p>
+                <strong>Mobile:</strong> {viewContact.phone}
+              </p>
+              <p>
+                <strong>Group:</strong> {viewContact.group?.name || "N/A"}
+              </p>
+              <p>
+                <strong>Email:</strong> {viewContact.email || "N/A"}
+              </p>
+              <p>
+                <strong>Place:</strong> {viewContact.place || "N/A"}
+              </p>
+              <p>
+                <strong>DOB:</strong> {formatDate(viewContact.dob)}
+              </p>
+              <p>
+                <strong>Anniversary:</strong>{" "}
+                {formatDate(viewContact.anniversary)}
+              </p>
             </div>
 
             <div className="modal-actions">
@@ -1089,14 +1244,25 @@ export default function Contact() {
                 className="btn-primary"
                 onClick={() => {
                   setEditingContact(viewContact);
-                  setFormData({ ...viewContact, group: viewContact.group?.name || "" });
+                  setFormData({
+                    name: viewContact.name || "",
+                    phone: viewContact.phone || "",
+                    email: viewContact.email || "",
+                    place: viewContact.place || "",
+                    dob: viewContact.dob || "",
+                    anniversary: viewContact.anniversary || "",
+                    groupId: viewContact.group?.id || "",
+                  });
                   setViewContact(null);
                   setShowAddModal(true);
                 }}
               >
                 Edit
               </button>
-              <button className="btn-secondary" onClick={() => setViewContact(null)}>
+              <button
+                className="btn-secondary"
+                onClick={() => setViewContact(null)}
+              >
                 Close
               </button>
             </div>
@@ -1106,11 +1272,20 @@ export default function Contact() {
 
       {/* Add/Edit Contact Modal */}
       {showAddModal && (
-        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="modal-overlay"
+          onClick={() => setShowAddModal(false)}
+        >
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
               <h3>{editingContact ? "Edit Contact" : "Add New Contact"}</h3>
-              <button className="close-btn" onClick={() => setShowAddModal(false)}>
+              <button
+                className="close-btn"
+                onClick={() => setShowAddModal(false)}
+              >
                 <X size={20} />
               </button>
             </div>
@@ -1121,7 +1296,7 @@ export default function Contact() {
                   background: "#fef2f2",
                   color: "#991b1b",
                   padding: "0.5rem 0.75rem",
-                  borderRadius: "4px",
+                  borderRadius: 4,
                   marginBottom: "0.75rem",
                   display: "flex",
                   alignItems: "center",
@@ -1139,7 +1314,9 @@ export default function Contact() {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   placeholder="Enter name"
                   required
                 />
@@ -1152,7 +1329,8 @@ export default function Contact() {
                   value={formData.phone}
                   onChange={(e) => {
                     const v = e.target.value.replace(/[^0-9]/g, "");
-                    if (v.length <= 10) setFormData({ ...formData, phone: v });
+                    if (v.length <= 10)
+                      setFormData({ ...formData, phone: v });
                   }}
                   placeholder="10 digits only"
                   maxLength={10}
@@ -1164,13 +1342,15 @@ export default function Contact() {
               <div className="form-group">
                 <label>Group *</label>
                 <select
-                  value={formData.group}
-                  onChange={(e) => setFormData({ ...formData, group: e.target.value })}
+                  value={formData.groupId}
+                  onChange={(e) =>
+                    setFormData({ ...formData, groupId: e.target.value })
+                  }
                   required
                 >
                   <option value="">Select Group</option>
                   {groups.map((g) => (
-                    <option key={g.id} value={g.name}>
+                    <option key={g.id} value={g.id}>
                       {g.name}
                     </option>
                   ))}
@@ -1182,7 +1362,9 @@ export default function Contact() {
                 <input
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
                   placeholder="Enter email (optional)"
                 />
               </div>
@@ -1192,7 +1374,9 @@ export default function Contact() {
                 <input
                   type="text"
                   value={formData.place}
-                  onChange={(e) => setFormData({ ...formData, place: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, place: e.target.value })
+                  }
                   placeholder="Enter place (optional)"
                 />
               </div>
@@ -1202,7 +1386,9 @@ export default function Contact() {
                 <input
                   type="date"
                   value={formData.dob}
-                  onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, dob: e.target.value })
+                  }
                 />
               </div>
 
@@ -1211,7 +1397,12 @@ export default function Contact() {
                 <input
                   type="date"
                   value={formData.anniversary}
-                  onChange={(e) => setFormData({ ...formData, anniversary: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      anniversary: e.target.value,
+                    })
+                  }
                 />
               </div>
 
@@ -1229,7 +1420,11 @@ export default function Contact() {
                   Cancel
                 </button>
 
-                <button type="submit" className="btn-primary" disabled={loading}>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={loading}
+                >
                   {loading ? (
                     <>
                       <Loader2 size={16} className="spin" />{" "}

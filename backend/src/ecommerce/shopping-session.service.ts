@@ -79,10 +79,41 @@ export class ShoppingSessionService {
     
     const cacheKey = `${tenantId}:${phone}`;
     
-    // ONLY use memory cache - no database query
+    // Check memory cache first
     const cached = this.memoryCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < 30 * 60 * 1000) {
       return cached;
+    }
+    
+    // If not in cache, try loading from database
+    try {
+      const client = await this.getTenantClient(tenantId);
+      const session = await client.shoppingSession.findUnique({
+        where: { phone },
+      });
+      
+      if (session) {
+        const timestamp = session.updatedAt.getTime();
+        if (Date.now() - timestamp < 30 * 60 * 1000) {
+          const sessionData: ShoppingSession = {
+            phone: session.phone,
+            currentProductId: session.currentProductId ?? undefined,
+            paymentMethod: session.paymentMethod ?? undefined,
+            step: session.step as any,
+            customerName: session.customerName ?? undefined,
+            customerAddress: session.customerAddress ?? undefined,
+            customerCity: session.customerCity ?? undefined,
+            customerPincode: session.customerPincode ?? undefined,
+            timestamp,
+          };
+          
+          // Load into cache
+          this.memoryCache.set(cacheKey, sessionData);
+          return sessionData;
+        }
+      }
+    } catch (e) {
+      console.error('DB load error:', e);
     }
     
     // Session expired or not found

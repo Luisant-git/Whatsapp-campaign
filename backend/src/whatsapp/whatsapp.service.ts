@@ -185,11 +185,13 @@ export class WhatsappService {
           lowerText.startsWith('buy:') ||
           lowerText === 'cod') {
         try {
+          this.logger.log(`[Ecommerce] Processing keyword: ${lowerText}`);
           const settings = await this.getSettings(userId);
           await this.ecommerceService.handleIncomingMessage(from, text, settings.accessToken, settings.phoneNumberId, userId);
+          this.logger.log(`[Ecommerce] Keyword handled successfully`);
           return;
         } catch (error) {
-          this.logger.error('Ecommerce service error:', error);
+          this.logger.error('[Ecommerce] Error:', error.message);
         }
       }
 

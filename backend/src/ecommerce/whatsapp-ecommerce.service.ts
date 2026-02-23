@@ -16,7 +16,14 @@ export class WhatsappEcommerceService {
     const msg = message.toLowerCase().trim();
 
     if (msg === 'shop' || msg === 'catalog' || msg === 'products') {
-      return this.metaCatalogService.sendCatalogMessage(phone, phoneNumberId, userId);
+      try {
+        console.log(`[Ecommerce] Handling '${msg}' keyword for ${phone}`);
+        await this.metaCatalogService.sendCatalogMessage(phone, phoneNumberId, userId);
+        return true;
+      } catch (error) {
+        console.error('[Ecommerce] Error sending catalog:', error);
+        throw error;
+      }
     }
 
     if (msg.startsWith('cat:')) {

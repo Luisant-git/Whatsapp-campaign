@@ -17,6 +17,7 @@ interface ShoppingSession {
 @Injectable()
 export class ShoppingSessionService {
   private memoryCache = new Map<string, ShoppingSession>();
+  private processingLock = new Map<string, Promise<any>>();
   
   constructor(
     private tenantPrisma: TenantPrismaService,
@@ -34,50 +35,66 @@ export class ShoppingSessionService {
     if (!tenantId) return;
     
     const cacheKey = `${tenantId}:${phone}`;
-    const existing = this.memoryCache.get(cacheKey);
-    const sessionData: ShoppingSession = { 
-      phone,
-      step: 'browsing',
-      timestamp: Date.now(),
-      ...existing, 
-      ...data
-    };
     
-    // Update memory cache immediately
-    this.memoryCache.set(cacheKey, sessionData);
+    // Create lock promise
+    const lockPromise = (async () => {
+      const existing = this.memoryCache.get(cacheKey);
+      const sessionData: ShoppingSession = { 
+        phone,
+        step: 'browsing',
+        timestamp: Date.now(),
+        ...existing, 
+        ...data
+      };
+      
+      // Update memory cache immediately
+      this.memoryCache.set(cacheKey, sessionData);
+      
+      // Update database in background (fire and forget)
+      this.getTenantClient(tenantId).then(client => {
+        client.shoppingSession.upsert({
+          where: { phone },
+          update: {
+            currentProductId: sessionData.currentProductId,
+            paymentMethod: sessionData.paymentMethod,
+            step: sessionData.step,
+            customerName: sessionData.customerName,
+            customerAddress: sessionData.customerAddress,
+            customerCity: sessionData.customerCity,
+            customerPincode: sessionData.customerPincode,
+            updatedAt: new Date(),
+          },
+          create: {
+            phone,
+            currentProductId: sessionData.currentProductId,
+            paymentMethod: sessionData.paymentMethod,
+            step: sessionData.step,
+            customerName: sessionData.customerName,
+            customerAddress: sessionData.customerAddress,
+            customerCity: sessionData.customerCity,
+            customerPincode: sessionData.customerPincode,
+          },
+        }).catch(e => console.error('DB save error:', e));
+      }).catch(e => console.error('Tenant client error:', e));
+    })();
     
-    // Update database in background (fire and forget)
-    this.getTenantClient(tenantId).then(client => {
-      client.shoppingSession.upsert({
-        where: { phone },
-        update: {
-          currentProductId: sessionData.currentProductId,
-          paymentMethod: sessionData.paymentMethod,
-          step: sessionData.step,
-          customerName: sessionData.customerName,
-          customerAddress: sessionData.customerAddress,
-          customerCity: sessionData.customerCity,
-          customerPincode: sessionData.customerPincode,
-          updatedAt: new Date(),
-        },
-        create: {
-          phone,
-          currentProductId: sessionData.currentProductId,
-          paymentMethod: sessionData.paymentMethod,
-          step: sessionData.step,
-          customerName: sessionData.customerName,
-          customerAddress: sessionData.customerAddress,
-          customerCity: sessionData.customerCity,
-          customerPincode: sessionData.customerPincode,
-        },
-      }).catch(e => console.error('DB save error:', e));
-    }).catch(e => console.error('Tenant client error:', e));
+    // Set lock
+    this.processingLock.set(cacheKey, lockPromise);
+    
+    // Wait for completion and remove lock
+    await lockPromise;
+    this.processingLock.delete(cacheKey);
   }
 
   async getSession(phone: string, tenantId?: number): Promise<ShoppingSession | undefined> {
     if (!tenantId) return undefined;
     
     const cacheKey = `${tenantId}:${phone}`;
+    
+    // Wait if already processing
+    if (this.processingLock.has(cacheKey)) {
+      await this.processingLock.get(cacheKey);
+    }
     
     // Check memory cache first
     const cached = this.memoryCache.get(cacheKey);

@@ -158,19 +158,19 @@ export class MetaCatalogService {
     
     if (step === 'awaiting_name') {
       await this.sessionService.setCustomerName(phone, message, userId);
-      await this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your complete delivery address:');
+      this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your complete delivery address:');
       return true;
     }
     
     if (step === 'awaiting_address') {
       await this.sessionService.setCustomerAddress(phone, message, userId);
-      await this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your city:');
+      this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your city:');
       return true;
     }
     
     if (step === 'awaiting_city') {
       await this.sessionService.setCustomerCity(phone, message, userId);
-      await this.sendTextMessage(phone, phoneNumberId, 'Thank you! Finally, please provide your pincode:');
+      this.sendTextMessage(phone, phoneNumberId, 'Thank you! Finally, please provide your pincode:');
       return true;
     }
     
@@ -185,7 +185,7 @@ export class MetaCatalogService {
         if (product) {
           const fullAddress = `${session.customerAddress}, ${session.customerCity}, ${message}`;
           
-          await this.ecommerceService.createOrder({
+          this.ecommerceService.createOrder({
             customerName: session.customerName,
             customerPhone: phone,
             customerAddress: fullAddress,
@@ -196,8 +196,8 @@ export class MetaCatalogService {
           
           const confirmationMessage = `✅ *Order Confirmed*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`;
           
-          await this.sessionService.clearSession(phone, userId);
-          await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
+          this.sessionService.clearSession(phone, userId);
+          this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
           return true;
         }
       }

@@ -85,6 +85,16 @@ export class WhatsappController {
   @ApiResponse({ status: 200, description: 'Webhook processed successfully' })
   @ApiResponse({ status: 404, description: 'Not Found' })
   async handleWebhook(@Param('verifyToken') verifyToken: string, @Body() body: any) {
+    // Respond immediately to WhatsApp
+    setImmediate(() => {
+      this.processWebhookWithTokenAsync(verifyToken, body).catch(error => {
+        console.error('Async webhook processing error:', error);
+      });
+    });
+    return 'EVENT_RECEIVED';
+  }
+
+  private async processWebhookWithTokenAsync(verifyToken: string, body: any) {
     try {
       console.log('\n=== WEBHOOK POST RECEIVED ===');
       console.log('Timestamp:', new Date().toISOString());
@@ -93,7 +103,7 @@ export class WhatsappController {
      
       if (!body || !body.object) {
         console.log('⚠️ Empty or invalid webhook body');
-        return 'EVENT_RECEIVED';
+        return;
       }
      
       if (body.object === 'whatsapp_business_account') {
@@ -145,25 +155,32 @@ export class WhatsappController {
             }
           }
         }
-        return 'EVENT_RECEIVED';
       }
-      throw new HttpException('Not Found', HttpStatus.NOT_FOUND);
     } catch (error) {
       console.error('Webhook error:', error);
-      return 'EVENT_RECEIVED';
     }
   }
  
   @Post('webhook')
   @ApiOperation({ summary: 'Handle webhook without token parameter' })
   async catchAllWebhookPost(@Body() body: any) {
+    // Respond immediately to WhatsApp
+    setImmediate(() => {
+      this.processWebhookAsync(body).catch(error => {
+        console.error('Async webhook processing error:', error);
+      });
+    });
+    return 'EVENT_RECEIVED';
+  }
+
+  private async processWebhookAsync(body: any) {
     try {
       console.log('\n⚠️ WEBHOOK POST WITHOUT TOKEN');
       console.log('Timestamp:', new Date().toISOString());
       console.log('Body:', JSON.stringify(body, null, 2));
      
       if (!body || !body.object) {
-        return 'EVENT_RECEIVED';
+        return;
       }
      
       if (body.object === 'whatsapp_business_account') {
@@ -196,10 +213,8 @@ export class WhatsappController {
           }
         }
       }
-      return 'EVENT_RECEIVED';
     } catch (error) {
       console.error('Webhook error:', error);
-      return 'EVENT_RECEIVED';
     }
   }
  

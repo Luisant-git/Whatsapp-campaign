@@ -130,27 +130,25 @@ export class MetaCatalogService {
   }
 
   async handleOrderMessage(phone: string, phoneNumberId: string, order: any, userId: number) {
-    // Extract product info from Meta Catalog order
     const productItems = order.product_items || [];
     
     if (productItems.length > 0) {
       const firstProduct = productItems[0];
       const retailerId = firstProduct.product_retailer_id;
       
-      // Extract product ID from retailer_id (format: product_123)
       const productId = retailerId ? parseInt(retailerId.replace('product_', '')) : null;
       
       if (productId) {
-        this.sessionService.setProductForPurchase(phone, productId);
+        await this.sessionService.setProductForPurchase(phone, productId, userId);
       }
     }
     
-    this.sessionService.setSession(phone, { step: 'awaiting_name' });
+    await this.sessionService.setSession(phone, { step: 'awaiting_name' }, userId);
     return this.sendTextMessage(phone, phoneNumberId, '📦 Great! To complete your order, please provide your full name:');
   }
 
   async handleCustomerResponse(phone: string, phoneNumberId: string, message: string, userId: number) {
-    const step = await this.sessionService.getStep(phone);
+    const step = await this.sessionService.getStep(phone, userId);
     
     if (!step) {
       return false;
@@ -159,27 +157,27 @@ export class MetaCatalogService {
     console.log(`[Meta Catalog] Customer ${phone} in step: ${step}, message: ${message}`);
     
     if (step === 'awaiting_name') {
-      await this.sessionService.setCustomerName(phone, message);
+      await this.sessionService.setCustomerName(phone, message, userId);
       await this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your complete delivery address:');
       return true;
     }
     
     if (step === 'awaiting_address') {
-      await this.sessionService.setCustomerAddress(phone, message);
+      await this.sessionService.setCustomerAddress(phone, message, userId);
       await this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your city:');
       return true;
     }
     
     if (step === 'awaiting_city') {
-      await this.sessionService.setCustomerCity(phone, message);
+      await this.sessionService.setCustomerCity(phone, message, userId);
       await this.sendTextMessage(phone, phoneNumberId, 'Thank you! Finally, please provide your pincode:');
       return true;
     }
     
     if (step === 'awaiting_pincode') {
-      await this.sessionService.setCustomerPincode(phone, message);
+      await this.sessionService.setCustomerPincode(phone, message, userId);
       
-      const session = await this.sessionService.getSession(phone);
+      const session = await this.sessionService.getSession(phone, userId);
       const productId = session?.currentProductId;
       
       if (productId) {
@@ -198,7 +196,7 @@ export class MetaCatalogService {
           
           const confirmationMessage = `✅ *Order Confirmed*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`;
           
-          await this.sessionService.clearSession(phone);
+          await this.sessionService.clearSession(phone, userId);
           await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
           return true;
         }

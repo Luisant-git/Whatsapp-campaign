@@ -745,12 +745,35 @@ export class WhatsappService {
         try {
           this.logger.log(`🛒 Ecommerce keyword detected: ${lowerText}`);
           if (whatsappSettings) {
-            await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, settingsId);
+            await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantId);
             this.logger.log(`✅ Ecommerce message handled successfully`);
           }
+          return;
         } catch (error) {
           this.logger.error('❌ Ecommerce service error:', error.message);
         }
+      }
+      
+      // Check if user is in order flow (awaiting name, address, city, pincode)
+      try {
+        if (whatsappSettings) {
+          const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, tenantId);
+          if (orderResult === 'awaiting_address') {
+            await this.sendMessageDirect(from, 'Thank you! Now please provide your complete delivery address:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+            return;
+          } else if (orderResult === 'awaiting_city') {
+            await this.sendMessageDirect(from, 'Thank you! Now please provide your city:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+            return;
+          } else if (orderResult === 'awaiting_pincode') {
+            await this.sendMessageDirect(from, 'Thank you! Finally, please provide your pincode:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+            return;
+          } else if (orderResult === true) {
+            await this.sendMessageDirect(from, '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+            return;
+          }
+        }
+      } catch (error) {
+        this.logger.error('Order flow error:', error);
       }
       
       // Try session service for auto-reply/quick-reply

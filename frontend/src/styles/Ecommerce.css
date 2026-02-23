@@ -332,23 +332,23 @@
 }
 
 .status-pending {
-  background: #f59e0b;
-  color: #ffffff;
+  background: #f59e0b !important;
+  color: #ffffff !important;
 }
 
 .status-processing {
-  background: #2563eb;
-  color: #ffffff;
+  background: #2563eb !important;
+  color: #ffffff !important;
 }
 
 .status-completed {
-  background: #16a34a;
-  color: #ffffff;
+  background: #16a34a !important;
+  color: #ffffff !important;
 }
 
 .status-cancelled {
-  background: #dc2626;
-  color: #ffffff;
+  background: #dc2626 !important;
+  color: #ffffff !important;
 }
 
 .category-list {

@@ -85,12 +85,17 @@ export class ShoppingSessionService {
       return cached;
     }
     
-    // If not in cache, try loading from database
+    // If not in cache, try loading from database with timeout
     try {
-      const client = await this.getTenantClient(tenantId);
-      const session = await client.shoppingSession.findUnique({
-        where: { phone },
-      });
+      const dbPromise = this.getTenantClient(tenantId).then(client => 
+        client.shoppingSession.findUnique({ where: { phone } })
+      );
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('DB timeout')), 2000)
+      );
+      
+      const session = await Promise.race([dbPromise, timeoutPromise]) as any;
       
       if (session) {
         const timestamp = session.updatedAt.getTime();
@@ -107,16 +112,14 @@ export class ShoppingSessionService {
             timestamp,
           };
           
-          // Load into cache
           this.memoryCache.set(cacheKey, sessionData);
           return sessionData;
         }
       }
     } catch (e) {
-      console.error('DB load error:', e);
+      console.error('DB load error:', e.message);
     }
     
-    // Session expired or not found
     this.memoryCache.delete(cacheKey);
     return undefined;
   }

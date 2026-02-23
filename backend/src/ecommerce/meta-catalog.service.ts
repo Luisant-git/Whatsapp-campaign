@@ -152,19 +152,28 @@ export class MetaCatalogService {
   async handleCustomerResponse(phone: string, phoneNumberId: string, message: string, userId: number) {
     const step = this.sessionService.getStep(phone);
     
+    if (!step) {
+      return false; // No active session
+    }
+    
+    console.log(`[Meta Catalog] Customer ${phone} in step: ${step}, message: ${message}`);
+    
     if (step === 'awaiting_name') {
       this.sessionService.setCustomerName(phone, message);
-      return this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your complete delivery address:');
+      await this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your complete delivery address:');
+      return true;
     }
     
     if (step === 'awaiting_address') {
       this.sessionService.setCustomerAddress(phone, message);
-      return this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your city:');
+      await this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your city:');
+      return true;
     }
     
     if (step === 'awaiting_city') {
       this.sessionService.setCustomerCity(phone, message);
-      return this.sendTextMessage(phone, phoneNumberId, 'Thank you! Finally, please provide your pincode:');
+      await this.sendTextMessage(phone, phoneNumberId, 'Thank you! Finally, please provide your pincode:');
+      return true;
     }
     
     if (step === 'awaiting_pincode') {
@@ -190,17 +199,19 @@ export class MetaCatalogService {
           const confirmationMessage = `✅ *Order Confirmed*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`;
           
           this.sessionService.clearSession(phone);
-          return this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
+          await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
+          return true;
         }
       }
     }
     
-    return null;
+    return false;
   }
 
   private async sendTextMessage(phone: string, phoneNumberId: string, text: string) {
     try {
-      await axios.post(
+      console.log(`[Meta Catalog] Sending message to ${phone}: ${text}`);
+      const response = await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,
         {
           messaging_product: 'whatsapp',
@@ -215,10 +226,11 @@ export class MetaCatalogService {
           },
         }
       );
+      console.log(`[Meta Catalog] Message sent successfully:`, response.data);
       return { success: true };
     } catch (error) {
-      console.error('Send text message error:', error.response?.data || error.message);
-      throw error;
+      console.error('[Meta Catalog] Send text message error:', error.response?.data || error.message);
+      return { success: false, error: error.message };
     }
   }
 }

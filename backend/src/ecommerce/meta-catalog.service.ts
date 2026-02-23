@@ -148,62 +148,70 @@ export class MetaCatalogService {
   }
 
   async handleCustomerResponse(phone: string, phoneNumberId: string, message: string, userId: number) {
-    const step = await this.sessionService.getStep(phone, userId);
-    
-    if (!step) {
-      return false;
-    }
-    
-    console.log(`[Meta Catalog] Customer ${phone} in step: ${step}, message: ${message}`);
-    
-    if (step === 'awaiting_name') {
-      await this.sessionService.setCustomerName(phone, message, userId);
-      this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your complete delivery address:');
-      return true;
-    }
-    
-    if (step === 'awaiting_address') {
-      await this.sessionService.setCustomerAddress(phone, message, userId);
-      this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your city:');
-      return true;
-    }
-    
-    if (step === 'awaiting_city') {
-      await this.sessionService.setCustomerCity(phone, message, userId);
-      this.sendTextMessage(phone, phoneNumberId, 'Thank you! Finally, please provide your pincode:');
-      return true;
-    }
-    
-    if (step === 'awaiting_pincode') {
-      await this.sessionService.setCustomerPincode(phone, message, userId);
+    try {
+      const step = await Promise.race([
+        this.sessionService.getStep(phone, userId),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
+      ]) as string | undefined;
       
-      const session = await this.sessionService.getSession(phone, userId);
-      const productId = session?.currentProductId;
+      if (!step) {
+        return false;
+      }
       
-      if (productId) {
-        const product = await this.ecommerceService.getProduct(productId, userId);
-        if (product) {
-          const fullAddress = `${session.customerAddress}, ${session.customerCity}, ${message}`;
-          
-          this.ecommerceService.createOrder({
-            customerName: session.customerName,
-            customerPhone: phone,
-            customerAddress: fullAddress,
-            productId,
-            quantity: 1,
-            totalAmount: product.price,
-          }, userId);
-          
-          const confirmationMessage = `✅ *Order Confirmed*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`;
-          
-          this.sessionService.clearSession(phone, userId);
-          this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
-          return true;
+      console.log(`[Meta Catalog] Customer ${phone} in step: ${step}, message: ${message}`);
+      
+      if (step === 'awaiting_name') {
+        this.sessionService.setCustomerName(phone, message, userId).catch(e => console.error('Session save error:', e));
+        this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your complete delivery address:');
+        return true;
+      }
+      
+      if (step === 'awaiting_address') {
+        this.sessionService.setCustomerAddress(phone, message, userId).catch(e => console.error('Session save error:', e));
+        this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your city:');
+        return true;
+      }
+      
+      if (step === 'awaiting_city') {
+        this.sessionService.setCustomerCity(phone, message, userId).catch(e => console.error('Session save error:', e));
+        this.sendTextMessage(phone, phoneNumberId, 'Thank you! Finally, please provide your pincode:');
+        return true;
+      }
+      
+      if (step === 'awaiting_pincode') {
+        this.sessionService.setCustomerPincode(phone, message, userId).catch(e => console.error('Session save error:', e));
+        
+        const session = await this.sessionService.getSession(phone, userId);
+        const productId = session?.currentProductId;
+        
+        if (productId) {
+          const product = await this.ecommerceService.getProduct(productId, userId);
+          if (product) {
+            const fullAddress = `${session.customerAddress}, ${session.customerCity}, ${message}`;
+            
+            this.ecommerceService.createOrder({
+              customerName: session.customerName,
+              customerPhone: phone,
+              customerAddress: fullAddress,
+              productId,
+              quantity: 1,
+              totalAmount: product.price,
+            }, userId).catch(e => console.error('Order creation error:', e));
+            
+            const confirmationMessage = `✅ *Order Confirmed*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`;
+            
+            this.sessionService.clearSession(phone, userId).catch(e => console.error('Session clear error:', e));
+            this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
+            return true;
+          }
         }
       }
+      
+      return false;
+    } catch (error) {
+      console.error('[Meta Catalog] Error in handleCustomerResponse:', error);
+      return false;
     }
-    
-    return false;
   }
 
   private async sendTextMessage(phone: string, phoneNumberId: string, text: string) {

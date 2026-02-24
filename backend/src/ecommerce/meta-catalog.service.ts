@@ -303,10 +303,15 @@ export class MetaCatalogService {
         await this.sessionService.setCustomerPincode(phone, message, userId);
         
         const session = await this.sessionService.getSession(phone, userId);
+        console.log(`[Meta Catalog] Session data:`, JSON.stringify(session, null, 2));
+        
         const productId = session?.currentProductId;
+        console.log(`[Meta Catalog] Product ID from session: ${productId}`);
         
         if (productId) {
           const product = await this.ecommerceService.getProduct(productId, userId);
+          console.log(`[Meta Catalog] Product fetched:`, product ? `${product.name} - ₹${product.price}` : 'null');
+          
           if (product) {
             const fullAddress = `${session.customerAddress}, ${session.customerCity}, ${message}`;
             
@@ -321,10 +326,16 @@ export class MetaCatalogService {
             
             const confirmationMessage = `✅ *Order Confirmed*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`;
             
+            console.log(`[Meta Catalog] Sending confirmation message...`);
             await this.sessionService.clearSession(phone, userId).catch(e => console.error('Session clear error:', e));
             await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
+            console.log(`[Meta Catalog] Confirmation sent successfully`);
             return true;
+          } else {
+            console.error(`[Meta Catalog] Product not found for ID: ${productId}`);
           }
+        } else {
+          console.error(`[Meta Catalog] No productId in session`);
         }
       }
       

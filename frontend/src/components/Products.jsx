@@ -10,6 +10,7 @@ export default function Products() {
   const [showMetaModal, setShowMetaModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('all');
   const [form, setForm] = useState({
     name: '', description: '', price: '', subCategoryId: '', image: null, link: ''
   });
@@ -128,14 +129,18 @@ export default function Products() {
     }
   };
 
-  const filteredProducts = products.filter(p =>
-    p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.subCategory?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.subCategory?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (filterType === 'normal') return matchesSearch && !p.metaProductId;
+    if (filterType === 'meta') return matchesSearch && p.metaProductId;
+    return matchesSearch;
+  });
 
-  const normalProducts = filteredProducts.filter(p => !p.metaProductId);
-  const metaProducts = filteredProducts.filter(p => p.metaProductId);
+  const normalCount = products.filter(p => !p.metaProductId).length;
+  const metaCount = products.filter(p => p.metaProductId).length;
 
   return (
     <div className="ecommerce-container">
@@ -167,82 +172,112 @@ export default function Products() {
       </div>
 
       <div className="filters-section">
-        <div style={{position: 'relative', width: '300px'}}>
-          <Search size={18} style={{position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af'}} />
-          <input
-            type="text"
-            className="form-input"
-            placeholder="Search products..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{paddingLeft: '40px', padding: '8px 12px 8px 40px'}}
-          />
+        <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
+          <div style={{display: 'flex', gap: '8px', background: '#f3f4f6', padding: '4px', borderRadius: '8px'}}>
+            <button
+              onClick={() => setFilterType('all')}
+              style={{
+                padding: '8px 16px',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: '500',
+                fontSize: '14px',
+                background: filterType === 'all' ? '#fff' : 'transparent',
+                color: filterType === 'all' ? '#1f2937' : '#6b7280',
+                boxShadow: filterType === 'all' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+              }}
+            >
+              All ({products.length})
+            </button>
+            <button
+              onClick={() => setFilterType('normal')}
+              style={{
+                padding: '8px 16px',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: '500',
+                fontSize: '14px',
+                background: filterType === 'normal' ? '#fff' : 'transparent',
+                color: filterType === 'normal' ? '#1f2937' : '#6b7280',
+                boxShadow: filterType === 'normal' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+              }}
+            >
+              Normal ({normalCount})
+            </button>
+            <button
+              onClick={() => setFilterType('meta')}
+              style={{
+                padding: '8px 16px',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: '500',
+                fontSize: '14px',
+                background: filterType === 'meta' ? '#fff' : 'transparent',
+                color: filterType === 'meta' ? '#25d366' : '#6b7280',
+                boxShadow: filterType === 'meta' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+              }}
+            >
+              Meta Catalog ({metaCount})
+            </button>
+          </div>
+          <div style={{position: 'relative', width: '300px'}}>
+            <Search size={18} style={{position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af'}} />
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Search products..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{paddingLeft: '40px', padding: '8px 12px 8px 40px'}}
+            />
+          </div>
         </div>
         <div className="total-count">
-          Normal: {normalProducts.length} | Meta: {metaProducts.length}
+          Showing: {filteredProducts.length}
         </div>
       </div>
 
-      <div style={{marginBottom: '30px'}}>
-        <h3 style={{marginBottom: '15px', fontSize: '18px', fontWeight: '600'}}>Normal Products</h3>
-        <div className="table-container">
-          <table className="contacts-table">
-            <thead>
-              <tr>
-                <th>Image</th>
-                <th>Name</th>
-                <th>Price</th>
-                <th>Category</th>
-                <th>Actions</th>
+      <div className="table-container">
+        <table className="contacts-table">
+          <thead>
+            <tr>
+              <th>Image</th>
+              <th>Name</th>
+              <th>Price</th>
+              <th>Category</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredProducts.map((prod) => (
+              <tr key={prod.id}>
+                <td>
+                  {prod.imageUrl && <img src={prod.imageUrl.startsWith('http') ? prod.imageUrl : `http://localhost:3010${prod.imageUrl}`} alt={prod.name} className="product-image" />}
+                </td>
+                <td>
+                  <div style={{fontWeight: 500}}>{prod.name}</div>
+                  <div style={{fontSize: '12px', color: '#9ca3af', marginTop: '2px'}}>{prod.description?.substring(0, 50)}</div>
+                </td>
+                <td style={{fontWeight: 600}}>₹{prod.price}</td>
+                <td>{prod.subCategory?.name}</td>
+                <td>
+                  <div style={{display: 'flex', gap: '8px'}}>
+                    <button onClick={() => handleEdit(prod)} style={{background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', transition: 'all 0.2s'}}>
+                      <Pencil size={16} />
+                    </button>
+                    <button onClick={() => handleDelete(prod.id)} style={{background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', transition: 'all 0.2s', color: '#ef4444'}}>
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {normalProducts.map((prod) => (
-                <tr key={prod.id}>
-                  <td>
-                    {prod.imageUrl && <img src={prod.imageUrl.startsWith('http') ? prod.imageUrl : `http://localhost:3010${prod.imageUrl}`} alt={prod.name} className="product-image" />}
-                  </td>
-                  <td>
-                    <div style={{fontWeight: 500}}>{prod.name}</div>
-                    <div style={{fontSize: '12px', color: '#9ca3af', marginTop: '2px'}}>{prod.description?.substring(0, 50)}</div>
-                  </td>
-                  <td style={{fontWeight: 600}}>₹{prod.price}</td>
-                  <td>{prod.subCategory?.name}</td>
-                  <td>
-                    <div style={{display: 'flex', gap: '8px'}}>
-                      <button onClick={() => handleEdit(prod)} style={{background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', transition: 'all 0.2s'}}>
-                        <Pencil size={16} />
-                      </button>
-                      <button onClick={() => handleDelete(prod.id)} style={{background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', transition: 'all 0.2s', color: '#ef4444'}}>
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
-
-      <div>
-        <h3 style={{marginBottom: '15px', fontSize: '18px', fontWeight: '600', color: '#25d366'}}>Meta Catalog Products</h3>
-        <div className="table-container">
-          <table className="contacts-table">
-            <thead>
-              <tr>
-                <th>Image</th>
-                <th>Name</th>
-                <th>Price</th>
-                <th>Category</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {metaProducts.map((prod) => (
-                <tr key={prod.id}>
-                  <td>
-                    {prod.imageUrl && <img src={prod.imageUrl.startsWith('http') ? prod.imageUrl : `http://localhost:3010${prod.imageUrl}`} alt={prod.name} className="product-image" />}
                   </td>
                   <td>
                     <div style={{fontWeight: 500}}>{prod.name}</div>

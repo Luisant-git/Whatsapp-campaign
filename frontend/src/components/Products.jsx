@@ -278,29 +278,6 @@ export default function Products() {
           </tbody>
         </table>
       </div>
-                  </td>
-                  <td>
-                    <div style={{fontWeight: 500}}>{prod.name}</div>
-                    <div style={{fontSize: '12px', color: '#9ca3af', marginTop: '2px'}}>{prod.description?.substring(0, 50)}</div>
-                  </td>
-                  <td style={{fontWeight: 600}}>₹{prod.price}</td>
-                  <td>{prod.subCategory?.name}</td>
-                  <td>
-                    <div style={{display: 'flex', gap: '8px'}}>
-                      <button onClick={() => handleEdit(prod)} style={{background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', transition: 'all 0.2s'}}>
-                        <Pencil size={16} />
-                      </button>
-                      <button onClick={() => handleDelete(prod.id)} style={{background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', transition: 'all 0.2s', color: '#ef4444'}}>
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
 
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>

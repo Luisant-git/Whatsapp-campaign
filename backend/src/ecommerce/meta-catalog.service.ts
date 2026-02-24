@@ -53,6 +53,62 @@ export class MetaCatalogService {
     }
   }
 
+  async fetchProductsFromMeta() {
+    try {
+      const response = await axios.get(
+        `${this.apiUrl}/${this.catalogId}/products?fields=id,retailer_id,name,description,price,image_url,url,availability`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+          },
+        }
+      );
+      return response.data.data;
+    } catch (error) {
+      console.error('Fetch Meta products error:', error.response?.data || error.message);
+      throw new Error('Failed to fetch products from Meta Catalog');
+    }
+  }
+
+  async syncMetaProductsToDatabase(userId?: number) {
+    try {
+      const metaProducts = await this.fetchProductsFromMeta();
+      const syncedProducts: any[] = [];
+
+      for (const metaProduct of metaProducts) {
+        const price = metaProduct.price ? parseFloat(metaProduct.price) / 100 : 0;
+        
+        const productData = {
+          name: metaProduct.name,
+          description: metaProduct.description || '',
+          price: price,
+          imageUrl: metaProduct.image_url || null,
+          link: metaProduct.url || null,
+          metaProductId: metaProduct.id,
+          source: 'meta',
+          subCategoryId: 1,
+          isActive: metaProduct.availability === 'in stock',
+        };
+
+        const existingProduct = await this.ecommerceService.getProducts(undefined, userId)
+          .then(products => products.find(p => p.metaProductId === metaProduct.id));
+
+        if (existingProduct) {
+          await this.ecommerceService.updateProduct(existingProduct.id, productData);
+          syncedProducts.push({ ...existingProduct, ...productData, action: 'updated' });
+        } else {
+          const newProduct = await this.ecommerceService.createProduct(productData);
+          syncedProducts.push({ ...newProduct, action: 'created' });
+        }
+      }
+
+      return { success: true, syncedCount: syncedProducts.length, products: syncedProducts };
+    } catch (error) {
+      console.error('Sync Meta products error:', error.message);
+      throw new Error('Failed to sync Meta products to database');
+    }
+  }
+
   async sendCatalogMessage(phone: string, phoneNumberId: string, userId?: number) {
     try {
       // Check cache first

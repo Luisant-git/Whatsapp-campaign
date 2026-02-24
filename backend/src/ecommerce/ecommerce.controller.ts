@@ -154,6 +154,11 @@ export class EcommerceController {
     return result;
   }
 
+  @Post('sync-from-meta')
+  async syncFromMeta(@Request() req) {
+    return this.metaCatalogService.syncMetaProductsToDatabase(req.session.userId);
+  }
+
   @Get('customers')
   getCustomers(@Request() req) {
     return this.ecommerceService.getCustomers(req.session.userId);

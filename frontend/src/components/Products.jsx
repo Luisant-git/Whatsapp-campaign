@@ -124,6 +124,17 @@ export default function Products() {
     try {
       await ecommerceApi.syncProductToMeta(prod.id);
       alert(`✅ ${prod.name} synced to Meta Catalog successfully!`);
+      loadData();
+    } catch (error) {
+      alert(`❌ Failed to sync: ${error.response?.data?.message || error.message}`);
+    }
+  };
+
+  const handleSyncFromMeta = async () => {
+    try {
+      const result = await ecommerceApi.syncFromMeta();
+      alert(`✅ Synced ${result.data.syncedCount} products from Meta Catalog!`);
+      loadData();
     } catch (error) {
       alert(`❌ Failed to sync: ${error.response?.data?.message || error.message}`);
     }
@@ -135,12 +146,14 @@ export default function Products() {
       p.subCategory?.name?.toLowerCase().includes(searchQuery.toLowerCase());
     
     if (filterType === 'normal') return matchesSearch && !p.metaProductId;
-    if (filterType === 'meta') return matchesSearch && p.metaProductId;
+    if (filterType === 'uploaded') return matchesSearch && p.metaProductId && p.source !== 'meta';
+    if (filterType === 'synced') return matchesSearch && p.source === 'meta';
     return matchesSearch;
   });
 
   const normalCount = products.filter(p => !p.metaProductId).length;
-  const metaCount = products.filter(p => p.metaProductId).length;
+  const uploadedCount = products.filter(p => p.metaProductId && p.source !== 'meta').length;
+  const syncedCount = products.filter(p => p.source === 'meta').length;
 
   return (
     <div className="ecommerce-container">
@@ -167,6 +180,24 @@ export default function Products() {
             }}
           >
             <Upload size={18} /> Add to Meta Catalog
+          </button>
+          <button 
+            onClick={handleSyncFromMeta}
+            style={{
+              background: '#0084ff',
+              color: 'white',
+              border: 'none',
+              padding: '10px 20px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontSize: '14px'
+            }}
+          >
+            <Upload size={18} style={{transform: 'rotate(180deg)'}} /> Sync from Meta
           </button>
         </div>
       </div>
@@ -207,7 +238,7 @@ export default function Products() {
               Normal ({normalCount})
             </button>
             <button
-              onClick={() => setFilterType('meta')}
+              onClick={() => setFilterType('uploaded')}
               style={{
                 padding: '8px 16px',
                 border: 'none',
@@ -215,12 +246,28 @@ export default function Products() {
                 cursor: 'pointer',
                 fontWeight: '500',
                 fontSize: '14px',
-                background: filterType === 'meta' ? '#fff' : 'transparent',
-                color: filterType === 'meta' ? '#25d366' : '#6b7280',
-                boxShadow: filterType === 'meta' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                background: filterType === 'uploaded' ? '#fff' : 'transparent',
+                color: filterType === 'uploaded' ? '#25d366' : '#6b7280',
+                boxShadow: filterType === 'uploaded' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
               }}
             >
-              Meta Catalog ({metaCount})
+              Uploaded to Meta ({uploadedCount})
+            </button>
+            <button
+              onClick={() => setFilterType('synced')}
+              style={{
+                padding: '8px 16px',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: '500',
+                fontSize: '14px',
+                background: filterType === 'synced' ? '#fff' : 'transparent',
+                color: filterType === 'synced' ? '#0084ff' : '#6b7280',
+                boxShadow: filterType === 'synced' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+              }}
+            >
+              Synced from Meta ({syncedCount})
             </button>
           </div>
           <div style={{position: 'relative', width: '300px'}}>

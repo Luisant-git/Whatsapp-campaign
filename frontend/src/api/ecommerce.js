@@ -32,6 +32,7 @@ export const ecommerceApi = {
   }),
   deleteProduct: (id) => api.delete(`/ecommerce/products/${id}`),
   syncProductToMeta: (id) => api.post(`/ecommerce/products/${id}/sync-meta`),
+  syncFromMeta: () => api.post('/ecommerce/sync-from-meta'),
 
   // Orders
   getOrders: () => api.get('/ecommerce/orders'),

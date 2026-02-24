@@ -220,6 +220,7 @@ model Product {
   imageUrl      String?
   link          String?
   metaProductId String?
+  source        String?     @default("manual")
   subCategoryId Int
   isActive      Boolean     @default(true)
   subCategory   SubCategory @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)

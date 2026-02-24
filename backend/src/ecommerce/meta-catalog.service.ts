@@ -241,16 +241,22 @@ export class MetaCatalogService {
       console.log(`[Meta Catalog] Order received - catalog_item_id: ${catalogItemId}`);
       console.log(`[Meta Catalog] First product data:`, JSON.stringify(firstProduct, null, 2));
       
-      // Try to find product by metaProductId first
       const allProducts = await this.ecommerceService.getProducts(undefined, userId);
       console.log(`[Meta Catalog] All products in DB:`, allProducts.map(p => ({ id: p.id, name: p.name, metaProductId: p.metaProductId })));
       
-      let product = allProducts.find(p => p.metaProductId === catalogItemId);
+      let product;
       
-      // If not found, try retailer_id pattern (for uploaded products)
-      if (!product && catalogItemId?.startsWith('product_')) {
+      // Try retailer_id pattern first (for uploaded products like product_1)
+      if (catalogItemId?.startsWith('product_')) {
         const productId = parseInt(catalogItemId.replace('product_', ''));
         product = allProducts.find(p => p.id === productId);
+        console.log(`[Meta Catalog] Trying retailer_id match for ID ${productId}:`, product ? `Found ${product.name}` : 'Not found');
+      }
+      
+      // If not found, try metaProductId (for Meta-synced products)
+      if (!product) {
+        product = allProducts.find(p => p.metaProductId === catalogItemId);
+        console.log(`[Meta Catalog] Trying metaProductId match:`, product ? `Found ${product.name}` : 'Not found');
       }
       
       if (product) {

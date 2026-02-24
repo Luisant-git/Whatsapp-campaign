@@ -78,10 +78,9 @@ export class MetaCatalogService {
       for (const metaProduct of metaProducts) {
         const price = metaProduct.price ? parseFloat(metaProduct.price) / 100 : 0;
         
-        const productData = {
+        const productData: any = {
           name: metaProduct.name,
           description: metaProduct.description || '',
-          price: price,
           imageUrl: metaProduct.image_url || null,
           link: metaProduct.url || null,
           metaProductId: metaProduct.id,
@@ -90,6 +89,10 @@ export class MetaCatalogService {
           isActive: metaProduct.availability === 'in stock',
         };
 
+        if (price > 0) {
+          productData.price = price;
+        }
+
         const existingProduct = await this.ecommerceService.getProducts(undefined, userId)
           .then(products => products.find(p => p.metaProductId === metaProduct.id));
 
@@ -97,6 +100,9 @@ export class MetaCatalogService {
           await this.ecommerceService.updateProduct(existingProduct.id, productData);
           syncedProducts.push({ ...existingProduct, ...productData, action: 'updated' });
         } else {
+          if (!productData.price) {
+            productData.price = 0;
+          }
           const newProduct = await this.ecommerceService.createProduct(productData);
           syncedProducts.push({ ...newProduct, action: 'created' });
         }

@@ -234,6 +234,8 @@ export class MetaCatalogService {
     
     console.log(`[Meta Catalog] Full order data:`, JSON.stringify(order, null, 2));
     
+    let productId: number | undefined;
+    
     if (productItems.length > 0) {
       const firstProduct = productItems[0];
       const catalogItemId = firstProduct.catalog_item_id || firstProduct.product_retailer_id;
@@ -248,9 +250,9 @@ export class MetaCatalogService {
       
       // Try retailer_id pattern first (for uploaded products like product_1)
       if (catalogItemId?.startsWith('product_')) {
-        const productId = parseInt(catalogItemId.replace('product_', ''));
-        product = allProducts.find(p => p.id === productId);
-        console.log(`[Meta Catalog] Trying retailer_id match for ID ${productId}:`, product ? `Found ${product.name}` : 'Not found');
+        const prodId = parseInt(catalogItemId.replace('product_', ''));
+        product = allProducts.find(p => p.id === prodId);
+        console.log(`[Meta Catalog] Trying retailer_id match for ID ${prodId}:`, product ? `Found ${product.name}` : 'Not found');
       }
       
       // If not found, try metaProductId (for Meta-synced products)
@@ -261,13 +263,19 @@ export class MetaCatalogService {
       
       if (product) {
         console.log(`[Meta Catalog] Product found: ${product.name} (ID: ${product.id}, metaProductId: ${product.metaProductId})`);
-        await this.sessionService.setProductForPurchase(phone, product.id, userId);
+        productId = product.id;
       } else {
         console.error(`[Meta Catalog] Product not found for catalog_item_id: ${catalogItemId}`);
       }
     }
     
-    await this.sessionService.setSession(phone, { step: 'awaiting_name' }, userId);
+    // Set session with product ID
+    await this.sessionService.setSession(phone, { 
+      currentProductId: productId,
+      step: 'awaiting_name' 
+    }, userId);
+    
+    console.log(`[Meta Catalog] Session set with productId: ${productId}`);
     return this.sendTextMessage(phone, phoneNumberId, '📦 Great! To complete your order, please provide your full name:');
   }
 

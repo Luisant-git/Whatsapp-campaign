@@ -232,14 +232,19 @@ export class MetaCatalogService {
   async handleOrderMessage(phone: string, phoneNumberId: string, order: any, userId: number) {
     const productItems = order.product_items || [];
     
+    console.log(`[Meta Catalog] Full order data:`, JSON.stringify(order, null, 2));
+    
     if (productItems.length > 0) {
       const firstProduct = productItems[0];
       const catalogItemId = firstProduct.catalog_item_id || firstProduct.product_retailer_id;
       
       console.log(`[Meta Catalog] Order received - catalog_item_id: ${catalogItemId}`);
+      console.log(`[Meta Catalog] First product data:`, JSON.stringify(firstProduct, null, 2));
       
       // Try to find product by metaProductId first
       const allProducts = await this.ecommerceService.getProducts(undefined, userId);
+      console.log(`[Meta Catalog] All products in DB:`, allProducts.map(p => ({ id: p.id, name: p.name, metaProductId: p.metaProductId })));
+      
       let product = allProducts.find(p => p.metaProductId === catalogItemId);
       
       // If not found, try retailer_id pattern (for uploaded products)
@@ -249,7 +254,7 @@ export class MetaCatalogService {
       }
       
       if (product) {
-        console.log(`[Meta Catalog] Product found: ${product.name} (ID: ${product.id})`);
+        console.log(`[Meta Catalog] Product found: ${product.name} (ID: ${product.id}, metaProductId: ${product.metaProductId})`);
         await this.sessionService.setProductForPurchase(phone, product.id, userId);
       } else {
         console.error(`[Meta Catalog] Product not found for catalog_item_id: ${catalogItemId}`);

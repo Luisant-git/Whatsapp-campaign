@@ -234,12 +234,25 @@ export class MetaCatalogService {
     
     if (productItems.length > 0) {
       const firstProduct = productItems[0];
-      const retailerId = firstProduct.product_retailer_id;
+      const catalogItemId = firstProduct.catalog_item_id || firstProduct.product_retailer_id;
       
-      const productId = retailerId ? parseInt(retailerId.replace('product_', '')) : null;
+      console.log(`[Meta Catalog] Order received - catalog_item_id: ${catalogItemId}`);
       
-      if (productId) {
-        await this.sessionService.setProductForPurchase(phone, productId, userId);
+      // Try to find product by metaProductId first
+      const allProducts = await this.ecommerceService.getProducts(undefined, userId);
+      let product = allProducts.find(p => p.metaProductId === catalogItemId);
+      
+      // If not found, try retailer_id pattern (for uploaded products)
+      if (!product && catalogItemId?.startsWith('product_')) {
+        const productId = parseInt(catalogItemId.replace('product_', ''));
+        product = allProducts.find(p => p.id === productId);
+      }
+      
+      if (product) {
+        console.log(`[Meta Catalog] Product found: ${product.name} (ID: ${product.id})`);
+        await this.sessionService.setProductForPurchase(phone, product.id, userId);
+      } else {
+        console.error(`[Meta Catalog] Product not found for catalog_item_id: ${catalogItemId}`);
       }
     }
     

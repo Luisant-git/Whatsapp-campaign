@@ -56,7 +56,7 @@ export class MetaCatalogService {
   async fetchProductsFromMeta() {
     try {
       const response = await axios.get(
-        `${this.apiUrl}/${this.catalogId}/products?fields=id,retailer_id,name,description,price,image_url,url,availability`,
+        `${this.apiUrl}/${this.catalogId}/products?fields=id,retailer_id,name,description,price,currency,image_url,url,availability`,
         {
           headers: {
             'Authorization': `Bearer ${this.accessToken}`,
@@ -75,6 +75,8 @@ export class MetaCatalogService {
       const metaProducts = await this.fetchProductsFromMeta();
       const syncedProducts: any[] = [];
       const existingProducts = await this.ecommerceService.getProducts(undefined, userId);
+
+      console.log('Meta products fetched:', JSON.stringify(metaProducts, null, 2));
 
       for (const metaProduct of metaProducts) {
         // Check if this product already exists in our database
@@ -95,11 +97,21 @@ export class MetaCatalogService {
           }
         }
         
-        const price = metaProduct.price ? parseFloat(metaProduct.price) / 100 : 0;
+        console.log(`Processing Meta product: ${metaProduct.name}, raw price data:`, metaProduct.price);
+        
+        let price = 0;
+        if (typeof metaProduct.price === 'string') {
+          price = parseFloat(metaProduct.price) / 100;
+        } else if (typeof metaProduct.price === 'number') {
+          price = metaProduct.price / 100;
+        }
+        
+        console.log(`Converted price: ${price}`);
         
         const productData: any = {
           name: metaProduct.name,
           description: metaProduct.description || '',
+          price: price || 0,
           imageUrl: metaProduct.image_url || null,
           link: metaProduct.url || null,
           metaProductId: metaProduct.id,
@@ -108,17 +120,10 @@ export class MetaCatalogService {
           isActive: metaProduct.availability === 'in stock',
         };
 
-        if (price > 0) {
-          productData.price = price;
-        }
-
         if (existingProduct) {
           await this.ecommerceService.updateProduct(existingProduct.id, productData);
           syncedProducts.push({ ...existingProduct, ...productData, action: 'updated' });
         } else {
-          if (!productData.price) {
-            productData.price = 0;
-          }
           const newProduct = await this.ecommerceService.createProduct(productData);
           syncedProducts.push({ ...newProduct, action: 'created' });
         }

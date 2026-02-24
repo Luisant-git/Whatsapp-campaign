@@ -74,8 +74,16 @@ export class MetaCatalogService {
     try {
       const metaProducts = await this.fetchProductsFromMeta();
       const syncedProducts: any[] = [];
+      const existingProducts = await this.ecommerceService.getProducts(undefined, userId);
 
       for (const metaProduct of metaProducts) {
+        const existingProduct = existingProducts.find(p => p.metaProductId === metaProduct.id);
+        
+        // Skip if product was uploaded from our system (has retailer_id pattern)
+        if (metaProduct.retailer_id?.startsWith('product_') && !existingProduct) {
+          continue;
+        }
+        
         const price = metaProduct.price ? parseFloat(metaProduct.price) / 100 : 0;
         
         const productData: any = {
@@ -92,9 +100,6 @@ export class MetaCatalogService {
         if (price > 0) {
           productData.price = price;
         }
-
-        const existingProduct = await this.ecommerceService.getProducts(undefined, userId)
-          .then(products => products.find(p => p.metaProductId === metaProduct.id));
 
         if (existingProduct) {
           await this.ecommerceService.updateProduct(existingProduct.id, productData);

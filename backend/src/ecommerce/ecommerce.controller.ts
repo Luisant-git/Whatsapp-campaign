@@ -150,7 +150,7 @@ export class EcommerceController {
   async syncProductToMeta(@Param('id') id: string) {
     const product = await this.ecommerceService.getProduct(+id);
     const result = await this.metaCatalogService.syncProductToCatalog(product);
-    await this.ecommerceService.updateProduct(+id, { metaProductId: result.metaProductId });
+    await this.ecommerceService.updateProduct(+id, { metaProductId: result.metaProductId, source: 'uploaded' });
     return result;
   }
 

@@ -101,7 +101,9 @@ export class MetaCatalogService {
         
         let price = 0;
         if (typeof metaProduct.price === 'string') {
-          price = parseFloat(metaProduct.price) / 100;
+          // Remove currency symbol, commas, and parse
+          const cleanPrice = metaProduct.price.replace(/[₹,]/g, '').trim();
+          price = parseFloat(cleanPrice);
         } else if (typeof metaProduct.price === 'number') {
           price = metaProduct.price / 100;
         }

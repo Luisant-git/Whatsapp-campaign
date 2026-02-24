@@ -77,11 +77,22 @@ export class MetaCatalogService {
       const existingProducts = await this.ecommerceService.getProducts(undefined, userId);
 
       for (const metaProduct of metaProducts) {
+        // Check if this product already exists in our database
         const existingProduct = existingProducts.find(p => p.metaProductId === metaProduct.id);
         
-        // Skip if product was uploaded from our system (has retailer_id pattern)
-        if (metaProduct.retailer_id?.startsWith('product_') && !existingProduct) {
-          continue;
+        // Skip products that have retailer_id starting with 'product_' AND don't exist in our DB
+        // This means they were uploaded from our system but not yet in our DB
+        if (metaProduct.retailer_id?.startsWith('product_')) {
+          // Extract the product ID from retailer_id
+          const productIdFromRetailerId = parseInt(metaProduct.retailer_id.replace('product_', ''));
+          // Check if this product exists in our database with this ID
+          const uploadedProduct = existingProducts.find(p => p.id === productIdFromRetailerId);
+          
+          // If found, skip it (it's our uploaded product)
+          if (uploadedProduct) {
+            console.log(`Skipping uploaded product: ${metaProduct.name} (retailer_id: ${metaProduct.retailer_id})`);
+            continue;
+          }
         }
         
         const price = metaProduct.price ? parseFloat(metaProduct.price) / 100 : 0;

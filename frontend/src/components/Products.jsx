@@ -134,6 +134,9 @@ export default function Products() {
     p.subCategory?.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const normalProducts = filteredProducts.filter(p => !p.metaProductId);
+  const metaProducts = filteredProducts.filter(p => p.metaProductId);
+
   return (
     <div className="ecommerce-container">
       <div className="ecommerce-header">
@@ -176,47 +179,92 @@ export default function Products() {
           />
         </div>
         <div className="total-count">
-          Showing: {filteredProducts.length} Product{filteredProducts.length !== 1 ? 's' : ''}
+          Normal: {normalProducts.length} | Meta: {metaProducts.length}
         </div>
       </div>
 
-      <div className="table-container">
-        <table className="contacts-table">
-          <thead>
-            <tr>
-              <th>Image</th>
-              <th>Name</th>
-              <th>Price</th>
-              <th>Category</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredProducts.map((prod) => (
-              <tr key={prod.id}>
-                <td>
-                  {prod.imageUrl && <img src={prod.imageUrl.startsWith('http') ? prod.imageUrl : `http://localhost:3010${prod.imageUrl}`} alt={prod.name} className="product-image" />}
-                </td>
-                <td>
-                  <div style={{fontWeight: 500}}>{prod.name}</div>
-                  <div style={{fontSize: '12px', color: '#9ca3af', marginTop: '2px'}}>{prod.description?.substring(0, 50)}</div>
-                </td>
-                <td style={{fontWeight: 600}}>₹{prod.price}</td>
-                <td>{prod.subCategory?.name}</td>
-                <td>
-                  <div style={{display: 'flex', gap: '8px'}}>
-                    <button onClick={() => handleEdit(prod)} style={{background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', transition: 'all 0.2s'}}>
-                      <Pencil size={16} />
-                    </button>
-                    <button onClick={() => handleDelete(prod.id)} style={{background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', transition: 'all 0.2s', color: '#ef4444'}}>
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </td>
+      <div style={{marginBottom: '30px'}}>
+        <h3 style={{marginBottom: '15px', fontSize: '18px', fontWeight: '600'}}>Normal Products</h3>
+        <div className="table-container">
+          <table className="contacts-table">
+            <thead>
+              <tr>
+                <th>Image</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Category</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {normalProducts.map((prod) => (
+                <tr key={prod.id}>
+                  <td>
+                    {prod.imageUrl && <img src={prod.imageUrl.startsWith('http') ? prod.imageUrl : `http://localhost:3010${prod.imageUrl}`} alt={prod.name} className="product-image" />}
+                  </td>
+                  <td>
+                    <div style={{fontWeight: 500}}>{prod.name}</div>
+                    <div style={{fontSize: '12px', color: '#9ca3af', marginTop: '2px'}}>{prod.description?.substring(0, 50)}</div>
+                  </td>
+                  <td style={{fontWeight: 600}}>₹{prod.price}</td>
+                  <td>{prod.subCategory?.name}</td>
+                  <td>
+                    <div style={{display: 'flex', gap: '8px'}}>
+                      <button onClick={() => handleEdit(prod)} style={{background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', transition: 'all 0.2s'}}>
+                        <Pencil size={16} />
+                      </button>
+                      <button onClick={() => handleDelete(prod.id)} style={{background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', transition: 'all 0.2s', color: '#ef4444'}}>
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <h3 style={{marginBottom: '15px', fontSize: '18px', fontWeight: '600', color: '#25d366'}}>Meta Catalog Products</h3>
+        <div className="table-container">
+          <table className="contacts-table">
+            <thead>
+              <tr>
+                <th>Image</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Category</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {metaProducts.map((prod) => (
+                <tr key={prod.id}>
+                  <td>
+                    {prod.imageUrl && <img src={prod.imageUrl.startsWith('http') ? prod.imageUrl : `http://localhost:3010${prod.imageUrl}`} alt={prod.name} className="product-image" />}
+                  </td>
+                  <td>
+                    <div style={{fontWeight: 500}}>{prod.name}</div>
+                    <div style={{fontSize: '12px', color: '#9ca3af', marginTop: '2px'}}>{prod.description?.substring(0, 50)}</div>
+                  </td>
+                  <td style={{fontWeight: 600}}>₹{prod.price}</td>
+                  <td>{prod.subCategory?.name}</td>
+                  <td>
+                    <div style={{display: 'flex', gap: '8px'}}>
+                      <button onClick={() => handleEdit(prod)} style={{background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', transition: 'all 0.2s'}}>
+                        <Pencil size={16} />
+                      </button>
+                      <button onClick={() => handleDelete(prod.id)} style={{background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', transition: 'all 0.2s', color: '#ef4444'}}>
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {showModal && (

@@ -219,6 +219,7 @@ model Product {
   price         Float
   imageUrl      String?
   link          String?
+  metaProductId String?
   subCategoryId Int
   isActive      Boolean     @default(true)
   subCategory   SubCategory @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)

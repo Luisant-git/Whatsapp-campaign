@@ -46,7 +46,7 @@ export class MetaCatalogService {
         }
       );
 
-      return { success: true, data: response.data };
+      return { success: true, data: response.data, metaProductId: response.data.id };
     } catch (error) {
       console.error('Meta Catalog sync error:', error.response?.data || error.message);
       throw new Error(error.response?.data?.error?.message || 'Failed to sync to Meta Catalog');

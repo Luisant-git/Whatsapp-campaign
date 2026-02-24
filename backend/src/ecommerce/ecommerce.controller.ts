@@ -159,6 +159,13 @@ export class EcommerceController {
     return this.metaCatalogService.syncMetaProductsToDatabase(req.session.userId);
   }
 
+  @Post('clear-session/:phone')
+  async clearSession(@Param('phone') phone: string, @Request() req) {
+    const metaCatalogService = this.metaCatalogService as any;
+    await metaCatalogService.sessionService.clearSession(phone, req.session.userId);
+    return { success: true, message: 'Session cleared' };
+  }
+
   @Get('customers')
   getCustomers(@Request() req) {
     return this.ecommerceService.getCustomers(req.session.userId);

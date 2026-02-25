@@ -215,7 +215,7 @@ const MasterConfig = () => {
                   >
                     <option value="">Use Default Configuration</option>
                     {allSettings.map(config => (
-                      <option key={config.id} value={config.id}>
+                      <option key={config.id} value={config.phoneNumberId}>
                         {config.name} - {config.phoneNumberId}
                       </option>
                     ))}
@@ -244,7 +244,7 @@ const MasterConfig = () => {
                   >
                     <option value="">Use Default Configuration</option>
                     {allSettings.map(config => (
-                      <option key={config.id} value={config.id}>
+                      <option key={config.id} value={config.phoneNumberId}>
                         {config.name} - {config.phoneNumberId}
                       </option>
                     ))}
@@ -273,7 +273,7 @@ const MasterConfig = () => {
                   >
                     <option value="">Use Default Configuration</option>
                     {allSettings.map(config => (
-                      <option key={config.id} value={config.id}>
+                      <option key={config.id} value={config.phoneNumberId}>
                         {config.name} - {config.phoneNumberId}
                       </option>
                     ))}
@@ -302,7 +302,7 @@ const MasterConfig = () => {
                   >
                     <option value="">Use Default Configuration</option>
                     {allSettings.map(config => (
-                      <option key={config.id} value={config.id}>
+                      <option key={config.id} value={config.phoneNumberId}>
                         {config.name} - {config.phoneNumberId}
                       </option>
                     ))}

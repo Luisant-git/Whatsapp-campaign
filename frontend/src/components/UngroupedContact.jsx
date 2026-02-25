@@ -81,24 +81,25 @@ export default function UngroupedContact() {
   const fetchUngrouped = async () => {
     setLoading(true);
     setError("");
+  
     try {
-      const resp = await contactAPI.getAll(1, 5000, searchQuery, "");
-      const list = resp.data?.data || resp.data || [];
-
-      const ungroupedAll = list.filter((c) => !c.group && !c.groupId);
-
-      const t = ungroupedAll.length;
-      const tp = Math.max(1, Math.ceil(t / limit));
-      const safePage = Math.min(page, tp);
-
-      const start = (safePage - 1) * limit;
-      const pageItems = ungroupedAll.slice(start, start + limit);
-
-      setContacts(pageItems);
-      setTotal(t);
-      setTotalPages(tp);
-
-      if (safePage !== page) setPage(safePage);
+      // ✅ use the new API
+      const resp = await contactAPI.getNewContacts(page, limit, searchQuery);
+  
+      const payload = resp.data || {};
+      const list = Array.isArray(payload.data) ? payload.data : [];
+      const pagination = payload.pagination || {};
+  
+      // always store an array
+      setContacts(list);
+  
+      setTotal(pagination.total ?? list.length);
+      setTotalPages(pagination.totalPages ?? 1);
+  
+      // if backend normalizes page, keep in sync
+      if (pagination.page && pagination.page !== page) {
+        setPage(pagination.page);
+      }
     } catch (err) {
       console.error("Failed to fetch ungrouped contacts", err);
       setError("Unable to load ungrouped contacts. Please try again.");
@@ -127,7 +128,9 @@ export default function UngroupedContact() {
   }, [searchInput]);
 
   const headerCheckboxChecked =
-    contacts.length > 0 && contacts.every((c) => selectedIds.includes(c.id));
+  Array.isArray(contacts) &&
+  contacts.length > 0 &&
+  contacts.every((c) => selectedIds.includes(c.id));
 
   const handleBulkAssign = async () => {
     if (selectedIds.length === 0) return showError("Select contacts first");

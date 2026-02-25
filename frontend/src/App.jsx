@@ -31,6 +31,8 @@ import {
   UserX2Icon,
   UserSquare2Icon,
   UserPlus2,
+  BookTemplateIcon,
+  LayoutTemplate,
 } from "lucide-react";
 import { ToastProvider } from "./contexts/ToastContext";
 import WhatsAppChat from "./components/WhatsAppChat";
@@ -194,7 +196,7 @@ function App() {
               <div className="nav-item-group">
                 <button
                   className={`nav-item ${contactsOpen &&
-                    !["contacts", "blacklist"].includes(activeView)
+                    !["contacts", "blacklist","ungroupedcontact"].includes(activeView)
                     ? "active"
                     : ""
                     }`}
@@ -353,18 +355,11 @@ function App() {
                 )}
               </div>
 
-              <button
-                className={`nav-item ${activeView === "master-config" ? "active" : ""
-                  }`}
-                onClick={() => handleMenuClick("master-config")}
-              >
-                <Sliders size={18} />
-                <span>Whatsapp Setup</span>
-              </button>
+             
               {/* ------------ Settings (collapsible) ------------- */}
               <div className="nav-item-group">
                 <button
-                  className={`nav-item ${settingsOpen && !["settings", "labels"].includes(activeView)
+                  className={`nav-item ${settingsOpen && !["settings", "labels","master-config","createuser",].includes(activeView)
                     ? "active"
                     : ""
                     }`}
@@ -377,7 +372,22 @@ function App() {
                 {settingsOpen && (
                   <div className="nav-submenu">
 
-
+<button
+                className={`nav-subitem ${activeView === "master-config" ? "active" : ""
+                  }`}
+                onClick={() => handleMenuClick("master-config")}
+              >
+                <Sliders size={18} />
+                <span>Whatsapp Setup</span>
+              </button>
+              <button
+                      className={`nav-subitem ${activeView === "settings" ? "active" : ""
+                        }`}
+                      onClick={() => handleMenuClick("settings")}
+                    >
+                      <LayoutTemplate size={16} />
+                      <span>Templates</span>
+                    </button>
                     <button
                       className={`nav-subitem ${activeView === "labels" ? "active" : ""
                         }`}
@@ -386,6 +396,7 @@ function App() {
                       <Tag size={16} />
                       <span>Labels</span>
                     </button>
+                   
                     <button
                       className={`nav-subitem ${activeView === "createuser" ? "active" : ""
                         }`}
@@ -394,14 +405,7 @@ function App() {
                       <UserIcon size={16} />
                       <span>Create User</span>
                     </button>
-                    <button
-                      className={`nav-subitem   ${activeView === "Templates" ? "active" : ""
-                        }`}
-                      onClick={() => handleMenuClick("settings")}
-                    >
-                      <Sliders size={16} />
-                      <span>Templates</span>
-                    </button>
+                    
                   </div>
                 )}
               </div>
@@ -456,15 +460,7 @@ function App() {
                     >
                       My Profile
                     </button>
-                    <button
-                      className="profile-menu-item"
-                      onClick={() => {
-                        setActiveView("settings");
-                        setShowProfileMenu(false);
-                      }}
-                    >
-                      Settings
-                    </button>
+                   
                     <button
                       className="profile-menu-item"
                       onClick={handleLogout}

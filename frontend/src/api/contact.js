@@ -10,6 +10,15 @@ export const contactAPI = {
       params: { page, limit, search, groupId: groupId || undefined },
     }),
 
+
+   
+     // ✅ use API_BASE_URL + withCredentials
+getNewContacts: (page = 1, limit = 10, search = "") =>
+  axios.get(`${API_BASE_URL}/contact/new`, {
+    withCredentials: true,
+    params: { page, limit, search },
+  }),
+    
     getContacts: (id) =>
       axios.get(`${API_BASE_URL}/contact/group/${id}/contacts`, { withCredentials: true }),
     

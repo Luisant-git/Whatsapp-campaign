@@ -651,43 +651,58 @@ const Settings = ({ onNavigate }) => {
               </div>
 
               <div className="form-group">
-                <label>Header Image (Optional)</label>
+                <label>Header Media (Optional)</label>
                 <small style={{display: 'block', marginBottom: '8px', color: '#666'}}>
-                  Only add if your WhatsApp template has an image header parameter
+                  Only add if your WhatsApp template has a media header parameter
                 </small>
                 <ul style={{margin: '0 0 8px 0', padding: '0 0 0 20px', fontSize: '12px', color: '#666'}}>
-                  <li>Supported formats: JPG, JPEG, PNG, GIF</li>
-                  <li>Maximum size: 5MB</li>
+                  <li>Supported formats: JPG, JPEG, PNG, GIF, MP4, AVI, MOV</li>
+                  <li>Maximum size: 16MB</li>
                 </ul>
                 <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
                   <label className="btn-secondary" style={{cursor: 'pointer', margin: 0}}>
-                    <Upload size={16} /> {uploading ? 'Uploading...' : 'Upload Image'}
+                    <Upload size={16} /> {uploading ? 'Uploading...' : 'Upload Media'}
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/*,video/*"
                       onChange={handleImageUpload}
                       disabled={uploading}
                       style={{display: 'none'}}
                     />
                   </label>
                   {currentSettings.headerImageUrl && (
-                    <span style={{fontSize: '12px', color: '#28a745'}}>✓ Image uploaded</span>
+                    <span style={{fontSize: '12px', color: '#28a745'}}>✓ Media uploaded</span>
                   )}
                 </div>
                 {currentSettings.headerImageUrl && (
                   <div style={{marginTop: '10px', position: 'relative', display: 'inline-block', width: '200px'}}>
-                    <img 
-                      src={currentSettings.headerImageUrl} 
-                      alt="Header preview" 
-                      style={{
-                        width: '100%',
-                        height: '150px',
-                        borderRadius: '4px',
-                        border: '1px solid #ddd',
-                        objectFit: 'cover',
-                        display: 'block'
-                      }}
-                    />
+                    {currentSettings.headerImageUrl.match(/\.(mp4|avi|mov)$/i) ? (
+                      <video 
+                        src={currentSettings.headerImageUrl} 
+                        style={{
+                          width: '100%',
+                          height: '150px',
+                          borderRadius: '4px',
+                          border: '1px solid #ddd',
+                          objectFit: 'cover',
+                          display: 'block'
+                        }}
+                        controls
+                      />
+                    ) : (
+                      <img 
+                        src={currentSettings.headerImageUrl} 
+                        alt="Header preview" 
+                        style={{
+                          width: '100%',
+                          height: '150px',
+                          borderRadius: '4px',
+                          border: '1px solid #ddd',
+                          objectFit: 'cover',
+                          display: 'block'
+                        }}
+                      />
+                    )}
                     <button 
                       type="button"
                       style={{
@@ -710,7 +725,7 @@ const Settings = ({ onNavigate }) => {
                         lineHeight: '1'
                       }}
                       onClick={() => handleInputChange('headerImageUrl', '')}
-                      title="Remove image"
+                      title="Remove media"
                     >
                       ×
                     </button>

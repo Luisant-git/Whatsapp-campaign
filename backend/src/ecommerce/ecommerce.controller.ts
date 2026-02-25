@@ -86,6 +86,7 @@ export class EcommerceController {
       price: parseFloat(body.price),
       imageUrl: file ? `${process.env.UPLOAD_URL}/${file.filename}` : null,
       subCategoryId: +body.subCategoryId,
+      link: body.link || null,
     };
     return this.ecommerceService.createProduct(data);
   }
@@ -149,5 +150,10 @@ export class EcommerceController {
   async syncProductToMeta(@Param('id') id: string) {
     const product = await this.ecommerceService.getProduct(+id);
     return this.metaCatalogService.syncProductToCatalog(product);
+  }
+
+  @Get('customers')
+  getCustomers(@Request() req) {
+    return this.ecommerceService.getCustomers(req.session.userId);
   }
 }

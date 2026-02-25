@@ -36,4 +36,7 @@ export const ecommerceApi = {
   // Orders
   getOrders: () => api.get('/ecommerce/orders'),
   updateOrderStatus: (id, status) => api.put(`/ecommerce/orders/${id}/status`, { status }),
+
+  // Customers
+  getCustomers: () => api.get('/ecommerce/customers'),
 };

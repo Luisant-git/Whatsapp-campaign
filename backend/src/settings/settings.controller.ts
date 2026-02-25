@@ -55,14 +55,14 @@ export class SettingsController {
       }
     }),
     fileFilter: (req, file, cb) => {
-      if (!file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
-        return cb(new Error('Only image files are allowed!'), false);
+      if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|mp4|avi|mov|quicktime)$/)) {
+        return cb(new Error('Only image and video files are allowed!'), false);
       }
       cb(null, true);
     },
-    limits: { fileSize: 5 * 1024 * 1024 }
+    limits: { fileSize: 16 * 1024 * 1024 }
   }))
-  @ApiOperation({ summary: 'Upload header image' })
+  @ApiOperation({ summary: 'Upload header media' })
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
     const imageUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
     return { url: imageUrl };

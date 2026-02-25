@@ -144,6 +144,13 @@ export class SettingsService {
       data: createData
     });
 
+    // Create phone number mapping in central database
+    await this.centralPrisma.phoneNumberMapping.upsert({
+      where: { phoneNumberId: settings.phoneNumberId },
+      update: { tenantId: userId },
+      create: { phoneNumberId: settings.phoneNumberId, tenantId: userId }
+    });
+
     return {
       id: settings.id,
       name: settings.name,
@@ -194,6 +201,15 @@ export class SettingsService {
       where: { id },
       data: updateData
     });
+
+    // Update phone number mapping if phoneNumberId changed
+    if (updateSettingsDto.phoneNumberId) {
+      await this.centralPrisma.phoneNumberMapping.upsert({
+        where: { phoneNumberId: settings.phoneNumberId },
+        update: { tenantId: userId },
+        create: { phoneNumberId: settings.phoneNumberId, tenantId: userId }
+      });
+    }
 
     return {
       id: settings.id,

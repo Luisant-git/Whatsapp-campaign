@@ -27,14 +27,29 @@ export class UserService {
     const tenant = await this.centralPrisma.tenant.create({
       data: {
         email: createUserDto.email,
-        name: createUserDto.name,
+    
+        // what shows as "name" in your list – use companyName or fallback to dto.name
+        name:  createUserDto.name || null,
+    
+        companyName: createUserDto.companyName || null,
+        contactPersonName: createUserDto.contactPersonName || null,
+        phoneNumber: createUserDto.phoneNumber || null,
+        companyAddress: createUserDto.companyAddress || null,
+        city: createUserDto.city || null,
+        pincode: createUserDto.pincode || null,
+        state: createUserDto.state || null,
+        country: createUserDto.country || null,
+    
         password: hashedPassword,
         isActive: true,
+    
         dbName,
         dbHost: 'localhost',
         dbPort: 5432,
         dbUser: 'postgres',
         dbPassword: 'root',
+    
+        subscriptionId: createUserDto.subscriptionId ?? null,
       },
     });
 
@@ -49,15 +64,24 @@ export class UserService {
     });
 
     return {
-      message: 'User registered successfully',
-      user: {
-        id: tenant.id,
-        email: tenant.email,
-        name: tenant.name,
-        isActive: tenant.isActive,
-        createdAt: tenant.createdAt,
-      },
-    };
+  message: 'User registered successfully',
+  user: {
+    id: tenant.id,
+    email: tenant.email,
+    name: tenant.name,                  // this is whatever you set in data.name
+    companyName: tenant.companyName,
+    contactPersonName: tenant.contactPersonName,
+    phoneNumber: tenant.phoneNumber,
+    companyAddress: tenant.companyAddress,
+    city: tenant.city,
+    pincode: tenant.pincode,
+    state: tenant.state,
+    country: tenant.country,
+    subscriptionId: tenant.subscriptionId,
+    isActive: tenant.isActive,
+    createdAt: tenant.createdAt,
+  },
+};
   }
 
   async login(loginUserDto: LoginUserDto, session: any) {

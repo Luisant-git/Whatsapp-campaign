@@ -7,13 +7,15 @@ export default function Sidebar({ isOpen }) {
   const navigate = useNavigate();
   const location = useLocation();
   const activeMenu = location.pathname === '/users' ? 'users' 
+  : location.pathname === '/menupermission' ? 'menupermission' 
     : location.pathname === '/subscriptions' ? 'subscriptions'
     : location.pathname === '/subscription-orders' ? 'orders'
     : 'dashboard';
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: MdDashboard, path: '/' },
-    { id: 'users', label: 'Users', icon: MdPeople, path: '/users' },
+    { id: 'users', label: 'Company Creation', icon: MdPeople, path: '/users' },
+    { id: 'menupermission', label: 'Menu Permission', icon: MdPeople, path: '/menupermission' },
     { id: 'subscriptions', label: 'Subscriptions', icon: MdCardMembership, path: '/subscriptions' },
     { id: 'orders', label: 'Subscription Orders', icon: MdReceipt, path: '/subscription-orders' },
     // { id: 'campaigns', label: 'Campaigns', icon: MdCampaign },

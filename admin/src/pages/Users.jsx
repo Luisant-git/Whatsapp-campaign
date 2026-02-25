@@ -110,9 +110,9 @@ export default function Users() {
   return (
     <div className="users-page">
       <div className="users-header">
-        <h1>Users</h1>
+        <h1>Company Management</h1>
         <button className="btn-create" onClick={() => setShowModal(true)}>
-          + Create User
+          + Create Company
         </button>
       </div>
       <div className="users-table-container">
@@ -170,7 +170,7 @@ export default function Users() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Create New User</h2>
+              <h2>Create New Company</h2>
               <button className="close-btn" onClick={() => setShowModal(false)}>×</button>
             </div>
             <form onSubmit={handleCreateUser}>
@@ -208,7 +208,7 @@ export default function Users() {
                   Cancel
                 </button>
                 <button type="submit" className="btn-submit" disabled={creating}>
-                  {creating ? 'Creating...' : 'Create User'}
+                  {creating ? 'Creating...' : 'Create Company'}
                 </button>
               </div>
             </form>

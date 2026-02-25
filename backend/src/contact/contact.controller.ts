@@ -133,6 +133,22 @@ export class ContactController {
     return this.contactService.getCustomLabels(tenantContext);
   }
 
+//for ungrouped contactincoming new contact
+@Get('new')
+getNewContacts(
+  @TenantContext() tenantContext: TenantContextType,
+  @Query('page') page?: string,
+  @Query('limit') limit?: string,
+  @Query('search') search?: string,
+) {
+  return this.contactService.getNewContacts(
+    tenantContext,
+    page ? parseInt(page) : 1,
+    limit ? parseInt(limit) : 10,
+    search,
+  );
+}
+
   @Post('labels/custom')
   async updateCustomLabels(
     @TenantContext() tenantContext: TenantContextType,
@@ -174,4 +190,23 @@ export class ContactController {
   ) {
     return this.contactService.removeLabel(phone, label, tenantContext);
   }
+
+  @Delete('labels/custom/:label')
+async deleteCustomLabel(
+  @Param('label') label: string,
+  @TenantContext() tenantContext: TenantContextType,
+) {
+  const existing = await this.contactService.getCustomLabels(tenantContext);
+
+  const updated = Array.isArray(existing)
+    ? existing.filter(
+        (l) => l.toLowerCase() !== label.toLowerCase(),
+      )
+    : [];
+
+  return this.contactService.updateCustomLabels(
+    tenantContext,
+    updated,
+  );
+}
 }

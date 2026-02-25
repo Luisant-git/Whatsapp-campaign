@@ -59,8 +59,20 @@ export class ContactService {
   ) {
     const prisma = this.getPrisma(tenantContext);
   
+    const blockedLabels = await prisma.chatLabel.findMany({
+      where: {
+        labels: { hasSome: ['Stop', 'stop'] },
+      },
+      select: { phone: true },
+    });
+  
+    const blockedPhones = blockedLabels.map((b) => b.phone);
+  
     const where: any = {
-      isActive: true, // ✅ IMPORTANT: only active contacts
+      isActive: true,
+      phone: {
+        notIn: blockedPhones.length ? blockedPhones : [''],
+      },
     };
   
     if (search?.trim()) {
@@ -70,7 +82,8 @@ export class ContactService {
       ];
     }
   
-    if (groupId) {
+    // 👉 ONLY contacts for this group
+    if (groupId !== undefined && groupId !== null) {
       where.groupId = groupId;
     }
   
@@ -95,7 +108,6 @@ export class ContactService {
       },
     };
   }
-
   async getContactsByGroup(groupId: number, tenantContext: TenantContext) {
     const prisma = this.getPrisma(tenantContext);
     return prisma.contact.findMany({
@@ -284,4 +296,63 @@ async remove(id: number, tenantContext: TenantContext) {
     
     return { success: true, customLabels: labels };
   }
+
+//for ungrouped contactincoming new contact
+
+async getNewContacts(
+  tenantContext: TenantContext,
+  page = 1,
+  limit = 10,
+  search?: string,
+) {
+  const prisma = this.getPrisma(tenantContext);
+
+  // ✅ 1) Get blocked phones (same logic as findAll)
+  const blockedLabels = await prisma.chatLabel.findMany({
+    where: {
+      labels: { hasSome: ['Stop', 'stop'] },
+    },
+    select: { phone: true },
+  });
+
+  const blockedPhones = blockedLabels.map((b) => b.phone);
+
+  // ✅ 2) Base where for "new/ungrouped" contacts + block filter
+  const where: any = {
+    isActive: true,
+    groupId: null,
+    lastMessageDate: { not: null },   // only contacts with messages
+    phone: {
+      notIn: blockedPhones.length ? blockedPhones : [''],
+    },
+  };
+
+  // optional search
+  if (search?.trim()) {
+    where.OR = [
+      { name: { contains: search.trim(), mode: 'insensitive' } },
+      { phone: { contains: search.trim() } },
+    ];
+  }
+
+  const [data, total] = await Promise.all([
+    prisma.contact.findMany({
+      where,
+      orderBy: { lastMessageDate: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.contact.count({ where }),
+  ]);
+
+  return {
+    data,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
 }

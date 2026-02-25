@@ -15,16 +15,15 @@ import {
   RotateCcw,
 } from "lucide-react";
 
+
+
 import "../styles/Contact.css";
 import { contactAPI } from "../api/contact";
 import { groupAPI } from "../api/group";
 import * as XLSX from "xlsx";
-import {
-  IoCheckmarkOutline,
-  IoCloseOutline,
-  IoCloudUploadOutline,
-} from "react-icons/io5";
+
 import { useToast } from "../contexts/ToastContext";
+import { IoCheckmarkDoneCircleOutline, IoCloseCircleOutline, IoCloudUploadOutline } from "react-icons/io5";
 
 export default function Contact() {
   const [tab, setTab] = useState("active"); // "active" | "trash"
@@ -73,7 +72,7 @@ export default function Contact() {
   const [selectedGroupIdForImport, setSelectedGroupIdForImport] = useState("");
   const [importing, setImporting] = useState(false);
 
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showInfo } = useToast();
 
   // form data: store groupId (not name)
   const [formData, setFormData] = useState({
@@ -86,7 +85,7 @@ export default function Contact() {
     groupId: "",
   });
 
-  // debounce
+
   const debounceTimer = useRef(null);
   const debouncedSearch = (val) => {
     clearTimeout(debounceTimer.current);
@@ -428,35 +427,47 @@ export default function Contact() {
   const handleBulkImportSubmit = async () => {
     if (uploadedData.length === 0)
       return showError("Please upload a file first");
+  
     setImporting(true);
-
+  
     let successCount = 0;
     let failCount = 0;
     const duplicateNumbers = [];
-
+    const invalidNumbers = []; // <— track invalid (non 10-digit) phones
+  
     // helper: map group name -> id
     const groupNameToId = new Map(
       groups.map((g) => [g.name.toLowerCase(), g.id])
     );
-
+  
     try {
       for (const c of uploadedData) {
         try {
+          // Normalize phone to digits only
+          const rawPhone = String(c.phone || "").replace(/\D/g, "");
+  
+          // Skip if not exactly 10 digits
+          if (rawPhone.length !== 10) {
+            invalidNumbers.push(c.phone || rawPhone || "(empty)");
+            failCount++;
+            continue; // do NOT call the API for this row
+          }
+  
           const groupId =
             (c.group
               ? groupNameToId.get(String(c.group).toLowerCase())
               : null) || (selectedGroupIdForImport || null);
-
+  
           await contactAPI.create({
             name: c.name,
-            phone: c.phone,
+            phone: rawPhone, // use cleaned 10‑digit phone
             email: c.email || undefined,
             place: c.place || undefined,
             dob: c.dob || undefined,
             anniversary: c.anniversary || undefined,
             groupId: groupId || undefined,
           });
-
+  
           successCount++;
         } catch (err) {
           const msg = err.response?.data?.message || err.message || "";
@@ -469,21 +480,37 @@ export default function Contact() {
     } finally {
       setImporting(false);
     }
-
-    if (successCount > 0)
-      showSuccess(`Imported ${successCount} contact${successCount > 1 ? "s" : ""}`);
-    if (duplicateNumbers.length > 0)
-      showError(`Already registered numbers: ${duplicateNumbers.join(", ")}`);
-    if (failCount > 0 && duplicateNumbers.length === 0)
-      showError("Some contacts failed to import.");
-
+  
     setUploadedData([]);
     setFileName("");
     setShowBulkModal(false);
-
+  
     setTab("active");
     setPage(1);
-    fetchContacts(1, limit, searchQuery, selectedGroupFilterId);
+  
+    await fetchContacts(1, limit, searchQuery, selectedGroupFilterId);
+  
+    // ✅ Show toast AFTER UI stabilizes
+    if (successCount > 0) {
+      showSuccess(
+        `Imported ${successCount} contact${successCount > 1 ? "s" : ""}`
+      );
+    }
+  
+    if (duplicateNumbers.length > 0) {
+      showError(`Already registered: ${duplicateNumbers.join(", ")}`);
+    }
+  
+    if (invalidNumbers.length > 0) {
+      showError(
+        `Invalid phone (not 10 digits): ${invalidNumbers.join(", ")}`
+      );
+    }
+  
+  
+    if (failCount >= 10) {
+      showError(`${failCount} contacts failed to import.`);
+    }
   };
 
   // helpers
@@ -765,8 +792,7 @@ export default function Contact() {
 
             <tbody>
               {tab === "active"
-                ? contacts .filter((c) => c.group || c.groupId)    // ONLY grouped contacts
-                .map((c, i) => (
+                ? contacts.map((c, i) => (
                   <tr key={c.id}>
                     <td>
                       <input
@@ -1060,131 +1086,122 @@ export default function Contact() {
           </div>
         </div>
       )}
-
-      {/* Bulk Import Modal */}
-      {showBulkModal && (
-        <div
-          className="modal-overlay"
+{showBulkModal && (
+  <div
+    className="modal-overlay"
+    onClick={() => !importing && setShowBulkModal(false)}
+  >
+    <div
+      className="modal-content"
+      onClick={(e) => e.stopPropagation()}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="bulk-import-title"
+    >
+      <div className="modal-header">
+        <h3 id="bulk-import-title">Bulk Import Contacts</h3>
+        <button
+          className="close-btn"
           onClick={() => !importing && setShowBulkModal(false)}
         >
-          <div
-            className="modal-content"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h3>Bulk Import Contacts</h3>
+          <X size={20} />
+        </button>
+      </div>
+
+      <div className="bulk-import-content">
+        <p>Upload a CSV or Excel file with the following columns:</p>
+        <ul>
+          <li>Name (required)</li>
+          <li>Phone (required)</li>
+          <li>Group (optional)</li>
+          <li>Email, Place, DOB, Anniversary (optional)</li>
+        </ul>
+
+        {/* Premium upload area */}
+        <div className="file-upload-container">
+          <input
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileUpload}
+            id="contact-upload"
+            className="file-input"
+            disabled={importing}
+          />
+
+          <label htmlFor="contact-upload" className="file-upload-card">
+            <div className="file-upload-icon">
+              <IoCloudUploadOutline size={26} />
+            </div>
+            <div className="file-upload-texts">
+              <span className="file-upload-title">
+                {fileName || "Click to upload or drag & drop"}
+              </span>
+              <span className="file-upload-subtitle">
+                Excel / CSV • .xlsx, .xls, .csv
+              </span>
+            </div>
+          </label>
+
+          {uploadedData.length > 0 && (
+            <div className="file-success">
+              <IoCheckmarkDoneCircleOutline
+                size={18}
+                className="file-success-icon"
+              />
+              <span>{uploadedData.length} contacts ready to import</span>
               <button
-                className="close-btn"
-                onClick={() => !importing && setShowBulkModal(false)}
+                type="button"
+                className="file-clear-btn"
+                onClick={() => {
+                  if (importing) return;
+                  setUploadedData([]);
+                  setFileName("");
+                }}
+                disabled={importing}
               >
-                <X size={20} />
+                <IoCloseCircleOutline size={18} />
               </button>
             </div>
-
-            <div className="bulk-import-content">
-              <p>Upload a CSV or Excel file with the following columns:</p>
-              <ul>
-                <li>Name (required)</li>
-                <li>Phone (required)</li>
-                <li>Group (optional)</li>
-                <li>Email, Place, DOB, Anniversary (optional)</li>
-              </ul>
-
-              <div
-                className="file-upload-container"
-                style={{ marginTop: "12px" }}
-              >
-                <input
-                  type="file"
-                  accept=".xlsx,.xls,.csv"
-                  onChange={handleFileUpload}
-                  id="contact-upload"
-                  className="file-input"
-                  disabled={importing}
-                />
-                <label htmlFor="contact-upload" className="file-upload-btn">
-                  <IoCloudUploadOutline size={20} />
-                  <span style={{ marginLeft: "8px" }}>
-                    {fileName || "Choose File (Excel/CSV)"}
-                  </span>
-                </label>
-
-                {uploadedData.length > 0 && (
-                  <div
-                    className="file-success"
-                    style={{
-                      marginTop: "8px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                    }}
-                  >
-                    <IoCheckmarkOutline size={18} color="#16a34a" />
-                    <span>
-                      {uploadedData.length} contacts ready to import
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (importing) return;
-                        setUploadedData([]);
-                        setFileName("");
-                      }}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                      }}
-                      disabled={importing}
-                    >
-                      <IoCloseOutline size={18} />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="form-group" style={{ marginTop: "12px" }}>
-                <label>Select Group (optional)</label>
-                <select
-                  className="form-input"
-                  value={selectedGroupIdForImport}
-                  onChange={(e) =>
-                    setSelectedGroupIdForImport(e.target.value)
-                  }
-                  disabled={importing}
-                >
-                  <option value="">No Group</option>
-                  {groups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div
-                className="modal-actions"
-                style={{ marginTop: "16px" }}
-              >
-                <button
-                  className="btn-secondary"
-                  onClick={() => setShowBulkModal(false)}
-                  disabled={importing}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="btn-primary"
-                  onClick={handleBulkImportSubmit}
-                  disabled={importing || uploadedData.length === 0}
-                >
-                  {importing ? "Importing..." : "Import Contacts"}
-                </button>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
-      )}
+
+        <div className="form-group">
+          <label>Select Group (optional)</label>
+          <select
+            className="form-input"
+            value={selectedGroupIdForImport}
+            onChange={(e) => setSelectedGroupIdForImport(e.target.value)}
+            disabled={importing}
+          >
+            <option value="">No Group</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="modal-actions">
+          <button
+            className="btn-secondary"
+            onClick={() => setShowBulkModal(false)}
+            disabled={importing}
+          >
+            Cancel
+          </button>
+          <button
+            className="btn-primary"
+            onClick={handleBulkImportSubmit}
+            disabled={importing || uploadedData.length === 0}
+          >
+            {importing ? "Importing..." : "Import Contacts"}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* View Contact Modal */}
       {viewContact && (

@@ -22,6 +22,15 @@ model Tenant {
   id          Int      @id @default(autoincrement())
   email       String   @unique
   name        String?
+  companyName  String?
+  contactPersonName  String?
+  phoneNumber  String?
+  companyAddress  String?
+  city         String?
+  pincode     String?
+  state       String?
+  country     String?
+  menuPermission  MenuPermission?
   password    String
   isActive    Boolean  @default(true)
   dbName      String   @unique
@@ -70,4 +79,17 @@ model SubscriptionOrder {
   
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   plan        SubscriptionPlan @relation(fields: [planId], references: [id])
+}
+
+
+model MenuPermission {
+  id          Int      @id @default(autoincrement())
+
+  tenantId     Int      @unique
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  permission  Json     // Full sidebar JSON
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

@@ -21,6 +21,7 @@ import { TestController } from './test.controller';
 import { EcommerceModule } from './ecommerce/ecommerce.module';
 
 import { SubuserModule } from './subuser/subuser.module';
+import { MenuPermissionModule } from './menu-permission/menu-permission.module';
 
 @Module({
   imports: [
@@ -42,6 +43,8 @@ import { SubuserModule } from './subuser/subuser.module';
     EcommerceModule,
    
     SubuserModule,
+   
+    MenuPermissionModule,
   ],
   controllers: [AppController, TestController],
   providers: [AppService],
@@ -59,6 +62,7 @@ export class AppModule implements NestModule {
         'test/(.*)',
         'whatsapp/webhook',
         'whatsapp/webhook/(.*)',
+        'menu-permission/(.*)',  
           
       )
       .forRoutes('*');

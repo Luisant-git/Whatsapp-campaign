@@ -28,9 +28,14 @@ export class ContactService {
     const prisma = this.getPrisma(tenantContext);
     const phone = this.formatPhoneNumber(data.phone);
   
-    const existing = await prisma.contact.findUnique({ where: { phone } });
+    const existing = await prisma.contact.findFirst({ 
+      where: { 
+        phone,
+        phoneNumberId: data.phoneNumberId || null
+      } 
+    });
     if (existing) {
-      throw new NotFoundException('Contact with this phone number already exists');
+      throw new NotFoundException('Contact with this phone number already exists for this WhatsApp number');
     }
   
     const groupId = data.groupId ? Number(data.groupId) : undefined;
@@ -43,6 +48,7 @@ export class ContactService {
         place: data.place,
         dob: data.dob ? new Date(data.dob) : null,
         anniversary: data.anniversary ? new Date(data.anniversary) : null,
+        phoneNumberId: data.phoneNumberId || null,
   
         // ✅ only connect if groupId exists
         ...(groupId ? { group: { connect: { id: groupId } } } : {}),
@@ -196,10 +202,16 @@ async remove(id: number, tenantContext: TenantContext) {
     campaignName: string,
     name: string,
     tenantContext: TenantContext,
+    phoneNumberId?: string,
   ) {
     const prisma = this.getPrisma(tenantContext);
     await prisma.contact.upsert({
-      where: { phone },
+      where: { 
+        phone_phoneNumberId: { 
+          phone, 
+          phoneNumberId: (phoneNumberId ?? null) as any 
+        } 
+      },
       update: {
         name: name || phone,
         lastMessageDate: new Date(),
@@ -207,6 +219,7 @@ async remove(id: number, tenantContext: TenantContext) {
       create: {
         name: name || phone,
         phone,
+        phoneNumberId: (phoneNumberId ?? null) as any,
         lastMessageDate: new Date(),
       },
     });

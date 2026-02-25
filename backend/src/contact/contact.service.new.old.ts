@@ -29,8 +29,11 @@ export class ContactService {
     const prisma = this.getPrisma(tenantContext);
     const phone = this.formatPhoneNumber(data.phone);
 
-    const existing = await prisma.contact.findUnique({
-      where: { phone },
+    const existing = await prisma.contact.findFirst({
+      where: { 
+        phone,
+        phoneNumberId: data.phoneNumberId || undefined
+      },
     });
 
     if (existing) {
@@ -170,10 +173,16 @@ export class ContactService {
     campaignName: string,
     name: string,
     tenantContext: TenantContext,
+    phoneNumberId?: string,
   ) {
     const prisma = this.getPrisma(tenantContext);
     await prisma.contact.upsert({
-      where: { phone },
+      where: { 
+        phone_phoneNumberId: { 
+          phone, 
+          phoneNumberId: (phoneNumberId ?? null) as any 
+        } 
+      },
       update: {
         name: name || phone,
         lastMessageDate: new Date(),
@@ -181,6 +190,7 @@ export class ContactService {
       create: {
         name: name || phone,
         phone,
+        phoneNumberId: (phoneNumberId ?? null) as any,
         lastMessageDate: new Date(),
       },
     });

@@ -111,11 +111,15 @@ export class WhatsappController {
           for (const change of entry.changes) {
             if (change.field === 'messages') {
               const message = change.value.messages?.[0];
+              const phoneNumberId = change.value.metadata?.phone_number_id;
+              const displayPhoneNumber = change.value.metadata?.display_phone_number;
+              
+              console.log(`📞 Phone Number ID: ${phoneNumberId}`);
+              console.log(`📞 Display Phone: ${displayPhoneNumber}`);
+              
               if (message) {
                 try {
                   console.log('Processing incoming message:', message);
-                  const phoneNumberId = change.value.metadata?.phone_number_id;
-                  console.log('Phone Number ID:', phoneNumberId);
                  
                   let userId = await this.whatsappService.findUserByVerifyToken(verifyToken);
                   console.log('User ID from verify token:', userId);
@@ -188,9 +192,14 @@ export class WhatsappController {
           for (const change of entry.changes) {
             if (change.field === 'messages') {
               const message = change.value.messages?.[0];
+              const phoneNumberId = change.value.metadata?.phone_number_id;
+              const displayPhoneNumber = change.value.metadata?.display_phone_number;
+              
+              console.log(`📞 Phone Number ID: ${phoneNumberId}`);
+              console.log(`📞 Display Phone: ${displayPhoneNumber}`);
+              
               if (message) {
                 try {
-                  const phoneNumberId = change.value.metadata?.phone_number_id;
                   console.log('Processing message for phone number ID:', phoneNumberId);
                   
                   await this.whatsappService.handleIncomingMessageWithoutContext(message, phoneNumberId);

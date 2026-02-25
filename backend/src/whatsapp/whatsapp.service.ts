@@ -155,6 +155,9 @@ export class WhatsappService {
       return;
     }
 
+    // Get phoneNumberId from settings
+    const settings = await this.getSettings(userId);
+
     await this.prisma.whatsAppMessage.create({
       data: {
         messageId,
@@ -165,6 +168,7 @@ export class WhatsappService {
         mediaUrl,
         direction: 'incoming',
         status: 'received',
+        phoneNumberId: settings.phoneNumberId,
       }
     });
 
@@ -365,6 +369,7 @@ export class WhatsappService {
           message: `Interactive buttons: ${text}`,
           direction: 'outgoing',
           status: 'sent',
+          phoneNumberId: settings.phoneNumberId,
         }
       });
 
@@ -408,6 +413,7 @@ export class WhatsappService {
           message,
           direction: 'outgoing',
           status: 'sent',
+          phoneNumberId: settings.phoneNumberId,
         }
       });
 
@@ -452,6 +458,7 @@ export class WhatsappService {
           mediaUrl,
           direction: 'outgoing',
           status: 'sent',
+          phoneNumberId: settings.phoneNumberId,
         }
       });
 
@@ -707,7 +714,7 @@ export class WhatsappService {
       return;
     }
     
-    // Store message in background
+    // Store message with phoneNumberId
     tenantClient.whatsAppMessage.create({
       data: {
         messageId,
@@ -716,6 +723,7 @@ export class WhatsappService {
         message: text || 'media message',
         direction: 'incoming',
         status: 'received',
+        phoneNumberId,
       }
     }).catch(e => this.logger.error('Message store error:', e.message));
     
@@ -726,7 +734,9 @@ export class WhatsappService {
       const lowerText = text.toLowerCase().trim();
       
       // Get settings once
-      const whatsappSettings = await tenantClient.whatsAppSettings.findFirst();
+      const whatsappSettings = await tenantClient.whatsAppSettings.findFirst({
+        where: { phoneNumberId }
+      });
       if (!whatsappSettings) return;
       
       // Check if user is in Meta Catalog order flow first
@@ -848,6 +858,7 @@ export class WhatsappService {
           message,
           direction: 'outgoing',
           status: 'sent',
+          phoneNumberId,
         }
       });
 
@@ -886,6 +897,7 @@ export class WhatsappService {
           mediaUrl,
           direction: 'outgoing',
           status: 'sent',
+          phoneNumberId,
         }
       });
 
@@ -936,6 +948,7 @@ export class WhatsappService {
           message: `Interactive buttons: ${text}`,
           direction: 'outgoing',
           status: 'sent',
+          phoneNumberId,
         }
       });
 

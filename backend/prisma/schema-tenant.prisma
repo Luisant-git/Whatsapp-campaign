@@ -32,17 +32,21 @@ model MasterConfig {
 }
 
 model WhatsAppMessage {
-  id        Int      @id @default(autoincrement())
-  messageId String   @unique
-  to        String
-  from      String
-  message   String?
-  mediaType String?
-  mediaUrl  String?
-  direction String
-  status    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            Int      @id @default(autoincrement())
+  messageId     String   @unique
+  to            String
+  from          String
+  message       String?
+  mediaType     String?
+  mediaUrl      String?
+  direction     String
+  status        String
+  phoneNumberId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([phoneNumberId])
+  @@index([from, phoneNumberId])
 }
 
 model WhatsAppSettings {
@@ -157,16 +161,20 @@ model Contact {
   id               Int      @id @default(autoincrement())
   name             String
   email            String?
-  phone            String   @unique
+  phone            String
   place            String?
   lastMessageDate  DateTime?
   dob             DateTime?
   anniversary     DateTime?
   isActive         Boolean ? @default(true)
+  phoneNumberId    String?
   groupId           Int?
   group             Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  
+  @@unique([phone, phoneNumberId])
+  @@index([phoneNumberId])
 }
 
 model Group {

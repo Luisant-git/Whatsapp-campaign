@@ -458,6 +458,11 @@ const Settings = ({ onNavigate }) => {
                         <strong>Phone ID:</strong> {config.phoneNumberId}
                       </p>
                     )}
+                    {config.isDefault && (
+                      <p style={{color: '#25d366', fontSize: '13px', fontWeight: '600', marginTop: '8px'}}>
+                        📞 Used for: Incoming messages, Campaigns, Chat replies
+                      </p>
+                    )}
                   </div>
                   <div className="config-actions">
                     <button

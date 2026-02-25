@@ -229,7 +229,10 @@ export class CampaignService {
         // Auto-create or update contact
         await this.prisma.contact.upsert({
           where: {
-            phone: formattedPhone,
+            phone_phoneNumberId: {
+              phone: formattedPhone,
+              phoneNumberId: (settings?.phoneNumberId ?? null) as any,
+            },
           },
           update: {
             name: contact.name || 'Unknown',
@@ -239,6 +242,7 @@ export class CampaignService {
           create: {
             phone: formattedPhone,
             name: contact.name || 'Unknown',
+            phoneNumberId: settings?.phoneNumberId || null,
             lastMessageDate: new Date(),
             groupId: campaign.groupId,
           },

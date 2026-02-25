@@ -88,6 +88,7 @@ const Settings = ({ onNavigate }) => {
       });
       if (response.ok) {
         const data = await response.json();
+        console.log('Loaded feature assignments:', data);
         setFeatureAssignments(data || {
           whatsappChat: '',
           aiChatbot: '',
@@ -101,9 +102,10 @@ const Settings = ({ onNavigate }) => {
     }
   };
 
-  const handleFeatureAssignment = async (feature, settingsId) => {
-    const updated = { ...featureAssignments, [feature]: settingsId };
+  const handleFeatureAssignment = async (feature, phoneNumberId) => {
+    const updated = { ...featureAssignments, [feature]: phoneNumberId };
     setFeatureAssignments(updated);
+    console.log('Saving feature assignment:', feature, phoneNumberId, updated);
     
     try {
       const response = await fetch(`${API_BASE_URL}/settings/feature-assignments`, {
@@ -114,6 +116,8 @@ const Settings = ({ onNavigate }) => {
       });
       
       if (response.ok) {
+        const result = await response.json();
+        console.log('Save result:', result);
         showSuccess(`${feature.replace(/([A-Z])/g, ' $1').trim()} number updated`);
       } else {
         throw new Error('Failed to save');

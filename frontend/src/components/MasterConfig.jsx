@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { getMasterConfigs, createMasterConfig, updateMasterConfig, deleteMasterConfig } from "../api/masterConfig";
+import { getAllSettings } from "../api/auth";
 import { useToast } from '../contexts/ToastContext';
 import { Plus, Trash2, Eye, EyeOff } from "lucide-react";
 
 const MasterConfig = () => {
   const { showSuccess, showError, showConfirm } = useToast();
   const [masterConfigs, setMasterConfigs] = useState([]);
+  const [allSettings, setAllSettings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -20,9 +22,18 @@ const MasterConfig = () => {
   const [showVerifyToken, setShowVerifyToken] = useState(false);
   const [selectedConfig, setSelectedConfig] = useState(null);
   const [verifyTokenError, setVerifyTokenError] = useState('');
+  const [activeTab, setActiveTab] = useState('configurations');
+  const [featureAssignments, setFeatureAssignments] = useState({
+    whatsappChat: '',
+    aiChatbot: '',
+    quickReply: '',
+    ecommerce: ''
+  });
 
   useEffect(() => {
     fetchMasterConfigs();
+    fetchAllSettings();
+    fetchFeatureAssignments();
   }, []);
 
   const fetchMasterConfigs = async () => {
@@ -34,6 +45,29 @@ const MasterConfig = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchAllSettings = async () => {
+    try {
+      const data = await getAllSettings();
+      setAllSettings(data || []);
+    } catch (error) {
+      console.error("Failed to fetch settings:", error);
+    }
+  };
+
+  const fetchFeatureAssignments = () => {
+    const saved = localStorage.getItem('featureAssignments');
+    if (saved) {
+      setFeatureAssignments(JSON.parse(saved));
+    }
+  };
+
+  const handleFeatureAssignment = (feature, settingsId) => {
+    const updated = { ...featureAssignments, [feature]: settingsId };
+    setFeatureAssignments(updated);
+    localStorage.setItem('featureAssignments', JSON.stringify(updated));
+    showSuccess(`${feature.replace(/([A-Z])/g, ' $1').trim()} number updated`);
   };
 
   const resetForm = () => {
@@ -107,12 +141,188 @@ const MasterConfig = () => {
           <h1>Configurations</h1>
           <p>Manage WhatsApp API configurations that can be reused across multiple settings.</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowForm(true)}>
-          <Plus size={16} /> Add Configuration
+        {activeTab === 'configurations' && (
+          <button className="btn-primary" onClick={() => setShowForm(true)}>
+            <Plus size={16} /> Add Configuration
+          </button>
+        )}
+      </div>
+
+      <div className="tabs" style={{marginBottom: '24px', borderBottom: '2px solid #e0e0e0'}}>
+        <button 
+          className={activeTab === 'configurations' ? 'tab active' : 'tab'}
+          onClick={() => setActiveTab('configurations')}
+          style={{
+            padding: '12px 24px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'configurations' ? '2px solid #25d366' : '2px solid transparent',
+            marginBottom: '-2px',
+            cursor: 'pointer',
+            fontSize: '15px',
+            fontWeight: activeTab === 'configurations' ? '600' : '500',
+            color: activeTab === 'configurations' ? '#25d366' : '#666'
+          }}
+        >
+          Configurations
+        </button>
+        <button 
+          className={activeTab === 'features' ? 'tab active' : 'tab'}
+          onClick={() => setActiveTab('features')}
+          style={{
+            padding: '12px 24px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'features' ? '2px solid #25d366' : '2px solid transparent',
+            marginBottom: '-2px',
+            cursor: 'pointer',
+            fontSize: '15px',
+            fontWeight: activeTab === 'features' ? '600' : '500',
+            color: activeTab === 'features' ? '#25d366' : '#666'
+          }}
+        >
+          Feature Numbers
         </button>
       </div>
 
-      <div className="settings-list">
+      {activeTab === 'features' && (
+        <div className="preference-container">
+          <div className="preference-card">
+            <div className="preference-header">
+              <h2>Feature Phone Number Assignment</h2>
+              <p>Select which WhatsApp number handles each feature</p>
+            </div>
+
+            <div className="response-methods">
+              <div className="method-card active">
+                <div className="method-icon">💬</div>
+                <div className="method-content" style={{width: '100%'}}>
+                  <div className="method-title">
+                    <h3>WhatsApp Chats</h3>
+                  </div>
+                  <p className="method-description">Phone number for incoming messages and chat replies</p>
+                  <select 
+                    value={featureAssignments.whatsappChat}
+                    onChange={(e) => handleFeatureAssignment('whatsappChat', e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      marginTop: '10px'
+                    }}
+                  >
+                    <option value="">Use Default Configuration</option>
+                    {allSettings.map(config => (
+                      <option key={config.id} value={config.id}>
+                        {config.name} - {config.phoneNumberId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="method-card active">
+                <div className="method-icon">🤖</div>
+                <div className="method-content" style={{width: '100%'}}>
+                  <div className="method-title">
+                    <h3>AI Chatbot</h3>
+                  </div>
+                  <p className="method-description">Phone number for AI-powered responses</p>
+                  <select 
+                    value={featureAssignments.aiChatbot}
+                    onChange={(e) => handleFeatureAssignment('aiChatbot', e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      marginTop: '10px'
+                    }}
+                  >
+                    <option value="">Use Default Configuration</option>
+                    {allSettings.map(config => (
+                      <option key={config.id} value={config.id}>
+                        {config.name} - {config.phoneNumberId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="method-card active">
+                <div className="method-icon">⚡</div>
+                <div className="method-content" style={{width: '100%'}}>
+                  <div className="method-title">
+                    <h3>Quick Reply</h3>
+                  </div>
+                  <p className="method-description">Phone number for quick reply buttons</p>
+                  <select 
+                    value={featureAssignments.quickReply}
+                    onChange={(e) => handleFeatureAssignment('quickReply', e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      marginTop: '10px'
+                    }}
+                  >
+                    <option value="">Use Default Configuration</option>
+                    {allSettings.map(config => (
+                      <option key={config.id} value={config.id}>
+                        {config.name} - {config.phoneNumberId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="method-card active">
+                <div className="method-icon">🛒</div>
+                <div className="method-content" style={{width: '100%'}}>
+                  <div className="method-title">
+                    <h3>E-commerce</h3>
+                  </div>
+                  <p className="method-description">Phone number for product catalog and orders</p>
+                  <select 
+                    value={featureAssignments.ecommerce}
+                    onChange={(e) => handleFeatureAssignment('ecommerce', e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      marginTop: '10px'
+                    }}
+                  >
+                    <option value="">Use Default Configuration</option>
+                    {allSettings.map(config => (
+                      <option key={config.id} value={config.id}>
+                        {config.name} - {config.phoneNumberId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="preference-info">
+              <div className="info-icon">ℹ️</div>
+              <div className="info-content">
+                <strong>Note:</strong> If no specific number is selected, the default configuration will be used for all features.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'configurations' && (
+        <div className="settings-list">
         {masterConfigs.length === 0 ? (
           <p>No configurations found.</p>
         ) : (
@@ -140,7 +350,8 @@ const MasterConfig = () => {
             ))}
           </div>
         )}
-      </div>
+        </div>
+      )}
 
       {showForm && (
         <div className="modal-overlay">

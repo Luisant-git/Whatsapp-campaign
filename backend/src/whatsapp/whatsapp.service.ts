@@ -7,6 +7,7 @@ import { WhatsappSessionService } from '../whatsapp-session/whatsapp-session.ser
 import { SettingsService } from '../settings/settings.service';
 import { ChatbotService } from '../chatbot/chatbot.service';
 import { WhatsappEcommerceService } from '../ecommerce/whatsapp-ecommerce.service';
+import { PhoneRouterService } from './phone-router.service';
 
 @Injectable()
 export class WhatsappService {
@@ -21,7 +22,8 @@ export class WhatsappService {
     private sessionService: WhatsappSessionService,
     private settingsService: SettingsService,
     private chatbotService: ChatbotService,
-    private ecommerceService: WhatsappEcommerceService
+    private ecommerceService: WhatsappEcommerceService,
+    private phoneRouter: PhoneRouterService
   ) {}
 
   private async getSettings(userId: number) {
@@ -704,6 +706,10 @@ export class WhatsappService {
     const messageId = message.id;
     let text = message.text?.body;
     
+    // 🔥 ROUTE BASED ON PHONE NUMBER ID
+    const routing = await this.phoneRouter.routeMessage(phoneNumberId, message, settingsId);
+    this.logger.log(`📍 Routing: ${routing.route} for phone ${phoneNumberId}`);
+    
     // Handle Meta Catalog order messages
     if (message.type === 'order') {
       const order = message.order;
@@ -759,6 +765,43 @@ export class WhatsappService {
         where: { phoneNumberId }
       });
       if (!whatsappSettings) return;
+      
+      // 🔥 CAMPAIGNS-ONLY NUMBER: Block incoming messages
+      if (routing.route === 'campaigns-only') {
+        this.logger.log('⛔ Campaigns-only number - ignoring incoming message');
+        return;
+      }
+      
+      // 🔥 ECOMMERCE NUMBER: Route to catalog
+      if (routing.route === 'ecommerce') {
+        await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantId);
+        return;
+      }
+      
+      // 🔥 AI BOT NUMBER: Route to chatbot
+      if (routing.route === 'ai-bot') {
+        const chatResponse = await this.chatbotService.processMessage(settingsId, { message: text, phone: from });
+        if (chatResponse.response) {
+          await this.sendMessageDirect(from, chatResponse.response, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+        }
+        return;
+      }
+      
+      // 🔥 QUICK REPLY NUMBER: Route to session service
+      if (routing.route === 'quick-reply') {
+        await this.sessionService.handleInteractiveMenu(from, text, settingsId, 
+          async (to, msg, imageUrl) => {
+            if (imageUrl) {
+              return this.sendMediaMessageDirect(to, imageUrl, 'image', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient, msg);
+            }
+            return this.sendMessageDirect(to, msg, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+          },
+          async (to, msg, buttons) => {
+            return this.sendButtonsMessageDirect(to, msg, buttons, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+          }
+        );
+        return;
+      }
       
       // Check if user is in Meta Catalog order flow first
       const metaCatalogService = this.ecommerceService['metaCatalogService'];

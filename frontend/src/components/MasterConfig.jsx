@@ -24,10 +24,11 @@ const MasterConfig = () => {
   const [verifyTokenError, setVerifyTokenError] = useState('');
   const [activeTab, setActiveTab] = useState('configurations');
   const [featureAssignments, setFeatureAssignments] = useState({
-    whatsappChat: '',
+    oneToOneChat: '',
+    campaigns: '',
+    metaCatalog: '',
     aiChatbot: '',
-    quickReply: '',
-    ecommerce: ''
+    quickReply: ''
   });
 
   useEffect(() => {
@@ -216,12 +217,70 @@ const MasterConfig = () => {
                 <div className="method-icon">💬</div>
                 <div className="method-content" style={{width: '100%'}}>
                   <div className="method-title">
-                    <h3>WhatsApp Chats</h3>
+                    <h3>One-to-One Chat</h3>
                   </div>
-                  <p className="method-description">Phone number for incoming messages and chat replies</p>
+                  <p className="method-description">Phone number for manual customer support chats</p>
                   <select 
-                    value={featureAssignments.whatsappChat}
-                    onChange={(e) => handleFeatureAssignment('whatsappChat', e.target.value)}
+                    value={featureAssignments.oneToOneChat}
+                    onChange={(e) => handleFeatureAssignment('oneToOneChat', e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      marginTop: '10px'
+                    }}
+                  >
+                    <option value="">Use Default Configuration</option>
+                    {masterConfigs.map(config => (
+                      <option key={config.id} value={config.phoneNumberId}>
+                        {config.name} - {config.phoneNumberId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="method-card active">
+                <div className="method-icon">📢</div>
+                <div className="method-content" style={{width: '100%'}}>
+                  <div className="method-title">
+                    <h3>Campaigns</h3>
+                  </div>
+                  <p className="method-description">Phone number for bulk message campaigns (send-only)</p>
+                  <select 
+                    value={featureAssignments.campaigns}
+                    onChange={(e) => handleFeatureAssignment('campaigns', e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      marginTop: '10px'
+                    }}
+                  >
+                    <option value="">Use Default Configuration</option>
+                    {masterConfigs.map(config => (
+                      <option key={config.id} value={config.phoneNumberId}>
+                        {config.name} - {config.phoneNumberId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="method-card active">
+                <div className="method-icon">🛒</div>
+                <div className="method-content" style={{width: '100%'}}>
+                  <div className="method-title">
+                    <h3>Meta Catalog</h3>
+                  </div>
+                  <p className="method-description">Phone number for product catalog and ecommerce orders</p>
+                  <select 
+                    value={featureAssignments.metaCatalog}
+                    onChange={(e) => handleFeatureAssignment('metaCatalog', e.target.value)}
                     style={{
                       width: '100%',
                       padding: '10px',
@@ -276,39 +335,10 @@ const MasterConfig = () => {
                   <div className="method-title">
                     <h3>Quick Reply</h3>
                   </div>
-                  <p className="method-description">Phone number for quick reply buttons</p>
+                  <p className="method-description">Phone number for quick reply automation</p>
                   <select 
                     value={featureAssignments.quickReply}
                     onChange={(e) => handleFeatureAssignment('quickReply', e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      border: '1px solid #ddd',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      marginTop: '10px'
-                    }}
-                  >
-                    <option value="">Use Default Configuration</option>
-                    {masterConfigs.map(config => (
-                      <option key={config.id} value={config.phoneNumberId}>
-                        {config.name} - {config.phoneNumberId}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="method-card active">
-                <div className="method-icon">🛒</div>
-                <div className="method-content" style={{width: '100%'}}>
-                  <div className="method-title">
-                    <h3>E-commerce</h3>
-                  </div>
-                  <p className="method-description">Phone number for product catalog and orders</p>
-                  <select 
-                    value={featureAssignments.ecommerce}
-                    onChange={(e) => handleFeatureAssignment('ecommerce', e.target.value)}
                     style={{
                       width: '100%',
                       padding: '10px',

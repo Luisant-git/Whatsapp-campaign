@@ -3,6 +3,7 @@ import { WhatsappService } from './whatsapp.service';
 import { CampaignService } from './campaign.service';
 import { SchedulerService } from './scheduler.service';
 import { WhatsappController } from './whatsapp.controller';
+import { PhoneRouterService } from './phone-router.service';
 import { PrismaService } from '../prisma.service';
 import { TenantPrismaService } from '../tenant-prisma.service';
 import { CentralPrismaService } from '../central-prisma.service';
@@ -14,7 +15,7 @@ import { EcommerceModule } from '../ecommerce/ecommerce.module';
 @Module({
   imports: [WhatsappSessionModule, SettingsModule, EcommerceModule],
   controllers: [WhatsappController],
-  providers: [WhatsappService, CampaignService, SchedulerService, PrismaService, TenantPrismaService, CentralPrismaService, ChatbotService],
+  providers: [WhatsappService, CampaignService, SchedulerService, PhoneRouterService, PrismaService, TenantPrismaService, CentralPrismaService, ChatbotService],
   exports: [WhatsappService, CampaignService, SchedulerService]
 })
 export class WhatsappModule {}

@@ -365,6 +365,7 @@ const MasterConfig = () => {
               </div>
             ))}
           </div>
+        )}
         </div>
       )}
 

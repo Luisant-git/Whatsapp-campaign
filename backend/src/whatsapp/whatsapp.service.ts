@@ -634,16 +634,27 @@ export class WhatsappService {
       orderBy: { createdAt: 'asc' },
     });
 
-    // Enrich messages with display phone number from settings
+    // Enrich messages with display phone number from master config
     const enrichedMessages = await Promise.all(
       messages.map(async (msg) => {
         let displayPhoneNumber: string | null = null;
         if (msg.phoneNumberId) {
-          const settings = await this.prisma.whatsAppSettings.findFirst({
+          // First try to find master config
+          const masterConfig = await this.prisma.masterConfig.findFirst({
             where: { phoneNumberId: msg.phoneNumberId },
             select: { name: true, phoneNumberId: true }
           });
-          displayPhoneNumber = settings?.name || msg.phoneNumberId || null;
+          
+          if (masterConfig) {
+            displayPhoneNumber = `${masterConfig.name} - ${masterConfig.phoneNumberId}`;
+          } else {
+            // Fallback to settings name
+            const settings = await this.prisma.whatsAppSettings.findFirst({
+              where: { phoneNumberId: msg.phoneNumberId },
+              select: { name: true, phoneNumberId: true }
+            });
+            displayPhoneNumber = settings?.name || msg.phoneNumberId || null;
+          }
         }
         return {
           ...msg,

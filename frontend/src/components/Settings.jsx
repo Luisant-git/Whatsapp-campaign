@@ -10,6 +10,7 @@ import {
   updateUserPreference,
 } from "../api/auth";
 import { getMasterConfigs } from "../api/masterConfig";
+import { API_BASE_URL } from "../api/config";
 import { useToast } from '../contexts/ToastContext';
 import { Eye, EyeOff, Plus, Trash2, Star, Upload } from "lucide-react";
 import '../styles/QuickReply.css';
@@ -82,7 +83,7 @@ const Settings = ({ onNavigate }) => {
 
   const fetchFeatureAssignments = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3000'}/settings/feature-assignments`, {
+      const response = await fetch(`${API_BASE_URL}/settings/feature-assignments`, {
         credentials: 'include'
       });
       if (response.ok) {
@@ -105,7 +106,7 @@ const Settings = ({ onNavigate }) => {
     setFeatureAssignments(updated);
     
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3000'}/settings/feature-assignments`, {
+      const response = await fetch(`${API_BASE_URL}/settings/feature-assignments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -393,8 +394,8 @@ const Settings = ({ onNavigate }) => {
                   style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px'}}
                 >
                   <option value="">Use Default Configuration</option>
-                  {allSettings.map(s => (
-                    <option key={s.id} value={s.phoneNumberId}>{s.name} - {s.phoneNumberId}</option>
+                  {masterConfigs.map(mc => (
+                    <option key={mc.id} value={mc.phoneNumberId}>{mc.name} - {mc.phoneNumberId}</option>
                   ))}
                 </select>
               </div>
@@ -414,8 +415,8 @@ const Settings = ({ onNavigate }) => {
                   style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px'}}
                 >
                   <option value="">Use Default Configuration</option>
-                  {allSettings.map(s => (
-                    <option key={s.id} value={s.phoneNumberId}>{s.name} - {s.phoneNumberId}</option>
+                  {masterConfigs.map(mc => (
+                    <option key={mc.id} value={mc.phoneNumberId}>{mc.name} - {mc.phoneNumberId}</option>
                   ))}
                 </select>
               </div>
@@ -435,8 +436,8 @@ const Settings = ({ onNavigate }) => {
                   style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px'}}
                 >
                   <option value="">Use Default Configuration</option>
-                  {allSettings.map(s => (
-                    <option key={s.id} value={s.phoneNumberId}>{s.name} - {s.phoneNumberId}</option>
+                  {masterConfigs.map(mc => (
+                    <option key={mc.id} value={mc.phoneNumberId}>{mc.name} - {mc.phoneNumberId}</option>
                   ))}
                 </select>
               </div>
@@ -456,8 +457,8 @@ const Settings = ({ onNavigate }) => {
                   style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px'}}
                 >
                   <option value="">Use Default Configuration</option>
-                  {allSettings.map(s => (
-                    <option key={s.id} value={s.phoneNumberId}>{s.name} - {s.phoneNumberId}</option>
+                  {masterConfigs.map(mc => (
+                    <option key={mc.id} value={mc.phoneNumberId}>{mc.name} - {mc.phoneNumberId}</option>
                   ))}
                 </select>
               </div>
@@ -477,8 +478,8 @@ const Settings = ({ onNavigate }) => {
                   style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px'}}
                 >
                   <option value="">Use Default Configuration</option>
-                  {allSettings.map(s => (
-                    <option key={s.id} value={s.phoneNumberId}>{s.name} - {s.phoneNumberId}</option>
+                  {masterConfigs.map(mc => (
+                    <option key={mc.id} value={mc.phoneNumberId}>{mc.name} - {mc.phoneNumberId}</option>
                   ))}
                 </select>
               </div>

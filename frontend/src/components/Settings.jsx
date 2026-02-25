@@ -338,7 +338,7 @@ const Settings = ({ onNavigate }) => {
         >
           Configurations
         </button>
-        <button 
+        {/* <button 
           className={activeTab === 'assignments' ? 'tab active' : 'tab'}
           onClick={() => setActiveTab('assignments')}
           style={{
@@ -354,7 +354,7 @@ const Settings = ({ onNavigate }) => {
           }}
         >
           Feature Assignment
-        </button>
+        </button> */}
         <button 
           className={activeTab === 'preferences' ? 'tab active' : 'tab'}
           onClick={() => setActiveTab('preferences')}

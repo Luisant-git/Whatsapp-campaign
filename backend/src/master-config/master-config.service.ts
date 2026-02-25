@@ -49,4 +49,42 @@ export class MasterConfigService {
       where: { id },
     });
   }
+
+  async saveFeatureAssignments(assignments: any, tenantContext: TenantContext) {
+    const prisma = this.getPrisma(tenantContext);
+    const existing = await prisma.featureAssignment.findFirst();
+
+    if (existing) {
+      return prisma.featureAssignment.update({
+        where: { id: existing.id },
+        data: {
+          whatsappChat: assignments.whatsappChat || null,
+          aiChatbot: assignments.aiChatbot || null,
+          quickReply: assignments.quickReply || null,
+          ecommerce: assignments.ecommerce || null,
+        },
+      });
+    }
+
+    return prisma.featureAssignment.create({
+      data: {
+        whatsappChat: assignments.whatsappChat || null,
+        aiChatbot: assignments.aiChatbot || null,
+        quickReply: assignments.quickReply || null,
+        ecommerce: assignments.ecommerce || null,
+      },
+    });
+  }
+
+  async getFeatureAssignments(tenantContext: TenantContext) {
+    const prisma = this.getPrisma(tenantContext);
+    const assignment = await prisma.featureAssignment.findFirst();
+
+    return assignment || {
+      whatsappChat: '',
+      aiChatbot: '',
+      quickReply: '',
+      ecommerce: '',
+    };
+  }
 }

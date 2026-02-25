@@ -282,3 +282,13 @@ model SubUser {
 
   @@index([username])
 }
+
+model FeatureAssignment {
+  id           Int      @id @default(autoincrement())
+  whatsappChat String?
+  aiChatbot    String?
+  quickReply   String?
+  ecommerce    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

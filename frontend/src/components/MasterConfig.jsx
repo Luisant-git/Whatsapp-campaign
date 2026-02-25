@@ -56,18 +56,36 @@ const MasterConfig = () => {
     }
   };
 
-  const fetchFeatureAssignments = () => {
-    const saved = localStorage.getItem('featureAssignments');
-    if (saved) {
-      setFeatureAssignments(JSON.parse(saved));
+  const fetchFeatureAssignments = async () => {
+    try {
+      const response = await fetch('/api/master-config/feature-assignments/current', {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setFeatureAssignments(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch feature assignments:', error);
     }
   };
 
-  const handleFeatureAssignment = (feature, settingsId) => {
+  const handleFeatureAssignment = async (feature, settingsId) => {
     const updated = { ...featureAssignments, [feature]: settingsId };
     setFeatureAssignments(updated);
-    localStorage.setItem('featureAssignments', JSON.stringify(updated));
-    showSuccess(`${feature.replace(/([A-Z])/g, ' $1').trim()} number updated`);
+    
+    try {
+      await fetch('/api/master-config/feature-assignments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated),
+        credentials: 'include'
+      });
+      showSuccess(`${feature.replace(/([A-Z])/g, ' $1').trim()} number updated`);
+    } catch (error) {
+      console.error('Failed to save feature assignment:', error);
+      showError('Failed to save assignment');
+    }
   };
 
   const resetForm = () => {

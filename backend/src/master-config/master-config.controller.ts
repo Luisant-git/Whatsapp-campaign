@@ -46,4 +46,18 @@ export class MasterConfigController {
   async remove(@TenantContext() tenantContext: TenantContextType, @Param('id') id: string) {
     return this.masterConfigService.remove(parseInt(id), tenantContext);
   }
+
+  @Post('feature-assignments')
+  @ApiOperation({ summary: 'Save feature phone number assignments' })
+  @ApiResponse({ status: 200, description: 'Feature assignments saved successfully' })
+  async saveFeatureAssignments(@TenantContext() tenantContext: TenantContextType, @Body() assignments: any) {
+    return this.masterConfigService.saveFeatureAssignments(assignments, tenantContext);
+  }
+
+  @Get('feature-assignments/current')
+  @ApiOperation({ summary: 'Get current feature phone number assignments' })
+  @ApiResponse({ status: 200, description: 'Feature assignments retrieved successfully' })
+  async getFeatureAssignments(@TenantContext() tenantContext: TenantContextType) {
+    return this.masterConfigService.getFeatureAssignments(tenantContext);
+  }
 }

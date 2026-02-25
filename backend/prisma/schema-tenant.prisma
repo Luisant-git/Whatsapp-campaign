@@ -289,6 +289,7 @@ model FeatureAssignment {
   aiChatbot    String?
   quickReply   String?
   ecommerce    String?
+  campaigns    String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }

@@ -91,4 +91,20 @@ export class SettingsController {
   async setDefaultSettings(@Session() session: any, @Param('id', ParseIntPipe) id: number): Promise<SettingsResponseDto> {
     return this.settingsService.setDefaultSettings(session.user.id, id);
   }
+
+  @Post('feature-assignments')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Save feature phone number assignments' })
+  @ApiResponse({ status: 200, description: 'Feature assignments saved successfully' })
+  async saveFeatureAssignments(@Session() session: any, @Body() assignments: any): Promise<any> {
+    return this.settingsService.saveFeatureAssignments(session.user.id, assignments);
+  }
+
+  @Get('feature-assignments')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Get feature phone number assignments' })
+  @ApiResponse({ status: 200, description: 'Feature assignments retrieved successfully' })
+  async getFeatureAssignments(@Session() session: any): Promise<any> {
+    return this.settingsService.getFeatureAssignments(session.user.id);
+  }
 }

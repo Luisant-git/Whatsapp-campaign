@@ -816,7 +816,6 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
                   alignItems: 'center',
                   gap: '3px'
                 }}>
-                  <span>📱</span>
                   <span>{businessNumbers[chat.phone]}</span>
                 </div>
               )}
@@ -957,7 +956,6 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
                     alignItems: 'center',
                     gap: '4px'
                   }}>
-                    <span style={{ fontSize: '14px' }}>📱</span>
                     <span>via {businessNumbers[selectedChat]}</span>
                   </div>
                 )}

@@ -320,4 +320,60 @@ export class SettingsService {
       isDefault: settings.isDefault
     };
   }
+
+  async saveFeatureAssignments(userId: number, assignments: any): Promise<any> {
+    const prisma = await this.getPrisma(userId);
+    
+    // Upsert feature assignments
+    const existing = await prisma.featureAssignment.findFirst();
+    
+    if (existing) {
+      const updated = await prisma.featureAssignment.update({
+        where: { id: existing.id },
+        data: {
+          whatsappChat: assignments.whatsappChat || null,
+          aiChatbot: assignments.aiChatbot || null,
+          quickReply: assignments.quickReply || null,
+          ecommerce: assignments.ecommerce || null,
+          campaigns: assignments.campaigns || null
+        }
+      });
+      return { success: true, assignments: updated };
+    } else {
+      const created = await prisma.featureAssignment.create({
+        data: {
+          whatsappChat: assignments.whatsappChat || null,
+          aiChatbot: assignments.aiChatbot || null,
+          quickReply: assignments.quickReply || null,
+          ecommerce: assignments.ecommerce || null,
+          campaigns: assignments.campaigns || null
+        }
+      });
+      return { success: true, assignments: created };
+    }
+  }
+
+  async getFeatureAssignments(userId: number): Promise<any> {
+    const prisma = await this.getPrisma(userId);
+    
+    const assignments = await prisma.featureAssignment.findFirst();
+
+    if (!assignments) {
+      return {
+        whatsappChat: '',
+        aiChatbot: '',
+        quickReply: '',
+        ecommerce: '',
+        campaigns: ''
+      };
+    }
+
+    return {
+      whatsappChat: assignments.whatsappChat || '',
+      aiChatbot: assignments.aiChatbot || '',
+      quickReply: assignments.quickReply || '',
+      ecommerce: assignments.ecommerce || '',
+      campaigns: assignments.campaigns || ''
+    };
+  }
 }

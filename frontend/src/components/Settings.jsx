@@ -49,7 +49,8 @@ const Settings = ({ onNavigate }) => {
     whatsappChat: '',
     aiChatbot: '',
     quickReply: '',
-    ecommerce: ''
+    ecommerce: '',
+    campaigns: ''
   });
 
   useEffect(() => {
@@ -79,18 +80,48 @@ const Settings = ({ onNavigate }) => {
     }
   };
 
-  const fetchFeatureAssignments = () => {
-    const saved = localStorage.getItem('featureAssignments');
-    if (saved) {
-      setFeatureAssignments(JSON.parse(saved));
+  const fetchFeatureAssignments = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3000'}/settings/feature-assignments`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setFeatureAssignments(data || {
+          whatsappChat: '',
+          aiChatbot: '',
+          quickReply: '',
+          ecommerce: '',
+          campaigns: ''
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch feature assignments:', error);
     }
   };
 
-  const handleFeatureAssignment = (feature, settingsId) => {
+  const handleFeatureAssignment = async (feature, settingsId) => {
     const updated = { ...featureAssignments, [feature]: settingsId };
     setFeatureAssignments(updated);
-    localStorage.setItem('featureAssignments', JSON.stringify(updated));
-    showSuccess(`${feature.replace(/([A-Z])/g, ' $1').trim()} number updated`);
+    
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3000'}/settings/feature-assignments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(updated)
+      });
+      
+      if (response.ok) {
+        showSuccess(`${feature.replace(/([A-Z])/g, ' $1').trim()} number updated`);
+      } else {
+        throw new Error('Failed to save');
+      }
+    } catch (error) {
+      console.error('Failed to save feature assignment:', error);
+      showError('Failed to save assignment');
+      setFeatureAssignments(featureAssignments); // Revert on error
+    }
   };
 
   const fetchAllSettings = async () => {
@@ -303,21 +334,21 @@ const Settings = ({ onNavigate }) => {
           Configurations
         </button>
         <button 
-          className={activeTab === 'features' ? 'tab active' : 'tab'}
-          onClick={() => setActiveTab('features')}
+          className={activeTab === 'assignments' ? 'tab active' : 'tab'}
+          onClick={() => setActiveTab('assignments')}
           style={{
             padding: '12px 24px',
             background: 'none',
             border: 'none',
-            borderBottom: activeTab === 'features' ? '2px solid #25d366' : '2px solid transparent',
+            borderBottom: activeTab === 'assignments' ? '2px solid #25d366' : '2px solid transparent',
             marginBottom: '-2px',
             cursor: 'pointer',
             fontSize: '15px',
-            fontWeight: activeTab === 'features' ? '600' : '500',
-            color: activeTab === 'features' ? '#25d366' : '#666'
+            fontWeight: activeTab === 'assignments' ? '600' : '500',
+            color: activeTab === 'assignments' ? '#25d366' : '#666'
           }}
         >
-          Feature Numbers
+          Feature Assignment
         </button>
         <button 
           className={activeTab === 'preferences' ? 'tab active' : 'tab'}
@@ -338,143 +369,132 @@ const Settings = ({ onNavigate }) => {
         </button>
       </div>
 
-      {activeTab === 'features' && (
+{activeTab === 'assignments' && (
         <div className="preference-container">
           <div className="preference-card">
             <div className="preference-header">
-              <h2>Feature Phone Number Assignment</h2>
+              <h2>📱 Feature Phone Number Assignment</h2>
               <p>Select which WhatsApp number handles each feature</p>
             </div>
 
-            <div className="response-methods">
-              <div className="method-card active">
-                <div className="method-icon">💬</div>
-                <div className="method-content" style={{width: '100%'}}>
-                  <div className="method-title">
-                    <h3>WhatsApp Chats</h3>
+            <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
+              {/* One-to-One Chat */}
+              <div style={{padding: '16px', border: '1px solid #e0e0e0', borderRadius: '8px'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px'}}>
+                  <span style={{fontSize: '24px'}}>💬</span>
+                  <div style={{flex: 1}}>
+                    <h3 style={{margin: 0, fontSize: '16px', fontWeight: '600'}}>One-to-One Chat</h3>
+                    <p style={{margin: '4px 0 0 0', fontSize: '13px', color: '#666'}}>Phone number for manual customer support chats</p>
                   </div>
-                  <p className="method-description">Phone number for incoming messages and chat replies</p>
-                  <select 
-                    value={featureAssignments.whatsappChat}
-                    onChange={(e) => handleFeatureAssignment('whatsappChat', e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      border: '1px solid #ddd',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      marginTop: '10px'
-                    }}
-                  >
-                    <option value="">Use Default Configuration</option>
-                    {allSettings.map(config => (
-                      <option key={config.id} value={config.id}>
-                        {config.name} - {config.phoneNumberId}
-                      </option>
-                    ))}
-                  </select>
                 </div>
+                <select 
+                  value={featureAssignments.whatsappChat || ''}
+                  onChange={(e) => handleFeatureAssignment('whatsappChat', e.target.value)}
+                  style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px'}}
+                >
+                  <option value="">Use Default Configuration</option>
+                  {allSettings.map(s => (
+                    <option key={s.id} value={s.phoneNumberId}>{s.name} - {s.phoneNumberId}</option>
+                  ))}
+                </select>
               </div>
 
-              <div className="method-card active">
-                <div className="method-icon">🤖</div>
-                <div className="method-content" style={{width: '100%'}}>
-                  <div className="method-title">
-                    <h3>AI Chatbot</h3>
+              {/* Campaigns */}
+              <div style={{padding: '16px', border: '1px solid #e0e0e0', borderRadius: '8px'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px'}}>
+                  <span style={{fontSize: '24px'}}>📢</span>
+                  <div style={{flex: 1}}>
+                    <h3 style={{margin: 0, fontSize: '16px', fontWeight: '600'}}>Campaigns</h3>
+                    <p style={{margin: '4px 0 0 0', fontSize: '13px', color: '#666'}}>Phone number for bulk message campaigns (send-only)</p>
                   </div>
-                  <p className="method-description">Phone number for AI-powered responses</p>
-                  <select 
-                    value={featureAssignments.aiChatbot}
-                    onChange={(e) => handleFeatureAssignment('aiChatbot', e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      border: '1px solid #ddd',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      marginTop: '10px'
-                    }}
-                  >
-                    <option value="">Use Default Configuration</option>
-                    {allSettings.map(config => (
-                      <option key={config.id} value={config.id}>
-                        {config.name} - {config.phoneNumberId}
-                      </option>
-                    ))}
-                  </select>
                 </div>
+                <select 
+                  value={featureAssignments.campaigns || ''}
+                  onChange={(e) => handleFeatureAssignment('campaigns', e.target.value)}
+                  style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px'}}
+                >
+                  <option value="">Use Default Configuration</option>
+                  {allSettings.map(s => (
+                    <option key={s.id} value={s.phoneNumberId}>{s.name} - {s.phoneNumberId}</option>
+                  ))}
+                </select>
               </div>
 
-              <div className="method-card active">
-                <div className="method-icon">⚡</div>
-                <div className="method-content" style={{width: '100%'}}>
-                  <div className="method-title">
-                    <h3>Quick Reply</h3>
+              {/* Meta Catalog */}
+              <div style={{padding: '16px', border: '1px solid #e0e0e0', borderRadius: '8px'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px'}}>
+                  <span style={{fontSize: '24px'}}>🛒</span>
+                  <div style={{flex: 1}}>
+                    <h3 style={{margin: 0, fontSize: '16px', fontWeight: '600'}}>Meta Catalog</h3>
+                    <p style={{margin: '4px 0 0 0', fontSize: '13px', color: '#666'}}>Phone number for product catalog and ecommerce orders</p>
                   </div>
-                  <p className="method-description">Phone number for quick reply buttons</p>
-                  <select 
-                    value={featureAssignments.quickReply}
-                    onChange={(e) => handleFeatureAssignment('quickReply', e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      border: '1px solid #ddd',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      marginTop: '10px'
-                    }}
-                  >
-                    <option value="">Use Default Configuration</option>
-                    {allSettings.map(config => (
-                      <option key={config.id} value={config.id}>
-                        {config.name} - {config.phoneNumberId}
-                      </option>
-                    ))}
-                  </select>
                 </div>
+                <select 
+                  value={featureAssignments.ecommerce || ''}
+                  onChange={(e) => handleFeatureAssignment('ecommerce', e.target.value)}
+                  style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px'}}
+                >
+                  <option value="">Use Default Configuration</option>
+                  {allSettings.map(s => (
+                    <option key={s.id} value={s.phoneNumberId}>{s.name} - {s.phoneNumberId}</option>
+                  ))}
+                </select>
               </div>
 
-              <div className="method-card active">
-                <div className="method-icon">🛒</div>
-                <div className="method-content" style={{width: '100%'}}>
-                  <div className="method-title">
-                    <h3>E-commerce</h3>
+              {/* AI Chatbot */}
+              <div style={{padding: '16px', border: '1px solid #e0e0e0', borderRadius: '8px'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px'}}>
+                  <span style={{fontSize: '24px'}}>🤖</span>
+                  <div style={{flex: 1}}>
+                    <h3 style={{margin: 0, fontSize: '16px', fontWeight: '600'}}>AI Chatbot</h3>
+                    <p style={{margin: '4px 0 0 0', fontSize: '13px', color: '#666'}}>Phone number for AI-powered responses</p>
                   </div>
-                  <p className="method-description">Phone number for product catalog and orders</p>
-                  <select 
-                    value={featureAssignments.ecommerce}
-                    onChange={(e) => handleFeatureAssignment('ecommerce', e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      border: '1px solid #ddd',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      marginTop: '10px'
-                    }}
-                  >
-                    <option value="">Use Default Configuration</option>
-                    {allSettings.map(config => (
-                      <option key={config.id} value={config.id}>
-                        {config.name} - {config.phoneNumberId}
-                      </option>
-                    ))}
-                  </select>
                 </div>
+                <select 
+                  value={featureAssignments.aiChatbot || ''}
+                  onChange={(e) => handleFeatureAssignment('aiChatbot', e.target.value)}
+                  style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px'}}
+                >
+                  <option value="">Use Default Configuration</option>
+                  {allSettings.map(s => (
+                    <option key={s.id} value={s.phoneNumberId}>{s.name} - {s.phoneNumberId}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Quick Reply */}
+              <div style={{padding: '16px', border: '1px solid #e0e0e0', borderRadius: '8px'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px'}}>
+                  <span style={{fontSize: '24px'}}>⚡</span>
+                  <div style={{flex: 1}}>
+                    <h3 style={{margin: 0, fontSize: '16px', fontWeight: '600'}}>Quick Reply</h3>
+                    <p style={{margin: '4px 0 0 0', fontSize: '13px', color: '#666'}}>Phone number for quick reply automation</p>
+                  </div>
+                </div>
+                <select 
+                  value={featureAssignments.quickReply || ''}
+                  onChange={(e) => handleFeatureAssignment('quickReply', e.target.value)}
+                  style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px'}}
+                >
+                  <option value="">Use Default Configuration</option>
+                  {allSettings.map(s => (
+                    <option key={s.id} value={s.phoneNumberId}>{s.name} - {s.phoneNumberId}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            <div className="preference-info">
+            <div className="preference-info" style={{marginTop: '20px'}}>
               <div className="info-icon">ℹ️</div>
               <div className="info-content">
-                <strong>Note:</strong> If no specific number is selected, the default configuration will be used for all features.
+                <strong>How it works:</strong> When a message is received on a specific phone number, it will be routed to the assigned feature. If no assignment is made, the default configuration will handle all features.
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {activeTab === 'preferences' && (
+{activeTab === 'preferences' && (
         <div className="preference-container">
           <div className="preference-card">
             <div className="preference-header">

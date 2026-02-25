@@ -86,6 +86,8 @@ const MasterConfig = () => {
     } catch (error) {
       console.error('Failed to save feature assignment:', error);
       showError('Failed to save assignment');
+      // Revert on error
+      setFeatureAssignments(featureAssignments);
     }
   };
 
@@ -222,7 +224,10 @@ const MasterConfig = () => {
                   <p className="method-description">Phone number for manual customer support chats</p>
                   <select 
                     value={featureAssignments.oneToOneChat}
-                    onChange={(e) => handleFeatureAssignment('oneToOneChat', e.target.value)}
+                    onChange={(e) => {
+                      e.preventDefault();
+                      handleFeatureAssignment('oneToOneChat', e.target.value);
+                    }}
                     style={{
                       width: '100%',
                       padding: '10px',

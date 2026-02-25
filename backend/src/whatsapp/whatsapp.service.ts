@@ -627,10 +627,31 @@ export class WhatsappService {
   }
 
   async getMessages(userId: number, phoneNumber?: string) {
-    return this.prisma.whatsAppMessage.findMany({
+    const messages = await this.prisma.whatsAppMessage.findMany({
       where: { ...(phoneNumber && { from: phoneNumber }) },
       orderBy: { createdAt: 'asc' },
     });
+
+    // Enrich messages with display phone number from settings
+    const enrichedMessages = await Promise.all(
+      messages.map(async (msg) => {
+        let displayPhoneNumber: string | null = null;
+        if (msg.phoneNumberId) {
+          const settings = await this.prisma.whatsAppSettings.findFirst({
+            where: { phoneNumberId: msg.phoneNumberId },
+            select: { name: true, phoneNumberId: true }
+          });
+          displayPhoneNumber = settings?.name || msg.phoneNumberId || null;
+        }
+        return {
+          ...msg,
+          displayPhoneNumber,
+          businessPhoneNumberId: msg.phoneNumberId
+        };
+      })
+    );
+
+    return enrichedMessages;
   }
 
   async handleIncomingMessageWithoutContext(message: any, phoneNumberId: string) {

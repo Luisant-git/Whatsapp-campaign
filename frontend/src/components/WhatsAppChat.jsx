@@ -82,6 +82,7 @@ const WhatsAppChat = () => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [manuallyEditedPhones, setManuallyEditedPhones] = useState({});
   const [userId, setUserId] = useState(null);
+  const [businessNumbers, setBusinessNumbers] = useState({}); // Store business number per chat
   
 const [showGroupMenu, setShowGroupMenu] = useState(null); // which phone's group menu is open
 const [groups, setGroups] = useState([]);                 // all contact groups
@@ -271,6 +272,15 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
       const messages = await getMessages();
       console.log('Fetched messages:', messages);
       setMessages(messages);
+
+      // Extract business numbers from messages
+      const businessNumbersMap = {};
+      messages.forEach((msg) => {
+        if (msg.displayPhoneNumber && msg.from) {
+          businessNumbersMap[msg.from] = msg.displayPhoneNumber;
+        }
+      });
+      setBusinessNumbers(businessNumbersMap);
 
       const lastIncomingByPhone = {};
       messages.forEach((msg) => {
@@ -796,6 +806,20 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
                 {chat.phone}
                 {chat.unreadCount > 0 && <span className="unread-badge">{chat.unreadCount}</span>}
               </div>
+              {businessNumbers[chat.phone] && (
+                <div style={{
+                  fontSize: '11px',
+                  color: '#00a884',
+                  fontWeight: '500',
+                  marginTop: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '3px'
+                }}>
+                  <span>📱</span>
+                  <span>{businessNumbers[chat.phone]}</span>
+                </div>
+              )}
               <div className="chat-last-msg">{chat.lastMessage}</div>
               {chatLabels[chat.phone]?.length > 0 && (
                 <div className="chat-labels">
@@ -921,7 +945,23 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
                   <path d="M19 12H5M12 19l-7-7 7-7" />
                 </svg>
               </button>
-              <h3>{selectedChat}</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                <h3 style={{ margin: 0 }}>{selectedChat}</h3>
+                {businessNumbers[selectedChat] && (
+                  <div style={{
+                    fontSize: '12px',
+                    color: '#00a884',
+                    fontWeight: '500',
+                    marginTop: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    <span style={{ fontSize: '14px' }}>📱</span>
+                    <span>via {businessNumbers[selectedChat]}</span>
+                  </div>
+                )}
+              </div>
               <div className="header-actions">
                 <button className="icon-btn search-btn" onClick={() => setShowMobileSearchModal(true)}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

@@ -34,6 +34,32 @@ export class WhatsappService {
     return settings;
   }
 
+  private async getPhoneCredentials(featureType: 'whatsappChat' | 'campaigns' | 'ecommerce' | 'aiChatbot' | 'quickReply', userId: number) {
+    const featureAssignment = await this.prisma.featureAssignment.findFirst();
+    const assignedPhoneId = featureAssignment?.[featureType];
+
+    if (assignedPhoneId) {
+      const masterConfig = await this.prisma.masterConfig.findFirst({
+        where: { phoneNumberId: assignedPhoneId }
+      });
+      if (masterConfig) {
+        return {
+          phoneNumberId: masterConfig.phoneNumberId,
+          accessToken: masterConfig.accessToken,
+          apiUrl: 'https://graph.facebook.com/v18.0'
+        };
+      }
+    }
+
+    // Fallback to default
+    const settings = await this.getSettings(userId);
+    return {
+      phoneNumberId: settings.phoneNumberId,
+      accessToken: settings.accessToken,
+      apiUrl: settings.apiUrl
+    };
+  }
+
   async handleIncomingMessage(message: any, userId: number) {
     const from = message.from;
     const messageId = message.id;
@@ -384,13 +410,13 @@ export class WhatsappService {
 
   async sendMessage(to: string, message: string, userId: number) {
     try {
-      const settings = await this.getSettings(userId);
+      const { phoneNumberId, accessToken, apiUrl } = await this.getPhoneCredentials('whatsappChat', userId);
       
       this.logger.log(`Sending message to ${to}: ${message}`);
-      this.logger.log(`Using API URL: ${settings.apiUrl}/${settings.phoneNumberId}/messages`);
+      this.logger.log(`Using API URL: ${apiUrl}/${phoneNumberId}/messages`);
 
       const response = await axios.post(
-        `${settings.apiUrl}/${settings.phoneNumberId}/messages`,
+        `${apiUrl}/${phoneNumberId}/messages`,
         {
           messaging_product: 'whatsapp',
           to,
@@ -399,7 +425,7 @@ export class WhatsappService {
         },
         {
           headers: {
-            'Authorization': `Bearer ${settings.accessToken}`,
+            'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
           }
         }
@@ -415,7 +441,7 @@ export class WhatsappService {
           message,
           direction: 'outgoing',
           status: 'sent',
-          phoneNumberId: settings.phoneNumberId,
+          phoneNumberId,
         }
       });
 
@@ -432,10 +458,10 @@ export class WhatsappService {
 
   async sendMediaMessage(to: string, mediaUrl: string, mediaType: string, userId: number, caption?: string) {
     try {
-      const settings = await this.getSettings(userId);
+      const { phoneNumberId, accessToken, apiUrl } = await this.getPhoneCredentials('whatsappChat', userId);
       
       const response = await axios.post(
-        `${settings.apiUrl}/${settings.phoneNumberId}/messages`,
+        `${apiUrl}/${phoneNumberId}/messages`,
         {
           messaging_product: 'whatsapp',
           to,
@@ -444,7 +470,7 @@ export class WhatsappService {
         },
         {
           headers: {
-            'Authorization': `Bearer ${settings.accessToken}`,
+            'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
           }
         }
@@ -460,7 +486,7 @@ export class WhatsappService {
           mediaUrl,
           direction: 'outgoing',
           status: 'sent',
-          phoneNumberId: settings.phoneNumberId,
+          phoneNumberId,
         }
       });
 
@@ -1093,15 +1119,10 @@ export class WhatsappService {
   }
 
   async sendBulkTemplateMessageWithNames(contacts: Array<{name: string; phone: string}>, templateName: string, userId: number, settingsId?: number, headerImageUrl?: string) {
-    let settings;
-    if (settingsId) {
-      settings = await this.prisma.whatsAppSettings.findUnique({ where: { id: settingsId } });
-      if (!settings) {
-        throw new Error('Specified settings not found');
-      }
-    } else {
-      settings = await this.getSettings(userId);
-    }
+    // Use campaigns feature assignment
+    const { phoneNumberId, accessToken, apiUrl } = await this.getPhoneCredentials('campaigns', userId);
+    const language = 'en'; // Default language
+    
     const results: Array<{ phoneNumber: string; success: boolean; messageId?: string; error?: string }> = [];
    
     for (const contact of contacts) {
@@ -1114,21 +1135,14 @@ export class WhatsappService {
       const formattedPhone = this.formatPhoneNumber(contact.phone);
 
       try {
-        this.logger.log(`Sending message to ${formattedPhone} with template ${templateName}`);
-        this.logger.log(`API URL: ${settings.apiUrl}/${settings.phoneNumberId}/messages`);
-        this.logger.log(`Template: ${templateName}, Language: ${settings.language}`);
+        this.logger.log(`Sending campaign message to ${formattedPhone} with template ${templateName}`);
+        this.logger.log(`Using phone number: ${phoneNumberId}`);
         
         const components: any[] = [];
         
-        // Only add header if explicitly provided via headerImageUrl parameter
         if (headerImageUrl && headerImageUrl.trim() !== '' && headerImageUrl.startsWith('http')) {
-          this.logger.log(`Adding header media: ${headerImageUrl}`);
-          
-          // Detect if it's a video or image based on file extension
           const isVideo = /\.(mp4|avi|mov)$/i.test(headerImageUrl);
           const mediaType = isVideo ? 'video' : 'image';
-          
-          this.logger.log(`Detected media type: ${mediaType}`);
           
           components.push({
             type: 'header',
@@ -1141,8 +1155,6 @@ export class WhatsappService {
               }
             ]
           });
-        } else {
-          this.logger.log('No header media provided, sending template without header');
         }
         
         const requestBody = {
@@ -1151,25 +1163,21 @@ export class WhatsappService {
           type: 'template',
           template: {
             name: templateName,
-            language: { code: settings.language || 'en' },
+            language: { code: language },
             ...(components.length > 0 && { components })
           }
         };
         
-        this.logger.log('Request body:', JSON.stringify(requestBody, null, 2));
-        
         const response = await axios.post(
-          `${settings.apiUrl}/${settings.phoneNumberId}/messages`,
+          `${apiUrl}/${phoneNumberId}/messages`,
           requestBody,
           {
             headers: {
-              'Authorization': `Bearer ${settings.accessToken}`,
+              'Authorization': `Bearer ${accessToken}`,
               'Content-Type': 'application/json'
             }
           }
         );
-        
-        this.logger.log('WhatsApp API Response:', JSON.stringify(response.data, null, 2));
 
         await this.prisma.whatsAppMessage.create({
           data: {
@@ -1179,6 +1187,7 @@ export class WhatsappService {
             message: `Template ${templateName} sent to ${contact.name}`,
             direction: 'outgoing',
             status: 'sent',
+            phoneNumberId,
           }
         });
 

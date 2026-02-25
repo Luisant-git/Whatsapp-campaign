@@ -1,0 +1,146 @@
+/* Page Background */
+.menu-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f5f7fa, #e4e8f0);
+    padding: 40px;
+    font-family: "Segoe UI", sans-serif;
+  }
+  
+  /* Container */
+  .menu-container {
+    max-width: 900px;
+    margin: auto;
+    background: #ffffff;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+  }
+  
+  /* Title */
+  .page-title {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 30px;
+    color: #1e293b;
+  }
+  
+  /* Menu Card */
+  .menu-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: 0.3s;
+  }
+  
+  .menu-card:hover {
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  }
+  
+  /* Header */
+  .menu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .menu-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: #334155;
+  }
+  
+  /* Submenu */
+  .submenu {
+    margin-top: 15px;
+    padding-left: 25px;
+    border-left: 2px solid #e2e8f0;
+  }
+  
+  .submenu-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    color: #64748b;
+  }
+  
+  /* Toggle Switch */
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 26px;
+  }
+  
+  .switch.small {
+    width: 42px;
+    height: 22px;
+  }
+  
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    background-color: #cbd5e1;
+    border-radius: 34px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    transition: 0.4s;
+  }
+  
+  .slider:before {
+    content: "";
+    position: absolute;
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    border-radius: 50%;
+    transition: 0.4s;
+  }
+  
+  .switch.small .slider:before {
+    height: 16px;
+    width: 16px;
+  }
+  
+  input:checked + .slider {
+    background-color: #22c55e;
+  }
+  
+  input:checked + .slider:before {
+    transform: translateX(24px);
+  }
+  
+  .switch.small input:checked + .slider:before {
+    transform: translateX(20px);
+  }
+  
+  /* Save Button */
+  .save-section {
+    margin-top: 30px;
+    text-align: right;
+  }
+  
+  .save-btn {
+    padding: 10px 25px;
+    background: #22c55e;
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+  
+  .save-btn:hover {
+    background: #16a34a;
+  }

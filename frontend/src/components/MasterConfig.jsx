@@ -38,6 +38,12 @@ const MasterConfig = () => {
     fetchFeatureAssignments();
   }, []);
 
+  useEffect(() => {
+    if (activeTab === 'assignments') {
+      fetchFeatureAssignments();
+    }
+  }, [activeTab]);
+
   const fetchMasterConfigs = async () => {
     try {
       const data = await getMasterConfigs();
@@ -60,11 +66,14 @@ const MasterConfig = () => {
 
   const fetchFeatureAssignments = async () => {
     try {
+      console.log('Fetching feature assignments from:', `${API_BASE_URL}/settings/feature-assignments`);
       const response = await fetch(`${API_BASE_URL}/settings/feature-assignments`, {
         credentials: 'include'
       });
+      console.log('Response status:', response.status);
       if (response.ok) {
         const data = await response.json();
+        console.log('Fetched feature assignments:', data);
         setFeatureAssignments(data || {
           whatsappChat: '',
           aiChatbot: '',
@@ -81,6 +90,7 @@ const MasterConfig = () => {
   const handleFeatureAssignment = async (feature, phoneNumberId) => {
     const previousAssignments = { ...featureAssignments };
     const updated = { ...featureAssignments, [feature]: phoneNumberId };
+    console.log('Saving feature assignment:', { feature, phoneNumberId, updated });
     setFeatureAssignments(updated);
     
     try {
@@ -90,6 +100,10 @@ const MasterConfig = () => {
         credentials: 'include',
         body: JSON.stringify(updated)
       });
+      
+      console.log('Save response status:', response.status);
+      const responseData = await response.json();
+      console.log('Save response data:', responseData);
       
       if (response.ok) {
         showSuccess(`${feature.replace(/([A-Z])/g, ' $1').trim()} number updated`);

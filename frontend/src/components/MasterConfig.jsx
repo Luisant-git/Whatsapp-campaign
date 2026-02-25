@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { getMasterConfigs, createMasterConfig, updateMasterConfig, deleteMasterConfig } from "../api/masterConfig";
 import { getAllSettings } from "../api/auth";
 import { useToast } from '../contexts/ToastContext';
+import { API_BASE_URL } from "../api/config";
 import { Plus, Trash2, Eye, EyeOff } from "lucide-react";
 
 const MasterConfig = () => {
@@ -24,11 +25,11 @@ const MasterConfig = () => {
   const [verifyTokenError, setVerifyTokenError] = useState('');
   const [activeTab, setActiveTab] = useState('configurations');
   const [featureAssignments, setFeatureAssignments] = useState({
-    oneToOneChat: '',
-    campaigns: '',
-    metaCatalog: '',
+    whatsappChat: '',
     aiChatbot: '',
-    quickReply: ''
+    quickReply: '',
+    ecommerce: '',
+    campaigns: ''
   });
 
   useEffect(() => {
@@ -59,34 +60,44 @@ const MasterConfig = () => {
 
   const fetchFeatureAssignments = async () => {
     try {
-      const response = await fetch('/api/master-config/feature-assignments/current', {
+      const response = await fetch(`${API_BASE_URL}/settings/feature-assignments`, {
         credentials: 'include'
       });
       if (response.ok) {
         const data = await response.json();
-        setFeatureAssignments(data);
+        setFeatureAssignments(data || {
+          whatsappChat: '',
+          aiChatbot: '',
+          quickReply: '',
+          ecommerce: '',
+          campaigns: ''
+        });
       }
     } catch (error) {
       console.error('Failed to fetch feature assignments:', error);
     }
   };
 
-  const handleFeatureAssignment = async (feature, settingsId) => {
-    const updated = { ...featureAssignments, [feature]: settingsId };
+  const handleFeatureAssignment = async (feature, phoneNumberId) => {
+    const updated = { ...featureAssignments, [feature]: phoneNumberId };
     setFeatureAssignments(updated);
     
     try {
-      await fetch('/api/master-config/feature-assignments', {
+      const response = await fetch(`${API_BASE_URL}/settings/feature-assignments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated),
-        credentials: 'include'
+        credentials: 'include',
+        body: JSON.stringify(updated)
       });
-      showSuccess(`${feature.replace(/([A-Z])/g, ' $1').trim()} number updated`);
+      
+      if (response.ok) {
+        showSuccess(`${feature.replace(/([A-Z])/g, ' $1').trim()} number updated`);
+      } else {
+        throw new Error('Failed to save');
+      }
     } catch (error) {
       console.error('Failed to save feature assignment:', error);
       showError('Failed to save assignment');
-      // Revert on error
       setFeatureAssignments(featureAssignments);
     }
   };
@@ -188,186 +199,138 @@ const MasterConfig = () => {
           Configurations
         </button>
         <button 
-          className={activeTab === 'features' ? 'tab active' : 'tab'}
-          onClick={() => setActiveTab('features')}
+          className={activeTab === 'assignments' ? 'tab active' : 'tab'}
+          onClick={() => setActiveTab('assignments')}
           style={{
             padding: '12px 24px',
             background: 'none',
             border: 'none',
-            borderBottom: activeTab === 'features' ? '2px solid #25d366' : '2px solid transparent',
+            borderBottom: activeTab === 'assignments' ? '2px solid #25d366' : '2px solid transparent',
             marginBottom: '-2px',
             cursor: 'pointer',
             fontSize: '15px',
-            fontWeight: activeTab === 'features' ? '600' : '500',
-            color: activeTab === 'features' ? '#25d366' : '#666'
+            fontWeight: activeTab === 'assignments' ? '600' : '500',
+            color: activeTab === 'assignments' ? '#25d366' : '#666'
           }}
         >
-          Feature Numbers
+          Feature Assignment
         </button>
       </div>
 
-      {activeTab === 'features' && (
+      {activeTab === 'assignments' && (
         <div className="preference-container">
           <div className="preference-card">
             <div className="preference-header">
-              <h2>Feature Phone Number Assignment</h2>
+              <h2>📱 Feature Phone Number Assignment</h2>
               <p>Select which WhatsApp number handles each feature</p>
             </div>
 
-            <div className="response-methods">
-              <div className="method-card active">
-                <div className="method-icon">💬</div>
-                <div className="method-content" style={{width: '100%'}}>
-                  <div className="method-title">
-                    <h3>One-to-One Chat</h3>
+            <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
+              <div style={{padding: '16px', border: '1px solid #e0e0e0', borderRadius: '8px'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px'}}>
+                  <span style={{fontSize: '24px'}}>💬</span>
+                  <div style={{flex: 1}}>
+                    <h3 style={{margin: 0, fontSize: '16px', fontWeight: '600'}}>One-to-One Chat</h3>
+                    <p style={{margin: '4px 0 0 0', fontSize: '13px', color: '#666'}}>Phone number for manual customer support chats</p>
                   </div>
-                  <p className="method-description">Phone number for manual customer support chats</p>
-                  <select 
-                    value={featureAssignments.oneToOneChat}
-                    onChange={(e) => {
-                      e.preventDefault();
-                      handleFeatureAssignment('oneToOneChat', e.target.value);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      border: '1px solid #ddd',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      marginTop: '10px'
-                    }}
-                  >
-                    <option value="">Use Default Configuration</option>
-                    {masterConfigs.map(config => (
-                      <option key={config.id} value={config.phoneNumberId}>
-                        {config.name} - {config.phoneNumberId}
-                      </option>
-                    ))}
-                  </select>
                 </div>
+                <select 
+                  value={featureAssignments.whatsappChat || ''}
+                  onChange={(e) => handleFeatureAssignment('whatsappChat', e.target.value)}
+                  style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px'}}
+                >
+                  <option value="">Use Default Configuration</option>
+                  {masterConfigs.map(mc => (
+                    <option key={mc.id} value={mc.phoneNumberId}>{mc.name} - {mc.phoneNumberId}</option>
+                  ))}
+                </select>
               </div>
 
-              <div className="method-card active">
-                <div className="method-icon">📢</div>
-                <div className="method-content" style={{width: '100%'}}>
-                  <div className="method-title">
-                    <h3>Campaigns</h3>
+              <div style={{padding: '16px', border: '1px solid #e0e0e0', borderRadius: '8px'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px'}}>
+                  <span style={{fontSize: '24px'}}>📢</span>
+                  <div style={{flex: 1}}>
+                    <h3 style={{margin: 0, fontSize: '16px', fontWeight: '600'}}>Campaigns</h3>
+                    <p style={{margin: '4px 0 0 0', fontSize: '13px', color: '#666'}}>Phone number for bulk message campaigns (send-only)</p>
                   </div>
-                  <p className="method-description">Phone number for bulk message campaigns (send-only)</p>
-                  <select 
-                    value={featureAssignments.campaigns}
-                    onChange={(e) => handleFeatureAssignment('campaigns', e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      border: '1px solid #ddd',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      marginTop: '10px'
-                    }}
-                  >
-                    <option value="">Use Default Configuration</option>
-                    {masterConfigs.map(config => (
-                      <option key={config.id} value={config.phoneNumberId}>
-                        {config.name} - {config.phoneNumberId}
-                      </option>
-                    ))}
-                  </select>
                 </div>
+                <select 
+                  value={featureAssignments.campaigns || ''}
+                  onChange={(e) => handleFeatureAssignment('campaigns', e.target.value)}
+                  style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px'}}
+                >
+                  <option value="">Use Default Configuration</option>
+                  {masterConfigs.map(mc => (
+                    <option key={mc.id} value={mc.phoneNumberId}>{mc.name} - {mc.phoneNumberId}</option>
+                  ))}
+                </select>
               </div>
 
-              <div className="method-card active">
-                <div className="method-icon">🛒</div>
-                <div className="method-content" style={{width: '100%'}}>
-                  <div className="method-title">
-                    <h3>Meta Catalog</h3>
+              <div style={{padding: '16px', border: '1px solid #e0e0e0', borderRadius: '8px'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px'}}>
+                  <span style={{fontSize: '24px'}}>🛒</span>
+                  <div style={{flex: 1}}>
+                    <h3 style={{margin: 0, fontSize: '16px', fontWeight: '600'}}>Meta Catalog</h3>
+                    <p style={{margin: '4px 0 0 0', fontSize: '13px', color: '#666'}}>Phone number for product catalog and ecommerce orders</p>
                   </div>
-                  <p className="method-description">Phone number for product catalog and ecommerce orders</p>
-                  <select 
-                    value={featureAssignments.metaCatalog}
-                    onChange={(e) => handleFeatureAssignment('metaCatalog', e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      border: '1px solid #ddd',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      marginTop: '10px'
-                    }}
-                  >
-                    <option value="">Use Default Configuration</option>
-                    {masterConfigs.map(config => (
-                      <option key={config.id} value={config.phoneNumberId}>
-                        {config.name} - {config.phoneNumberId}
-                      </option>
-                    ))}
-                  </select>
                 </div>
+                <select 
+                  value={featureAssignments.ecommerce || ''}
+                  onChange={(e) => handleFeatureAssignment('ecommerce', e.target.value)}
+                  style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px'}}
+                >
+                  <option value="">Use Default Configuration</option>
+                  {masterConfigs.map(mc => (
+                    <option key={mc.id} value={mc.phoneNumberId}>{mc.name} - {mc.phoneNumberId}</option>
+                  ))}
+                </select>
               </div>
 
-              <div className="method-card active">
-                <div className="method-icon">🤖</div>
-                <div className="method-content" style={{width: '100%'}}>
-                  <div className="method-title">
-                    <h3>AI Chatbot</h3>
+              <div style={{padding: '16px', border: '1px solid #e0e0e0', borderRadius: '8px'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px'}}>
+                  <span style={{fontSize: '24px'}}>🤖</span>
+                  <div style={{flex: 1}}>
+                    <h3 style={{margin: 0, fontSize: '16px', fontWeight: '600'}}>AI Chatbot</h3>
+                    <p style={{margin: '4px 0 0 0', fontSize: '13px', color: '#666'}}>Phone number for AI-powered responses</p>
                   </div>
-                  <p className="method-description">Phone number for AI-powered responses</p>
-                  <select 
-                    value={featureAssignments.aiChatbot}
-                    onChange={(e) => handleFeatureAssignment('aiChatbot', e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      border: '1px solid #ddd',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      marginTop: '10px'
-                    }}
-                  >
-                    <option value="">Use Default Configuration</option>
-                    {masterConfigs.map(config => (
-                      <option key={config.id} value={config.phoneNumberId}>
-                        {config.name} - {config.phoneNumberId}
-                      </option>
-                    ))}
-                  </select>
                 </div>
+                <select 
+                  value={featureAssignments.aiChatbot || ''}
+                  onChange={(e) => handleFeatureAssignment('aiChatbot', e.target.value)}
+                  style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px'}}
+                >
+                  <option value="">Use Default Configuration</option>
+                  {masterConfigs.map(mc => (
+                    <option key={mc.id} value={mc.phoneNumberId}>{mc.name} - {mc.phoneNumberId}</option>
+                  ))}
+                </select>
               </div>
 
-              <div className="method-card active">
-                <div className="method-icon">⚡</div>
-                <div className="method-content" style={{width: '100%'}}>
-                  <div className="method-title">
-                    <h3>Quick Reply</h3>
+              <div style={{padding: '16px', border: '1px solid #e0e0e0', borderRadius: '8px'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px'}}>
+                  <span style={{fontSize: '24px'}}>⚡</span>
+                  <div style={{flex: 1}}>
+                    <h3 style={{margin: 0, fontSize: '16px', fontWeight: '600'}}>Quick Reply</h3>
+                    <p style={{margin: '4px 0 0 0', fontSize: '13px', color: '#666'}}>Phone number for quick reply automation</p>
                   </div>
-                  <p className="method-description">Phone number for quick reply automation</p>
-                  <select 
-                    value={featureAssignments.quickReply}
-                    onChange={(e) => handleFeatureAssignment('quickReply', e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      border: '1px solid #ddd',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      marginTop: '10px'
-                    }}
-                  >
-                    <option value="">Use Default Configuration</option>
-                    {masterConfigs.map(config => (
-                      <option key={config.id} value={config.phoneNumberId}>
-                        {config.name} - {config.phoneNumberId}
-                      </option>
-                    ))}
-                  </select>
                 </div>
+                <select 
+                  value={featureAssignments.quickReply || ''}
+                  onChange={(e) => handleFeatureAssignment('quickReply', e.target.value)}
+                  style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px'}}
+                >
+                  <option value="">Use Default Configuration</option>
+                  {masterConfigs.map(mc => (
+                    <option key={mc.id} value={mc.phoneNumberId}>{mc.name} - {mc.phoneNumberId}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            <div className="preference-info">
+            <div className="preference-info" style={{marginTop: '20px'}}>
               <div className="info-icon">ℹ️</div>
               <div className="info-content">
-                <strong>Note:</strong> If no specific number is selected, the default configuration will be used for all features.
+                <strong>How it works:</strong> When a message is received on a specific phone number, it will be routed to the assigned feature. If no assignment is made, the default configuration will handle all features.
               </div>
             </div>
           </div>
@@ -404,6 +367,7 @@ const MasterConfig = () => {
           </div>
         )}
         </div>
+      )}
       )}
 
       {showForm && (

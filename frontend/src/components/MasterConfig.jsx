@@ -79,6 +79,7 @@ const MasterConfig = () => {
   };
 
   const handleFeatureAssignment = async (feature, phoneNumberId) => {
+    const previousAssignments = { ...featureAssignments };
     const updated = { ...featureAssignments, [feature]: phoneNumberId };
     setFeatureAssignments(updated);
     
@@ -98,7 +99,7 @@ const MasterConfig = () => {
     } catch (error) {
       console.error('Failed to save feature assignment:', error);
       showError('Failed to save assignment');
-      setFeatureAssignments(featureAssignments);
+      setFeatureAssignments(previousAssignments);
     }
   };
 

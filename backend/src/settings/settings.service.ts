@@ -328,7 +328,7 @@ export class SettingsService {
     const existing = await prisma.featureAssignment.findFirst();
     
     if (existing) {
-      const updated = await prisma.featureAssignment.update({
+      await prisma.featureAssignment.update({
         where: { id: existing.id },
         data: {
           whatsappChat: assignments.whatsappChat || null,
@@ -338,9 +338,8 @@ export class SettingsService {
           campaigns: assignments.campaigns || null
         }
       });
-      return { success: true, assignments: updated };
     } else {
-      const created = await prisma.featureAssignment.create({
+      await prisma.featureAssignment.create({
         data: {
           whatsappChat: assignments.whatsappChat || null,
           aiChatbot: assignments.aiChatbot || null,
@@ -349,8 +348,19 @@ export class SettingsService {
           campaigns: assignments.campaigns || null
         }
       });
-      return { success: true, assignments: created };
     }
+
+    // Return clean object
+    return {
+      success: true,
+      assignments: {
+        whatsappChat: assignments.whatsappChat || '',
+        aiChatbot: assignments.aiChatbot || '',
+        quickReply: assignments.quickReply || '',
+        ecommerce: assignments.ecommerce || '',
+        campaigns: assignments.campaigns || ''
+      }
+    };
   }
 
   async getFeatureAssignments(userId: number): Promise<any> {

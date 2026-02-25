@@ -28,6 +28,14 @@ export class SettingsController {
     return this.settingsService.getAllSettings(session.user.id);
   }
 
+  @Get('feature-assignments')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Get feature phone number assignments' })
+  @ApiResponse({ status: 200, description: 'Feature assignments retrieved successfully' })
+  async getFeatureAssignments(@Session() session: any): Promise<any> {
+    return this.settingsService.getFeatureAssignments(session.user.id);
+  }
+
   @Get(':id')
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Get WhatsApp settings by ID' })
@@ -98,13 +106,5 @@ export class SettingsController {
   @ApiResponse({ status: 200, description: 'Feature assignments saved successfully' })
   async saveFeatureAssignments(@Session() session: any, @Body() assignments: any): Promise<any> {
     return this.settingsService.saveFeatureAssignments(session.user.id, assignments);
-  }
-
-  @Get('feature-assignments')
-  @UseGuards(SessionGuard)
-  @ApiOperation({ summary: 'Get feature phone number assignments' })
-  @ApiResponse({ status: 200, description: 'Feature assignments retrieved successfully' })
-  async getFeatureAssignments(@Session() session: any): Promise<any> {
-    return this.settingsService.getFeatureAssignments(session.user.id);
   }
 }

@@ -409,7 +409,7 @@ export class MetaCatalogService {
                 phoneNumberId,
                 product,
                 order.id,
-                session.customerName,
+                session.customerName || 'Customer',
                 fullAddress
               );
             } else {

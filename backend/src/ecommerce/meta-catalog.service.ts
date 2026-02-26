@@ -311,7 +311,7 @@ export class MetaCatalogService {
       
       if (step === 'awaiting_pincode') {
         await this.sessionService.setCustomerPincode(phone, message, userId);
-        await this.sendPaymentMethodSelection(phone, phoneNumberId);
+        await this.sendPaymentMethodSelection(phone, phoneNumberId, userId);
         return true;
       }
       
@@ -346,7 +346,7 @@ export class MetaCatalogService {
             if (method === 'razorpay') {
               const paymentLink = await this.razorpayService.createPaymentLink(
                 product.price,
-                session.customerName,
+                session.customerName || 'Customer',
                 phone,
                 order.id
               );
@@ -404,10 +404,10 @@ export class MetaCatalogService {
     }
   }
 
-  private async sendPaymentMethodSelection(phone: string, phoneNumberId: string) {
+  private async sendPaymentMethodSelection(phone: string, phoneNumberId: string, userId: number) {
     const message = '💳 *Choose Payment Method*\n\nReply with:\n1. "Razorpay" - Pay online\n2. "COD" - Cash on Delivery';
     await this.sendTextMessage(phone, phoneNumberId, message);
-    await this.sessionService.setStep(phone, 'awaiting_payment_method');
+    await this.sessionService.setSession(phone, { step: 'awaiting_payment_method' }, userId);
   }
 
   private async sendOrderConfirmation(phone: string, phoneNumberId: string, product: any, session: any, fullAddress: string) {
@@ -422,7 +422,9 @@ export class MetaCatalogService {
     }, userId);
     
     const orderDetails = await this.ecommerceService.getOrder(orderId, userId);
-    const phoneNumberId = process.env.PHONE_NUMBER_ID;
+    if (!orderDetails) return order;
+    
+    const phoneNumberId = process.env.PHONE_NUMBER_ID || '';
     
     const confirmationMessage = `✅ *Payment Successful!*\n\nOrder #${orderId}\nProduct: ${orderDetails.product.name}\nAmount: ₹${orderDetails.totalAmount}\n\nName: ${orderDetails.customerName}\nAddress: ${orderDetails.customerAddress}\n\nYour order is confirmed. We'll contact you soon 🙂`;
     

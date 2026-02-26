@@ -9,6 +9,10 @@ export class RazorpayService {
 
   async createPaymentLink(amount: number, customerName: string, customerPhone: string, orderId: number) {
     try {
+      if (!this.keyId || !this.keySecret) {
+        throw new Error('Razorpay credentials not configured');
+      }
+      
       const response = await axios.post(
         'https://api.razorpay.com/v1/payment_links',
         {
@@ -43,6 +47,10 @@ export class RazorpayService {
 
   async verifyPayment(paymentId: string) {
     try {
+      if (!this.keyId || !this.keySecret) {
+        throw new Error('Razorpay credentials not configured');
+      }
+      
       const response = await axios.get(
         `https://api.razorpay.com/v1/payments/${paymentId}`,
         {

@@ -40,13 +40,6 @@ export class EcommerceController {
   }
 
   @UseGuards(SessionGuard)
-export class EcommerceController {
-  constructor(
-    private ecommerceService: EcommerceService,
-    private metaCatalogService: MetaCatalogService,
-  ) {}
-
-  @UseGuards(SessionGuard)
   @Post('categories')
   createCategory(@Body() body: { name: string }) {
     return this.ecommerceService.createCategory(body.name);

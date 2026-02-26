@@ -272,6 +272,16 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
     try {
       const messages = await getMessages();
       console.log('Fetched messages:', messages);
+      
+      // Debug: Check which messages have displayPhoneNumber
+      const withBusiness = messages.filter(m => m.displayPhoneNumber);
+      const withoutBusiness = messages.filter(m => !m.displayPhoneNumber);
+      console.log('Messages WITH displayPhoneNumber:', withBusiness.length);
+      console.log('Messages WITHOUT displayPhoneNumber:', withoutBusiness.length);
+      if (withoutBusiness.length > 0) {
+        console.log('Sample message without displayPhoneNumber:', withoutBusiness[0]);
+      }
+      
       setMessages(messages);
 
       // Extract business numbers from messages

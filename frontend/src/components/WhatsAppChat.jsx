@@ -601,7 +601,11 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
   };
 
   const filteredMessages = selectedChat
-    ? filterMessagesByDate(messages.filter(m => m.from === selectedChat))
+    ? filterMessagesByDate(messages.filter(m => {
+        if (m.from !== selectedChat) return false;
+        if (selectedBusinessNumber === 'all') return true;
+        return m.displayPhoneNumber === selectedBusinessNumber;
+      }))
       .filter(msg =>
         messageSearchQuery === '' ||
         (msg.message && msg.message.toLowerCase().includes(messageSearchQuery.toLowerCase()))
@@ -727,10 +731,11 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
                 outline: 'none'
               }}
             >
-              <option value="all">All Business Numbers</option>
-              {[...new Set(Object.values(businessNumbers))].sort().map(num => (
-                <option key={num} value={num}>{num}</option>
-              ))}
+              <option value="all">All Business Numbers ({chats.length})</option>
+              {[...new Set(Object.values(businessNumbers))].sort().map(num => {
+                const count = chats.filter(chat => businessNumbers[chat.phone] === num).length;
+                return <option key={num} value={num}>{num} ({count})</option>;
+              })}
             </select>
           </div>
 

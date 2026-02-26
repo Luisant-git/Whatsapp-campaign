@@ -817,7 +817,7 @@ export class WhatsappService {
       
       // 🔥 AI BOT NUMBER: Route to chatbot
       if (routing.route === 'ai-bot') {
-        const chatResponse = await this.chatbotService.processMessage(settingsId, { message: text, phone: from });
+        const chatResponse = await this.chatbotService.processMessage(tenantId, { message: text, phone: from });
         if (chatResponse.response) {
           await this.sendMessageDirect(from, chatResponse.response, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
         }
@@ -895,7 +895,7 @@ export class WhatsappService {
       if (!sessionHandled) {
         const tenantConfig = await tenantClient.tenantConfig.findFirst({ select: { aiChatbotEnabled: true } });
         if (tenantConfig?.aiChatbotEnabled) {
-          const chatResponse = await this.chatbotService.processMessage(settingsId, { message: text, phone: from });
+          const chatResponse = await this.chatbotService.processMessage(tenantId, { message: text, phone: from });
           if (chatResponse.response) {
             await this.sendMessageDirect(from, chatResponse.response, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
           }

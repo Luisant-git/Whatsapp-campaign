@@ -1,43 +1,31 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:3010";
 
-/**
- * Get Menu Permission by Company
- */
-export const getMenuPermission = async (companyId) => {
-  const response = await fetch(
-    `${API_BASE_URL}/api/menu-permission/${companyId}`,
-    {
-      credentials: "include",
-    }
+export const getMenuPermission = async (tenantId) => {
+  const res = await fetch(
+    `${API_BASE_URL}/menu-permission/${tenantId}`,
+    { credentials: "include" }
   );
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch menu permission");
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Failed to load permissions: ${res.status} ${errText}`);
   }
-
-  return await response.json();
+  return res.json();
 };
 
-/**
- * Save / Update Menu Permission
- */
-export const saveMenuPermission = async (data) => {
-  const response = await fetch(
-    `${API_BASE_URL}/api/menu-permission`,
+export const saveMenuPermission = async (tenantId, permission) => {
+  const res = await fetch(
+    `${API_BASE_URL}/menu-permission/${tenantId}`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify(data),
+      body: JSON.stringify({ permission }),
     }
   );
-
-  if (!response.ok) {
-    throw new Error("Failed to save menu permission");
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Failed to save permissions: ${res.status} ${errText}`);
   }
-
-  return await response.json();
+  return res.json();
 };

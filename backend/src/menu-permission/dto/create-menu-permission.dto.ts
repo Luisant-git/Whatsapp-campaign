@@ -4,7 +4,7 @@ import { IsInt, IsObject } from 'class-validator';
 export class CreateMenuPermissionDto {
   @ApiProperty({
     example: 1,
-    description: 'Tenant ID'
+    description: 'Tenant ID',
   })
   @IsInt()
   tenantId: number;
@@ -13,10 +13,11 @@ export class CreateMenuPermissionDto {
     example: {
       menus: {
         chatbot: true,
-        campaigns: false
-      }
+        campaigns: false,
+      },
     },
-    description: 'Full menu permission JSON'
+    description: 'Full menu permission JSON',
+    type: Object,
   })
   @IsObject()
   permission: Record<string, any>;

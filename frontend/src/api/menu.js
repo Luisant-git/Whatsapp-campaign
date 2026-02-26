@@ -1,10 +1,20 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3010";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-export const getTenantMenus = async () => {
-  const token = localStorage.getItem("token");
-  const res = await fetch(`${API_URL}/tenant/menus`, {
-    headers: { Authorization: `Bearer ${token}` },
+export const getCurrentMenuPermission = async () => {
+  const res = await fetch(`${API_BASE_URL}/menu-permission/current`, {
+    credentials: "include",
   });
-  const data = await res.json();
-  return data.allowedMenus; // e.g., ["chats", "quick-reply", "chatbot", "analytics"]
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.warn(
+      "Failed to load current menu permission:",
+      res.status,
+      text,
+    );
+    // No permission data → show all by default
+    return { permission: {} };
+  }
+
+  return res.json(); // { permission: { ... } }
 };

@@ -62,7 +62,10 @@ export class AppModule implements NestModule {
         'test/(.*)',
         'whatsapp/webhook',
         'whatsapp/webhook/(.*)',
+
         'menu-permission/(.*)',  
+        'menu-permission',  
+        
           
       )
       .forRoutes('*');

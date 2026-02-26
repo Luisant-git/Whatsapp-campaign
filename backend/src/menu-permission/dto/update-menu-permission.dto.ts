@@ -1,4 +1,17 @@
-import { PartialType } from '@nestjs/swagger';
-import { CreateMenuPermissionDto } from './create-menu-permission.dto';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsObject } from 'class-validator';
 
-export class UpdateMenuPermissionDto extends PartialType(CreateMenuPermissionDto) {}
+export class UpdateMenuPermissionDto {
+  @ApiProperty({
+    example: {
+      menus: {
+        chatbot: false,
+        campaigns: true,
+      },
+    },
+    description: 'Updated menu permission JSON',
+    type: Object,
+  })
+  @IsObject()
+  permission: Record<string, any>;
+}

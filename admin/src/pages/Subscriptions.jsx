@@ -1,62 +1,70 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { MdAdd, MdEdit, MdDelete } from 'react-icons/md';
+import React, { useEffect, useMemo, useState } from "react";
+import { MdAdd, MdEdit, MdDelete } from "react-icons/md";
+import Select from "react-select";
+
 import {
   getAllSubscriptions,
   createSubscription,
   updateSubscription,
-  deleteSubscription
-} from '../api/subscription';
-import '../styles/Subscriptions.css';
-import Select from "react-select";
+  deleteSubscription,
+} from "../api/subscription";
 
+import { MENU_CONFIG } from "../config/menuConfig"; // NEW
+import "../styles/Subscriptions.css";
+
+// Top-level plans → module keys
 const FEATURE_MENU_MAP = {
   "WhatsApp Campaign": [
-    "chats",
-    "contacts",
-    "bulk",
-    "settings",
-    "auto-reply",
-    "campaigns",
-    "labels",
-    "blacklist",
-    "quick-reply",
-    "master-config",
-    "createuser"
+    "analytics",    // Dashboard
+    "chats",        // WhatsApp Chats
+    "contacts",     // Contacts
+    "campaigns",    // Campaigns
+    "settings",     // Settings
+    "quick-reply",  // Quick Reply
   ],
   "AI Chatbot": [
     "chats",
     "contacts",
     "chatbot",
-    "labels",
-    "blacklist"
+    "settings",
   ],
-  "Ecommerce": [
+  Ecommerce: [
     "chats",
     "contacts",
-    "categories",
-    "products",
-    "orders",
-    "blacklist"
-  ]
+    "ecommerce",
+  ],
 };
 
 const TOP_FEATURES = ["WhatsApp Campaign", "AI Chatbot", "Ecommerce"];
+
+// Extract plan names from stored features
+const extractTopFeatures = (features = []) =>
+  TOP_FEATURES.filter((tf) => features.includes(tf));
+
+// Build stored features: plan names + module keys
+const buildStoredFeatures = (topFeatures = []) => {
+  const moduleKeys = topFeatures.flatMap((tf) => FEATURE_MENU_MAP[tf] || []);
+  return Array.from(new Set([...topFeatures, ...moduleKeys]));
+};
 
 const Subscriptions = () => {
   const [plans, setPlans] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
-    name: '',
-    price: '',
-    duration: '',
-    userLimit: '',
-    features: [],
-    isActive: true
+    name: "",
+    price: "",
+    duration: "",
+    userLimit: "",
+    features: [],           // existing plan features (top-level + module keys)
+    menuPermissions: [],    // NEW: extra data for menu keys
+    isActive: true,
   });
 
+  const [showMenuModal, setShowMenuModal] = useState(false); // NEW
+
   const featureOptions = useMemo(
-    () => TOP_FEATURES.map(f => ({ value: f, label: f })),
+    () => TOP_FEATURES.map((f) => ({ value: f, label: f })),
     []
   );
 
@@ -69,97 +77,178 @@ const Subscriptions = () => {
       const data = await getAllSubscriptions();
       setPlans(data);
     } catch (error) {
-      console.error('Failed to fetch plans:', error);
+      console.error("Failed to fetch plans:", error);
     }
   };
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      price: '',
-      duration: '',
-      userLimit: '',
+      name: "",
+      price: "",
+      duration: "",
+      userLimit: "",
       features: [],
-      isActive: true
+      menuPermissions: [],
+      isActive: true,
     });
     setEditingId(null);
     setShowForm(false);
-  };
-
-  // Extract only top-level features from stored features
-  const extractTopFeatures = (features = []) => {
-    return TOP_FEATURES.filter(tf => features.includes(tf));
-  };
-
-  // Build final stored features = top features + mapped menus
-  const buildStoredFeatures = (topFeatures = []) => {
-    const mappedMenus = topFeatures.flatMap(tf => FEATURE_MENU_MAP[tf] || []);
-    return Array.from(new Set([...topFeatures, ...mappedMenus]));
+    setShowMenuModal(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const data = {
+      const payload = {
         ...formData,
         price: Number(formData.price),
         duration: Number(formData.duration),
         userLimit: Number(formData.userLimit),
-        features: Array.from(new Set((formData.features || []).filter(Boolean))),
+        features: Array.from(
+          new Set((formData.features || []).filter(Boolean))
+        ),
+        menuPermissions: Array.from(
+          new Set((formData.menuPermissions || []).filter(Boolean))
+        ),
       };
 
       if (editingId) {
-        await updateSubscription(editingId, data);
+        await updateSubscription(editingId, payload);
       } else {
-        await createSubscription(data);
+        await createSubscription(payload);
       }
 
-      fetchPlans();
+      await fetchPlans();
       resetForm();
     } catch (error) {
-      console.error('Failed to save plan:', error);
+      console.error("Failed to save plan:", error);
     }
   };
 
   const handleEdit = (plan) => {
     setFormData({
-      name: plan.name,
-      price: String(plan.price ?? ''),
-      duration: String(plan.duration ?? ''),
-      userLimit: String(plan.userLimit ?? ''),
+      name: plan.name || "",
+      price: plan.price != null ? String(plan.price) : "",
+      duration: plan.duration != null ? String(plan.duration) : "",
+      userLimit: plan.userLimit != null ? String(plan.userLimit) : "",
       features: plan.features || [],
-      isActive: !!plan.isActive
+      menuPermissions: plan.menuPermissions || [], // NEW: load if present
+      isActive: !!plan.isActive,
     });
     setEditingId(plan.id);
     setShowForm(true);
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Delete this plan?')) {
-      try {
-        await deleteSubscription(id);
-        fetchPlans();
-      } catch (error) {
-        console.error('Failed to delete plan:', error);
-      }
+    if (!window.confirm("Delete this plan?")) return;
+    try {
+      await deleteSubscription(id);
+      await fetchPlans();
+    } catch (error) {
+      console.error("Failed to delete plan:", error);
     }
   };
 
-  // Display only top features that are selected
   const getDisplayFeatures = (features = []) => {
     const topSelected = extractTopFeatures(features);
-    if (topSelected.length > 0) {
-      return topSelected;
-    }
-    // If no top features, show raw features (for backward compatibility)
-    return features.slice(0, 5); // Show first 5 to avoid clutter
+    if (topSelected.length > 0) return topSelected;
+    return features.slice(0, 5);
   };
 
-  // react-select value should show ONLY top features
-  const topSelectedValues = extractTopFeatures(formData.features).map(tf => ({
-    value: tf,
-    label: tf
-  }));
+  const topSelectedValues = extractTopFeatures(formData.features).map(
+    (tf) => ({
+      value: tf,
+      label: tf,
+    })
+  );
+
+  // ---------- MENU PERMISSION CHECKBOX LOGIC ----------
+
+  const hasMenuPerm = (key) =>
+    (formData.menuPermissions || []).includes(key);
+
+  const toggleMenuPermParent = (key, children = []) => {
+    setFormData((prev) => {
+      const set = new Set(prev.menuPermissions || []);
+      const on = set.has(key);
+
+      if (on) {
+        set.delete(key);
+        // Optionally also remove children:
+        // children.forEach((c) => set.delete(c.key));
+      } else {
+        set.add(key);
+        // if parent on, also on children
+        children.forEach((c) => set.add(c.key));
+      }
+
+      return {
+        ...prev,
+        menuPermissions: Array.from(set),
+      };
+    });
+  };
+
+  const toggleMenuPermChild = (parentKey, childKey) => {
+    setFormData((prev) => {
+      const set = new Set(prev.menuPermissions || []);
+      const on = set.has(childKey);
+
+      if (on) {
+        set.delete(childKey);
+      } else {
+        set.add(childKey);
+        set.add(parentKey); // ensure parent on if any child on
+      }
+
+      return {
+        ...prev,
+        menuPermissions: Array.from(set),
+      };
+    });
+  };
+
+  const renderMenuPermissionCheckboxes = () => (
+    <div className="subs-perm-groups">
+      {MENU_CONFIG.map((menu) => {
+        const parentChecked = hasMenuPerm(menu.key);
+        const children = menu.children || [];
+
+        return (
+          <div key={menu.key} className="subs-perm-group">
+            <label className="subs-perm-group-parent">
+              <input
+                type="checkbox"
+                checked={parentChecked}
+                onChange={() => toggleMenuPermParent(menu.key, children)}
+              />
+              <span>{menu.label}</span>
+            </label>
+
+            {children.length > 0 && (
+              <div className="subs-perm-group-children">
+                {children.map((child) => (
+                  <label key={child.key} className="subs-perm-child-row">
+                    <input
+                      type="checkbox"
+                      checked={hasMenuPerm(child.key)}
+                      onChange={() =>
+                        toggleMenuPermChild(menu.key, child.key)
+                      }
+                      disabled={!parentChecked}
+                    />
+                    <span>{child.label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  // ----------------------------------------------------
 
   return (
     <div className="subscriptions-page">
@@ -173,31 +262,47 @@ const Subscriptions = () => {
       <div className="plans-list">
         <div className="plans-grid">
           {plans.map((plan) => {
-            const displayFeatures = getDisplayFeatures(plan.features);
+            const displayFeatures = getDisplayFeatures(plan.features || []);
             return (
               <div key={plan.id} className="plan-item">
                 <div className="plan-info">
                   <h3>{plan.name}</h3>
-                  <p className="plan-price">₹{plan.price} / {plan.duration} days</p>
-                  <p><strong>User Limit:</strong> {plan.userLimit}</p>
+                  <p className="plan-price">
+                    ₹{plan.price} / {plan.duration} days
+                  </p>
+                  <p>
+                    <strong>User Limit:</strong> {plan.userLimit}
+                  </p>
 
-                  <p><strong>Features:</strong></p>
+                  <p>
+                    <strong>Features:</strong>
+                  </p>
                   <ul className="plan-features-list">
                     {displayFeatures.map((feature, i) => (
                       <li key={i}>{feature}</li>
                     ))}
                   </ul>
 
-                  <span className={`status-badge ${plan.isActive ? 'active' : 'inactive'}`}>
-                    {plan.isActive ? 'Active' : 'Inactive'}
+                  <span
+                    className={`status-badge ${
+                      plan.isActive ? "active" : "inactive"
+                    }`}
+                  >
+                    {plan.isActive ? "Active" : "Inactive"}
                   </span>
                 </div>
 
                 <div className="plan-actions">
-                  <button onClick={() => handleEdit(plan)} className="btn-edit">
+                  <button
+                    onClick={() => handleEdit(plan)}
+                    className="btn-edit"
+                  >
                     <MdEdit size={16} />
                   </button>
-                  <button onClick={() => handleDelete(plan.id)} className="btn-delete">
+                  <button
+                    onClick={() => handleDelete(plan.id)}
+                    className="btn-delete"
+                  >
                     <MdDelete size={16} />
                   </button>
                 </div>
@@ -209,10 +314,12 @@ const Subscriptions = () => {
 
       {showForm && (
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content subs-modal">
             <div className="modal-header">
-              <h2>{editingId ? 'Edit Plan' : 'Add Plan'}</h2>
-              <button onClick={resetForm} className="close-btn">×</button>
+              <h2>{editingId ? "Edit Plan" : "Add Plan"}</h2>
+              <button onClick={resetForm} className="close-btn">
+                ×
+              </button>
             </div>
 
             <form onSubmit={handleSubmit} className="plan-form">
@@ -221,7 +328,9 @@ const Subscriptions = () => {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   required
                 />
               </div>
@@ -233,7 +342,9 @@ const Subscriptions = () => {
                     type="number"
                     step="0.01"
                     value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, price: e.target.value })
+                    }
                     required
                   />
                 </div>
@@ -243,7 +354,9 @@ const Subscriptions = () => {
                   <input
                     type="number"
                     value={formData.duration}
-                    onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, duration: e.target.value })
+                    }
                     required
                   />
                 </div>
@@ -254,7 +367,9 @@ const Subscriptions = () => {
                 <input
                   type="number"
                   value={formData.userLimit}
-                  onChange={(e) => setFormData({ ...formData, userLimit: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, userLimit: e.target.value })
+                  }
                   required
                 />
               </div>
@@ -270,20 +385,37 @@ const Subscriptions = () => {
                   closeMenuOnSelect={false}
                   value={topSelectedValues}
                   onChange={(selected) => {
-                    const topFeatures = (selected || []).map(o => o.value);
-                    // IMPORTANT: store top features + all mapped menus
+                    const topFeatures = (selected || []).map((o) => o.value);
                     const storedFeatures = buildStoredFeatures(topFeatures);
-                    
-                    setFormData(prev => ({
+                    setFormData((prev) => ({
                       ...prev,
-                      features: storedFeatures
+                      features: storedFeatures,
                     }));
                   }}
                 />
 
                 <small style={{ display: "block", marginTop: 8, opacity: 0.8 }}>
-                  Selecting a feature automatically includes all related menus
+                  Selecting a feature automatically includes all related menus.
                 </small>
+              </div>
+
+              {/* NEW: Menu Permission button */}
+              <div className="form-group">
+                <label>Menu Permission</label>
+                <div>
+                  <button
+                    type="button"
+                    className="btn-link"
+                    onClick={() => setShowMenuModal(true)}
+                  >
+                    View / Edit Menu Permission
+                  </button>
+                  <small
+                    style={{ display: "block", marginTop: 4, opacity: 0.7 }}
+                  >
+                    Configure fine-grained menu keys for this plan.
+                  </small>
+                </div>
               </div>
 
               <div className="form-group">
@@ -291,14 +423,23 @@ const Subscriptions = () => {
                   <input
                     type="checkbox"
                     checked={formData.isActive}
-                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        isActive: e.target.checked,
+                      })
+                    }
                   />
                   Active
                 </label>
               </div>
 
               <div className="form-actions">
-                <button type="button" onClick={resetForm} className="btn-secondary">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="btn-secondary"
+                >
                   Cancel
                 </button>
                 <button type="submit" className="btn-primary">
@@ -306,8 +447,51 @@ const Subscriptions = () => {
                 </button>
               </div>
             </form>
-
           </div>
+
+          {/* SECOND MODAL: Menu permissions */}
+          {showMenuModal && (
+            <div
+              className="perm-modal-overlay"
+              onClick={() => setShowMenuModal(false)}
+            >
+              <div
+                className="perm-modal-box"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="perm-modal-header">
+                  <div>
+                    <div className="perm-modal-title">
+                      Plan Menu Permission
+                    </div>
+                    <div className="perm-modal-subtitle">
+                      {formData.name || "New Plan"}
+                    </div>
+                  </div>
+                  <button
+                    className="close-btn"
+                    onClick={() => setShowMenuModal(false)}
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="perm-modal-body">
+                  {renderMenuPermissionCheckboxes()}
+                </div>
+
+                <div className="perm-modal-footer">
+                  <button
+                    className="perm-btn-secondary"
+                    onClick={() => setShowMenuModal(false)}
+                  >
+                    Close
+                  </button>
+                  {/* No extra save: changes already in formData.menuPermissions */}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

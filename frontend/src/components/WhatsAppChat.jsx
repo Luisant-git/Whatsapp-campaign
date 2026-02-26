@@ -83,6 +83,7 @@ const WhatsAppChat = () => {
   const [manuallyEditedPhones, setManuallyEditedPhones] = useState({});
   const [userId, setUserId] = useState(null);
   const [businessNumbers, setBusinessNumbers] = useState({}); // Store business number per chat
+  const [selectedBusinessNumber, setSelectedBusinessNumber] = useState('all'); // Filter by business number
   
 const [showGroupMenu, setShowGroupMenu] = useState(null); // which phone's group menu is open
 const [groups, setGroups] = useState([]);                 // all contact groups
@@ -699,13 +700,39 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
 
       // normal label filter (DB labels)
       return chatLabels[chat.phone]?.includes(selectedLabel);
+    })
+    .filter((chat) => {
+      // Filter by business number
+      if (selectedBusinessNumber === 'all') return true;
+      return businessNumbers[chat.phone] === selectedBusinessNumber;
     });
 
   return (
     <div className="whatsapp-chat">
       <div className={`chat-sidebar ${selectedChat ? 'hide-mobile' : ''}`}>
         <div className="sidebar-header">
-
+          {/* Business Number Filter Dropdown */}
+          <div style={{ padding: '10px 15px', borderBottom: '1px solid #e9edef' }}>
+            <select
+              value={selectedBusinessNumber}
+              onChange={(e) => setSelectedBusinessNumber(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: '1px solid #d1d7db',
+                backgroundColor: '#fff',
+                fontSize: '14px',
+                cursor: 'pointer',
+                outline: 'none'
+              }}
+            >
+              <option value="all">All Business Numbers</option>
+              {[...new Set(Object.values(businessNumbers))].sort().map(num => (
+                <option key={num} value={num}>{num}</option>
+              ))}
+            </select>
+          </div>
 
           <div className="search-box">
             <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

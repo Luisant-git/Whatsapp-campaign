@@ -276,7 +276,7 @@ export class MetaCatalogService {
       await this.sessionService.setSession(phone, { 
         currentProductId: productId,
         customerName: existingCustomer.customerName,
-        customerAddress: existingCustomer.customerAddress,
+        customerAddress: existingCustomer.customerAddress || undefined,
         step: 'confirm_details'
       }, userId);
       

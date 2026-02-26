@@ -6,7 +6,7 @@ interface ShoppingSession {
   phone: string;
   currentProductId?: number;
   paymentMethod?: string;
-  step: 'browsing' | 'buying' | 'details' | 'awaiting_name' | 'awaiting_address' | 'awaiting_city' | 'awaiting_pincode' | 'awaiting_payment_method';
+  step: 'browsing' | 'buying' | 'details' | 'awaiting_name' | 'awaiting_address' | 'awaiting_city' | 'awaiting_pincode' | 'awaiting_payment_method' | 'confirm_details';
   customerName?: string;
   customerAddress?: string;
   customerCity?: string;

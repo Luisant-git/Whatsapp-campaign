@@ -317,12 +317,13 @@ export class MetaCatalogService {
       
       if (step === 'awaiting_payment_method') {
         const method = message.toLowerCase();
-        if (method !== 'razorpay' && method !== 'cod') {
-          await this.sendTextMessage(phone, phoneNumberId, '❌ Invalid option. Please reply with "Razorpay" or "COD"');
+        if (method !== 'razorpay' && method !== 'cod' && method !== 'pay online' && method !== 'cash on delivery') {
+          await this.sendTextMessage(phone, phoneNumberId, '❌ Invalid option. Please choose a payment method.');
           return true;
         }
         
-        await this.sessionService.setPaymentMethod(phone, method, userId);
+        const paymentMethod = (method === 'razorpay' || method === 'pay online') ? 'razorpay' : 'cod';
+        await this.sessionService.setPaymentMethod(phone, paymentMethod, userId);
         const session = await this.sessionService.getSession(phone, userId);
         const productId = session?.currentProductId;
         
@@ -400,9 +401,49 @@ export class MetaCatalogService {
   }
 
   private async sendPaymentMethodSelection(phone: string, phoneNumberId: string, userId: number) {
-    const message = '💳 *Choose Payment Method*\n\nReply with:\n1. "Razorpay" - Pay online\n2. "COD" - Cash on Delivery';
-    await this.sendTextMessage(phone, phoneNumberId, message);
-    await this.sessionService.setSession(phone, { step: 'awaiting_payment_method' }, userId);
+    try {
+      await axios.post(
+        `${this.apiUrl}/${phoneNumberId}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          to: phone,
+          type: 'interactive',
+          interactive: {
+            type: 'button',
+            body: {
+              text: '💳 *Choose Payment Method*'
+            },
+            action: {
+              buttons: [
+                {
+                  type: 'reply',
+                  reply: {
+                    id: 'razorpay',
+                    title: 'Pay Online'
+                  }
+                },
+                {
+                  type: 'reply',
+                  reply: {
+                    id: 'cod',
+                    title: 'Cash on Delivery'
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      await this.sessionService.setSession(phone, { step: 'awaiting_payment_method' }, userId);
+    } catch (error) {
+      console.error('Send payment method error:', error.response?.data || error.message);
+    }
   }
 
   private async sendOrderConfirmation(phone: string, phoneNumberId: string, product: any, session: any, fullAddress: string) {

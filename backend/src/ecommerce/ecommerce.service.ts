@@ -108,6 +108,23 @@ export class EcommerceService {
     });
   }
 
+  async getOrder(id: number, userId?: number) {
+    const client = userId ? await this.getTenantClient(userId) : this.prisma;
+    return client.order.findUnique({
+      where: { id },
+      include: { product: true },
+    });
+  }
+
+  async updateOrder(id: number, data: any, userId?: number) {
+    const client = userId ? await this.getTenantClient(userId) : this.prisma;
+    return client.order.update({
+      where: { id },
+      data,
+      include: { product: true },
+    });
+  }
+
   async getOrders(userId?: number) {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
     return client.order.findMany({

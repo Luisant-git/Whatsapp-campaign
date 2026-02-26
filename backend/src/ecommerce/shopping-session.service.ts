@@ -6,7 +6,7 @@ interface ShoppingSession {
   phone: string;
   currentProductId?: number;
   paymentMethod?: string;
-  step: 'browsing' | 'buying' | 'details' | 'awaiting_name' | 'awaiting_address' | 'awaiting_city' | 'awaiting_pincode';
+  step: 'browsing' | 'buying' | 'details' | 'awaiting_name' | 'awaiting_address' | 'awaiting_city' | 'awaiting_pincode' | 'awaiting_payment_method';
   customerName?: string;
   customerAddress?: string;
   customerCity?: string;
@@ -200,7 +200,7 @@ export class ShoppingSessionService {
   }
 
   async setCustomerPincode(phone: string, pincode: string, tenantId?: number) {
-    await this.setSession(phone, { customerPincode: pincode }, tenantId);
+    await this.setSession(phone, { customerPincode: pincode, step: 'awaiting_payment_method' }, tenantId);
   }
 
   async getCustomerPincode(phone: string, tenantId?: number): Promise<string | undefined> {

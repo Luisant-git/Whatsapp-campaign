@@ -246,6 +246,11 @@ model Order {
   quantity        Int      @default(1)
   totalAmount     Float
   status          String   @default("pending")
+  paymentMethod   String?
+  paymentId       String?
+  paymentLink     String?
+  paymentStatus   String   @default("pending")
+  isAbandoned     Boolean  @default(false)
   product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

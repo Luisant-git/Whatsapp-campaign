@@ -4,13 +4,14 @@ import { EcommerceService } from './ecommerce.service';
 import { WhatsappEcommerceService } from './whatsapp-ecommerce.service';
 import { ShoppingSessionService } from './shopping-session.service';
 import { MetaCatalogService } from './meta-catalog.service';
+import { RazorpayService } from './razorpay.service';
 import { PrismaService } from '../prisma.service';
 import { TenantPrismaService } from '../tenant-prisma.service';
 import { CentralPrismaService } from '../central-prisma.service';
 
 @Module({
   controllers: [EcommerceController],
-  providers: [EcommerceService, WhatsappEcommerceService, ShoppingSessionService, MetaCatalogService, PrismaService, TenantPrismaService, CentralPrismaService],
+  providers: [EcommerceService, WhatsappEcommerceService, ShoppingSessionService, MetaCatalogService, RazorpayService, PrismaService, TenantPrismaService, CentralPrismaService],
   exports: [EcommerceService, WhatsappEcommerceService, MetaCatalogService],
 })
 export class EcommerceModule {}

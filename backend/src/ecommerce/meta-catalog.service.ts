@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import axios from 'axios';
 import { EcommerceService } from './ecommerce.service';
 import { ShoppingSessionService } from './shopping-session.service';
+import { RazorpayService } from './razorpay.service';
 
 @Injectable()
 export class MetaCatalogService {
@@ -13,7 +14,8 @@ export class MetaCatalogService {
 
   constructor(
     private ecommerceService: EcommerceService,
-    private sessionService: ShoppingSessionService
+    private sessionService: ShoppingSessionService,
+    private razorpayService: RazorpayService
   ) {}
 
   async syncProductToCatalog(product: any) {
@@ -309,41 +311,63 @@ export class MetaCatalogService {
       
       if (step === 'awaiting_pincode') {
         await this.sessionService.setCustomerPincode(phone, message, userId);
+        await this.sendPaymentMethodSelection(phone, phoneNumberId);
+        return true;
+      }
+      
+      if (step === 'awaiting_payment_method') {
+        const method = message.toLowerCase();
+        if (method !== 'razorpay' && method !== 'cod') {
+          await this.sendTextMessage(phone, phoneNumberId, '❌ Invalid option. Please reply with "Razorpay" or "COD"');
+          return true;
+        }
         
+        await this.sessionService.setPaymentMethod(phone, method, userId);
         const session = await this.sessionService.getSession(phone, userId);
-        console.log(`[Meta Catalog] Session data:`, JSON.stringify(session, null, 2));
-        
         const productId = session?.currentProductId;
-        console.log(`[Meta Catalog] Product ID from session: ${productId}`);
         
         if (productId) {
           const product = await this.ecommerceService.getProduct(productId, userId);
-          console.log(`[Meta Catalog] Product fetched:`, product ? `${product.name} - ₹${product.price}` : 'null');
           
           if (product) {
-            const fullAddress = `${session.customerAddress}, ${session.customerCity}, ${message}`;
+            const fullAddress = `${session.customerAddress}, ${session.customerCity}, ${session.customerPincode}`;
             
-            this.ecommerceService.createOrder({
+            const order = await this.ecommerceService.createOrder({
               customerName: session.customerName,
               customerPhone: phone,
               customerAddress: fullAddress,
               productId,
               quantity: 1,
               totalAmount: product.price,
-            }, userId).catch(e => console.error('Order creation error:', e));
+              paymentMethod: method,
+              paymentStatus: method === 'cod' ? 'cod' : 'pending',
+            }, userId);
             
-            const confirmationMessage = `✅ *Order Confirmed*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`;
+            if (method === 'razorpay') {
+              const paymentLink = await this.razorpayService.createPaymentLink(
+                product.price,
+                session.customerName,
+                phone,
+                order.id
+              );
+              
+              await this.ecommerceService.updateOrder(order.id, {
+                paymentLink: paymentLink.short_url,
+                paymentId: paymentLink.id,
+              }, userId);
+              
+              await this.sendTextMessage(
+                phone,
+                phoneNumberId,
+                `💳 *Payment Link*\n\nProduct: ${product.name}\nAmount: ₹${product.price}\n\nClick to pay: ${paymentLink.short_url}\n\nAfter payment, you'll receive order confirmation.`
+              );
+            } else {
+              await this.sendOrderConfirmation(phone, phoneNumberId, product, session, fullAddress);
+            }
             
-            console.log(`[Meta Catalog] Sending confirmation message...`);
-            await this.sessionService.clearSession(phone, userId).catch(e => console.error('Session clear error:', e));
-            await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
-            console.log(`[Meta Catalog] Confirmation sent successfully`);
+            await this.sessionService.clearSession(phone, userId);
             return true;
-          } else {
-            console.error(`[Meta Catalog] Product not found for ID: ${productId}`);
           }
-        } else {
-          console.error(`[Meta Catalog] No productId in session`);
         }
       }
       
@@ -378,5 +402,31 @@ export class MetaCatalogService {
       console.error('[Meta Catalog] Send text message error:', error.response?.data || error.message);
       return { success: false, error: error.message };
     }
+  }
+
+  private async sendPaymentMethodSelection(phone: string, phoneNumberId: string) {
+    const message = '💳 *Choose Payment Method*\n\nReply with:\n1. "Razorpay" - Pay online\n2. "COD" - Cash on Delivery';
+    await this.sendTextMessage(phone, phoneNumberId, message);
+    await this.sessionService.setStep(phone, 'awaiting_payment_method');
+  }
+
+  private async sendOrderConfirmation(phone: string, phoneNumberId: string, product: any, session: any, fullAddress: string) {
+    const confirmationMessage = `✅ *Order Confirmed*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\nPayment: Cash on Delivery\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`;
+    await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
+  }
+
+  async handlePaymentSuccess(orderId: number, paymentId: string, userId: number) {
+    const order = await this.ecommerceService.updateOrder(orderId, {
+      paymentStatus: 'paid',
+      status: 'confirmed',
+    }, userId);
+    
+    const orderDetails = await this.ecommerceService.getOrder(orderId, userId);
+    const phoneNumberId = process.env.PHONE_NUMBER_ID;
+    
+    const confirmationMessage = `✅ *Payment Successful!*\n\nOrder #${orderId}\nProduct: ${orderDetails.product.name}\nAmount: ₹${orderDetails.totalAmount}\n\nName: ${orderDetails.customerName}\nAddress: ${orderDetails.customerAddress}\n\nYour order is confirmed. We'll contact you soon 🙂`;
+    
+    await this.sendTextMessage(orderDetails.customerPhone, phoneNumberId, confirmationMessage);
+    return order;
   }
 }

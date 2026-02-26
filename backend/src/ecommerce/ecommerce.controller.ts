@@ -20,13 +20,33 @@ import { MetaCatalogService } from './meta-catalog.service';
 import { SessionGuard } from '../auth/session.guard';
 
 @Controller('ecommerce')
-@UseGuards(SessionGuard)
 export class EcommerceController {
   constructor(
     private ecommerceService: EcommerceService,
     private metaCatalogService: MetaCatalogService,
   ) {}
 
+  @Get('payment-callback')
+  async paymentCallback(@Query() query: any) {
+    const { razorpay_payment_id, razorpay_payment_link_id } = query;
+    const orderId = parseInt(query.order_id);
+    const userId = parseInt(query.user_id);
+    
+    if (razorpay_payment_id && orderId) {
+      await this.metaCatalogService.handlePaymentSuccess(orderId, razorpay_payment_id, userId);
+      return '<html><body><h1>Payment Successful!</h1><p>Your order is confirmed. You will receive a WhatsApp message shortly.</p></body></html>';
+    }
+    return '<html><body><h1>Payment Failed</h1><p>Please try again.</p></body></html>';
+  }
+
+  @UseGuards(SessionGuard)
+export class EcommerceController {
+  constructor(
+    private ecommerceService: EcommerceService,
+    private metaCatalogService: MetaCatalogService,
+  ) {}
+
+  @UseGuards(SessionGuard)
   @Post('categories')
   createCategory(@Body() body: { name: string }) {
     return this.ecommerceService.createCategory(body.name);

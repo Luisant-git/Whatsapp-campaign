@@ -6,18 +6,19 @@ export class RazorpayService {
   private readonly accessToken = process.env.META_ACCESS_TOKEN;
   private readonly apiUrl = 'https://graph.facebook.com/v18.0';
 
-  async sendPaymentRequest(phone: string, phoneNumberId: string, amount: number, orderId: number) {
+  async sendPaymentRequest(phone: string, phoneNumberId: string, amount: number, orderId: number, productName: string) {
     try {
       const response = await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,
         {
           messaging_product: 'whatsapp',
+          recipient_type: 'individual',
           to: phone,
           type: 'interactive',
           interactive: {
             type: 'order_details',
             body: {
-              text: `Order #${orderId}\nTotal Amount: ₹${amount}`
+              text: `*Order #${orderId}*\n${productName}`
             },
             action: {
               name: 'review_and_pay',
@@ -28,19 +29,19 @@ export class RazorpayService {
                 payment_configuration: 'Razorpay_Payment',
                 currency: 'INR',
                 total_amount: {
-                  value: Math.round(amount * 100),
+                  value: amount * 100,
                   offset: 100
                 },
                 order: {
                   status: 'pending',
                   subtotal: {
-                    value: Math.round(amount * 100),
+                    value: amount * 100,
                     offset: 100
                   },
                   items: [{
-                    name: `Order #${orderId}`,
+                    name: productName,
                     amount: {
-                      value: Math.round(amount * 100),
+                      value: amount * 100,
                       offset: 100
                     },
                     quantity: 1

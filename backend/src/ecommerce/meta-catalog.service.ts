@@ -399,18 +399,21 @@ export class MetaCatalogService {
               productId,
               quantity: 1,
               totalAmount: product.price,
-              paymentMethod: method,
-              paymentStatus: method === 'cod' ? 'cod' : 'pending',
+              paymentMethod: paymentMethod,
+              paymentStatus: paymentMethod === 'cod' ? 'cod' : 'pending',
             }, userId);
             
-            if (method === 'razorpay') {
-              await this.sendTextMessage(
+            if (paymentMethod === 'razorpay') {
+              await this.razorpayService.sendPaymentRequest(
                 phone,
                 phoneNumberId,
-                `✅ *Order Placed*\n\nOrder #${order.id}\nProduct: ${product.name}\nAmount: ₹${product.price}\nPayment: Online Payment\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you with payment details 📞`
+                product.price,
+                order.id,
+                product.name
               );
             } else {
-              await this.sendOrderConfirmation(phone, phoneNumberId, product, session, fullAddress);
+              const confirmMsg = `✅ *Order Confirmed*\n\nOrder #${order.id}\nProduct: ${product.name}\nAmount: ₹${product.price}\nPayment: Cash on Delivery\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`;
+              await this.sendTextMessage(phone, phoneNumberId, confirmMsg);
             }
             
             await this.sessionService.clearSession(phone, userId);

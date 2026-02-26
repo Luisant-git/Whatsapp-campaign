@@ -25,6 +25,7 @@ export class RazorpayService {
                 reference_id: `order_${orderId}`,
                 type: 'digital-goods',
                 payment_type: 'upi',
+                payment_configuration: 'Razorpay_Payment',
                 currency: 'INR',
                 total_amount: {
                   value: Math.round(amount * 100),

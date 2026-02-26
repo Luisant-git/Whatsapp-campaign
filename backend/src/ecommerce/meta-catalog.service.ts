@@ -344,22 +344,17 @@ export class MetaCatalogService {
             }, userId);
             
             if (method === 'razorpay') {
-              const paymentLink = await this.razorpayService.createPaymentLink(
-                product.price,
-                session.customerName || 'Customer',
+              await this.razorpayService.sendPaymentRequest(
                 phone,
+                phoneNumberId,
+                product.price,
                 order.id
               );
-              
-              await this.ecommerceService.updateOrder(order.id, {
-                paymentLink: paymentLink.short_url,
-                paymentId: paymentLink.id,
-              }, userId);
               
               await this.sendTextMessage(
                 phone,
                 phoneNumberId,
-                `💳 *Payment Link*\n\nProduct: ${product.name}\nAmount: ₹${product.price}\n\nClick to pay: ${paymentLink.short_url}\n\nAfter payment, you'll receive order confirmation.`
+                `💳 *Payment Request Sent*\n\nOrder #${order.id}\nProduct: ${product.name}\nAmount: ₹${product.price}\n\nPlease complete the payment to confirm your order.`
               );
             } else {
               await this.sendOrderConfirmation(phone, phoneNumberId, product, session, fullAddress);

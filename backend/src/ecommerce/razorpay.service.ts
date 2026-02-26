@@ -3,67 +3,59 @@ import axios from 'axios';
 
 @Injectable()
 export class RazorpayService {
-  private readonly keyId = process.env.RAZORPAY_KEY_ID;
-  private readonly keySecret = process.env.RAZORPAY_KEY_SECRET;
-  private readonly merchantId = process.env.RAZORPAY_MERCHANT_ID || 'acc_JBz4Xiep4JPFoH';
+  private readonly accessToken = process.env.META_ACCESS_TOKEN;
+  private readonly apiUrl = 'https://graph.facebook.com/v18.0';
 
-  async createPaymentLink(amount: number, customerName: string, customerPhone: string, orderId: number) {
+  async sendPaymentRequest(phone: string, phoneNumberId: string, amount: number, orderId: number) {
     try {
-      if (!this.keyId || !this.keySecret) {
-        throw new Error('Razorpay credentials not configured');
-      }
-      
       const response = await axios.post(
-        'https://api.razorpay.com/v1/payment_links',
+        `${this.apiUrl}/${phoneNumberId}/messages`,
         {
-          amount: Math.round(amount * 100),
-          currency: 'INR',
-          description: `Order #${orderId}`,
-          customer: {
-            name: customerName,
-            contact: customerPhone,
-          },
-          notify: {
-            sms: false,
-            email: false,
-            whatsapp: false,
-          },
-          callback_url: `${process.env.BACKEND_URL}/api/ecommerce/payment-callback`,
-          callback_method: 'get',
+          messaging_product: 'whatsapp',
+          to: phone,
+          type: 'interactive',
+          interactive: {
+            type: 'order_details',
+            body: {
+              text: `Order #${orderId}\nTotal Amount: ₹${amount}`
+            },
+            action: {
+              name: 'review_and_pay',
+              parameters: {
+                reference_id: `order_${orderId}`,
+                type: 'digital-goods',
+                payment_type: 'razorpay',
+                currency: 'INR',
+                total_amount: {
+                  value: Math.round(amount * 100),
+                  offset: 100
+                },
+                order: {
+                  status: 'pending',
+                  items: [{
+                    name: `Order #${orderId}`,
+                    amount: {
+                      value: Math.round(amount * 100),
+                      offset: 100
+                    },
+                    quantity: 1
+                  }]
+                }
+              }
+            }
+          }
         },
         {
-          auth: {
-            username: this.keyId,
-            password: this.keySecret,
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
           },
         }
       );
       return response.data;
     } catch (error) {
-      console.error('Razorpay payment link error:', error.response?.data || error.message);
-      throw new Error('Failed to create payment link');
-    }
-  }
-
-  async verifyPayment(paymentId: string) {
-    try {
-      if (!this.keyId || !this.keySecret) {
-        throw new Error('Razorpay credentials not configured');
-      }
-      
-      const response = await axios.get(
-        `https://api.razorpay.com/v1/payments/${paymentId}`,
-        {
-          auth: {
-            username: this.keyId,
-            password: this.keySecret,
-          },
-        }
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Razorpay verify payment error:', error.response?.data || error.message);
-      throw new Error('Failed to verify payment');
+      console.error('Meta payment request error:', error.response?.data || error.message);
+      throw new Error('Failed to send payment request');
     }
   }
 }

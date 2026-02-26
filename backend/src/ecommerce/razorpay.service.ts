@@ -24,7 +24,7 @@ export class RazorpayService {
               parameters: {
                 reference_id: `order_${orderId}`,
                 type: 'digital-goods',
-                payment_type: 'payment_gateway:razorpay',
+                payment_type: 'upi',
                 currency: 'INR',
                 total_amount: {
                   value: Math.round(amount * 100),
@@ -32,6 +32,10 @@ export class RazorpayService {
                 },
                 order: {
                   status: 'pending',
+                  subtotal: {
+                    value: Math.round(amount * 100),
+                    offset: 100
+                  },
                   items: [{
                     name: `Order #${orderId}`,
                     amount: {

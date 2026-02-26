@@ -250,14 +250,12 @@ export class MetaCatalogService {
       
       let product;
       
-      // Try retailer_id pattern first (for uploaded products like product_1)
       if (catalogItemId?.startsWith('product_')) {
         const prodId = parseInt(catalogItemId.replace('product_', ''));
         product = allProducts.find(p => p.id === prodId);
         console.log(`[Meta Catalog] Trying retailer_id match for ID ${prodId}:`, product ? `Found ${product.name}` : 'Not found');
       }
       
-      // If not found, try metaProductId (for Meta-synced products)
       if (!product) {
         product = allProducts.find(p => p.metaProductId === catalogItemId);
         console.log(`[Meta Catalog] Trying metaProductId match:`, product ? `Found ${product.name}` : 'Not found');
@@ -271,14 +269,26 @@ export class MetaCatalogService {
       }
     }
     
-    // Set session with product ID
-    await this.sessionService.setSession(phone, { 
-      currentProductId: productId,
-      step: 'awaiting_name' 
-    }, userId);
+    // Check if customer exists
+    const existingCustomer = await this.ecommerceService.getCustomerByPhone(phone, userId);
     
-    console.log(`[Meta Catalog] Session set with productId: ${productId}`);
-    return this.sendTextMessage(phone, phoneNumberId, '📦 Great! To complete your order, please provide your full name:');
+    if (existingCustomer) {
+      await this.sessionService.setSession(phone, { 
+        currentProductId: productId,
+        customerName: existingCustomer.customerName,
+        customerAddress: existingCustomer.customerAddress,
+        step: 'confirm_details'
+      }, userId);
+      
+      await this.sendCustomerDetailsConfirmation(phone, phoneNumberId, existingCustomer);
+    } else {
+      await this.sessionService.setSession(phone, { 
+        currentProductId: productId,
+        step: 'awaiting_name' 
+      }, userId);
+      
+      return this.sendTextMessage(phone, phoneNumberId, '📦 Great! To complete your order, please provide your full name:');
+    }
   }
 
   async handleCustomerResponse(phone: string, phoneNumberId: string, message: string, userId: number) {
@@ -290,6 +300,20 @@ export class MetaCatalogService {
       }
       
       console.log(`[Meta Catalog] Customer ${phone} in step: ${step}, message: ${message}`);
+      
+      if (step === 'confirm_details') {
+        const response = message.toLowerCase();
+        
+        if (response === 'yes' || response === 'confirm') {
+          await this.sendPaymentMethodSelection(phone, phoneNumberId, userId);
+          return true;
+        } else if (response === 'update' || response === 'change') {
+          await this.sessionService.setSession(phone, { step: 'awaiting_name' }, userId);
+          await this.sendTextMessage(phone, phoneNumberId, 'Please provide your full name:');
+          return true;
+        }
+        return true;
+      }
       
       if (step === 'awaiting_name') {
         await this.sessionService.setCustomerName(phone, message, userId);
@@ -443,6 +467,51 @@ export class MetaCatalogService {
       await this.sessionService.setSession(phone, { step: 'awaiting_payment_method' }, userId);
     } catch (error) {
       console.error('Send payment method error:', error.response?.data || error.message);
+    }
+  }
+
+  private async sendCustomerDetailsConfirmation(phone: string, phoneNumberId: string, customer: any) {
+    try {
+      await axios.post(
+        `${this.apiUrl}/${phoneNumberId}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          to: phone,
+          type: 'interactive',
+          interactive: {
+            type: 'button',
+            body: {
+              text: `👤 *Your Saved Details*\n\nName: ${customer.customerName}\nAddress: ${customer.customerAddress}\n\nAre these details correct?`
+            },
+            action: {
+              buttons: [
+                {
+                  type: 'reply',
+                  reply: {
+                    id: 'confirm',
+                    title: 'Yes, Confirm'
+                  }
+                },
+                {
+                  type: 'reply',
+                  reply: {
+                    id: 'update',
+                    title: 'Update Details'
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+    } catch (error) {
+      console.error('Send customer details error:', error.response?.data || error.message);
     }
   }
 

@@ -28,17 +28,7 @@ export class UserService {
       data: {
         email: createUserDto.email,
     
-        // what shows as "name" in your list – use companyName or fallback to dto.name
-        name:  createUserDto.name || null,
-    
-        companyName: createUserDto.companyName || null,
-        contactPersonName: createUserDto.contactPersonName || null,
-        phoneNumber: createUserDto.phoneNumber || null,
-        companyAddress: createUserDto.companyAddress || null,
-        city: createUserDto.city || null,
-        pincode: createUserDto.pincode || null,
-        state: createUserDto.state || null,
-        country: createUserDto.country || null,
+        name: createUserDto.name,
     
         password: hashedPassword,
         isActive: true,
@@ -49,7 +39,7 @@ export class UserService {
         dbUser: 'postgres',
         dbPassword: 'root',
     
-        subscriptionId: createUserDto.subscriptionId ?? null,
+        
       },
     });
 
@@ -64,20 +54,12 @@ export class UserService {
     });
 
     return {
+ 
   message: 'User registered successfully',
   user: {
     id: tenant.id,
     email: tenant.email,
-    name: tenant.name,                  // this is whatever you set in data.name
-    companyName: tenant.companyName,
-    contactPersonName: tenant.contactPersonName,
-    phoneNumber: tenant.phoneNumber,
-    companyAddress: tenant.companyAddress,
-    city: tenant.city,
-    pincode: tenant.pincode,
-    state: tenant.state,
-    country: tenant.country,
-    subscriptionId: tenant.subscriptionId,
+    name: tenant.name,
     isActive: tenant.isActive,
     createdAt: tenant.createdAt,
   },

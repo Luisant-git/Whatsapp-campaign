@@ -333,3 +333,234 @@
   border-radius: 6px;
   border: 1px solid #ccc;
 }
+.subs-perm-groups {
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.subs-perm-group {
+  margin-bottom: 12px;
+}
+
+
+.subs-perm-group-parent {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.subs-perm-group-children {
+  margin-left: 20px;
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.subs-perm-child-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Link-like button */
+.btn-link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #1976d2;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+/* Menu permission modal overlay */
+.perm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+/* Menu permission modal box */
+.perm-modal-box {
+  background: #ffffff;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 560px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    0 24px 60px rgba(15, 23, 42, 0.45),
+    0 0 0 1px rgba(148, 163, 184, 0.4);
+}
+
+.perm-modal-header {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.4);
+  gap: 12px;
+}
+
+.perm-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.perm-modal-subtitle {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+/* View/Edit toggle buttons in header */
+.view-edit-toggle {
+  margin-left: auto;
+  display: inline-flex;
+  border-radius: 999px;
+  background: #eef2ff;
+  padding: 2px;
+}
+
+.view-edit-toggle button {
+  border: none;
+  background: none;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: #4b5563;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.view-edit-toggle button.active {
+  background: #1976d2;
+  color: #ffffff;
+}
+
+/* Permission modal body/footer */
+.perm-modal-body {
+  padding: 16px 20px 12px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.perm-modal-footer {
+  padding: 12px 20px 16px;
+  border-top: 1px solid rgba(148, 163, 184, 0.4);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.perm-btn-secondary {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: none;
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* Checkbox groups in edit mode */
+.subs-perm-groups {
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.subs-perm-group {
+  margin-bottom: 12px;
+}
+
+.subs-perm-group-parent {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.subs-perm-group-children {
+  margin-left: 20px;
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.subs-perm-child-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* View-only mode */
+.subs-perm-groups.view-only .subs-perm-group-parent.view-label,
+.subs-perm-groups.view-only .subs-perm-child-row.view-label {
+  font-size: 13px;
+  color: #374151;
+}
+
+.no-perms-text {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+/* Premium primary-colored toggle for Plan Status */
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-start;
+  font-size: 14px;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 46px;
+  height: 24px;
+  border-radius: 999px;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: #e5e7eb;
+  display: inline-flex;
+  align-items: center;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.7);
+}
+
+/* Primary color ON state */
+.toggle-switch.on {
+  background: linear-gradient(135deg, #1976d2, #1565c0);
+  box-shadow:
+    0 0 0 1px rgba(25, 118, 210, 0.7),
+    0 4px 10px rgba(25, 118, 210, 0.45);
+}
+
+.toggle-knob {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.3);
+  transform: translateX(3px);
+  transition: transform 0.2s ease;
+}
+
+.toggle-switch.on .toggle-knob {
+  transform: translateX(23px);
+}
+
+.toggle-text {
+  font-size: 13px;
+  color: #4b5563;
+  font-weight: 500;
+}

@@ -4,6 +4,8 @@ import { CreateAdminDto } from './dto/create-admin.dto';
 import { LoginAdminDto } from './dto/login-admin.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { CreateUserDto } from 'src/user/dto/create-user.dto';
+import { UpdateUserDto } from 'src/user/dto/update-user.dto';
  
 @ApiTags('Admin')
 @Controller('admin')
@@ -94,10 +96,23 @@ export class AdminController {
 
   @Post('users/register')
   @ApiOperation({ summary: 'Register a new user' })
-  async registerUser(@Body() createUserDto: { name: string; email: string; password: string }) {
+  async registerUser(@Body() createUserDto: CreateUserDto) {
     return this.adminService.registerUser(createUserDto);
   }
- 
+  
+  @Patch('users/:id')
+  @ApiOperation({ summary: 'Admin: Update tenant (status, etc.)' })
+  async adminUpdateUser(
+    @Param('id') id: number,
+    @Body() updateUserDto: UpdateUserDto,
+    @Session() session: Record<string, any>,
+  ) {
+    if (!session?.adminId) {
+      throw new UnauthorizedException('Admin authentication required');
+    }
+    return this.adminService.updateUser(+id, updateUserDto);
+  }
+
   @Patch('users/:id/toggle-chatbot')
   @ApiOperation({ summary: 'Toggle AI chatbot for user' })
   async toggleUserChatbot(@Param('id') id: number, @Session() session: Record<string, any>) {

@@ -4,6 +4,8 @@ import { UpdateAdminDto } from './dto/update-admin.dto';
 import { LoginAdminDto } from './dto/login-admin.dto';
 import { CentralPrismaService } from '../central-prisma.service';
 import * as bcrypt from 'bcrypt';
+import { CreateUserDto } from 'src/user/dto/create-user.dto';
+import { UpdateUserDto } from 'src/user/dto/update-user.dto';
  
 @Injectable()
 export class AdminService {
@@ -86,37 +88,74 @@ export class AdminService {
         id: true,
         email: true,
         name: true,
-        isActive: true,
-        createdAt: true,
+        companyName: true,
+        contactPersonName: true,
+        phoneNumber: true,
+        companyAddress: true,
+        city: true,
+        pincode: true,
+        state: true,
+        country: true,
         dbName: true,
         dbHost: true,
         dbPort: true,
         dbUser: true,
         dbPassword: true,
+        subscriptionId: true,
+        subscriptionStartDate: true,
+        subscriptionEndDate: true,
+        subscription: {
+          select: {
+            id: true,
+            name: true,
+            duration: true,
+            userLimit: true,
+            price: true,
+          },
+        },
+        isActive: true,
+        createdAt: true,
       },
       orderBy: {
         createdAt: 'desc',
       },
     });
-
-    // Fetch tenant config for each tenant
+  
     const { PrismaClient } = require('@prisma/client-tenant');
+  
     const usersWithConfig = await Promise.all(
       tenants.map(async (tenant) => {
         try {
           const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-          const tenantPrisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
-          
+          const tenantPrisma = new PrismaClient({
+            datasources: { db: { url: dbUrl } },
+          });
+  
           await tenantPrisma.$connect();
           const config = await tenantPrisma.tenantConfig.findFirst();
           await tenantPrisma.$disconnect();
-          
+  
           return {
+            // keep all tenant fields
             id: tenant.id,
             email: tenant.email,
             name: tenant.name,
+            companyName: tenant.companyName,
+            contactPersonName: tenant.contactPersonName,
+            phoneNumber: tenant.phoneNumber,
+            companyAddress: tenant.companyAddress,
+            city: tenant.city,
+            pincode: tenant.pincode,
+            state: tenant.state,
+            country: tenant.country,
+            subscriptionId: tenant.subscriptionId,
+            subscriptionStartDate: tenant.subscriptionStartDate,
+            subscriptionEndDate: tenant.subscriptionEndDate,
+            subscription: tenant.subscription,
             isActive: tenant.isActive,
             createdAt: tenant.createdAt,
+  
+            // add config-based fields
             aiChatbotEnabled: config?.aiChatbotEnabled || false,
             useQuickReply: config?.useQuickReply !== false,
           };
@@ -126,21 +165,31 @@ export class AdminService {
             id: tenant.id,
             email: tenant.email,
             name: tenant.name,
+            companyName: tenant.companyName,
+            contactPersonName: tenant.contactPersonName,
+            phoneNumber: tenant.phoneNumber,
+            companyAddress: tenant.companyAddress,
+            city: tenant.city,
+            pincode: tenant.pincode,
+            state: tenant.state,
+            country: tenant.country,
+            subscriptionId: tenant.subscriptionId,
+            subscriptionStartDate: tenant.subscriptionStartDate,
+            subscriptionEndDate: tenant.subscriptionEndDate,
+            subscription: tenant.subscription,
             isActive: tenant.isActive,
             createdAt: tenant.createdAt,
             aiChatbotEnabled: false,
             useQuickReply: true,
           };
         }
-      })
+      }),
     );
-
+  
     return usersWithConfig;
   }
-
-  async registerUser(createUserDto: { name: string; email: string; password: string }) {
+  async registerUser(createUserDto: CreateUserDto) {
     const { email, name, password } = createUserDto;
-
     const existingUser = await this.prisma.tenant.findUnique({ where: { email } });
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
@@ -161,6 +210,20 @@ export class AdminService {
         dbPort: 5432,
         dbUser: 'postgres',
         dbPassword: 'root',
+    
+        companyName: createUserDto.companyName || null,
+        contactPersonName: createUserDto.contactPersonName || null,
+        phoneNumber: createUserDto.phoneNumber || null,
+        companyAddress: createUserDto.companyAddress || null,
+        city: createUserDto.city || null,
+        pincode: createUserDto.pincode || null,
+        state: createUserDto.state || null,
+        country: createUserDto.country || null,
+
+        
+      
+      subscriptionId: createUserDto.subscriptionId ?? null,
+     
       },
       select: {
         id: true,
@@ -168,6 +231,16 @@ export class AdminService {
         name: true,
         isActive: true,
         createdAt: true,
+        companyName: true,
+        contactPersonName: true,
+        phoneNumber: true,
+        companyAddress: true,
+        city: true,
+        pincode: true,
+        state: true,
+        country: true,
+        subscriptionId: true,
+       
       },
     });
 
@@ -261,6 +334,39 @@ export class AdminService {
     }
   }
  
+
+
+  async updateUser(id: number, updateUserDto: UpdateUserDto) {
+    // This will update only the fields provided in updateUserDto
+    const tenant = await this.prisma.tenant.update({
+      where: { id },
+      data: updateUserDto,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        companyName: true,
+        contactPersonName: true,
+        phoneNumber: true,
+        companyAddress: true,
+        city: true,
+        pincode: true,
+        state: true,
+        country: true,
+        subscriptionId: true,
+        subscriptionStartDate: true,
+        subscriptionEndDate: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      message: 'Tenant updated successfully',
+      user: tenant,
+    };
+  }
   async updateUserSession(userId: number, sessionStore: any) {
     // Not needed in multi-tenant mode
   }

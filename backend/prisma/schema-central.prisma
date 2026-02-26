@@ -30,7 +30,6 @@ model Tenant {
   pincode     String?
   state       String?
   country     String?
-  menuPermission  MenuPermission?
   password    String
   isActive    Boolean  @default(true)
   dbName      String   @unique
@@ -70,6 +69,7 @@ model SubscriptionPlan {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  menuPermission  MenuPermission?
   
   tenants     Tenant[]
   orders      SubscriptionOrder[]

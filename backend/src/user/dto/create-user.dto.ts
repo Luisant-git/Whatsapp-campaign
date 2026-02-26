@@ -7,7 +7,7 @@ import {
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
-export class CreateUserDto  {
+export class CreateUserDto {
   @ApiProperty({
     example: 'info@acme.test',
     description: 'Company email address (also used for login)',
@@ -15,55 +15,14 @@ export class CreateUserDto  {
   @IsEmail()
   email: string;
 
-  
-  @ApiProperty({ example: 'John Doe', description: 'User full name', required: false })
+  @ApiProperty({
+    example: 'John Doe',
+    description: 'Owner / user full name',
+    
+  })
   @IsOptional()
   @IsString()
-  name?: string;
-
-  @ApiProperty({
-    example: 'Acme Solutions Pvt Ltd',
-    description: 'Company name',
-  })
-  @IsString()
-  companyName?: string;
-
-  @ApiProperty({
-    example: 'John doe',
-    description: 'Contact person full name',
-  })
-  @IsString()
-  contactPersonName?: string;
-
-  @ApiProperty({
-    example: '9876543210',
-    description: 'Contact mobile number',
-  })
-  @IsString()
-  phoneNumber?: string; // maps to Tenant.phoneNumber
-
-  @ApiProperty({
-    example: '123, MG Road, Near Metro Station',
-    description: 'Company address',
-  })
-  @IsString()
-  companyAddress?: string;
-
-  @ApiProperty({ example: 'Bengaluru' })
-  @IsString()
-  city?: string;
-
-  @ApiProperty({ example: '560001' })
-  @IsString()
-  pincode?: string;
-
-  @ApiProperty({ example: 'Karnataka' })
-  @IsString()
-  state?: string;
-
-  @ApiProperty({ example: 'India' })
-  @IsString()
-  country?: string;
+  name: string;
 
   @ApiProperty({
     example: 'password123',
@@ -74,11 +33,61 @@ export class CreateUserDto  {
   password: string;
 
   @ApiProperty({
-    example: 1,
-    description: 'Subscription plan ID (links to SubscriptionPlan.id)',
-    required: false,
+    example: 'Acme Solutions Pvt Ltd',
+    description: 'Company name',
+   
   })
   @IsOptional()
+  @IsString()
+  companyName: string;
+
+  @ApiProperty({
+    example: 'John Doe',
+    description: 'Contact person full name',
+    
+  })
+  @IsOptional()
+  @IsString()
+  contactPersonName: string;
+
+  @ApiProperty({
+    example: '9876543210',
+    description: 'Contact mobile number',
+  
+  })
+  @IsOptional()
+  @IsString()
+  phoneNumber: string;
+
+  @ApiProperty({
+    example: '123 MG Road, Near Metro Station',
+    description: 'Company address',
+   
+  })
+  @IsOptional()
+  @IsString()
+  companyAddress: string;
+
+  @ApiProperty({ example: 'Bengaluru', required: false })
+  @IsOptional()
+  @IsString()
+  city: string;
+
+  @ApiProperty({ example: '560001', required: false })
+  @IsOptional()
+  @IsString()
+  pincode: string;
+
+  @ApiProperty({ example: 'Karnataka', required: false })
+  @IsOptional()
+  @IsString()
+  state: string;
+
+  @ApiProperty({ example: 'India', required: false })
+  @IsOptional()
+  @IsString()
+  country: string;
+
   @IsInt()
   subscriptionId?: number;
 }

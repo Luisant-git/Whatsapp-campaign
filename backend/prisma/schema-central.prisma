@@ -47,6 +47,7 @@ model Tenant {
   subscription SubscriptionPlan? @relation(fields: [subscriptionId], references: [id])
   subscriptionOrders SubscriptionOrder[]
   phoneNumbers PhoneNumberMapping[]
+  menuPermission MenuPermission?
 }
 
 model PhoneNumberMapping {
@@ -66,10 +67,10 @@ model SubscriptionPlan {
   duration    Int
   userLimit   Int ?  
   features    String[]
+  menuPermissions String[]
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  menuPermission  MenuPermission?
   
   tenants     Tenant[]
   orders      SubscriptionOrder[]
@@ -93,12 +94,9 @@ model SubscriptionOrder {
 
 model MenuPermission {
   id          Int      @id @default(autoincrement())
-
-  tenantId     Int      @unique
+  tenantId    Int      @unique
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  permission  Json     // Full sidebar JSON
-
+  permission  Json
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

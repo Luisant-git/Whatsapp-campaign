@@ -50,7 +50,7 @@ import "./App.css";
 import "./styles/Analytics.css";
 import "./styles/Settings.css";
 import "./styles/Profile.css";
-import { getCurrentMenuPermission } from "./api/menu";
+import { getCurrentPlan } from "./api/subscription";
 
 // Icon map for MENU_CONFIG.icon
 const ICON_MAP = {
@@ -108,18 +108,6 @@ const CHILD_ICON_MAP = {
   user: Users,
 };
 
-// Always-visible menu keys (ignore menuPerms here)
-const ALWAYS_VISIBLE_MENU_KEYS = [
-  "analytics",               // Dashboard
-  "chats",                   // WhatsApp Chats
-  "contacts",                // Contacts parent
-  "contacts.all",            // All Contacts
-  "settings",                // Settings parent
-  "settings.master-config",  // WhatsApp Setup
-  "settings.templates",      // Templates
-  "subscription",            // Subscription page
-];
-
 function App() {
   const [activeView, setActiveView] = useState("chats");
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -137,6 +125,26 @@ function App() {
 
   // Menu permissions JSON from backend
   const [menuPerms, setMenuPerms] = useState(null);
+
+  // Function to refresh menu permissions
+  const refreshMenuPermissions = async () => {
+    try {
+      const data = await getCurrentPlan();
+      
+      if (data.subscription?.menuPermissions) {
+        const permissions = {};
+        data.subscription.menuPermissions.forEach(key => {
+          permissions[key] = true;
+        });
+        setMenuPerms(permissions);
+      } else {
+        setMenuPerms({});
+      }
+    } catch (err) {
+      console.error("Failed to load subscription:", err);
+      setMenuPerms({});
+    }
+  };
 
   // Session-based feature flags (AI Chatbot, Quick Reply)
   useEffect(() => {
@@ -201,21 +209,10 @@ function App() {
     }
   };
 
-  // After login, load menu permission JSON for this tenant
+  // After login, load menu permission from subscription
   useEffect(() => {
     if (!isLoggedIn) return;
-
-    const loadMenuPermission = async () => {
-      try {
-        const data = await getCurrentMenuPermission();
-        setMenuPerms(data.permission || {});
-      } catch (err) {
-        console.error("Failed to load menu permissions:", err);
-        setMenuPerms(null); // null = no restriction
-      }
-    };
-
-    loadMenuPermission();
+    refreshMenuPermissions();
   }, [isLoggedIn]);
 
   const handleLogin = (userData) => {
@@ -239,20 +236,16 @@ function App() {
     }
   };
 
-  // Permission check: ALWAYS_VISIBLE + feature flags + menuPerms JSON
+  // Permission check: subscription menuPerms + feature flags
   const isAllowed = (key) => {
-    // 1. Always-visible menus
-    if (ALWAYS_VISIBLE_MENU_KEYS.includes(key)) return true;
-
-    // 2. Feature flags
+    // 1. Feature flags (always check these first)
     if (key === "chatbot" && !aiChatbotEnabled) return false;
     if (key === "quick-reply" && useQuickReply === false) return false;
 
-    // 3. Menu permissions from admin:
-    //    If no menuPerms → no restriction (everything allowed)
-    if (!menuPerms) return true;
+    // 2. If menuPerms is null or empty object → no subscription restrictions, show all
+    if (!menuPerms || Object.keys(menuPerms).length === 0) return true;
 
-    // 4. Only explicit true is allowed
+    // 3. If menuPerms exists, only show what's explicitly allowed
     return menuPerms[key] === true;
   };
 
@@ -444,7 +437,7 @@ function App() {
             )}
             {activeView === "master-config" && <MasterConfig />}
             {activeView === "profile" && <Profile />}
-            {activeView === "subscription" && <Subscription />}
+            {activeView === "subscription" && <Subscription onSubscriptionChange={refreshMenuPermissions} />}
           </div>
         </div>
       )}

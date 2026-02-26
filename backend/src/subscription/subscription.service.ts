@@ -13,6 +13,7 @@ export class SubscriptionService {
         duration: parseInt(data.duration),
         userLimit: parseInt(data.userLimit),
         features: data.features || [],
+        menuPermissions: data.menuPermissions || [],
         isActive: data.isActive !== false
       }
     });
@@ -47,6 +48,7 @@ export class SubscriptionService {
         duration: data.duration ? parseInt(data.duration) : undefined,
         userLimit: data.userLimit ? parseInt(data.userLimit) : undefined,
         features: data.features,
+        menuPermissions: data.menuPermissions,
         isActive: data.isActive
       }
     });

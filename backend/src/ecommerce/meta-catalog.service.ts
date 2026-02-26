@@ -362,7 +362,7 @@ export class MetaCatalogService {
         const session = await this.sessionService.getSession(phone, userId);
         const existingCustomer = await this.ecommerceService.getCustomerByPhone(phone, userId);
         
-        if (existingCustomer) {
+        if (existingCustomer && session) {
           await this.sendCustomerDetailsConfirmation(phone, phoneNumberId, {
             customerName: session.customerName,
             customerAddress: `${session.customerAddress}, ${session.customerCity}, ${session.customerPincode}`
@@ -389,7 +389,7 @@ export class MetaCatalogService {
         if (productId) {
           const product = await this.ecommerceService.getProduct(productId, userId);
           
-          if (product) {
+          if (product && session) {
             const fullAddress = `${session.customerAddress}, ${session.customerCity}, ${session.customerPincode}`;
             
             const order = await this.ecommerceService.createOrder({

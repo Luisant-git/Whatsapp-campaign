@@ -404,10 +404,13 @@ export class MetaCatalogService {
             }, userId);
             
             if (method === 'razorpay') {
-              await this.sendTextMessage(
+              await this.sendOrderDetailsWithPayment(
                 phone,
                 phoneNumberId,
-                `✅ *Order Placed*\n\nOrder #${order.id}\nProduct: ${product.name}\nAmount: ₹${product.price}\nPayment: Online Payment\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you with payment details 📞`
+                product,
+                order.id,
+                session.customerName || 'Customer',
+                fullAddress
               );
             } else {
               await this.sendOrderConfirmation(phone, phoneNumberId, product, session, fullAddress);
@@ -599,6 +602,64 @@ export class MetaCatalogService {
   private async sendOrderConfirmation(phone: string, phoneNumberId: string, product: any, session: any, fullAddress: string) {
     const confirmationMessage = `✅ *Order Confirmed*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\nPayment: Cash on Delivery\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`;
     await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
+  }
+
+  private async sendOrderDetailsWithPayment(phone: string, phoneNumberId: string, product: any, orderId: number, customerName: string, address: string) {
+    try {
+      await axios.post(
+        `${this.apiUrl}/${phoneNumberId}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: phone,
+          type: 'interactive',
+          interactive: {
+            type: 'order_details',
+            body: {
+              text: `*Order #${orderId}*\n\n${customerName}\n${address}`
+            },
+            action: {
+              name: 'review_and_pay',
+              parameters: {
+                reference_id: `order_${orderId}`,
+                type: 'digital-goods',
+                payment_type: 'upi',
+                payment_configuration: 'Razorpay_Payment',
+                currency: 'INR',
+                total_amount: {
+                  value: product.price * 100,
+                  offset: 100
+                },
+                order: {
+                  status: 'pending',
+                  subtotal: {
+                    value: product.price * 100,
+                    offset: 100
+                  },
+                  items: [{
+                    name: product.name,
+                    amount: {
+                      value: product.price * 100,
+                      offset: 100
+                    },
+                    quantity: 1
+                  }]
+                }
+              }
+            }
+          }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+    } catch (error) {
+      console.error('Send order details with payment error:', error.response?.data || error.message);
+      await this.sendTextMessage(phone, phoneNumberId, `✅ *Order Placed*\n\nOrder #${orderId}\nProduct: ${product.name}\nAmount: ₹${product.price}\n\nOur team will contact you with payment link 📞`);
+    }
   }
 
   async handlePaymentSuccess(orderId: number, paymentId: string, userId: number) {

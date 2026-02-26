@@ -3,66 +3,98 @@ import {
   Get,
   Post,
   Patch,
-  Param,
   Body,
+  Param,
+  Session,
+  UnauthorizedException,
   ParseIntPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
-  ApiResponse,
   ApiParam,
-  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { MenuPermissionService } from './menu-permission.service';
-import { CreateMenuPermissionDto } from './dto/create-menu-permission.dto';
+import { UpdateMenuPermissionDto } from './dto/update-menu-permission.dto';
 
-
-@ApiTags('Menu Permission (Super Admin)')
-@ApiBearerAuth()
+@ApiTags('Menu Permission')
 @Controller('menu-permission')
 export class MenuPermissionController {
-  constructor(
-    private readonly service: MenuPermissionService,
-  ) {}
+  constructor(private readonly service: MenuPermissionService) {}
 
-  @Post()
-  @ApiOperation({ summary: 'Create or update menu permission for tenant' })
-  @ApiResponse({ status: 201, description: 'Permission saved successfully' })
-  async createOrUpdate(
-    @Body() dto: CreateMenuPermissionDto,
-  ) {
-    return this.service.createOrUpdate(
-      dto.tenantId,
-      dto.permission,
-    );
-  }
 
-  @Get()
-  @ApiOperation({ summary: 'Get all tenant menu permissions' })
-  async findAll() {
-    return this.service.findAll();
-  }
+   // ===== Tenant: Get current tenant menu permission =====
+   @Get('current')
+   @ApiOperation({ summary: 'Get current tenant menu permission' })
+   async getCurrent(@Session() session: any) {
+     const tenantId = session.userId; // same as in UserService.login
+     if (!tenantId) {
+       throw new UnauthorizedException('No tenant in session');
+     }
+ 
+     try {
+       const record = await this.service.findByTenant(tenantId);
+       // Return only the permission JSON the frontend needs
+       return { permission: record.permission || {} };
+     } catch {
+       // No record yet → treat as empty permission (show all by default or none, up to you)
+       return { permission: {} };
+     }
+   }
 
+  // ===== Admin: Get menu permission by tenantId =====
   @Get(':tenantId')
-  @ApiOperation({ summary: 'Get menu permission by tenant ID' })
-  @ApiParam({ name: 'tenantId', type: Number })
-  async findOne(
+  async getByTenant(
     @Param('tenantId', ParseIntPipe) tenantId: number,
+    @Session() session: any,
   ) {
+    if (!session?.adminId) {
+      throw new UnauthorizedException('Admin authentication required');
+    }
+  
     return this.service.findByTenant(tenantId);
   }
 
+  // ===== Admin: Create or Update by tenantId =====
+  @Post(':tenantId')
+  @ApiOperation({ summary: 'Admin: Create or update menu permission' })
+  async save(
+    @Param('tenantId', ParseIntPipe) tenantId: number,
+    @Session() session: any,
+    @Body() dto: UpdateMenuPermissionDto,
+  ) {
+    if (!session?.adminId) {
+      throw new UnauthorizedException('Admin authentication required');
+    }
+
+    return this.service.createOrUpdate(tenantId, dto.permission);
+  }
+
+  // ===== Admin: Update (PATCH) by tenantId (optional) =====
   @Patch(':tenantId')
-  @ApiOperation({ summary: 'Update menu permission for tenant' })
-  @ApiParam({ name: 'tenantId', type: Number })
+  @ApiOperation({ summary: 'Admin: Update menu permission' })
   async update(
     @Param('tenantId', ParseIntPipe) tenantId: number,
-    @Body() dto: CreateMenuPermissionDto,
+    @Session() session: any,
+    @Body() dto: UpdateMenuPermissionDto,
   ) {
-    return this.service.update(
-      tenantId,
-      dto.permission,
-    );
+    if (!session?.adminId) {
+      throw new UnauthorizedException('Admin authentication required');
+    }
+
+    return this.service.update(tenantId, dto.permission);
   }
+
+  // ===== Admin: Get all permissions =====
+  @Get()
+  @ApiOperation({ summary: 'Admin: Get all menu permissions' })
+  async findAll(@Session() session: any) {
+    if (!session?.adminId) {
+      throw new UnauthorizedException('Admin authentication required');
+    }
+
+    return this.service.findAll();
+  }
+
+  
 }

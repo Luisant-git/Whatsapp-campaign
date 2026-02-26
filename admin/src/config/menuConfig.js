@@ -33,6 +33,12 @@ export const MENU_CONFIG = [
       label: "AI Chatbot",
       icon: "bot",
     },
+
+    {
+      key: "quick-reply",
+      label: "Quick Reply",
+      icon: "zap",
+    },
     {
       key: "ecommerce",
       label: "E-Commerce",

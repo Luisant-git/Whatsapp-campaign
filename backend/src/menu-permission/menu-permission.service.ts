@@ -21,16 +21,20 @@ export class MenuPermissionService {
     });
   }
 
+  // CHANGE HERE
   async findByTenant(tenantId: number) {
     const data = await this.prisma.menuPermission.findUnique({
       where: { tenantId },
       include: { tenant: true },
     });
 
+    // If no record, return an "empty" one instead of throwing 404
     if (!data) {
-      throw new NotFoundException(
-        'Menu permission not found for this tenant',
-      );
+      return {
+        tenantId,
+        tenant: null,
+        permission: {},   // no permissions yet
+      };
     }
 
     return data;
@@ -46,19 +50,15 @@ export class MenuPermissionService {
     tenantId: number,
     permission: Record<string, any>,
   ) {
-    const exists = await this.prisma.menuPermission.findUnique({
-      where: { tenantId },
-    });
-
-    if (!exists) {
+    try {
+      return await this.prisma.menuPermission.update({
+        where: { tenantId },
+        data: { permission },
+      });
+    } catch (error) {
       throw new NotFoundException(
         'Menu permission not found for this tenant',
       );
     }
-
-    return this.prisma.menuPermission.update({
-      where: { tenantId },
-      data: { permission },
-    });
   }
 }

@@ -8,6 +8,7 @@ import SubscriptionOrders from './pages/SubscriptionOrders';
 import Layout from './components/Layout';
 import './App.css';
 import MenuPermission from './pages/MenuPermission';
+import { ToastProvider } from './contexts/ToastContext';
 
 function AppContent() {
   const { isAuthenticated, loading } = useAuth();
@@ -41,9 +42,11 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
+      <ToastProvider>
       <BrowserRouter>
         <AppContent />
       </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   );
 }

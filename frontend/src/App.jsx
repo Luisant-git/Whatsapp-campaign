@@ -1,39 +1,28 @@
-
 import { useState, useEffect } from "react";
 import {
   MessageSquare,
   Settings,
-  BarChart3,
-  User,
-  Mail,
-  MessageCircle,
-  Bot,
-  List,
-  Sliders,
-  Menu,
-  X,
-  Zap,
-  Users,
-  PieChart,
-  ChartBar,
-  ChartBarIcon,
-  ChartBarStacked,
-  ChartNoAxesColumn,
   ChartNoAxesCombined,
+  Users,
+  Mail,
+  Bot,
+  Store,
   CreditCard,
-  Tag,
+  X,
+  Menu as MenuIcon,
+  UserPlus2,
+  List,
   Layers,
   Package,
   ShoppingCart,
-  Store,
-  UserIcon,
-  UserCheckIcon,
-  UserX2Icon,
-  UserSquare2Icon,
-  UserPlus2,
-  BookTemplateIcon,
+  Tag,
   LayoutTemplate,
+  Sliders,
+  Zap,
 } from "lucide-react";
+
+import { MENU_CONFIG } from "./config/menuconfig.js"
+
 import { ToastProvider } from "./contexts/ToastContext";
 import WhatsAppChat from "./components/WhatsAppChat";
 import BulkWhatsApp from "./components/BulkWhatsApps";
@@ -52,15 +41,84 @@ import Categories from "./components/Categories";
 import Products from "./components/Products";
 import Orders from "./components/Orders";
 import Customers from "./components/Customers";
-import "./App.css";
-import "./styles/Analytics.css";
-import "./styles/Settings.css";
-import "./styles/Profile.css";
 import Labels from "./components/Labels";
 import Blacklist from "./components/BlackList";
 import CreateUser from "./components/CreateUser";
 import UngroupedContact from "./components/UngroupedContact";
 
+import "./App.css";
+import "./styles/Analytics.css";
+import "./styles/Settings.css";
+import "./styles/Profile.css";
+import { getCurrentMenuPermission } from "./api/menu";
+
+// Icon map for MENU_CONFIG.icon
+const ICON_MAP = {
+  chart: ChartNoAxesCombined,
+  chat: MessageSquare,
+  users: Users,
+  mail: Mail,
+  bot: Bot,
+  store: Store,
+  settings: Settings,
+  credit: CreditCard,
+  zap: Zap,
+};
+
+// Map MENU_CONFIG keys to activeView values
+const MENU_TO_VIEW = {
+  analytics: "analytics",
+  chats: "chats",
+
+  "contacts.all": "contacts",
+  "contacts.blacklist": "blacklist",
+  "contacts.ungrouped": "ungroupedcontact",
+
+  "campaigns.bulk": "bulk",
+  "campaigns.reports": "campaigns",
+
+  chatbot: "chatbot",
+  "quick-reply": "quick-reply",
+
+  "ecommerce.categories": "categories",
+  "ecommerce.products": "products",
+  "ecommerce.orders": "orders",
+  "ecommerce.customers": "customers",
+
+  "settings.master-config": "master-config",
+  "settings.templates": "settings",
+  "settings.labels": "labels",
+  "settings.createuser": "createuser",
+
+  subscription: "subscription",
+};
+
+const CHILD_ICON_MAP = {
+  users: Users,
+  x: X,
+  userPlus: UserPlus2,
+  mail: Mail,
+  list: List,
+  layers: Layers,
+  package: Package,
+  shoppingCart: ShoppingCart,
+  tag: Tag,
+  layoutTemplate: LayoutTemplate,
+  sliders: Sliders,
+  user: Users,
+};
+
+// Always-visible menu keys (ignore menuPerms here)
+const ALWAYS_VISIBLE_MENU_KEYS = [
+  "analytics",               // Dashboard
+  "chats",                   // WhatsApp Chats
+  "contacts",                // Contacts parent
+  "contacts.all",            // All Contacts
+  "settings",                // Settings parent
+  "settings.master-config",  // WhatsApp Setup
+  "settings.templates",      // Templates
+  "subscription",            // Subscription page
+];
 
 function App() {
   const [activeView, setActiveView] = useState("chats");
@@ -69,53 +127,60 @@ function App() {
   const [user, setUser] = useState(null);
   const [aiChatbotEnabled, setAiChatbotEnabled] = useState(false);
   const [useQuickReply, setUseQuickReply] = useState(true);
+
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [contactsOpen, setContactsOpen] = useState(false);
   const [ecommerceOpen, setEcommerceOpen] = useState(false);
   const [campaignsOpen, setCampaignsOpen] = useState(false);
 
-  // Check session status only when needed (not on interval)
-  useEffect(() => {
-    if (isLoggedIn) {
-      // Only check once on mount
-      const checkSession = async () => {
-        try {
-          const { checkSessionStatus } = await import('./api/session');
-          const sessionData = await checkSessionStatus();
-          if (sessionData.user?.aiChatbotEnabled !== aiChatbotEnabled) {
-            setAiChatbotEnabled(sessionData.user.aiChatbotEnabled);
-            if (activeView === 'chatbot' && !sessionData.user.aiChatbotEnabled) {
-              setActiveView('chats');
-            }
-          }
-          if (sessionData.user?.useQuickReply !== useQuickReply) {
-            setUseQuickReply(sessionData.user.useQuickReply !== false);
-            if (activeView === 'quick-reply' && sessionData.user.useQuickReply === false) {
-              setActiveView('chats');
-            }
-          }
-        } catch (error) {
-          console.error('Session check failed:', error);
-        }
-      };
-      checkSession();
-    }
-  }, [isLoggedIn]); // Only run when login status changes
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
 
+  // Menu permissions JSON from backend
+  const [menuPerms, setMenuPerms] = useState(null);
+
+  // Session-based feature flags (AI Chatbot, Quick Reply)
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth > 768) {
-        setSidebarOpen(true);
-      } else {
-        setSidebarOpen(false);
+    if (!isLoggedIn) return;
+
+    const checkSession = async () => {
+      try {
+        const { checkSessionStatus } = await import("./api/session");
+        const sessionData = await checkSessionStatus();
+
+        if (sessionData.user?.aiChatbotEnabled !== aiChatbotEnabled) {
+          setAiChatbotEnabled(sessionData.user.aiChatbotEnabled);
+          if (activeView === "chatbot" && !sessionData.user.aiChatbotEnabled) {
+            setActiveView("chats");
+          }
+        }
+
+        if (sessionData.user?.useQuickReply !== useQuickReply) {
+          setUseQuickReply(sessionData.user.useQuickReply !== false);
+          if (
+            activeView === "quick-reply" &&
+            sessionData.user.useQuickReply === false
+          ) {
+            setActiveView("chats");
+          }
+        }
+      } catch (error) {
+        console.error("Session check failed:", error);
       }
     };
 
+    checkSession();
+  }, [isLoggedIn, activeView, aiChatbotEnabled, useQuickReply]);
+
+  // Responsive sidebar
+  useEffect(() => {
+    const handleResize = () => {
+      setSidebarOpen(window.innerWidth > 768);
+    };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // On mount check token and load profile
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
@@ -126,15 +191,32 @@ function App() {
 
   const fetchUserProfile = async () => {
     try {
-      const { getProfile } = await import('./api/auth');
+      const { getProfile } = await import("./api/auth");
       const profileData = await getProfile();
       setUser(profileData.user);
       setAiChatbotEnabled(profileData.user?.aiChatbotEnabled || false);
       setUseQuickReply(profileData.user?.useQuickReply !== false);
     } catch (error) {
-      console.error('Failed to fetch user profile:', error);
+      console.error("Failed to fetch user profile:", error);
     }
   };
+
+  // After login, load menu permission JSON for this tenant
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const loadMenuPermission = async () => {
+      try {
+        const data = await getCurrentMenuPermission();
+        setMenuPerms(data.permission || {});
+      } catch (err) {
+        console.error("Failed to load menu permissions:", err);
+        setMenuPerms(null); // null = no restriction
+      }
+    };
+
+    loadMenuPermission();
+  }, [isLoggedIn]);
 
   const handleLogin = (userData) => {
     setUser(userData);
@@ -157,6 +239,115 @@ function App() {
     }
   };
 
+  // Permission check: ALWAYS_VISIBLE + feature flags + menuPerms JSON
+  const isAllowed = (key) => {
+    // 1. Always-visible menus
+    if (ALWAYS_VISIBLE_MENU_KEYS.includes(key)) return true;
+
+    // 2. Feature flags
+    if (key === "chatbot" && !aiChatbotEnabled) return false;
+    if (key === "quick-reply" && useQuickReply === false) return false;
+
+    // 3. Menu permissions from admin:
+    //    If no menuPerms → no restriction (everything allowed)
+    if (!menuPerms) return true;
+
+    // 4. Only explicit true is allowed
+    return menuPerms[key] === true;
+  };
+
+  const renderSidebar = () => (
+    <nav className="sidebar-nav">
+      {MENU_CONFIG.filter((menu) => isAllowed(menu.key)).map((menu) => {
+        const hasChildren = menu.children && menu.children.length > 0;
+        const IconComp = ICON_MAP[menu.icon] || Settings;
+
+        if (hasChildren) {
+          const isContacts = menu.key === "contacts";
+          const isCampaigns = menu.key === "campaigns";
+          const isEcommerce = menu.key === "ecommerce";
+          const isSettingsGroup = menu.key === "settings";
+
+          const isOpen =
+            (isContacts && contactsOpen) ||
+            (isCampaigns && campaignsOpen) ||
+            (isEcommerce && ecommerceOpen) ||
+            (isSettingsGroup && settingsOpen);
+
+          const toggleOpen = () => {
+            if (isContacts) setContactsOpen((prev) => !prev);
+            if (isCampaigns) setCampaignsOpen((prev) => !prev);
+            if (isEcommerce) setEcommerceOpen((prev) => !prev);
+            if (isSettingsGroup) setSettingsOpen((prev) => !prev);
+          };
+
+          const allowedChildren = (menu.children || []).filter((child) =>
+            isAllowed(child.key),
+          );
+
+          if (allowedChildren.length === 0) {
+            // parent is allowed but no children allowed → hide group
+            return null;
+          }
+
+          return (
+            <div className="nav-item-group" key={menu.key}>
+              <button
+                className={`nav-item ${isOpen ? "active" : ""}`}
+                onClick={toggleOpen}
+              >
+                <IconComp size={18} />
+                <span>{menu.label}</span>
+              </button>
+              {isOpen && (
+                <div className="nav-submenu">
+                  {allowedChildren.map((child) => {
+                    const viewKey = MENU_TO_VIEW[child.key];
+                    if (!viewKey) return null;
+
+                    const ChildIcon =
+                      (child.icon && CHILD_ICON_MAP[child.icon]) || null;
+
+                    return (
+                      <button
+                        key={child.key}
+                        className={`nav-subitem ${
+                          activeView === viewKey ? "active" : ""
+                        }`}
+                        onClick={() => handleMenuClick(viewKey)}
+                      >
+                        {ChildIcon && (
+                          <ChildIcon size={16} style={{ marginRight: 6 }} />
+                        )}
+                        <span>{child.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        const viewKey = MENU_TO_VIEW[menu.key];
+        if (!viewKey) return null;
+
+        return (
+          <button
+            key={menu.key}
+            className={`nav-item ${
+              activeView === viewKey ? "active" : ""
+            }`}
+            onClick={() => handleMenuClick(viewKey)}
+          >
+            <IconComp size={18} />
+            <span>{menu.label}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+
   return (
     <ToastProvider>
       {!isLoggedIn ? (
@@ -176,249 +367,9 @@ function App() {
                 <X size={20} />
               </button>
             </div>
-            <nav className="sidebar-nav">
-              <button
-                className={`nav-item ${activeView === "analytics" ? "active" : ""
-                  }`}
-                onClick={() => handleMenuClick("analytics")}
-              >
-                <ChartNoAxesCombined size={18} />
-                <span>Dashboard</span>
-              </button>
-              <button
-                className={`nav-item ${activeView === "chats" ? "active" : ""}`}
-                onClick={() => handleMenuClick("chats")}
-              >
-                <MessageSquare size={18} />
-                <span>WhatsApp Chats</span>
-              </button>
-
-              <div className="nav-item-group">
-                <button
-                  className={`nav-item ${contactsOpen &&
-                    !["contacts", "blacklist","ungroupedcontact"].includes(activeView)
-                    ? "active"
-                    : ""
-                    }`}
-                  onClick={() => setContactsOpen((prev) => !prev)}
-                >
-                  <Users size={18} />
-                  <span>Contacts</span>
-                </button>
-
-                {contactsOpen && (
-                  <div className="nav-submenu">
-                    <button
-                      className={`nav-subitem ${activeView === "contacts" ? "active" : ""
-                        }`}
-                      onClick={() => handleMenuClick("contacts")}
-                    >
-                      <Users size={16} />
-                      <span>All Contacts</span>
-                    </button>
-
-                    <button
-                      className={`nav-subitem ${activeView === "blacklist" ? "active" : ""
-                        }`}
-                      onClick={() => handleMenuClick("blacklist")}
-                    >
-                      <X size={16} />
-                      <span>Blacklist</span>
-                    </button>
-
-                    <button
-                      className={`nav-subitem ${activeView === "ungroupedcontact" ? "active" : ""
-                        }`}
-                      onClick={() => handleMenuClick("ungroupedcontact")}
-                    >
-                      <UserPlus2 size={16} />
-                      <span>Ungrouped </span>
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="nav-item-group">
-  <button
-    className={`nav-item ${
-      campaignsOpen && !["bulk", "campaigns"].includes(activeView) ? "active" : ""
-    }`}
-    onClick={() => setCampaignsOpen((prev) => !prev)}
-  >
-    <Mail size={18} />
-    <span>Campaigns</span>
-  </button>
-
-  {campaignsOpen && (
-    <div className="nav-submenu">
-      <button
-        className={`nav-subitem ${activeView === "bulk" ? "active" : ""}`}
-        onClick={() => handleMenuClick("bulk")}
-      >
-        <Mail size={16} />
-        <span>Compose Campaign</span>
-      </button>
-
-      <button
-        className={`nav-subitem ${activeView === "campaigns" ? "active" : ""}`}
-        onClick={() => handleMenuClick("campaigns")}
-      >
-        <List size={16} />
-        <span>Campaign Reports</span>
-      </button>
-    </div>
-  )}
-</div>
-
-
-              <button
-                className={`nav-item ${activeView === "auto-reply" ? "active" : ""
-                  }`}
-                onClick={() => handleMenuClick("auto-reply")}
-              >
-                <MessageCircle size={18} />
-                <span>Auto Reply</span>
-              </button>
-              {useQuickReply && (
-                <button
-                  className={`nav-item ${activeView === "quick-reply" ? "active" : ""
-                    }`}
-                  onClick={() => setActiveView("quick-reply")}
-                >
-                  <Zap size={18} />
-                  <span>Quick Reply</span>
-                </button>
-              )}
-              {aiChatbotEnabled && (
-                <button
-                  className={`nav-item ${activeView === "chatbot" ? "active" : ""
-                    }`}
-                  onClick={() => handleMenuClick("chatbot")}
-                >
-                  <Bot size={18} />
-                  <span>AI Chatbot</span>
-                </button>
-              )}
-
-              
-
-              <div className="nav-item-group">
-                <button
-                  className={`nav-item ${ecommerceOpen &&
-                    !["categories", "products", "orders"].includes(activeView)
-                    ? "active"
-                    : ""
-                    }`}
-                  onClick={() => setEcommerceOpen((prev) => !prev)}
-                >
-                  <Store size={18} />
-                  <span>E-Commerce</span>
-                </button>
-
-                {ecommerceOpen && (
-                  <div className="nav-submenu">
-                    <button
-                      className={`nav-subitem ${activeView === "categories" ? "active" : ""
-                        }`}
-                      onClick={() => handleMenuClick("categories")}
-                    >
-                      <Layers size={16} />
-                      <span>Categories</span>
-                    </button>
-
-                    <button
-                      className={`nav-subitem ${activeView === "products" ? "active" : ""
-                        }`}
-                      onClick={() => handleMenuClick("products")}
-                    >
-                      <Package size={16} />
-                      <span>Products</span>
-                    </button>
-
-                    <button
-                      className={`nav-subitem ${activeView === "orders" ? "active" : ""
-                        }`}
-                      onClick={() => handleMenuClick("orders")}
-                    >
-                      <ShoppingCart size={16} />
-                      <span>Orders</span>
-                    </button>
-
-                    <button
-                      className={`nav-subitem ${activeView === "customers" ? "active" : ""
-                        }`}
-                      onClick={() => handleMenuClick("customers")}
-                    >
-                      <Users size={16} />
-                      <span>Customers</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-             
-              {/* ------------ Settings (collapsible) ------------- */}
-              <div className="nav-item-group">
-                <button
-                  className={`nav-item ${settingsOpen && !["settings", "labels","master-config","createuser",].includes(activeView)
-                    ? "active"
-                    : ""
-                    }`}
-                  onClick={() => setSettingsOpen((prev) => !prev)}
-                >
-                  <Settings size={18} />
-                  <span>Settings</span>
-                </button>
-
-                {settingsOpen && (
-                  <div className="nav-submenu">
-
-<button
-                className={`nav-subitem ${activeView === "master-config" ? "active" : ""
-                  }`}
-                onClick={() => handleMenuClick("master-config")}
-              >
-                <Sliders size={18} />
-                <span>Whatsapp Setup</span>
-              </button>
-              <button
-                      className={`nav-subitem ${activeView === "settings" ? "active" : ""
-                        }`}
-                      onClick={() => handleMenuClick("settings")}
-                    >
-                      <LayoutTemplate size={16} />
-                      <span>Templates</span>
-                    </button>
-                    <button
-                      className={`nav-subitem ${activeView === "labels" ? "active" : ""
-                        }`}
-                      onClick={() => handleMenuClick("labels")}
-                    >
-                      <Tag size={16} />
-                      <span>Labels</span>
-                    </button>
-                   
-                    <button
-                      className={`nav-subitem ${activeView === "createuser" ? "active" : ""
-                        }`}
-                      onClick={() => handleMenuClick("createuser")}
-                    >
-                      <UserIcon size={16} />
-                      <span>Create User</span>
-                    </button>
-                    
-                  </div>
-                )}
-              </div>
-              <button
-                className={`nav-item ${activeView === "subscription" ? "active" : ""
-                  }`}
-                onClick={() => handleMenuClick("subscription")}
-              >
-                <CreditCard size={18} />
-                <span>Subscription</span>
-              </button>
-            </nav>
+            {renderSidebar()}
           </div>
+
           <div className="main-content">
             <div className="header">
               <div className="header-left">
@@ -426,7 +377,7 @@ function App() {
                   className="menu-toggle"
                   onClick={() => setSidebarOpen(!sidebarOpen)}
                 >
-                  {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+                  {sidebarOpen ? <X size={20} /> : <MenuIcon size={20} />}
                 </button>
                 <h1>WhatsApp Dashboard</h1>
               </div>
@@ -460,7 +411,6 @@ function App() {
                     >
                       My Profile
                     </button>
-                   
                     <button
                       className="profile-menu-item"
                       onClick={handleLogout}
@@ -471,11 +421,13 @@ function App() {
                 )}
               </div>
             </div>
+
+            {/* Content based on activeView */}
             {activeView === "chats" && <WhatsAppChat />}
             {activeView === "bulk" && <BulkWhatsApp />}
             {activeView === "contacts" && <Contact />}
             {activeView === "blacklist" && <Blacklist />}
-            {activeView === "ungroupedcontact" && <UngroupedContact/>}
+            {activeView === "ungroupedcontact" && <UngroupedContact />}
             {activeView === "labels" && <Labels />}
             {activeView === "createuser" && <CreateUser />}
             {activeView === "campaigns" && <Campaigns />}
@@ -487,7 +439,9 @@ function App() {
             {activeView === "quick-reply" && useQuickReply && <QuickReply />}
             {activeView === "chatbot" && aiChatbotEnabled && <Chatbot />}
             {activeView === "analytics" && <Analytics />}
-            {activeView === "settings" && <SettingsPanel onNavigate={setActiveView} />}
+            {activeView === "settings" && (
+              <SettingsPanel onNavigate={setActiveView} />
+            )}
             {activeView === "master-config" && <MasterConfig />}
             {activeView === "profile" && <Profile />}
             {activeView === "subscription" && <Subscription />}
@@ -499,4 +453,3 @@ function App() {
 }
 
 export default App;
-

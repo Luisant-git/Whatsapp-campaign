@@ -271,30 +271,6 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
     if (!API_BASE_URL) return;
     try {
       const messages = await getMessages();
-      console.log('Fetched messages:', messages);
-      
-      // Debug: Check which messages have displayPhoneNumber
-      const withBusiness = messages.filter(m => m.displayPhoneNumber);
-      const withoutBusiness = messages.filter(m => !m.displayPhoneNumber);
-      console.log('Messages WITH displayPhoneNumber:', withBusiness.length);
-      console.log('Messages WITHOUT displayPhoneNumber:', withoutBusiness.length);
-      
-      // Group by business number
-      const byBusiness = {};
-      messages.forEach(m => {
-        const bn = m.displayPhoneNumber || 'NO_BUSINESS_NUMBER';
-        if (!byBusiness[bn]) byBusiness[bn] = [];
-        byBusiness[bn].push(m);
-      });
-      console.log('Messages grouped by business number:', byBusiness);
-      Object.keys(byBusiness).forEach(bn => {
-        console.log(`  ${bn}: ${byBusiness[bn].length} messages`);
-      });
-      
-      if (withoutBusiness.length > 0) {
-        console.log('Sample message without displayPhoneNumber:', withoutBusiness[0]);
-      }
-      
       setMessages(messages);
 
       // Extract business numbers from messages

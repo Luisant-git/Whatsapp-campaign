@@ -404,17 +404,10 @@ export class MetaCatalogService {
             }, userId);
             
             if (method === 'razorpay') {
-              await this.razorpayService.sendPaymentRequest(
-                phone,
-                phoneNumberId,
-                product.price,
-                order.id
-              );
-              
               await this.sendTextMessage(
                 phone,
                 phoneNumberId,
-                `💳 *Payment Request Sent*\n\nOrder #${order.id}\nProduct: ${product.name}\nAmount: ₹${product.price}\n\nPlease complete the payment to confirm your order.`
+                `✅ *Order Placed*\n\nOrder #${order.id}\nProduct: ${product.name}\nAmount: ₹${product.price}\nPayment: Online Payment\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you with payment details 📞`
               );
             } else {
               await this.sendOrderConfirmation(phone, phoneNumberId, product, session, fullAddress);

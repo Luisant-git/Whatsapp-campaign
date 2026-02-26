@@ -328,26 +328,29 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
         });
       }
 
+      // Build chats grouped by phone + business number combination
       const uniqueChats = {};
       messages.forEach((msg) => {
-        if (!uniqueChats[msg.from]) {
-          uniqueChats[msg.from] = {
+        const chatKey = `${msg.from}_${msg.displayPhoneNumber || 'unknown'}`;
+        if (!uniqueChats[chatKey]) {
+          uniqueChats[chatKey] = {
             phone: msg.from,
+            businessNumber: msg.displayPhoneNumber,
             lastMessage: msg.message || 'Media',
             lastTime: msg.createdAt,
             unreadCount: 0,
           };
         }
-        if (new Date(msg.createdAt) > new Date(uniqueChats[msg.from].lastTime)) {
-          uniqueChats[msg.from].lastMessage = msg.message || 'Media';
-          uniqueChats[msg.from].lastTime = msg.createdAt;
+        if (new Date(msg.createdAt) > new Date(uniqueChats[chatKey].lastTime)) {
+          uniqueChats[chatKey].lastMessage = msg.message || 'Media';
+          uniqueChats[chatKey].lastTime = msg.createdAt;
         }
         if (
           msg.direction === 'incoming' &&
-          (!readMessages[msg.from] ||
-            new Date(msg.createdAt) > new Date(readMessages[msg.from]))
+          (!readMessages[chatKey] ||
+            new Date(msg.createdAt) > new Date(readMessages[chatKey]))
         ) {
-          uniqueChats[msg.from].unreadCount++;
+          uniqueChats[chatKey].unreadCount++;
         }
       });
 
@@ -708,7 +711,7 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
     .filter((chat) => {
       // Filter by business number
       if (selectedBusinessNumber === 'all') return true;
-      return businessNumbers[chat.phone] === selectedBusinessNumber;
+      return chat.businessNumber === selectedBusinessNumber;
     });
 
   return (
@@ -732,8 +735,8 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
               }}
             >
               <option value="all">All Business Numbers ({chats.length})</option>
-              {[...new Set(Object.values(businessNumbers))].sort().map(num => {
-                const count = chats.filter(chat => businessNumbers[chat.phone] === num).length;
+              {[...new Set(chats.map(c => c.businessNumber).filter(Boolean))].sort().map(num => {
+                const count = chats.filter(chat => chat.businessNumber === num).length;
                 return <option key={num} value={num}>{num} ({count})</option>;
               })}
             </select>
@@ -818,9 +821,11 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
 
 
         </div>
-        {filteredChats.map(chat => (
+        {filteredChats.map(chat => {
+          const chatKey = `${chat.phone}_${chat.businessNumber || 'unknown'}`;
+          return (
           <div
-            key={chat.phone}
+            key={chatKey}
             className={`chat-item ${selectedChat === chat.phone ? 'active' : ''} ${chat.unreadCount > 0 ? 'unread' : ''}`}
             onClick={() => {
               setSelectedChat(chat.phone);
@@ -838,7 +843,7 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
                 {chat.phone}
                 {chat.unreadCount > 0 && <span className="unread-badge">{chat.unreadCount}</span>}
               </div>
-              {businessNumbers[chat.phone] && (
+              {chat.businessNumber && (
                 <div style={{
                   fontSize: '11px',
                   color: '#00a884',
@@ -848,7 +853,7 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
                   alignItems: 'center',
                   gap: '3px'
                 }}>
-                  <span>{businessNumbers[chat.phone]}</span>
+                  <span>{chat.businessNumber}</span>
                 </div>
               )}
               <div className="chat-last-msg">{chat.lastMessage}</div>
@@ -964,7 +969,7 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
             
 
           </div>
-        ))}
+        );})}
       </div>
 
       <div className={`chat-main ${selectedChat ? 'show-mobile' : ''}`}>

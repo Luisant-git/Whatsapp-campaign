@@ -278,6 +278,19 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
       const withoutBusiness = messages.filter(m => !m.displayPhoneNumber);
       console.log('Messages WITH displayPhoneNumber:', withBusiness.length);
       console.log('Messages WITHOUT displayPhoneNumber:', withoutBusiness.length);
+      
+      // Group by business number
+      const byBusiness = {};
+      messages.forEach(m => {
+        const bn = m.displayPhoneNumber || 'NO_BUSINESS_NUMBER';
+        if (!byBusiness[bn]) byBusiness[bn] = [];
+        byBusiness[bn].push(m);
+      });
+      console.log('Messages grouped by business number:', byBusiness);
+      Object.keys(byBusiness).forEach(bn => {
+        console.log(`  ${bn}: ${byBusiness[bn].length} messages`);
+      });
+      
       if (withoutBusiness.length > 0) {
         console.log('Sample message without displayPhoneNumber:', withoutBusiness[0]);
       }

@@ -12,6 +12,7 @@ export class RazorpayService {
         `${this.apiUrl}/${phoneNumberId}/messages`,
         {
           messaging_product: 'whatsapp',
+          recipient_type: 'individual',
           to: phone,
           type: 'interactive',
           interactive: {
@@ -25,7 +26,7 @@ export class RazorpayService {
                 reference_id: `order_${orderId}`,
                 type: 'digital-goods',
                 payment_type: 'upi',
-                payment_configuration: 'Razorpay_Payment',
+                payment_configuration: 'Payment_Razorpay',
                 currency: 'INR',
                 total_amount: {
                   value: Math.round(amount * 100),

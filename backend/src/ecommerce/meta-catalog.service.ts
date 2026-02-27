@@ -287,7 +287,7 @@ export class MetaCatalogService {
         step: 'awaiting_name' 
       }, userId);
       
-      return this.sendTextMessage(phone, phoneNumberId, '📦 Great! To complete your order, please provide your full name:');
+      return this.sendTextMessage(phone, phoneNumberId, '📦 Great! To complete your order, please provide your full name:\n\n_Type EXIT anytime to cancel_');
     }
   }
 
@@ -300,6 +300,13 @@ export class MetaCatalogService {
       }
       
       console.log(`[Meta Catalog] Customer ${phone} in step: ${step}, message: ${message}`);
+      
+      // Check for EXIT command
+      if (message.toUpperCase() === 'EXIT') {
+        await this.sessionService.clearSession(phone, userId);
+        await this.sendTextMessage(phone, phoneNumberId, '❌ Order cancelled. Type SHOP to browse products again.');
+        return true;
+      }
       
       if (step === 'confirm_details') {
         const response = message.toLowerCase();

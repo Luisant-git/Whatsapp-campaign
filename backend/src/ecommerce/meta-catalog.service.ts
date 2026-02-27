@@ -276,7 +276,7 @@ export class MetaCatalogService {
       await this.sessionService.setSession(phone, { 
         currentProductId: productId,
         customerName: existingCustomer.customerName,
-        customerAddress: existingCustomer.customerAddress,
+        customerAddress: existingCustomer.customerAddress || undefined,
         step: 'confirm_details'
       }, userId);
       
@@ -496,7 +496,12 @@ export class MetaCatalogService {
   private async sendCustomerDetailsConfirmation(phone: string, phoneNumberId: string, customer: any) {
     try {
       const name = customer.customerName || 'Not provided';
-      const address = customer.customerAddress || 'Not provided';
+      let address = customer.customerAddress || 'Not provided';
+      
+      // Clean up address by removing 'undefined' strings
+      if (address !== 'Not provided') {
+        address = address.split(',').map(part => part.trim()).filter(part => part && part !== 'undefined').join(', ');
+      }
       
       await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,

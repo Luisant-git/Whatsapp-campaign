@@ -363,9 +363,10 @@ export class MetaCatalogService {
         const existingCustomer = await this.ecommerceService.getCustomerByPhone(phone, userId);
         
         if (existingCustomer && session) {
+          const fullAddress = `${session.customerAddress || ''}, ${session.customerCity || ''}, ${session.customerPincode || ''}`;
           await this.sendCustomerDetailsConfirmation(phone, phoneNumberId, {
-            customerName: session.customerName,
-            customerAddress: `${session.customerAddress}, ${session.customerCity}, ${session.customerPincode}`
+            customerName: session.customerName || 'Not provided',
+            customerAddress: fullAddress
           });
           await this.sessionService.setSession(phone, { step: 'confirm_details' }, userId);
         } else {
@@ -404,14 +405,18 @@ export class MetaCatalogService {
             }, userId);
             
             if (method === 'razorpay') {
-              await this.sendOrderDetailsWithPayment(
-                phone,
-                phoneNumberId,
-                product,
-                order.id,
-                session.customerName || 'Customer',
-                fullAddress
-              );
+              try {
+                await this.razorpayService.sendPaymentRequest(
+                  phone,
+                  phoneNumberId,
+                  product.price,
+                  order.id,
+                  product.name
+                );
+              } catch (error) {
+                console.error('Payment link error:', error);
+                await this.sendTextMessage(phone, phoneNumberId, `✅ *Order Placed*\n\nOrder #${order.id}\nProduct: ${product.name}\nAmount: ₹${product.price}\n\nOur team will send you payment link shortly 📞`);
+              }
             } else {
               await this.sendOrderConfirmation(phone, phoneNumberId, product, session, fullAddress);
             }
@@ -503,6 +508,9 @@ export class MetaCatalogService {
 
   private async sendCustomerDetailsConfirmation(phone: string, phoneNumberId: string, customer: any) {
     try {
+      const name = customer.customerName || 'Not provided';
+      const address = customer.customerAddress || 'Not provided';
+      
       await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,
         {
@@ -510,32 +518,32 @@ export class MetaCatalogService {
           to: phone,
           type: 'interactive',
           interactive: {
-            type: 'list',
+            type: 'button',
             body: {
-              text: `👤 *Your Saved Details*\n\nName: ${customer.customerName}\nAddress: ${customer.customerAddress}`
+              text: `👤 *Your Saved Details*\n\nName: ${name}\nAddress: ${address}`
             },
             action: {
-              button: 'Choose Option',
-              sections: [
+              buttons: [
                 {
-                  title: 'Delivery Options',
-                  rows: [
-                    {
-                      id: 'confirm',
-                      title: 'Use My Details',
-                      description: 'Deliver to saved address'
-                    },
-                    {
-                      id: 'update',
-                      title: 'Update My Details',
-                      description: 'Change name or address'
-                    },
-                    {
-                      id: 'someone_else',
-                      title: 'Order for Someone',
-                      description: 'Enter different details'
-                    }
-                  ]
+                  type: 'reply',
+                  reply: {
+                    id: 'confirm',
+                    title: 'Use My Details'
+                  }
+                },
+                {
+                  type: 'reply',
+                  reply: {
+                    id: 'update',
+                    title: 'Update Details'
+                  }
+                },
+                {
+                  type: 'reply',
+                  reply: {
+                    id: 'someone_else',
+                    title: 'Order for Someone'
+                  }
                 }
               ]
             }

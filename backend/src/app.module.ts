@@ -22,6 +22,7 @@ import { EcommerceModule } from './ecommerce/ecommerce.module';
 
 import { SubuserModule } from './subuser/subuser.module';
 import { MenuPermissionModule } from './menu-permission/menu-permission.module';
+import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
 
 @Module({
   imports: [
@@ -45,6 +46,8 @@ import { MenuPermissionModule } from './menu-permission/menu-permission.module';
     SubuserModule,
    
     MenuPermissionModule,
+   
+    AdminAnalyticsModule,
   ],
   controllers: [AppController, TestController],
   providers: [AppService],

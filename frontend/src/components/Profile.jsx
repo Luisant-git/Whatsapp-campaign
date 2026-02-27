@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getProfile } from '../api/auth';
-import { User, Mail, Shield, Calendar } from 'lucide-react';
+import { User, Mail, Shield, Calendar, Phone, MapPin } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 
 const Profile = () => {
@@ -31,12 +31,15 @@ const Profile = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3010'}/user/update-name`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ name: editName }),
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3010'}/user/update-name`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ name: editName }),
+        }
+      );
       if (response.ok) {
         showSuccess('Name updated successfully!');
         setShowEditModal(false);
@@ -67,60 +70,126 @@ const Profile = () => {
       </div>
 
       <div className="profile-content">
-        <div className="profile-user-section">
-          <div className="profile-user-info">
-            <div className="profile-avatar">
-              <User size={28} />
-            </div>
-            <div className="profile-user-details">
-              <h2>{profile?.name || 'User'}</h2>
-              <span className="profile-badge">{profile?.Role || 'Admin'}</span>
-            </div>
+        {/* Top card (avatar + name + role) */}
+        <div className="profile-card">
+          <div className="profile-avatar">
+            <User size={36} />
           </div>
-          <button className="edit-profile-btn" onClick={() => setShowEditModal(true)}>
-            <span>✏️</span> Edit
+          <div className="profile-info">
+            <h2>{profile?.name || 'User'}</h2>
+            <span className="profile-role">{profile?.Role || 'Admin'}</span>
+          </div>
+          <button
+            className="edit-btn"
+            onClick={() => setShowEditModal(true)}
+            type="button"
+          >
+            ✏️ Edit
           </button>
         </div>
 
-        <div className="profile-info-list">
-          <div className="profile-info-item">
-            <div className="profile-info-icon">
+        {/* Detail list (cards) */}
+        <div className="profile-details">
+          {/* Email */}
+          <div className="detail-card">
+            <div className="detail-icon">
               <Mail size={20} />
             </div>
-            <div className="profile-info-text">
-              <label>Email Address</label>
+            <div className="detail-info">
+              <h3>Email Address</h3>
               <p>{profile?.email || 'Not provided'}</p>
             </div>
           </div>
 
-          <div className="profile-info-item">
-            <div className="profile-info-icon">
+          {/* Role */}
+          <div className="detail-card">
+            <div className="detail-icon">
               <Shield size={20} />
             </div>
-            <div className="profile-info-text">
-              <label>Role</label>
+            <div className="detail-info">
+              <h3>Role</h3>
               <p>{profile?.Role || 'Admin'}</p>
             </div>
           </div>
 
-          <div className="profile-info-item">
-            <div className="profile-info-icon">
+          {/* Member since */}
+          <div className="detail-card">
+            <div className="detail-icon">
               <Calendar size={20} />
             </div>
-            <div className="profile-info-text">
-              <label>Member Since</label>
-              <p>{profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'Unknown'}</p>
+            <div className="detail-info">
+              <h3>Member Since</h3>
+              <p>
+                {profile?.createdAt
+                  ? new Date(profile.createdAt).toLocaleDateString()
+                  : 'Unknown'}
+              </p>
+            </div>
+          </div>
+
+          {/* Company name */}
+          <div className="detail-card">
+            <div className="detail-icon">
+              <User size={20} />
+            </div>
+            <div className="detail-info">
+              <h3>Company Name</h3>
+              <p>{profile?.companyName || 'Not provided'}</p>
+            </div>
+          </div>
+
+          {/* Phone number */}
+          <div className="detail-card">
+            <div className="detail-icon">
+              <Phone size={20} />
+            </div>
+            <div className="detail-info">
+              <h3>Phone Number</h3>
+              <p>{profile?.phoneNumber || 'Not provided'}</p>
+            </div>
+          </div>
+
+          {/* Address + City / Pincode / State / Country */}
+          <div className="detail-card">
+            <div className="detail-icon">
+              <MapPin size={20} />
+            </div>
+            <div className="detail-info">
+              <h3>Address</h3>
+              <p>{profile?.companyAddress || 'Not provided'}</p>
+              <p>
+                City: {profile?.city || '—'}
+                <br />
+                Pincode: {profile?.pincode || '—'}
+                <br />
+                State: {profile?.state || '—'}
+                <br />
+                Country: {profile?.country || '—'}
+              </p>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Edit name modal */}
       {showEditModal && (
-        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="modal-overlay"
+          onClick={() => setShowEditModal(false)}
+        >
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
               <h2>Edit Profile</h2>
-              <button className="close-btn" onClick={() => setShowEditModal(false)}>×</button>
+              <button
+                className="close-btn"
+                onClick={() => setShowEditModal(false)}
+                type="button"
+              >
+                ×
+              </button>
             </div>
             <form onSubmit={handleEditName} className="settings-form">
               <div className="form-group">
@@ -134,10 +203,18 @@ const Profile = () => {
                 />
               </div>
               <div className="form-actions">
-                <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setShowEditModal(false)}
+                >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary" disabled={saving}>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={saving}
+                >
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>

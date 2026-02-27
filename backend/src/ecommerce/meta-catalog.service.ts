@@ -276,7 +276,7 @@ export class MetaCatalogService {
       await this.sessionService.setSession(phone, { 
         currentProductId: productId,
         customerName: existingCustomer.customerName,
-        customerAddress: existingCustomer.customerAddress || undefined,
+        customerAddress: existingCustomer.customerAddress,
         step: 'confirm_details'
       }, userId);
       
@@ -307,7 +307,7 @@ export class MetaCatalogService {
         if (response === 'confirm' || response === 'use my details') {
           await this.sendPaymentMethodSelection(phone, phoneNumberId, userId);
           return true;
-        } else if (response === 'update' || response === 'update my details') {
+        } else if (response === 'update' || response === 'update details') {
           await this.sendUpdateFieldSelection(phone, phoneNumberId, userId);
           return true;
         } else if (response === 'someone_else' || response === 'order for someone') {
@@ -379,7 +379,7 @@ export class MetaCatalogService {
           const product = await this.ecommerceService.getProduct(productId, userId);
           
           if (product && session) {
-            const fullAddress = `${session.customerAddress}, ${session.customerCity}, ${session.customerPincode}`;
+            const fullAddress = session.customerAddress || `${session.customerAddress || ''}, ${session.customerCity || ''}, ${session.customerPincode || ''}`.replace(/^, |, $/g, '');
             
             const order = await this.ecommerceService.createOrder({
               customerName: session.customerName,

@@ -359,19 +359,7 @@ export class MetaCatalogService {
       
       if (step === 'awaiting_pincode') {
         await this.sessionService.setCustomerPincode(phone, message, userId);
-        const session = await this.sessionService.getSession(phone, userId);
-        const existingCustomer = await this.ecommerceService.getCustomerByPhone(phone, userId);
-        
-        if (existingCustomer && session) {
-          const fullAddress = `${session.customerAddress || ''}, ${session.customerCity || ''}, ${session.customerPincode || ''}`;
-          await this.sendCustomerDetailsConfirmation(phone, phoneNumberId, {
-            customerName: session.customerName || 'Not provided',
-            customerAddress: fullAddress
-          });
-          await this.sessionService.setSession(phone, { step: 'confirm_details' }, userId);
-        } else {
-          await this.sendPaymentMethodSelection(phone, phoneNumberId, userId);
-        }
+        await this.sendPaymentMethodSelection(phone, phoneNumberId, userId);
         return true;
       }
       

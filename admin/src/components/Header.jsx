@@ -17,8 +17,8 @@ export default function Header({ toggleSidebar }) {
       
       <div className="header-right">
         <div className="user-info">
-          <span className="user-name">{user?.name || 'Admin'}</span>
           <div className="user-avatar">{user?.name?.[0] || 'A'}</div>
+          <span className="user-name">{user?.name || 'Admin'}</span>
         </div>
         <button className="logout-btn" onClick={logout}>
           Logout

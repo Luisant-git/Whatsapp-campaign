@@ -379,7 +379,17 @@ export class MetaCatalogService {
           const product = await this.ecommerceService.getProduct(productId, userId);
           
           if (product && session) {
-            const fullAddress = session.customerAddress || `${session.customerAddress || ''}, ${session.customerCity || ''}, ${session.customerPincode || ''}`.replace(/^, |, $/g, '');
+            // Build address: use saved full address OR construct from parts
+            let fullAddress;
+            if (session.customerAddress && !session.customerCity && !session.customerPincode) {
+              // Existing customer with saved full address
+              fullAddress = session.customerAddress;
+            } else {
+              // New customer with individual parts
+              fullAddress = [session.customerAddress, session.customerCity, session.customerPincode]
+                .filter(part => part && part !== 'undefined')
+                .join(', ');
+            }
             
             const order = await this.ecommerceService.createOrder({
               customerName: session.customerName,

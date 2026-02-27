@@ -27,17 +27,28 @@ export class MenuPermissionController {
    @Get('current')
    @ApiOperation({ summary: 'Get current tenant menu permission' })
    async getCurrent(@Session() session: any) {
-     const tenantId = session.userId; // same as in UserService.login
+     const tenantId = session.userId;
      if (!tenantId) {
        throw new UnauthorizedException('No tenant in session');
      }
  
      try {
+       // Get tenant's current subscription plan
+       const tenant = await this.service.getTenantWithSubscription(tenantId);
+       
+       if (tenant?.subscription?.menuPermissions) {
+         // Convert array to object format { key: true }
+         const permissions = {};
+         tenant.subscription.menuPermissions.forEach(key => {
+           permissions[key] = true;
+         });
+         return { permission: permissions };
+       }
+       
+       // Fallback to tenant-specific menu permission if no subscription
        const record = await this.service.findByTenant(tenantId);
-       // Return only the permission JSON the frontend needs
        return { permission: record.permission || {} };
      } catch {
-       // No record yet → treat as empty permission (show all by default or none, up to you)
        return { permission: {} };
      }
    }

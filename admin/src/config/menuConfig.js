@@ -47,6 +47,7 @@ export const MENU_CONFIG = [
         { key: "ecommerce.categories", label: "Categories" },
         { key: "ecommerce.products", label: "Products" },
         { key: "ecommerce.orders", label: "Orders" },
+        { key: "ecommerce.customers", label: "Customers" },
       ],
     },
     {

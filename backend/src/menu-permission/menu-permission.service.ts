@@ -46,6 +46,15 @@ export class MenuPermissionService {
     });
   }
 
+  async getTenantWithSubscription(tenantId: number) {
+    return this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      include: {
+        subscription: true,
+      },
+    });
+  }
+
   async update(
     tenantId: number,
     permission: Record<string, any>,

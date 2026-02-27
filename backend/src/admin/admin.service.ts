@@ -370,4 +370,44 @@ export class AdminService {
   async updateUserSession(userId: number, sessionStore: any) {
     // Not needed in multi-tenant mode
   }
+
+  async createUserSubscription(userId: number, data: { planId: number; startDate?: string; endDate?: string }) {
+    const plan = await this.prisma.subscriptionPlan.findUnique({ where: { id: data.planId } });
+    if (!plan) throw new Error('Plan not found');
+
+    const startDate = data.startDate ? new Date(data.startDate) : new Date();
+    const endDate = data.endDate ? new Date(data.endDate) : new Date(startDate.getTime() + plan.duration * 24 * 60 * 60 * 1000);
+
+    // Unset all current plans
+    await this.prisma.subscriptionOrder.updateMany({
+      where: { tenantId: userId },
+      data: { isCurrentPlan: false }
+    });
+
+    // Create new subscription order
+    const order = await this.prisma.subscriptionOrder.create({
+      data: {
+        tenantId: userId,
+        planId: data.planId,
+        amount: plan.price,
+        startDate,
+        endDate,
+        status: 'active',
+        isCurrentPlan: true
+      },
+      include: { plan: true }
+    });
+
+    // Update tenant subscription
+    await this.prisma.tenant.update({
+      where: { id: userId },
+      data: {
+        subscriptionId: data.planId,
+        subscriptionStartDate: startDate,
+        subscriptionEndDate: endDate
+      }
+    });
+
+    return { message: 'Subscription created successfully', order };
+  }
 }

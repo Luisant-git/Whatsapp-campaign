@@ -4,11 +4,12 @@ import { useToast } from '../contexts/ToastContext'
 import '../styles/Login.css'
 
 function Login({ onLogin }) {
-  const { showSuccess, showError } = useToast()
+  const { showSuccess } = useToast()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-
+  const [showErrorModal, setShowErrorModal] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -21,7 +22,8 @@ function Login({ onLogin }) {
       onLogin(result.user)
     } catch (err) {
       console.error('Login error:', err);
-      showError(err.message || 'Login failed')
+      setErrorMessage(err.message || 'Login failed')
+      setShowErrorModal(true)
     } finally {
       setLoading(false)
     }
@@ -51,6 +53,19 @@ function Login({ onLogin }) {
           </button>
         </form>
       </div>
+
+      {showErrorModal && (
+        <div className="error-modal-overlay" onClick={() => setShowErrorModal(false)}>
+          <div className="error-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="error-modal-icon">🔒</div>
+            <h2>Access Denied</h2>
+            <p>{errorMessage}</p>
+            <button className="error-modal-btn" onClick={() => setShowErrorModal(false)}>
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

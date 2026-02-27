@@ -7,7 +7,7 @@ import Subscriptions from './pages/Subscriptions';
 import SubscriptionOrders from './pages/SubscriptionOrders';
 import Layout from './components/Layout';
 import './App.css';
-import MenuPermission from './pages/MenuPermission';
+
 import { ToastProvider } from './contexts/ToastContext';
 
 function AppContent() {
@@ -29,8 +29,7 @@ function AppContent() {
     <Layout>
       <Routes>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/users" element={<Users />} /> 
-        <Route path="/menupermission" element={<MenuPermission/>}/>
+        <Route path="/users" element={<Users />} />
         <Route path="/subscriptions" element={<Subscriptions />} />
         <Route path="/subscription-orders" element={<SubscriptionOrders />} />
         <Route path="*" element={<Navigate to="/" />} />

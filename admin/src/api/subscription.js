@@ -65,3 +65,14 @@ export const deleteSubscription = async (id) => {
   if (!response.ok) throw new Error('Failed to delete subscription');
   return await response.json();
 };
+
+export const createUserSubscription = async (userId, data) => {
+  const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/subscription`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Failed to create user subscription');
+  return await response.json();
+};

@@ -131,6 +131,12 @@ function App() {
     try {
       const data = await getCurrentPlan();
       
+      if (!data.isActive) {
+        // No active subscription - logout user
+        handleLogout();
+        return;
+      }
+      
       if (data.subscription?.menuPermissions) {
         const permissions = {};
         data.subscription.menuPermissions.forEach(key => {
@@ -142,7 +148,8 @@ function App() {
       }
     } catch (err) {
       console.error("Failed to load subscription:", err);
-      setMenuPerms({});
+      // If subscription check fails, logout
+      handleLogout();
     }
   };
 

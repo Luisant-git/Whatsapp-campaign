@@ -24,11 +24,15 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .btn-create:hover {
   background: #1565c0;
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
 }
 
 .users-loading {
@@ -273,6 +277,8 @@ input:checked + .slider:before {
 
 .btn-submit:hover:not(:disabled) {
   background: #1565c0;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
 }
 
 .btn-submit:disabled {

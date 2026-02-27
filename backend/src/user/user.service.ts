@@ -79,6 +79,20 @@ export class UserService {
       throw new UnauthorizedException('Account is deactivated');
     }
 
+    // Check for active subscription
+    const activeSubscription = await this.centralPrisma.subscriptionOrder.findFirst({
+      where: {
+        tenantId: tenant.id,
+        status: 'active',
+        endDate: { gte: new Date() }
+      },
+      include: { plan: true }
+    });
+
+    if (!activeSubscription) {
+      throw new UnauthorizedException('No active subscription found. Please contact admin to activate your subscription.');
+    }
+
     session.userId = tenant.id;
     session.user = {
       id: tenant.id,

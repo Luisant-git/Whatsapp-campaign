@@ -129,5 +129,16 @@ export class AdminController {
     return result;
   }
 
-  
+  @Post('users/:id/subscription')
+  @ApiOperation({ summary: 'Create subscription for user' })
+  async createUserSubscription(
+    @Param('id') id: number,
+    @Body() data: { planId: number; startDate?: string; endDate?: string },
+    @Session() session: Record<string, any>
+  ) {
+    if (!session?.adminId) {
+      throw new UnauthorizedException('Admin authentication required');
+    }
+    return this.adminService.createUserSubscription(+id, data);
+  }
 }

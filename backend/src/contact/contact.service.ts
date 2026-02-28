@@ -88,24 +88,38 @@ export class ContactService {
       ];
     }
   
-    // 👉 ONLY contacts for this group
     if (groupId !== undefined && groupId !== null) {
       where.groupId = groupId;
     }
   
-    const [data, total] = await Promise.all([
-      prisma.contact.findMany({
-        where,
-        include: { group: true },
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      prisma.contact.count({ where }),
-    ]);
+    // 🔥 fetch all ordered contacts
+    const contacts = await prisma.contact.findMany({
+      where,
+      include: { group: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  
+    // 🔥 remove duplicates by phone
+    const uniqueMap = new Map<string, any>();
+  
+    for (const contact of contacts) {
+      if (!uniqueMap.has(contact.phone)) {
+        uniqueMap.set(contact.phone, contact);
+      }
+    }
+  
+    const uniqueContacts = Array.from(uniqueMap.values());
+  
+    const total = uniqueContacts.length;
+  
+    // 🔥 manual pagination AFTER deduplication
+    const paginated = uniqueContacts.slice(
+      (page - 1) * limit,
+      page * limit,
+    );
   
     return {
-      data,
+      data: paginated,
       pagination: {
         total,
         page,

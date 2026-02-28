@@ -400,39 +400,68 @@ const Subscriptions = () => {
               </div>
 
               {/* NEW: Menu Permission button */}
-              <div className="form-group">
-                <label>Menu Permission</label>
-                <div>
-                  <button
-                    type="button"
-                    className="btn-link"
-                    onClick={() => setShowMenuModal(true)}
-                  >
-                    View / Edit Menu Permission
-                  </button>
-                  <small
-                    style={{ display: "block", marginTop: 4, opacity: 0.7 }}
-                  >
-                    Configure fine-grained menu keys for this plan.
-                  </small>
-                </div>
-              </div>
+             
 
-              <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={formData.isActive}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        isActive: e.target.checked,
-                      })
-                    }
-                  />
-                  Active
-                </label>
-              </div>
+              {/* Menu Permissions header + Plan Status card (screenshot style) */}
+<div className="perm-section">
+  <div className="perm-section-header">
+    <div>
+      <div className="perm-section-title">Menu Permissions</div>
+      <div className="perm-section-subtitle">
+        Fine-tune access control for this plan.
+      </div>
+    </div>
+
+    <button
+      type="button"
+      className="perm-section-action"
+      onClick={() => setShowMenuModal(true)}
+    >
+      Configure Access
+    </button>
+  </div>
+
+  <div className="status-tile">
+    <div className="status-tile-left">
+      <div className="status-icon-wrap" aria-hidden="true">
+        {/* simple shield svg */}
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M12 2L20 5.5V12.2C20 17 16.6 20.9 12 22C7.4 20.9 4 17 4 12.2V5.5L12 2Z"
+            stroke="#16A34A"
+            strokeWidth="2"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+
+      <div>
+        <div className="status-tile-title">Plan Status</div>
+        <div className="status-tile-sub">
+          Plan is currently {formData.isActive ? "active" : "inactive"}
+        </div>
+      </div>
+    </div>
+
+    <button
+      type="button"
+      className={`status-toggle ${formData.isActive ? "on" : ""}`}
+      onClick={() =>
+        setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))
+      }
+      aria-pressed={formData.isActive}
+      aria-label="Toggle plan active status"
+    >
+      <span className="status-toggle-knob" />
+    </button>
+  </div>
+</div>
 
               <div className="form-actions">
                 <button

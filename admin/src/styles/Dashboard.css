@@ -540,6 +540,62 @@
 .status-pill--critical .status-dot {
   background-color: #ef4444;
 }
+
+/* =========================
+   Pagination Container
+========================= */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 20px;
+  padding: 12px 16px;
+}
+
+/* =========================
+   Pagination Buttons
+========================= */
+.pagination button {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background-color: #2563eb;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  min-width: 80px;
+}
+
+/* Hover Effect */
+.pagination button:hover:not(:disabled) {
+  background-color: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+/* Active Click Effect */
+.pagination button:active:not(:disabled) {
+  transform: translateY(0px);
+}
+
+/* Disabled State */
+.pagination button:disabled {
+  background-color: #056eee;
+  color: #eff2f7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* =========================
+   Page Info Text
+========================= */
+.pagination span {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
 /* --- Responsive tweaks --- */
 @media (max-width: 768px) {
   .dashboard-header {

@@ -76,47 +76,82 @@ export class AdminAnalyticsService {
   // admin-analytics.service.ts
   async getTenantSubscriptionAnalytics(): Promise<AdminTenantAnalyticsDto> {
     const today = new Date();
-
-    // Fetch all tenants (active + inactive)
+  
     const tenants = await this.centralPrisma.tenant.findMany({
       include: { subscription: true },
       orderBy: { subscriptionEndDate: 'asc' },
     });
-
-    // Map tenants to ExpiringTenantDto
+  
     const expiringSoonList: ExpiringTenantDto[] = tenants
       .map((tenant) => {
         const expiryDate = tenant.subscriptionEndDate;
-        if (!expiryDate) return null; // skip tenants without subscription
-
+        if (!expiryDate) return null;
+  
         const daysLeft = Math.ceil(
-          (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+          (expiryDate.getTime() - today.getTime()) /
+          (1000 * 60 * 60 * 24)
         );
-
+  
+        let status: string;
+  
+        if (!tenant.isActive) {
+          status = 'Inactive';
+        } else if (daysLeft < 0) {
+          status = 'Expired';
+        } else if (daysLeft <= 5) {
+          status = 'Critical';
+        } else {
+          status = 'Active';
+        }
+  
         return {
           id: tenant.id,
           companyName: tenant.companyName ?? 'Unknown Company',
           currentPlan: tenant.subscription?.name ?? 'No Plan',
           expiryDate,
           daysLeft,
-          status: !tenant.isActive
-            ? 'Inactive'
-            : daysLeft <= 5
-            ? 'Critical'
-            : daysLeft <= 15
-            ? 'Expiring Soon'
-            : 'Active',
+          status,
         };
       })
-      .filter((tenant): tenant is ExpiringTenantDto => tenant !== null);
-
+      .filter((tenant): tenant is ExpiringTenantDto => tenant !== null)
+      .sort((a, b) => {
+        const priority: Record<string, number> = {
+          Critical: 1,
+          Active: 2,
+          Expired: 3,
+          Inactive: 4,
+        };
+  
+        if (priority[a.status] !== priority[b.status]) {
+          return priority[a.status] - priority[b.status];
+        }
+  
+        return a.daysLeft - b.daysLeft;
+      });
+  
+    // 🔥 Correct counters
     const totalTenants = tenants.length;
-    const activeTenants = tenants.filter((t) => t.isActive).length;
-
+  
+    const expiredTenants = tenants.filter(
+      (t) =>
+        t.subscriptionEndDate &&
+        t.subscriptionEndDate < today &&
+        t.isActive
+    ).length;
+  
+    const activeTenants = tenants.filter(
+      (t) =>
+        t.subscriptionEndDate &&
+        t.subscriptionEndDate >= today &&
+        t.isActive
+    ).length;
+  
+    const inactiveTenants = tenants.filter((t) => !t.isActive).length;
+  
     return {
       totalTenants,
       activeTenants,
-      expiredTenants: tenants.filter((t) => t.subscriptionEndDate && t.subscriptionEndDate < today).length,
+      expiredTenants,
       expiringSoonTenants: expiringSoonList.length,
       expiringSoonList,
     };

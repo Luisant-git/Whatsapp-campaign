@@ -27,6 +27,8 @@ export default function Dashboard() {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     async function load() {
@@ -53,6 +55,10 @@ export default function Dashboard() {
     load();
   }, []);
 
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
   if (loading) {
     return <div className="dashboard">Loading dashboard...</div>;
   }
@@ -121,8 +127,38 @@ export default function Dashboard() {
       icon: MdShowChart,
       color: '#f59e0b',
     },
-    
+
   ];
+
+
+  const getComputedStatus = (company) => {
+    if (company.isActive === false) {
+      return { label: 'Inactive', daysText: '' };
+    }
+
+    if (company.daysLeft < 0) {
+      return { label: 'Expired', daysText: '' };
+    }
+
+    if (company.daysLeft <= 2) {
+      return {
+        label: 'Critical',
+        daysText: `(${company.daysLeft} days left)`,
+      };
+    }
+
+    if (company.daysLeft <= 7) {
+      return {
+        label: 'Expiring Soon',
+        daysText: `(${company.daysLeft} days left)`,
+      };
+    }
+
+    return {
+      label: 'Active',
+      daysText: `(${company.daysLeft} days left)`,
+    };
+  };
 
   const getStatusClass = (status) => {
     switch (status) {
@@ -134,6 +170,8 @@ export default function Dashboard() {
         return 'status-pill--warning';
       case 'Critical':
         return 'status-pill--critical';
+      case 'Expired':
+        return 'status-pill--expired';
       default:
         return 'status-pill--default';
     }
@@ -143,12 +181,19 @@ export default function Dashboard() {
   // EXPIRING SOON SECTION
   // =============================
 
-  const expiringSoon = analytics.expiringSoonList || [];
-
-  const filteredExpiring = expiringSoon.filter((company) =>
+  const subscriptionList = analytics.expiringSoonList || [];
+  const filteredList = subscriptionList.filter((company) =>
     company.companyName
       .toLowerCase()
       .includes(searchTerm.toLowerCase())
+  );
+
+  const totalPages =
+    Math.ceil(filteredList.length / itemsPerPage) || 1;
+
+  const paginatedList = filteredList.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
   return (
@@ -208,47 +253,77 @@ export default function Dashboard() {
                 <th>Current Plan</th>
                 <th>Expiry Date</th>
                 <th>Status</th>
-               
+
               </tr>
             </thead>
             <tbody>
-            {filteredExpiring.map((company) => (
-  <tr key={company.id}>
-    <td>
-      <div className="company-name">
-        {company.companyName}
-      </div>
-      <div className="company-id">
-        ID: {company.id}
-      </div>
-    </td>
+              {paginatedList.map((company) => {
+                const statusData = getComputedStatus(company);
 
-    <td>{company.currentPlan}</td>
+                return (
+                  <tr key={company.id}>
+                    <td>
+                      <div className="company-name">
+                        {company.companyName}
+                      </div>
+                      <div className="company-id">
+                        ID: {company.id}
+                      </div>
+                    </td>
 
-    <td>
-      <MdCalendarToday size={14} />{' '}
-      {new Date(company.expiryDate).toLocaleDateString()}
-    </td>
-    <td>
-  <span className={`status-pill ${getStatusClass(company.status)}`}>
-    <span className="status-dot" />
-    {company.status} ({company.daysLeft} days)
-  </span>
-</td>
+                    <td>{company.currentPlan}</td>
 
-   
-  </tr>
-))}
+                    <td>
+                      <MdCalendarToday size={14} />{' '}
+                      {new Date(company.expiryDate).toLocaleDateString()}
+                    </td>
 
-              {filteredExpiring.length === 0 && (
+                    <td>
+                      <span
+                        className={`status-pill ${getStatusClass(statusData.label)}`}
+                      >
+                        <span className="status-dot" />
+                        {statusData.label} {statusData.daysText}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {paginatedList.length === 0 && (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center' }}>
-                    No companies found 
+                  <td colSpan={4} style={{ textAlign: 'center' }}>
+                    No companies found
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+          <div className="pagination">
+            <button
+              disabled={currentPage === 1}
+              onClick={() =>
+                setCurrentPage((prev) => Math.max(prev - 1, 1))
+              }
+            >
+              Prev
+            </button>
+
+            <span>
+              Page {currentPage} of {totalPages}
+            </span>
+
+            <button
+              disabled={currentPage >= totalPages}
+              onClick={() =>
+                setCurrentPage((prev) =>
+                  Math.min(prev + 1, totalPages)
+                )
+              }
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
     </div>

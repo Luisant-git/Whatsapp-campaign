@@ -7,7 +7,7 @@ import {
   getAdminUsers,
   toggleCompanyStatus,
 } from '../api/Company';
-import { useToast } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastContext'
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -351,7 +351,7 @@ export default function Users() {
 
               {/* Owner login */}
               <div className="form-group">
-                <label>Owner Name</label>
+                <label>Admin Name</label>
                 <input
                   type="text"
                   value={formData.name}
@@ -365,7 +365,7 @@ export default function Users() {
                 />
               </div>
               <div className="form-group">
-                <label>Owner Email</label>
+                <label>Admin Email</label>
                 <input
                   type="email"
                   value={formData.email}
@@ -379,7 +379,7 @@ export default function Users() {
                 />
               </div>
               <div className="form-group">
-                <label>Owner Password</label>
+                <label>Admin Password</label>
                 <input
                   type="password"
                   value={formData.password}

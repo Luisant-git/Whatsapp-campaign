@@ -8,7 +8,8 @@ import {
   CheckCircle,
   XCircle,
   Search,
-  Eye,          // 👈 add this
+  Eye,
+  ShoppingCart,          // 👈 add this
 } from 'lucide-react';
 import '../styles/Ecommerce.css';
 import '../styles/Analytics.css';
@@ -54,6 +55,7 @@ export default function Orders() {
     );
   };
 
+  const placedOrders = orders.filter(o => o.status === 'placed');
   const pendingOrders = orders.filter((o) => o.status === 'pending');
   const processingOrders = orders.filter((o) => o.status === 'processing');
   const completedOrders = orders.filter((o) => o.status === 'completed');
@@ -82,8 +84,21 @@ export default function Orders() {
 
       <div
         className="analytics-grid"
-        style={{ marginBottom: '24px', gridTemplateColumns: 'repeat(4, 1fr)' }}
+        style={{ marginBottom: '24px', gridTemplateColumns: 'repeat(5, 1fr)' }}
       >
+
+        <div className="stat-card">
+          <div
+            className="stat-icon"
+            style={{ background: '#e0f2fe', color: '#0369a1' }}
+          >
+            <ShoppingCart size={24} />
+          </div>
+          <div className="stat-content">
+            <h3>Placed</h3>
+            <p className="stat-number">{placedOrders.length}</p>
+          </div>
+        </div>
         <div className="stat-card">
           <div
             className="stat-icon"
@@ -159,6 +174,7 @@ export default function Orders() {
           style={{ width: '200px', padding: '8px 12px' }}
         >
           <option value="all">All Orders ({orders.length})</option>
+          <option value="placed">Placed ({placedOrders.length})</option>
           <option value="pending">Pending ({pendingOrders.length})</option>
           <option value="processing">Processing ({processingOrders.length})</option>
           <option value="completed">Completed ({completedOrders.length})</option>
@@ -232,6 +248,7 @@ export default function Orders() {
                       }
                       style={{ padding: '6px 10px', fontSize: '13px' }}
                     >
+                      <option value="placed">Placed</option>
                       <option value="pending">Pending</option>
                       <option value="processing">Processing</option>
                       <option value="completed">Completed</option>
@@ -275,10 +292,7 @@ export default function Orders() {
                     <span>Customer:</span>
                     <span>{viewOrder.customerName || 'N/A'}</span>
                   </div>
-                  <div className="order-info-row">
-                    <span>Email:</span>
-                    <span>N/A</span>
-                  </div>
+
                   <div className="order-info-row">
                     <span>Status:</span>
                     <span className={`status-badge status-${viewOrder.status}`}>

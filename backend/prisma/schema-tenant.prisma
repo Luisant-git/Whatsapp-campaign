@@ -245,7 +245,7 @@ model Order {
   productId       Int
   quantity        Int      @default(1)
   totalAmount     Float
-  status          String   @default("pending")
+  status          String   @default("placed")
   paymentMethod   String?
   paymentId       String?
   paymentLink     String?

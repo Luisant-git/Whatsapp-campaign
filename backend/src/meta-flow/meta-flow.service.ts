@@ -52,6 +52,7 @@ MmOROPXhnwClx8SPS7hKY+fG
     console.log('AES Key Length:', aesKey.length);
     const iv = Buffer.from(initialVector, 'base64');
     console.log('IV Length:', iv.length);
+    console.log('Encrypted Data Length:', encryptedFlowData.length);
     
     const decipher = crypto.createDecipheriv('aes-128-cbc', aesKey, iv);
     decipher.setAutoPadding(true);

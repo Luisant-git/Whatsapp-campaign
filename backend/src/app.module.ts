@@ -23,6 +23,7 @@ import { EcommerceModule } from './ecommerce/ecommerce.module';
 import { SubuserModule } from './subuser/subuser.module';
 import { MenuPermissionModule } from './menu-permission/menu-permission.module';
 import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
+import { MetaFlowModule } from './meta-flow/meta-flow.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
     MenuPermissionModule,
    
     AdminAnalyticsModule,
+    MetaFlowModule,
   ],
   controllers: [AppController, TestController],
   providers: [AppService],
@@ -65,7 +67,7 @@ export class AppModule implements NestModule {
         'test/(.*)',
         'whatsapp/webhook',
         'whatsapp/webhook/(.*)',
-
+        'meta/flows',
         'menu-permission/(.*)',  
         'menu-permission',  
         

@@ -1,10 +1,15 @@
-import { Controller, Post, Body, Req, Res, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Body, Req, Res, HttpStatus } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { MetaFlowService } from './meta-flow.service';
 
 @Controller('meta/flows')
 export class MetaFlowController {
   constructor(private readonly metaFlowService: MetaFlowService) {}
+
+  @Get()
+  healthCheck() {
+    return { status: 'active', message: 'Meta Flow endpoint is ready' };
+  }
 
   @Post()
   async handleFlow(@Req() req: Request, @Res() res: Response, @Body() body: any) {

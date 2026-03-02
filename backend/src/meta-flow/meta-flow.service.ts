@@ -22,10 +22,22 @@ export class MetaFlowService {
       },
       Buffer.from(encryptedAesKey, 'base64')
     );
-    const decipher = crypto.createDecipheriv('aes-128-cbc', aesKey, Buffer.from(initialVector, 'base64'));
+    
+    console.log('AES Key Length:', aesKey.length);
+    const iv = Buffer.from(initialVector, 'base64');
+    console.log('IV Length:', iv.length);
+    
+    const decipher = crypto.createDecipheriv('aes-128-cbc', aesKey, iv);
     decipher.setAutoPadding(true);
-    let decrypted = decipher.update(encryptedFlowData, 'base64', 'utf8');
-    decrypted += decipher.final('utf8');
+    
+    const decryptedBuffer = Buffer.concat([
+      decipher.update(Buffer.from(encryptedFlowData, 'base64')),
+      decipher.final()
+    ]);
+    
+    const decrypted = decryptedBuffer.toString('utf8');
+    console.log('Decrypted Flow:', decrypted);
+    
     return JSON.parse(decrypted);
   }
 
@@ -39,10 +51,15 @@ export class MetaFlowService {
       },
       Buffer.from(encryptedAesKey, 'base64')
     );
-    const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, Buffer.from(initialVector, 'base64'));
-    let encrypted = cipher.update(JSON.stringify(response), 'utf8', 'base64');
-    encrypted += cipher.final('base64');
-    return { encrypted_flow_data: encrypted };
+    const iv = Buffer.from(initialVector, 'base64');
+    const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
+    
+    const encryptedBuffer = Buffer.concat([
+      cipher.update(JSON.stringify(response), 'utf8'),
+      cipher.final()
+    ]);
+    
+    return { encrypted_flow_data: encryptedBuffer.toString('base64') };
   }
 
   async processFlow(decryptedData: any): Promise<any> {

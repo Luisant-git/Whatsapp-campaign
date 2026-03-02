@@ -22,7 +22,7 @@ export class MetaFlowService {
       },
       Buffer.from(encryptedAesKey, 'base64')
     );
-    const decipher = crypto.createDecipheriv('aes-256-cbc', aesKey, Buffer.from(initialVector, 'base64'));
+    const decipher = crypto.createDecipheriv('aes-128-cbc', aesKey, Buffer.from(initialVector, 'base64'));
     decipher.setAutoPadding(true);
     let decrypted = decipher.update(encryptedFlowData, 'base64', 'utf8');
     decrypted += decipher.final('utf8');
@@ -39,7 +39,7 @@ export class MetaFlowService {
       },
       Buffer.from(encryptedAesKey, 'base64')
     );
-    const cipher = crypto.createCipheriv('aes-256-cbc', aesKey, Buffer.from(initialVector, 'base64'));
+    const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, Buffer.from(initialVector, 'base64'));
     let encrypted = cipher.update(JSON.stringify(response), 'utf8', 'base64');
     encrypted += cipher.final('base64');
     return { encrypted_flow_data: encrypted };

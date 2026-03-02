@@ -19,15 +19,12 @@ export class MetaFlowController {
         return res.status(HttpStatus.OK).json({ status: 'active', message: 'Flow endpoint ready' });
       }
 
-      // Check if data is too small (likely a test/ping)
+      // For small payloads, try to decrypt and respond
       if (body.encrypted_flow_data.length < 100) {
-        console.log('Small payload detected, likely health check');
-        return res.status(HttpStatus.OK).json({ 
-          data: { 
-            status: 'active',
-            acknowledged: true 
-          } 
-        });
+        console.log('Small payload detected, encrypting simple response');
+        const simpleResponse = { data: { status: 'active', acknowledged: true } };
+        const encryptedResponse = this.metaFlowService.encryptResponse(simpleResponse, body.encrypted_aes_key, body.initial_vector);
+        return res.status(HttpStatus.OK).json(encryptedResponse);
       }
 
       const decryptedData = this.metaFlowService.decryptRequest(body.encrypted_flow_data, body.encrypted_aes_key, body.initial_vector);

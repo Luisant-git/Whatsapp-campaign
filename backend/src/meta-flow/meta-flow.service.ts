@@ -39,7 +39,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
     return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
   }
 
-  decryptRequest(encryptedFlowData: string, encryptedAesKey: string, initialVector: string): any {
+  decryptRequest(encryptedFlowData: string, encryptedAesKey: string, initialVector: string): { data: any; aesKey: Buffer; iv: Buffer } {
     const aesKey = crypto.privateDecrypt(
       { 
         key: this.privateKey, 
@@ -67,19 +67,14 @@ sxEK+yx6I1EkGaK+/KWEpai7
     const decrypted = decryptedBuffer.toString('utf8');
     console.log('Decrypted Flow:', decrypted);
     
-    return JSON.parse(decrypted);
+    return {
+      data: JSON.parse(decrypted),
+      aesKey,
+      iv
+    };
   }
 
-  encryptResponse(response: any, encryptedAesKey: string, initialVector: string): any {
-    const aesKey = crypto.privateDecrypt(
-      { 
-        key: this.privateKey, 
-        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-        oaepHash: 'sha256'
-      },
-      Buffer.from(encryptedAesKey, 'base64')
-    );
-    const iv = Buffer.from(initialVector, 'base64');
+  encryptResponse(response: any, aesKey: Buffer, iv: Buffer): any {
     const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
     
     const encryptedBuffer = Buffer.concat([

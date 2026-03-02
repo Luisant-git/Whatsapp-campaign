@@ -11,10 +11,6 @@ const PgSession = connectPgSimple(session);
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // Increase body size limit for Flow data
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ limit: '10mb', extended: true }));
-
   // Trust proxy for production (nginx/apache)
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 

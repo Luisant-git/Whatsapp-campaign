@@ -19,11 +19,16 @@ export class MetaFlowController {
         return res.status(HttpStatus.OK).json({ status: 'active', message: 'Flow endpoint ready' });
       }
 
-      // Skip signature verification for now
-      // const signature = req.headers['x-hub-signature-256'] as string;
-      // if (!this.metaFlowService.verifySignature(JSON.stringify(body), signature)) {
-      //   return res.status(HttpStatus.UNAUTHORIZED).json({ error: 'Invalid signature' });
-      // }
+      // Check if data is too small (likely a test/ping)
+      if (body.encrypted_flow_data.length < 100) {
+        console.log('Small payload detected, likely health check');
+        return res.status(HttpStatus.OK).json({ 
+          data: { 
+            status: 'active',
+            acknowledged: true 
+          } 
+        });
+      }
 
       const decryptedData = this.metaFlowService.decryptRequest(body.encrypted_flow_data, body.encrypted_aes_key, body.initial_vector);
       const response = await this.metaFlowService.processFlow(decryptedData);
@@ -31,6 +36,7 @@ export class MetaFlowController {
 
       return res.status(HttpStatus.OK).json(encryptedResponse);
     } catch (error) {
+      console.error('Flow error:', error.message);
       return res.status(HttpStatus.OK).json({ version: '3.0', data: { error: error.message } });
     }
   }

@@ -14,6 +14,11 @@ export class MetaFlowController {
   @Post()
   async handleFlow(@Req() req: Request, @Res() res: Response, @Body() body: any) {
     try {
+      // Handle health check/ping requests
+      if (!body.encrypted_flow_data) {
+        return res.status(HttpStatus.OK).json({ status: 'active', message: 'Flow endpoint ready' });
+      }
+
       const signature = req.headers['x-hub-signature-256'] as string;
       
       if (!this.metaFlowService.verifySignature(JSON.stringify(body), signature)) {

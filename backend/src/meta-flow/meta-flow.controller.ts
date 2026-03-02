@@ -24,14 +24,14 @@ export class MetaFlowController {
         console.log('Small payload detected, encrypting simple response');
         const simpleResponse = { data: { status: 'active', acknowledged: true } };
         const encryptedResponse = this.metaFlowService.encryptResponse(simpleResponse, body.encrypted_aes_key, body.initial_vector);
-        return res.status(HttpStatus.OK).json(encryptedResponse);
+        return res.status(HttpStatus.OK).send(encryptedResponse.encrypted_flow_data);
       }
 
       const decryptedData = this.metaFlowService.decryptRequest(body.encrypted_flow_data, body.encrypted_aes_key, body.initial_vector);
       const response = await this.metaFlowService.processFlow(decryptedData);
       const encryptedResponse = this.metaFlowService.encryptResponse(response, body.encrypted_aes_key, body.initial_vector);
 
-      return res.status(HttpStatus.OK).json(encryptedResponse);
+      return res.status(HttpStatus.OK).send(encryptedResponse.encrypted_flow_data);
     } catch (error) {
       console.error('Flow error:', error.message);
       return res.status(HttpStatus.OK).json({ version: '3.0', data: { error: error.message } });

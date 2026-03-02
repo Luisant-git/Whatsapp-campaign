@@ -14,6 +14,10 @@ export class MetaFlowController {
   @Post()
   async handleFlow(@Body() body: any) {
     try {
+      console.log('Raw body keys:', Object.keys(body));
+      console.log('encrypted_flow_data length:', body.encrypted_flow_data?.length);
+      console.log('encrypted_flow_data sample:', body.encrypted_flow_data?.substring(0, 50));
+      
       if (!body.encrypted_flow_data) {
         return { status: 'active' };
       }

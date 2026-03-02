@@ -331,6 +331,11 @@
   text-transform: capitalize;
 }
 
+
+.status-placed {
+  background: #4b5563 !important; 
+  color: #ffffff !important;
+}
 .status-pending {
   background: #f59e0b !important;
   color: #ffffff !important;

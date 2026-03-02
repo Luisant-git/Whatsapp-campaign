@@ -49,16 +49,18 @@ sxEK+yx6I1EkGaK+/KWEpai7
       Buffer.from(encryptedAesKey, 'base64')
     );
     
-    console.log('AES Key Length:', aesKey.length);
     const iv = Buffer.from(initialVector, 'base64');
+    const encryptedBuffer = Buffer.from(encryptedFlowData, 'base64');
+    
+    console.log('AES Key Length:', aesKey.length);
     console.log('IV Length:', iv.length);
-    console.log('Encrypted Data Length:', encryptedFlowData.length);
+    console.log('Encrypted Buffer Length:', encryptedBuffer.length);
     
     const decipher = crypto.createDecipheriv('aes-128-cbc', aesKey, iv);
     decipher.setAutoPadding(true);
     
     const decryptedBuffer = Buffer.concat([
-      decipher.update(Buffer.from(encryptedFlowData, 'base64')),
+      decipher.update(encryptedBuffer),
       decipher.final()
     ]);
     

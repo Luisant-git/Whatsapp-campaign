@@ -13,45 +13,48 @@ export class MetaFlowService {
   }
 
   decryptRequest(encryptedFlowData: string, encryptedAesKey: string, initialVector: string): any {
+    const privateKey = this.privateKey.replace(/\\n/g, '\n');
     const aesKey = crypto.privateDecrypt(
-      { key: this.privateKey, padding: crypto.constants.RSA_PKCS1_OAEP_PADDING },
+      { 
+        key: privateKey, 
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha256'
+      },
       Buffer.from(encryptedAesKey, 'base64')
     );
-    const decipher = crypto.createDecipheriv('aes-128-gcm', aesKey, Buffer.from(initialVector, 'base64'));
-    const encryptedBuffer = Buffer.from(encryptedFlowData, 'base64');
-    const tag = encryptedBuffer.slice(-16);
-    const encrypted = encryptedBuffer.slice(0, -16);
-    decipher.setAuthTag(tag);
-    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
-    return JSON.parse(decrypted.toString('utf-8'));
+    const decipher = crypto.createDecipheriv('aes-128-cbc', aesKey, Buffer.from(initialVector, 'base64'));
+    let decrypted = decipher.update(encryptedFlowData, 'base64', 'utf8');
+    decrypted += decipher.final('utf8');
+    return JSON.parse(decrypted);
   }
 
   encryptResponse(response: any, encryptedAesKey: string, initialVector: string): any {
+    const privateKey = this.privateKey.replace(/\\n/g, '\n');
     const aesKey = crypto.privateDecrypt(
-      { key: this.privateKey, padding: crypto.constants.RSA_PKCS1_OAEP_PADDING },
+      { 
+        key: privateKey, 
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha256'
+      },
       Buffer.from(encryptedAesKey, 'base64')
     );
-    const cipher = crypto.createCipheriv('aes-128-gcm', aesKey, Buffer.from(initialVector, 'base64'));
-    const encrypted = Buffer.concat([cipher.update(JSON.stringify(response), 'utf-8'), cipher.final()]);
-    const tag = cipher.getAuthTag();
-    return { encrypted_flow_data: Buffer.concat([encrypted, tag]).toString('base64') };
+    const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, Buffer.from(initialVector, 'base64'));
+    let encrypted = cipher.update(JSON.stringify(response), 'utf8', 'base64');
+    encrypted += cipher.final('base64');
+    return { encrypted_flow_data: encrypted };
   }
 
   async processFlow(decryptedData: any): Promise<any> {
     const { screen, data, version, action } = decryptedData;
 
-    // Handle different screens and actions
     if (action === 'ping') {
       return { version, data: { status: 'active' } };
     }
 
-    // Add your flow logic here based on screen
     return {
       version,
       screen,
-      data: {
-        // Your response data
-      }
+      data: {}
     };
   }
 }

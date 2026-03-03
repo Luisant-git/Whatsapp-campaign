@@ -115,13 +115,12 @@ sxEK+yx6I1EkGaK+/KWEpai7
   async processFlow(decryptedData: any): Promise<any> {
     const { screen, data, version, action } = decryptedData;
 
+    // For health check (ping), return empty object
     if (action === 'ping') {
-      return { version: '1.0', data: {} };
+      return {};
     }
 
-    return {
-      version: '1.0',
-      data: {}
-    };
+    // For real flow data, return empty object for now
+    return {};
   }
 }

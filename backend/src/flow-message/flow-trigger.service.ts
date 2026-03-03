@@ -137,14 +137,17 @@ export class FlowTriggerService {
       flow_id: trigger.flowId,
       flow_cta: trigger.ctaText,
       flow_action: 'navigate',
-      flow_action_payload: {
-        screen: trigger.screenName || 'SCREEN_ONE',
-      }
     };
 
-    // Add screen data if provided
-    if (trigger.screenData && Object.keys(trigger.screenData).length > 0) {
-      actionParams.flow_action_payload.data = trigger.screenData;
+    // Only add screen navigation if screenName is explicitly set and not default
+    if (trigger.screenName && trigger.screenName !== 'SCREEN' && trigger.screenName !== 'SCREEN_ONE') {
+      actionParams.flow_action_payload = {
+        screen: trigger.screenName,
+      };
+      
+      if (trigger.screenData && Object.keys(trigger.screenData).length > 0) {
+        actionParams.flow_action_payload.data = trigger.screenData;
+      }
     }
 
     console.log('[FlowTrigger] Sending flow with params:', JSON.stringify(actionParams, null, 2));

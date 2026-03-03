@@ -31,7 +31,8 @@ const FlowBuilder = ({ onBack }) => {
 
   const [draggedComponent, setDraggedComponent] = useState(null);
   const [connections, setConnections] = useState([]);
-  const [connectingFrom, setConnectingFrom] = useState(null);
+  const [draggingConnection, setDraggingConnection] = useState(null);
+  const canvasRef = React.useRef(null);
 
   const addComponent = (type, x = 100, y = 100) => {
     const newComponent = {
@@ -100,45 +101,83 @@ const FlowBuilder = ({ onBack }) => {
     setConnections(connections.filter(c => c.from !== componentId && c.to !== componentId));
   };
 
-  const handleConnect = (componentId) => {
-    if (connectingFrom === null) {
-      setConnectingFrom(componentId);
-    } else if (connectingFrom !== componentId) {
-      setConnections([...connections, { from: connectingFrom, to: componentId }]);
-      setConnectingFrom(null);
+  const handleConnectionStart = (e, componentId) => {
+    e.stopPropagation();
+    const rect = canvasRef.current.getBoundingClientRect();
+    setDraggingConnection({ from: componentId, x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+
+  const handleConnectionDrag = (e) => {
+    if (draggingConnection && canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      setDraggingConnection({ ...draggingConnection, x: e.clientX - rect.left, y: e.clientY - rect.top });
     }
   };
 
+  const handleConnectionEnd = (componentId) => {
+    if (draggingConnection && draggingConnection.from !== componentId) {
+      setConnections([...connections, { from: draggingConnection.from, to: componentId }]);
+    }
+    setDraggingConnection(null);
+  };
+
   const renderConnections = () => {
-    return connections.map((conn, idx) => {
+    const lines = [];
+    
+    connections.forEach((conn, idx) => {
       const fromComp = screens[currentScreen].layout.children.find(c => c.id === conn.from);
       const toComp = screens[currentScreen].layout.children.find(c => c.id === conn.to);
-      if (!fromComp || !toComp) return null;
+      if (!fromComp || !toComp) return;
 
-      const fromX = (fromComp.position?.x || 100) + 60;
+      const fromX = (fromComp.position?.x || 100) + 120;
       const fromY = (fromComp.position?.y || 100) + 40;
-      const toX = (toComp.position?.x || 100) + 60;
+      const toX = (toComp.position?.x || 100);
       const toY = (toComp.position?.y || 100) + 40;
 
-      return (
-        <svg key={idx} className="connection-line" style={{ pointerEvents: 'none' }}>
-          <defs>
-            <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-              <polygon points="0 0, 10 3, 0 6" fill="#25D366" />
-            </marker>
-          </defs>
-          <line
-            x1={fromX}
-            y1={fromY}
-            x2={toX}
-            y2={toY}
-            stroke="#25D366"
-            strokeWidth="2"
-            markerEnd="url(#arrowhead)"
-          />
-        </svg>
+      lines.push(
+        <line
+          key={idx}
+          x1={fromX}
+          y1={fromY}
+          x2={toX}
+          y2={toY}
+          stroke="#25D366"
+          strokeWidth="2"
+          markerEnd="url(#arrowhead)"
+        />
       );
     });
+
+    if (draggingConnection) {
+      const fromComp = screens[currentScreen].layout.children.find(c => c.id === draggingConnection.from);
+      if (fromComp) {
+        const fromX = (fromComp.position?.x || 100) + 120;
+        const fromY = (fromComp.position?.y || 100) + 40;
+        lines.push(
+          <line
+            key="dragging"
+            x1={fromX}
+            y1={fromY}
+            x2={draggingConnection.x}
+            y2={draggingConnection.y}
+            stroke="#25D366"
+            strokeWidth="2"
+            strokeDasharray="5,5"
+          />
+        );
+      }
+    }
+
+    return (
+      <svg className="connection-svg">
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+            <polygon points="0 0, 10 3, 0 6" fill="#25D366" />
+          </marker>
+        </defs>
+        {lines}
+      </svg>
+    );
   };
 
   const handleSave = async () => {
@@ -251,9 +290,12 @@ const FlowBuilder = ({ onBack }) => {
 
         <div className="canvas-panel">
           <div 
+            ref={canvasRef}
             className="canvas-wireframe"
             onDrop={handleDrop}
             onDragOver={handleDragOver}
+            onMouseMove={handleConnectionDrag}
+            onMouseUp={() => setDraggingConnection(null)}
           >
             {renderConnections()}
             {screens[currentScreen].layout.children.map((component, index) => {
@@ -261,12 +303,13 @@ const FlowBuilder = ({ onBack }) => {
               return (
                 <div 
                   key={index} 
-                  className={`wireframe-node ${selectedComponent === index ? 'selected' : ''} ${connectingFrom === component.id ? 'connecting' : ''}`}
+                  className={`wireframe-node ${selectedComponent === index ? 'selected' : ''}`}
                   style={{
                     left: component.position?.x || 100,
                     top: component.position?.y || 100 + (index * 80)
                   }}
                   onClick={() => setSelectedComponent(index)}
+                  onMouseUp={() => draggingConnection && handleConnectionEnd(component.id)}
                   draggable
                   onDragStart={(e) => {
                     e.dataTransfer.effectAllowed = 'move';
@@ -281,25 +324,28 @@ const FlowBuilder = ({ onBack }) => {
                     }
                   }}
                 >
-                  <div className="node-header">
-                    <ComponentIcon size={14} />
-                    <button 
-                      className="node-connect" 
-                      onClick={(e) => { e.stopPropagation(); handleConnect(component.id); }}
-                      title="Connect to another component"
-                    >
-                      <Move size={12} />
-                    </button>
+                  {selectedComponent === index && (
+                    <>
+                      <div 
+                        className="connection-dot connection-dot-left"
+                        onMouseDown={(e) => handleConnectionStart(e, component.id)}
+                      />
+                      <div 
+                        className="connection-dot connection-dot-right"
+                        onMouseDown={(e) => handleConnectionStart(e, component.id)}
+                      />
+                    </>
+                  )}
+                  <div className="node-content">
+                    <ComponentIcon size={16} />
+                    <span className="node-label">{component.label}</span>
                     <button 
                       className="node-delete" 
                       onClick={(e) => { e.stopPropagation(); removeComponent(index); }}
                     >
-                      <X size={12} />
+                      <X size={14} />
                     </button>
-                  </div>
-                  <div className="node-body">
-                    <div className="node-label">{component.label}</div>
-                    {component.required && <span className="node-badge">Required</span>}
+                  </div>an className="node-badge">Required</span>}
                   </div>
                 </div>
               );

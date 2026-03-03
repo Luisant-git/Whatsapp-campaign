@@ -50,6 +50,9 @@ export class MetaFlowController {
       if (isInit) {
         // INIT: Use SAME IV from request, NO IV prepending
         console.log('INIT response - using request IV, no prepending');
+        console.log('INIT JSON EXACT:', responseString);
+        console.log('Length:', Buffer.byteLength(responseString));
+        
         const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
         cipher.setAutoPadding(true);
         

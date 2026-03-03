@@ -9,7 +9,9 @@ const connectPgSimple = require('connect-pg-simple');
 const PgSession = connectPgSimple(session);
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: false,
+  });
 
   // Trust proxy for production (nginx/apache)
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
@@ -25,7 +27,14 @@ async function bootstrap() {
     exposedHeaders: ['Set-Cookie'],
   });
 
-  app.use(
+  // JSON body parser for all routes
+  app.use(express.json({ limit: '10mb' }));
+
+  // Exclude session middleware from Meta Flow endpoint
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/meta/flows')) {
+      return next();
+    }
     session({
       store: new PgSession({
         conString: process.env.CENTRAL_DATABASE_URL,
@@ -43,8 +52,8 @@ async function bootstrap() {
         maxAge: 365 * 24 * 60 * 60 * 1000,
       },
       proxy: true,
-    }),
-  );
+    })(req, res, next);
+  });
   
   // Serve static files from uploads directory
   const uploadsPath = process.env.NODE_ENV === 'production'

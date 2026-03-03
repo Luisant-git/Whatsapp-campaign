@@ -18,6 +18,7 @@ export class MetaFlowController {
       console.log('=== META FLOW REQUEST ===');
       console.log('Body keys:', Object.keys(body));
       console.log('encrypted_flow_data length:', body.encrypted_flow_data?.length);
+      console.log('encrypted_flow_data:', body.encrypted_flow_data);
       console.log('encrypted_aes_key length:', body.encrypted_aes_key?.length);
       console.log('initial_vector length:', body.initial_vector?.length);
       

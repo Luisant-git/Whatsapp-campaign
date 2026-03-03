@@ -57,6 +57,11 @@ sxEK+yx6I1EkGaK+/KWEpai7
     const iv = Buffer.from(initialVector, 'base64');
     const encryptedData = Buffer.from(encryptedFlowData, 'base64');
     
+    // CRITICAL: Check if base64 decoding is correct
+    console.log('Decoded length check:', Buffer.from(encryptedFlowData, 'base64').length);
+    console.log('Original base64 string:', encryptedFlowData);
+    console.log('Re-encoded check:', Buffer.from(encryptedFlowData, 'base64').toString('base64'));
+    
     console.log('AES Key Length:', aesKey.length);
     console.log('IV Length:', iv.length);
     console.log('Encrypted Buffer Length:', encryptedData.length);

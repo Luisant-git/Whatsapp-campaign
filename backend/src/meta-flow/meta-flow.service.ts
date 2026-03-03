@@ -55,6 +55,17 @@ sxEK+yx6I1EkGaK+/KWEpai7
     console.log('Decrypted AES Key (hex):', aesKey.toString('hex'));
     
     const iv = Buffer.from(initialVector, 'base64');
+    
+    // For INIT calls, there's no flow data to decrypt
+    if (!encryptedFlowData) {
+      console.log('INIT call - no flow data to decrypt');
+      return {
+        data: { action: 'ping', version: '1.0' },
+        aesKey,
+        iv
+      };
+    }
+    
     const encryptedData = Buffer.from(encryptedFlowData, 'base64');
     
     console.log('Encrypted Length:', encryptedData.length);
@@ -63,9 +74,8 @@ sxEK+yx6I1EkGaK+/KWEpai7
     // Check if this is a Flow INIT/health-check call
     if (encryptedData.length % 16 !== 0) {
       console.log('Not valid AES block size. This is likely a Flow INIT/health-check call.');
-      // Return mock data for health check
       return {
-        data: { action: 'ping', version: '3.0' },
+        data: { action: 'ping', version: '1.0' },
         aesKey,
         iv
       };

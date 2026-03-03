@@ -24,10 +24,32 @@ export class MetaFlowController {
       const body = JSON.parse(req.body.toString());
       console.log('Body keys:', Object.keys(body));
       
-      // Health check - no encryption
+      // Health check - MUST still encrypt response
       if (!body.encrypted_flow_data || !body.encrypted_aes_key || !body.initial_vector) {
-        const response = { version: '3.0', data: { status: 'active' } };
-        return res.json(response);
+        console.log('Not valid AES block size. This is likely a Flow INIT/health-check call.');
+        
+        // For INIT, we still need to decrypt the AES key and encrypt response
+        const { aesKey, iv } = this.metaFlowService.decryptRequest(
+          '', // No flow data for INIT
+          body.encrypted_aes_key?.replace(/ /g, '+') || '',
+          body.initial_vector?.replace(/ /g, '+') || ''
+        );
+        
+        const responsePayload = JSON.stringify({
+          version: '1.0',
+          status: 'ok'
+        });
+        
+        const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
+        let encrypted = cipher.update(responsePayload, 'utf8');
+        encrypted = Buffer.concat([encrypted, cipher.final()]);
+        
+        console.log('Response encrypted length:', encrypted.length);
+        console.log('Modulo 16:', encrypted.length % 16);
+        
+        return res.json({
+          encrypted_flow_data: encrypted.toString('base64')
+        });
       }
 
       console.log('encrypted_flow_data length:', body.encrypted_flow_data?.length);
@@ -69,11 +91,43 @@ export class MetaFlowController {
       let encrypted = cipher.update(paddedResponse, 'utf8');
       encrypted = Buffer.concat([encrypted, cipher.final()]);
       
-      return res.send(encrypted.toString('base64'));
+      console.log('Response encrypted length:', encrypted.length);
+      console.log('Modulo 16:', encrypted.length % 16);
+      
+      return res.json({
+        encrypted_flow_data: encrypted.toString('base64')
+      });
     } catch (error) {
       console.error('Flow error:', error.message);
-      const errorResponse = { version: '3.0', data: { error: error.message } };
-      return res.json(errorResponse);
+      
+      // Even errors should be encrypted if we have keys
+      try {
+        const body = JSON.parse(req.body.toString());
+        if (body.encrypted_aes_key && body.initial_vector) {
+          const { aesKey, iv } = this.metaFlowService.decryptRequest(
+            '',
+            body.encrypted_aes_key.replace(/ /g, '+'),
+            body.initial_vector.replace(/ /g, '+')
+          );
+          
+          const errorPayload = JSON.stringify({
+            version: '1.0',
+            error: error.message
+          });
+          
+          const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
+          let encrypted = cipher.update(errorPayload, 'utf8');
+          encrypted = Buffer.concat([encrypted, cipher.final()]);
+          
+          return res.json({
+            encrypted_flow_data: encrypted.toString('base64')
+          });
+        }
+      } catch (encryptError) {
+        console.error('Failed to encrypt error response:', encryptError.message);
+      }
+      
+      return res.status(500).json({ error: 'Internal server error' });
     }
   }
 }

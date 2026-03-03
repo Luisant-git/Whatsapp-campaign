@@ -116,12 +116,11 @@ sxEK+yx6I1EkGaK+/KWEpai7
     const { screen, data, version, action } = decryptedData;
 
     if (action === 'ping') {
-      return { version, data: { status: 'active' } };
+      return { version: '1.0', data: {} };
     }
 
     return {
-      version,
-      screen,
+      version: '1.0',
       data: {}
     };
   }

@@ -44,10 +44,8 @@ export class MetaFlowController {
         console.log('Payload length:', Buffer.byteLength(responsePayload));
         console.log('Expected length should be 29 bytes for correct structure');
         
-        // CRITICAL: Use ZERO IV for response encryption
-        const zeroIv = Buffer.alloc(16, 0);
-        
-        const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, zeroIv);
+        // CRITICAL: Use SAME IV from request for response encryption
+        const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
         let encrypted = cipher.update(responsePayload, 'utf8');
         encrypted = Buffer.concat([encrypted, cipher.final()]);
         
@@ -88,13 +86,10 @@ export class MetaFlowController {
 
       const response = await this.metaFlowService.processFlow(data);
       
-      // Encrypt response using SAME AES key + ZERO IV
+      // Encrypt response using SAME AES key + SAME IV from request
       const responseString = JSON.stringify(response);
       
-      // CRITICAL: Use ZERO IV for response encryption
-      const zeroIv = Buffer.alloc(16, 0);
-      
-      const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, zeroIv);
+      const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
       let encrypted = cipher.update(responseString, 'utf8');
       encrypted = Buffer.concat([encrypted, cipher.final()]);
       
@@ -128,10 +123,8 @@ export class MetaFlowController {
           
           console.log('Error JSON payload before encryption:', errorPayload);
           
-          // CRITICAL: Use ZERO IV for response encryption
-          const zeroIv = Buffer.alloc(16, 0);
-          
-          const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, zeroIv);
+          // CRITICAL: Use SAME IV from request for response encryption
+          const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
           let encrypted = cipher.update(errorPayload, 'utf8');
           encrypted = Buffer.concat([encrypted, cipher.final()]);
           

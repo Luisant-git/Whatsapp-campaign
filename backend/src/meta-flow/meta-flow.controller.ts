@@ -41,23 +41,25 @@ export class MetaFlowController {
         console.log('Payload length:', Buffer.byteLength(responsePayload));
         console.log('Expected length should be 2 bytes for empty object');
         
-        // Debug encryption parameters
-        console.log('AES Key length:', aesKey.length, 'bytes');
-        console.log('AES Key (hex):', aesKey.toString('hex'));
-        console.log('IV length:', iv.length, 'bytes');
-        console.log('IV (hex):', iv.toString('hex'));
+        // 1️⃣ Generate NEW IV for response
+        const responseIV = crypto.randomBytes(16);
         
-        // CRITICAL: Use SAME IV from request for response encryption
-        const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
-        cipher.setAutoPadding(true); // Ensure PKCS7 padding
+        // 2️⃣ Encrypt using NEW IV
+        const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, responseIV);
+        cipher.setAutoPadding(true);
         
         let encrypted = cipher.update(responsePayload, 'utf8');
         encrypted = Buffer.concat([encrypted, cipher.final()]);
         
-        console.log('Response encrypted length:', encrypted.length);
-        console.log('Modulo 16:', encrypted.length % 16);
+        // 3️⃣ Prepend IV to encrypted data
+        const finalBuffer = Buffer.concat([responseIV, encrypted]);
         
-        const encryptedBase64 = encrypted.toString('base64');
+        console.log('Response encrypted length:', encrypted.length);
+        console.log('Final buffer length (IV + encrypted):', finalBuffer.length);
+        console.log('Modulo 16:', finalBuffer.length % 16);
+        
+        // 4️⃣ Base64 encode IV + ciphertext
+        const encryptedBase64 = finalBuffer.toString('base64');
         console.log('Sending response:', encryptedBase64);
         
         return res
@@ -94,21 +96,25 @@ export class MetaFlowController {
       // Encrypt response using SAME AES key + SAME IV from request
       const responseString = JSON.stringify(response);
       
-      console.log('Response JSON:', responseString);
-      console.log('Response length:', Buffer.byteLength(responseString));
-      console.log('AES Key length:', aesKey.length, 'bytes');
-      console.log('IV length:', iv.length, 'bytes');
+      // 1️⃣ Generate NEW IV for response
+      const responseIV = crypto.randomBytes(16);
       
-      const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
-      cipher.setAutoPadding(true); // Ensure PKCS7 padding
+      // 2️⃣ Encrypt using NEW IV
+      const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, responseIV);
+      cipher.setAutoPadding(true);
       
       let encrypted = cipher.update(responseString, 'utf8');
       encrypted = Buffer.concat([encrypted, cipher.final()]);
       
-      console.log('Response encrypted length:', encrypted.length);
-      console.log('Modulo 16:', encrypted.length % 16);
+      // 3️⃣ Prepend IV to encrypted data
+      const finalBuffer = Buffer.concat([responseIV, encrypted]);
       
-      const encryptedBase64 = encrypted.toString('base64');
+      console.log('Response encrypted length:', encrypted.length);
+      console.log('Final buffer length (IV + encrypted):', finalBuffer.length);
+      console.log('Modulo 16:', finalBuffer.length % 16);
+      
+      // 4️⃣ Base64 encode IV + ciphertext
+      const encryptedBase64 = finalBuffer.toString('base64');
       console.log('Sending response:', encryptedBase64);
       
       return res
@@ -133,14 +139,21 @@ export class MetaFlowController {
             data: { error: error.message }
           });
           
-          console.log('Error JSON payload before encryption:', errorPayload);
+          // 1️⃣ Generate NEW IV for response
+          const responseIV = crypto.randomBytes(16);
           
-          // CRITICAL: Use SAME IV from request for response encryption
-          const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
+          // 2️⃣ Encrypt using NEW IV
+          const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, responseIV);
+          cipher.setAutoPadding(true);
+          
           let encrypted = cipher.update(errorPayload, 'utf8');
           encrypted = Buffer.concat([encrypted, cipher.final()]);
           
-          const encryptedBase64 = encrypted.toString('base64');
+          // 3️⃣ Prepend IV to encrypted data
+          const finalBuffer = Buffer.concat([responseIV, encrypted]);
+          
+          // 4️⃣ Base64 encode IV + ciphertext
+          const encryptedBase64 = finalBuffer.toString('base64');
           
           return res
             .status(200)

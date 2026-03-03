@@ -37,8 +37,10 @@ export class MetaFlowController {
         
         const responsePayload = JSON.stringify({
           version: '1.0',
-          status: 'ok'
+          data: {}
         });
+        
+        console.log('JSON payload before encryption:', responsePayload);
         
         // CRITICAL: Use ZERO IV for response encryption
         const zeroIv = Buffer.alloc(16, 0);
@@ -119,8 +121,10 @@ export class MetaFlowController {
           
           const errorPayload = JSON.stringify({
             version: '1.0',
-            error: error.message
+            data: { error: error.message }
           });
+          
+          console.log('Error JSON payload before encryption:', errorPayload);
           
           // CRITICAL: Use ZERO IV for response encryption
           const zeroIv = Buffer.alloc(16, 0);

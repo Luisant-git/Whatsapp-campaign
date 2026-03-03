@@ -9,8 +9,21 @@ export class FlowMessageService {
 
   async getAvailableFlows() {
     try {
+      // First, get the WhatsApp Business Account ID from the phone number
+      const phoneResponse = await axios.get(
+        `https://graph.facebook.com/v18.0/${this.phoneNumberId}?fields=account_id`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+          }
+        }
+      );
+      
+      const wabaId = phoneResponse.data.account_id;
+      
+      // Then fetch flows using the WABA ID
       const response = await axios.get(
-        `https://graph.facebook.com/v18.0/${this.phoneNumberId}/flows`,
+        `https://graph.facebook.com/v18.0/${wabaId}/flows`,
         {
           headers: {
             'Authorization': `Bearer ${this.accessToken}`,

@@ -44,6 +44,7 @@
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     height: fit-content;
     grid-column: 1;
+    min-width: 0;
 
     .form-group {
       margin-bottom: 24px;

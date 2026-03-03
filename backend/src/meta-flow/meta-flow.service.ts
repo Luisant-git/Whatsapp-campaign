@@ -129,8 +129,14 @@ sxEK+yx6I1EkGaK+/KWEpai7
       return { data: { status: 'active' } };
     }
 
-    // For real flow data, return empty object for now
-    console.log('Processing real flow data - returning empty object');
-    return {};
+    // For real flow data, return the screen data
+    console.log('Processing real flow data - screen:', screen, 'action:', action, 'data:', data);
+    
+    // Return empty data object to let the flow JSON handle the layout
+    // The flow JSON uploaded to Meta already contains all screen definitions
+    return { 
+      version: version || '3.0',
+      data: data || {}
+    };
   }
 }

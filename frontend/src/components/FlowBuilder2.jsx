@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Save, Eye, ArrowLeft, Trash2, Move, Type, FileText, List, Calendar, CheckSquare, Circle } from 'lucide-react';
+import { Save, Eye, ArrowLeft, Trash2, Move, Type, FileText, List, Calendar, CheckSquare, Circle, X } from 'lucide-react';
 import flowAPI from '../api/flow';
 import '../styles/FlowBuilder.css';
 
@@ -29,6 +29,8 @@ const FlowBuilder = ({ onBack }) => {
     { type: 'RadioButtonsGroup', label: 'Radio Button', Icon: Circle },
   ];
   const [draggedComponent, setDraggedComponent] = useState(null);
+  const [connections, setConnections] = useState([]);
+  const [connectingFrom, setConnectingFrom] = useState(null);
 
   const addComponent = (type, x = 100, y = 100) => {
     const newComponent = {
@@ -37,6 +39,7 @@ const FlowBuilder = ({ onBack }) => {
       label: `${type}`,
       required: false,
       position: { x, y },
+      id: Date.now(),
       ...(type === 'TextInput' && { 'input-type': 'text', 'helper-text': '' }),
       ...(type === 'TextArea' && { 'helper-text': '' }),
       ...(type === 'Dropdown' && { 'data-source': [] }),
@@ -89,9 +92,52 @@ const FlowBuilder = ({ onBack }) => {
 
   const removeComponent = (index) => {
     const updatedScreens = [...screens];
+    const componentId = updatedScreens[currentScreen].layout.children[index].id;
     updatedScreens[currentScreen].layout.children.splice(index, 1);
     setScreens(updatedScreens);
     setSelectedComponent(null);
+    setConnections(connections.filter(c => c.from !== componentId && c.to !== componentId));
+  };
+
+  const handleConnect = (componentId) => {
+    if (connectingFrom === null) {
+      setConnectingFrom(componentId);
+    } else if (connectingFrom !== componentId) {
+      setConnections([...connections, { from: connectingFrom, to: componentId }]);
+      setConnectingFrom(null);
+    }
+  };
+
+  const renderConnections = () => {
+    return connections.map((conn, idx) => {
+      const fromComp = screens[currentScreen].layout.children.find(c => c.id === conn.from);
+      const toComp = screens[currentScreen].layout.children.find(c => c.id === conn.to);
+      if (!fromComp || !toComp) return null;
+
+      const fromX = (fromComp.position?.x || 100) + 60;
+      const fromY = (fromComp.position?.y || 100) + 40;
+      const toX = (toComp.position?.x || 100) + 60;
+      const toY = (toComp.position?.y || 100) + 40;
+
+      return (
+        <svg key={idx} className="connection-line" style={{ pointerEvents: 'none' }}>
+          <defs>
+            <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+              <polygon points="0 0, 10 3, 0 6" fill="#25D366" />
+            </marker>
+          </defs>
+          <line
+            x1={fromX}
+            y1={fromY}
+            x2={toX}
+            y2={toY}
+            stroke="#25D366"
+            strokeWidth="2"
+            markerEnd="url(#arrowhead)"
+          />
+        </svg>
+      );
+    });
   };
 
   const handleSave = async () => {
@@ -204,12 +250,13 @@ const FlowBuilder = ({ onBack }) => {
             onDrop={handleDrop}
             onDragOver={handleDragOver}
           >
+            {renderConnections()}
             {screens[currentScreen].layout.children.map((component, index) => {
               const ComponentIcon = getComponentIcon(component.type);
               return (
                 <div 
                   key={index} 
-                  className={`wireframe-node ${selectedComponent === index ? 'selected' : ''}`}
+                  className={`wireframe-node ${selectedComponent === index ? 'selected' : ''} ${connectingFrom === component.id ? 'connecting' : ''}`}
                   style={{
                     left: component.position?.x || 100,
                     top: component.position?.y || 100 + (index * 80)
@@ -230,13 +277,19 @@ const FlowBuilder = ({ onBack }) => {
                   }}
                 >
                   <div className="node-header">
-                    <ComponentIcon size={16} />
-                    <span>{component.type}</span>
+                    <ComponentIcon size={14} />
+                    <button 
+                      className="node-connect" 
+                      onClick={(e) => { e.stopPropagation(); handleConnect(component.id); }}
+                      title="Connect to another component"
+                    >
+                      <Move size={12} />
+                    </button>
                     <button 
                       className="node-delete" 
                       onClick={(e) => { e.stopPropagation(); removeComponent(index); }}
                     >
-                      <Trash2 size={14} />
+                      <X size={12} />
                     </button>
                   </div>
                   <div className="node-body">

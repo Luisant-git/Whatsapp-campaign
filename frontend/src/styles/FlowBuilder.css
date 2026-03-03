@@ -188,15 +188,37 @@
   min-height: 600px;
 }
 
+.connection-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
 .wireframe-node {
   position: absolute;
-  width: 180px;
+  width: 120px;
   background: white;
   border: 2px solid #e5e7eb;
-  border-radius: 12px;
+  border-radius: 8px;
   cursor: move;
   transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  z-index: 10;
+}
+
+.wireframe-node.connecting {
+  border-color: #25D366;
+  box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.3);
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
 }
 
 .wireframe-node:hover {
@@ -214,51 +236,71 @@
 .node-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
   background: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
-  border-radius: 10px 10px 0 0;
-  font-size: 0.75rem;
-  font-weight: 700;
+  border-radius: 6px 6px 0 0;
   color: #25D366;
-  text-transform: uppercase;
+}
+
+.node-connect {
+  margin-left: auto;
+  padding: 0.125rem;
+  background: transparent;
+  border: none;
+  color: #25D366;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.node-connect:hover {
+  background: #DCFCE7;
+  color: #16A34A;
 }
 
 .node-delete {
   margin-left: auto;
-  padding: 0.25rem;
+  padding: 0.125rem;
   background: transparent;
   border: none;
-  color: #DC2626;
+  color: #9ca3af;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 3px;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .node-delete:hover {
   background: #FEE2E2;
+  color: #DC2626;
 }
 
 .node-body {
-  padding: 1rem;
+  padding: 0.75rem;
 }
 
 .node-label {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   color: #1f2937;
   font-weight: 600;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
   word-break: break-word;
 }
 
 .node-badge {
   display: inline-block;
-  font-size: 0.65rem;
-  padding: 0.25rem 0.5rem;
+  font-size: 0.6rem;
+  padding: 0.125rem 0.375rem;
   background: #FFF3CD;
   color: #856404;
-  border-radius: 4px;
+  border-radius: 3px;
   font-weight: 600;
 }
 

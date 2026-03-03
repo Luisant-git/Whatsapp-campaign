@@ -80,6 +80,13 @@
   cursor: pointer;
   text-align: left;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.component-icon {
+  font-size: 1.2rem;
 }
 
 .component-list button:hover {
@@ -186,4 +193,162 @@
 .btn-secondary {
   background: #f3f4f6;
   color: #374151;
+}
+
+.component-item.selected {
+  border-color: #25D366;
+  background: #f0fdf4;
+}
+
+.component-drag {
+  padding: 0.5rem;
+  cursor: move;
+  color: #9ca3af;
+}
+
+.component-content {
+  flex: 1;
+}
+
+.component-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.component-type {
+  font-size: 0.75rem;
+  color: #25D366;
+  font-weight: 600;
+}
+
+.component-name {
+  font-size: 0.9rem;
+  color: #1f2937;
+}
+
+.required-badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 4px;
+}
+
+.component-delete {
+  padding: 0.5rem;
+  background: transparent;
+  border: none;
+  color: #dc2626;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.component-delete:hover {
+  background: #fee2e2;
+}
+
+.properties-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.properties-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.properties-form label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.properties-form input[type="text"] {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+}
+
+.no-selection {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.preview-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.preview-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.preview-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.preview-header button {
+  width: 32px;
+  height: 32px;
+  background: #f3f4f6;
+  border: none;
+  border-radius: 6px;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.preview-body {
+  padding: 1.5rem;
+}
+
+.preview-field {
+  margin-bottom: 1.5rem;
+}
+
+.preview-field label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #374151;
+}
+
+.preview-field .required {
+  color: #dc2626;
+}
+
+.preview-field input,
+.preview-field textarea,
+.preview-field select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.95rem;
 }

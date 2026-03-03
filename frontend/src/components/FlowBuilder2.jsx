@@ -67,6 +67,7 @@ const FlowBuilder = ({ onBack }) => {
       alert('Please enter a flow name');
       return;
     }
+
     const flowJson = {
       version: '3.0',
       screens: screens.map(screen => ({

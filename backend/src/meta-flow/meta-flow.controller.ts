@@ -40,7 +40,10 @@ export class MetaFlowController {
           status: 'ok'
         });
         
-        const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
+        // CRITICAL: Use ZERO IV for response encryption
+        const zeroIv = Buffer.alloc(16, 0);
+        
+        const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, zeroIv);
         let encrypted = cipher.update(responsePayload, 'utf8');
         encrypted = Buffer.concat([encrypted, cipher.final()]);
         
@@ -81,18 +84,14 @@ export class MetaFlowController {
 
       const response = await this.metaFlowService.processFlow(data);
       
-      // Encrypt response using SAME AES key + IV
+      // Encrypt response using SAME AES key + ZERO IV
       const responseString = JSON.stringify(response);
       
-      // Add PKCS7 padding manually for consistent encryption
-      const blockSize = 16;
-      const padding = blockSize - (responseString.length % blockSize);
-      const paddedResponse = responseString + String.fromCharCode(padding).repeat(padding);
+      // CRITICAL: Use ZERO IV for response encryption
+      const zeroIv = Buffer.alloc(16, 0);
       
-      const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
-      cipher.setAutoPadding(false); // Use manual padding
-      
-      let encrypted = cipher.update(paddedResponse, 'utf8');
+      const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, zeroIv);
+      let encrypted = cipher.update(responseString, 'utf8');
       encrypted = Buffer.concat([encrypted, cipher.final()]);
       
       console.log('Response encrypted length:', encrypted.length);
@@ -123,7 +122,10 @@ export class MetaFlowController {
             error: error.message
           });
           
-          const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
+          // CRITICAL: Use ZERO IV for response encryption
+          const zeroIv = Buffer.alloc(16, 0);
+          
+          const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, zeroIv);
           let encrypted = cipher.update(errorPayload, 'utf8');
           encrypted = Buffer.concat([encrypted, cipher.final()]);
           

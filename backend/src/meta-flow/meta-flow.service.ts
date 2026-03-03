@@ -123,10 +123,10 @@ sxEK+yx6I1EkGaK+/KWEpai7
   async processFlow(decryptedData: any): Promise<any> {
     const { screen, data, version, action } = decryptedData;
 
-    // For INIT/health check, return version confirmation
+    // For INIT/health check, return the expected format
     if (action === 'INIT' || action === 'ping') {
-      console.log('Processing INIT/health check - returning version confirmation');
-      return { version: '1.0' };
+      console.log('Processing INIT/health check - returning data with status active');
+      return { data: { status: 'active' } };
     }
 
     // For real flow data, return empty object for now

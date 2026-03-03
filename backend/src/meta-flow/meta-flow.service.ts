@@ -68,15 +68,20 @@ sxEK+yx6I1EkGaK+/KWEpai7
     
     console.log('Starting AES decryption...');
     const decipher = crypto.createDecipheriv('aes-128-cbc', aesKey, iv);
+    decipher.setAutoPadding(false); // Disable auto-padding
     
-    // NO encoding parameters when using Buffer input
+    // Decrypt without auto-padding
     let decrypted = decipher.update(encryptedData);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     
-    console.log('AES decryption successful');
-    console.log('Decrypted JSON:', decrypted.toString());
+    // Manually remove PKCS#7 padding
+    const paddingLength = decrypted[decrypted.length - 1];
+    const unpaddedData = decrypted.slice(0, decrypted.length - paddingLength);
     
-    const parsed = JSON.parse(decrypted.toString());
+    console.log('AES decryption successful');
+    console.log('Decrypted JSON:', unpaddedData.toString());
+    
+    const parsed = JSON.parse(unpaddedData.toString());
     console.log('Decrypted Flow:', parsed);
     
     return {

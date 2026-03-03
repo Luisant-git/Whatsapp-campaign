@@ -46,10 +46,10 @@ const FlowBuilder = ({ onBack }) => {
       id: Date.now(),
       ...(type === 'TextInput' && { 'input-type': 'text', 'helper-text': 'Enter text' }),
       ...(type === 'TextArea' && { 'helper-text': 'Enter text' }),
-      ...(type === 'Dropdown' && { 'data-source': ['Option 1'] }),
+      ...(type === 'Dropdown' && { 'data-source': [{ id: 'option1', title: 'Option 1' }] }),
       ...(type === 'DatePicker' && { 'helper-text': 'Select a date' }),
-      ...(type === 'CheckboxGroup' && { 'data-source': ['Option 1'] }),
-      ...(type === 'RadioButtonsGroup' && { 'data-source': ['Option 1'] })
+      ...(type === 'CheckboxGroup' && { 'data-source': [{ id: 'option1', title: 'Option 1' }] }),
+      ...(type === 'RadioButtonsGroup' && { 'data-source': [{ id: 'option1', title: 'Option 1' }] })
     };
 
     const updatedScreens = [...screens];

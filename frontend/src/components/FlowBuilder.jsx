@@ -7,8 +7,8 @@ const FlowBuilder = ({ onBack }) => {
   const [flowName, setFlowName] = useState('');
   const [screens, setScreens] = useState([
     {
-      id: '',
-      title: '',
+      id: 'SCREEN_1',
+      title: 'Screen 1',
       data: {},
       layout: {
         type: 'SingleColumnLayout',
@@ -16,6 +16,18 @@ const FlowBuilder = ({ onBack }) => {
       }
     }
   ]);
+
+  // Auto-update screen ID and title when flow name changes
+  const handleFlowNameChange = (name) => {
+    setFlowName(name);
+    if (name && screens.length === 1 && screens[0].layout.children.length === 0) {
+      const updatedScreens = [...screens];
+      const screenId = name.toUpperCase().replace(/\s+/g, '_');
+      updatedScreens[0].id = screenId;
+      updatedScreens[0].title = name;
+      setScreens(updatedScreens);
+    }
+  };
   const [currentScreen, setCurrentScreen] = useState(0);
   const [selectedComponent, setSelectedComponent] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -220,7 +232,7 @@ const FlowBuilder = ({ onBack }) => {
           className="flow-name-input"
           placeholder="Enter Flow Name"
           value={flowName}
-          onChange={(e) => setFlowName(e.target.value)}
+          onChange={(e) => handleFlowNameChange(e.target.value)}
         />
         <div className="header-actions">
           <button className="btn-secondary" onClick={() => setShowPreview(true)}>
@@ -251,6 +263,14 @@ const FlowBuilder = ({ onBack }) => {
         </div>
 
         <div className="canvas-panel">
+          <div className="screen-header">
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', width: '100%' }}>
+              <span style={{ fontSize: '0.875rem', color: '#6b7280', fontWeight: 600 }}>Screen ID:</span>
+              <span style={{ fontSize: '0.875rem', color: '#1f2937', fontWeight: 600, fontFamily: 'monospace' }}>{screens[currentScreen].id}</span>
+              <span style={{ marginLeft: '1rem', fontSize: '0.875rem', color: '#6b7280', fontWeight: 600 }}>Title:</span>
+              <span style={{ fontSize: '0.875rem', color: '#1f2937', fontWeight: 600 }}>{screens[currentScreen].title}</span>
+            </div>
+          </div>
           <div className="canvas-wireframe">
             {renderConnections()}
             {screens[currentScreen].layout.children.map((component, index) => {

@@ -147,7 +147,7 @@ const FlowBuilder = ({ onBack }) => {
     }
 
     const flowJson = {
-      version: '5.0',
+      version: '6.0',
       screens: screens.map(screen => ({
         id: screen.id,
         title: screen.title,

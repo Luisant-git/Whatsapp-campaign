@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Req, Res, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Body, HttpCode } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { MetaFlowService } from './meta-flow.service';
 
@@ -12,6 +12,7 @@ export class MetaFlowController {
   }
 
   @Post()
+  @HttpCode(200)
   async handleFlow(@Body() body: any) {
     try {
       console.log('Raw body keys:', Object.keys(body));

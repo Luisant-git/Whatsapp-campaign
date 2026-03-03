@@ -82,7 +82,10 @@ sxEK+yx6I1EkGaK+/KWEpai7
       cipher.final()
     ]);
     
-    return { encrypted_flow_data: encryptedBuffer.toString('base64') };
+    return {
+      encrypted_flow_data: encryptedBuffer.toString('base64'),
+      initial_vector: iv.toString('base64')
+    };
   }
 
   async processFlow(decryptedData: any): Promise<any> {

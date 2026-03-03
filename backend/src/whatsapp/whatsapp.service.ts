@@ -213,7 +213,8 @@ export class WhatsappService {
 
       // Check for flow triggers first
       try {
-        const flowResult = await this.flowTriggerService.checkAndSendFlow(text, from, userId);
+        const settings = await this.getSettings(userId);
+        const flowResult = await this.flowTriggerService.checkAndSendFlowWithClient(text, from, this.prisma, settings.accessToken, settings.phoneNumberId);
         if (flowResult?.success) {
           this.logger.log(`✅ Flow triggered: ${flowResult.trigger.name}`);
           return;
@@ -824,7 +825,7 @@ export class WhatsappService {
 
       // Check for flow triggers first
       try {
-        const flowResult = await this.flowTriggerService.checkAndSendFlow(text, from, settingsId);
+        const flowResult = await this.flowTriggerService.checkAndSendFlowWithClient(text, from, tenantClient, whatsappSettings.accessToken, whatsappSettings.phoneNumberId);
         if (flowResult?.success) {
           this.logger.log(`✅ Flow triggered: ${flowResult.trigger.name}`);
           return;

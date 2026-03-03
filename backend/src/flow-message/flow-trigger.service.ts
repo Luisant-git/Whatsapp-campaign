@@ -1,25 +1,21 @@
 import { Injectable } from '@nestjs/common';
-import { BaseTenantService } from '../base-tenant.service';
 import { TenantPrismaService } from '../tenant-prisma.service';
 import { CentralPrismaService } from '../central-prisma.service';
-import { TenantContext } from '../tenant/tenant.decorator';
 import axios from 'axios';
 
 @Injectable()
-export class FlowTriggerService extends BaseTenantService {
+export class FlowTriggerService {
   private readonly accessToken = process.env.META_ACCESS_TOKEN;
   private readonly phoneNumberId = process.env.PHONE_NUMBER_ID;
 
   constructor(
-    tenantPrisma: TenantPrismaService,
-    centralPrisma: CentralPrismaService,
-  ) {
-    super(tenantPrisma, centralPrisma);
-  }
+    private tenantPrisma: TenantPrismaService,
+    private centralPrisma: CentralPrismaService,
+  ) {}
 
   // Create a new flow trigger
   async createTrigger(userId: number, data: any) {
-    const prisma = await this.getTenantDb(userId);
+    const prisma = await this.getTenantClient(userId);
     return prisma.flowTrigger.create({
       data: {
         name: data.name,
@@ -39,7 +35,7 @@ export class FlowTriggerService extends BaseTenantService {
 
   // Get all triggers for a user
   async getTriggers(userId: number) {
-    const prisma = await this.getTenantDb(userId);
+    const prisma = await this.getTenantClient(userId);
     return prisma.flowTrigger.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
@@ -48,7 +44,7 @@ export class FlowTriggerService extends BaseTenantService {
 
   // Get single trigger
   async getTrigger(id: number, userId: number) {
-    const prisma = await this.getTenantDb(userId);
+    const prisma = await this.getTenantClient(userId);
     return prisma.flowTrigger.findFirst({
       where: { id, userId },
     });
@@ -56,7 +52,7 @@ export class FlowTriggerService extends BaseTenantService {
 
   // Update trigger
   async updateTrigger(id: number, userId: number, data: any) {
-    const prisma = await this.getTenantDb(userId);
+    const prisma = await this.getTenantClient(userId);
     return prisma.flowTrigger.update({
       where: { id },
       data: {
@@ -77,20 +73,18 @@ export class FlowTriggerService extends BaseTenantService {
 
   // Delete trigger
   async deleteTrigger(id: number, userId: number) {
-    const prisma = await this.getTenantDb(userId);
+    const prisma = await this.getTenantClient(userId);
     return prisma.flowTrigger.delete({
       where: { id },
     });
   }
 
-  // Check if message matches any trigger and send flow
-  async checkAndSendFlow(message: string, phoneNumber: string, userId: number) {
-    const prisma = await this.getTenantDb(userId);
+  // Check if message matches any trigger and send flow (with tenant client)
+  async checkAndSendFlowWithClient(message: string, phoneNumber: string, tenantClient: any, accessToken: string, phoneNumberId: string) {
     const triggerWord = message.toLowerCase().trim();
     
-    const trigger = await prisma.flowTrigger.findFirst({
+    const trigger = await tenantClient.flowTrigger.findFirst({
       where: {
-        userId,
         triggerWord,
         isActive: true,
       },
@@ -101,10 +95,10 @@ export class FlowTriggerService extends BaseTenantService {
     }
 
     try {
-      const response = await this.sendFlowMessage(phoneNumber, trigger);
+      const response = await this.sendFlowMessage(phoneNumber, trigger, accessToken, phoneNumberId);
       
       // Log success
-      await prisma.flowTriggerLog.create({
+      await tenantClient.flowTriggerLog.create({
         data: {
           flowTriggerId: trigger.id,
           phoneNumber,
@@ -117,7 +111,7 @@ export class FlowTriggerService extends BaseTenantService {
       return { success: true, trigger, messageId: response.data.messages[0].id };
     } catch (error) {
       // Log error
-      await prisma.flowTriggerLog.create({
+      await tenantClient.flowTriggerLog.create({
         data: {
           flowTriggerId: trigger.id,
           phoneNumber,
@@ -132,9 +126,9 @@ export class FlowTriggerService extends BaseTenantService {
   }
 
   // Send flow message via WhatsApp API
-  private async sendFlowMessage(phoneNumber: string, trigger: any) {
+  private async sendFlowMessage(phoneNumber: string, trigger: any, accessToken: string, phoneNumberId: string) {
     return axios.post(
-      `https://graph.facebook.com/v18.0/${this.phoneNumberId}/messages`,
+      `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
       {
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
@@ -170,16 +164,23 @@ export class FlowTriggerService extends BaseTenantService {
       },
       {
         headers: {
-          Authorization: `Bearer ${this.accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
       }
     );
   }
 
+  private async getTenantClient(userId: number) {
+    const tenant = await this.centralPrisma.tenant.findUnique({ where: { id: userId } });
+    if (!tenant) throw new Error('Tenant not found');
+    const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+    return this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+  }
+
   // Get trigger logs/analytics
   async getTriggerLogs(triggerId: number, userId: number) {
-    const prisma = await this.getTenantDb(userId);
+    const prisma = await this.getTenantClient(userId);
     const trigger = await this.getTrigger(triggerId, userId);
     if (!trigger) {
       throw new Error('Trigger not found');

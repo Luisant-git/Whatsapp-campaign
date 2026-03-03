@@ -159,7 +159,28 @@ const FlowBuilder = ({ onBack }) => {
 
         <div className="canvas-panel">
           <div className="screen-header">
-            <h3>{screens[currentScreen].title}</h3>
+            <input
+              type="text"
+              className="screen-title-input"
+              value={screens[currentScreen].title}
+              onChange={(e) => {
+                const updatedScreens = [...screens];
+                updatedScreens[currentScreen].title = e.target.value;
+                setScreens(updatedScreens);
+              }}
+              placeholder="Screen Title"
+            />
+            <input
+              type="text"
+              className="screen-id-input"
+              value={screens[currentScreen].id}
+              onChange={(e) => {
+                const updatedScreens = [...screens];
+                updatedScreens[currentScreen].id = e.target.value.toUpperCase().replace(/\s/g, '_');
+                setScreens(updatedScreens);
+              }}
+              placeholder="SCREEN_ID"
+            />
           </div>
           <div className="canvas">
             {screens[currentScreen].layout.children.map((component, index) => (

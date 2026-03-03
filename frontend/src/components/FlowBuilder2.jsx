@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Save, Eye, ArrowLeft, Trash2, GripVertical } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Save, Eye, ArrowLeft, Trash2, Move, Type, FileText, List, Calendar, CheckSquare, Circle } from 'lucide-react';
 import flowAPI from '../api/flow';
 import '../styles/FlowBuilder.css';
 
@@ -21,20 +21,22 @@ const FlowBuilder = ({ onBack }) => {
   const [showPreview, setShowPreview] = useState(false);
 
   const componentTypes = [
-    { type: 'TextInput', label: 'Text Input', icon: '📝' },
-    { type: 'TextArea', label: 'Text Area', icon: '📄' },
-    { type: 'Dropdown', label: 'Dropdown', icon: '📋' },
-    { type: 'DatePicker', label: 'Date Picker', icon: '📅' },
-    { type: 'CheckboxGroup', label: 'Checkbox', icon: '☑️' },
-    { type: 'RadioButtonsGroup', label: 'Radio Button', icon: '🔘' },
+    { type: 'TextInput', label: 'Text Input', Icon: Type },
+    { type: 'TextArea', label: 'Text Area', Icon: FileText },
+    { type: 'Dropdown', label: 'Dropdown', Icon: List },
+    { type: 'DatePicker', label: 'Date Picker', Icon: Calendar },
+    { type: 'CheckboxGroup', label: 'Checkbox', Icon: CheckSquare },
+    { type: 'RadioButtonsGroup', label: 'Radio Button', Icon: Circle },
   ];
+  const [draggedComponent, setDraggedComponent] = useState(null);
 
-  const addComponent = (type) => {
+  const addComponent = (type, x = 100, y = 100) => {
     const newComponent = {
       type,
       name: `${type.toLowerCase()}_${Date.now()}`,
-      label: `Enter ${type}`,
+      label: `${type}`,
       required: false,
+      position: { x, y },
       ...(type === 'TextInput' && { 'input-type': 'text', 'helper-text': '' }),
       ...(type === 'TextArea' && { 'helper-text': '' }),
       ...(type === 'Dropdown' && { 'data-source': [] }),
@@ -47,6 +49,36 @@ const FlowBuilder = ({ onBack }) => {
     updatedScreens[currentScreen].layout.children.push(newComponent);
     setScreens(updatedScreens);
     setSelectedComponent(updatedScreens[currentScreen].layout.children.length - 1);
+  };
+
+  const handleDragStart = (e, type) => {
+    setDraggedComponent(type);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    if (draggedComponent) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      addComponent(draggedComponent, x - 60, y - 30);
+      setDraggedComponent(null);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const moveComponent = (index, newX, newY) => {
+    const updatedScreens = [...screens];
+    updatedScreens[currentScreen].layout.children[index].position = { x: newX, y: newY };
+    setScreens(updatedScreens);
+  };
+
+  const getComponentIcon = (type) => {
+    const comp = componentTypes.find(c => c.type === type);
+    return comp ? comp.Icon : Type;
   };
 
   const updateComponent = (index, field, value) => {
@@ -69,7 +101,7 @@ const FlowBuilder = ({ onBack }) => {
     }
 
     const flowJson = {
-      version: '3.0',
+      version: '5.0',
       screens: screens.map(screen => ({
         id: screen.id,
         title: screen.title,
@@ -150,10 +182,15 @@ const FlowBuilder = ({ onBack }) => {
           <h3>Components</h3>
           <div className="component-list">
             {componentTypes.map((comp) => (
-              <button key={comp.type} onClick={() => addComponent(comp.type)} className="component-btn">
-                <span className="component-icon">{comp.icon}</span>
+              <div 
+                key={comp.type} 
+                draggable
+                onDragStart={(e) => handleDragStart(e, comp.type)}
+                className="component-btn"
+              >
+                <comp.Icon size={20} />
                 <span>{comp.label}</span>
-              </button>
+              </div>
             ))}
           </div>
         </div>
@@ -162,31 +199,56 @@ const FlowBuilder = ({ onBack }) => {
           <div className="screen-header">
             <h3>{screens[currentScreen].title}</h3>
           </div>
-          <div className="canvas">
-            {screens[currentScreen].layout.children.map((component, index) => (
-              <div 
-                key={index} 
-                className={`component-item ${selectedComponent === index ? 'selected' : ''}`}
-                onClick={() => setSelectedComponent(index)}
-              >
-                <div className="component-drag">
-                  <GripVertical size={16} />
-                </div>
-                <div className="component-content">
-                  <div className="component-label">
-                    <span className="component-type">{component.type}</span>
-                    <span className="component-name">{component.label}</span>
+          <div 
+            className="canvas-wireframe"
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+          >
+            {screens[currentScreen].layout.children.map((component, index) => {
+              const ComponentIcon = getComponentIcon(component.type);
+              return (
+                <div 
+                  key={index} 
+                  className={`wireframe-node ${selectedComponent === index ? 'selected' : ''}`}
+                  style={{
+                    left: component.position?.x || 100,
+                    top: component.position?.y || 100 + (index * 80)
+                  }}
+                  onClick={() => setSelectedComponent(index)}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('index', index.toString());
+                  }}
+                  onDragEnd={(e) => {
+                    const rect = e.currentTarget.parentElement.getBoundingClientRect();
+                    const newX = e.clientX - rect.left - 60;
+                    const newY = e.clientY - rect.top - 30;
+                    if (newX > 0 && newY > 0) {
+                      moveComponent(index, newX, newY);
+                    }
+                  }}
+                >
+                  <div className="node-header">
+                    <ComponentIcon size={16} />
+                    <span>{component.type}</span>
+                    <button 
+                      className="node-delete" 
+                      onClick={(e) => { e.stopPropagation(); removeComponent(index); }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
-                  {component.required && <span className="required-badge">Required</span>}
+                  <div className="node-body">
+                    <div className="node-label">{component.label}</div>
+                    {component.required && <span className="node-badge">Required</span>}
+                  </div>
                 </div>
-                <button className="component-delete" onClick={(e) => { e.stopPropagation(); removeComponent(index); }}>
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
+              );
+            })}
             {screens[currentScreen].layout.children.length === 0 && (
-              <div className="empty-canvas">
-                <p>👈 Click on components to add them here</p>
+              <div className="empty-wireframe">
+                <p>👈 Drag components here to build your flow</p>
               </div>
             )}
           </div>

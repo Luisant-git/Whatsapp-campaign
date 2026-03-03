@@ -7,7 +7,8 @@ import { FlowResult, SendFlowDto, FlowResponse } from './flow-message.types';
 export class FlowMessageService {
   private readonly accessToken = process.env.META_ACCESS_TOKEN || 'EAAcMSpblosgBQ0Lr9x2byXAquXp5o1ceNowmZCJBDdHMtENNjHiZA8HkMALo6tP5ctnWyJWDIBZAENZAvQluvtGAdjouaEGIPYZBglCh1NZBFpWLUMTCZC79uWG468iYgh1nSYE1Fz4NO72sA6NeMjxG6CgD8JqcsGOH7kVjxfrdZACwOyRJl5AhxqlZBZAHPwuDPgBQZDZD';
   private readonly phoneNumberId = process.env.META_PHONE_NUMBER_ID || '803957376127788';
-  private readonly wabaId = process.env.META_WABA_ID || '24366060823054981'; // WhatsApp Business Account ID
+  private readonly wabaId = process.env.META_WABA_ID || '24366060823054981';
+  private readonly apiVersion = 'v21.0';
 
   async getAvailableFlows() {
     try {
@@ -17,7 +18,7 @@ export class FlowMessageService {
       }
 
       const response = await axios.get(
-        `https://graph.facebook.com/v18.0/${this.wabaId}/flows`,
+        `https://graph.facebook.com/${this.apiVersion}/${this.wabaId}/flows`,
         {
           headers: {
             'Authorization': `Bearer ${this.accessToken}`,
@@ -30,7 +31,7 @@ export class FlowMessageService {
         response.data.data.map(async (flow: any) => {
           try {
             const detailResponse = await axios.get(
-              `https://graph.facebook.com/v18.0/${flow.id}`,
+              `https://graph.facebook.com/${this.apiVersion}/${flow.id}`,
               {
                 headers: {
                   'Authorization': `Bearer ${this.accessToken}`,
@@ -105,7 +106,7 @@ export class FlowMessageService {
 
   private async sendSingleFlowMessage(params: any) {
     return axios.post(
-      `https://graph.facebook.com/v18.0/${this.phoneNumberId}/messages`,
+      `https://graph.facebook.com/${this.apiVersion}/${this.phoneNumberId}/messages`,
       {
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
@@ -162,7 +163,7 @@ export class FlowMessageService {
 
       // Step 1: Create flow
       const response = await axios.post(
-        `https://graph.facebook.com/v18.0/${this.wabaId}/flows`,
+        `https://graph.facebook.com/${this.apiVersion}/${this.wabaId}/flows`,
         {
           name: flowData.name,
           categories: ['APPOINTMENT_BOOKING']
@@ -188,7 +189,7 @@ export class FlowMessageService {
       formData.append('asset_type', 'FLOW_JSON');
 
       const uploadResponse = await axios.post(
-        `https://graph.facebook.com/v18.0/${flowId}/assets`,
+        `https://graph.facebook.com/${this.apiVersion}/${flowId}/assets`,
         formData,
         {
           headers: {
@@ -201,7 +202,7 @@ export class FlowMessageService {
 
       // Step 3: Publish the flow
       const publishResponse = await axios.post(
-        `https://graph.facebook.com/v18.0/${flowId}/publish`,
+        `https://graph.facebook.com/${this.apiVersion}/${flowId}/publish`,
         {},
         {
           headers: {

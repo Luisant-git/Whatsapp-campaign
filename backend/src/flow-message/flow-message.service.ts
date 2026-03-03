@@ -45,7 +45,7 @@ export class FlowMessageService {
               description: flow.status,
               status: flow.status,
               updatedAt: flow.updated_time,
-              firstScreen: detailResponse.data.json_version?.screens?.[0]?.id || 'SIGN_IN'
+              firstScreen: detailResponse.data.json_version?.screens?.[0]?.id || 'SCREEN'
             };
           } catch (error) {
             return {
@@ -54,7 +54,7 @@ export class FlowMessageService {
               description: flow.status,
               status: flow.status,
               updatedAt: flow.updated_time,
-              firstScreen: 'SIGN_IN'
+              firstScreen: 'SCREEN'
             };
           }
         })
@@ -79,7 +79,7 @@ export class FlowMessageService {
           bodyText: data.bodyText || 'Click the button below to start the Flow experience!',
           footerText: data.footerText || 'Powered by Meta Flow',
           ctaText: data.ctaText || 'Start Flow',
-          screenName: data.screenName || 'SIGN_IN',
+          screenName: data.screenName || 'SCREEN',
           screenData: data.screenData || {}
         });
 

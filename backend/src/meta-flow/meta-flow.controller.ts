@@ -41,6 +41,8 @@ export class MetaFlowController {
         });
         
         console.log('JSON payload before encryption:', responsePayload);
+        console.log('Payload length:', Buffer.byteLength(responsePayload));
+        console.log('Expected length should be 29 bytes for correct structure');
         
         // CRITICAL: Use ZERO IV for response encryption
         const zeroIv = Buffer.alloc(16, 0);

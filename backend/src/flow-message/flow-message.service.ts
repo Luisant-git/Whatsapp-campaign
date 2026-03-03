@@ -158,6 +158,8 @@ export class FlowMessageService {
 
   async createFlow(flowData: any) {
     try {
+      console.log('Creating flow with data:', JSON.stringify(flowData.flowJson, null, 2));
+
       // Step 1: Create flow
       const response = await axios.post(
         `https://graph.facebook.com/v18.0/${this.wabaId}/flows`,
@@ -185,7 +187,7 @@ export class FlowMessageService {
       formData.append('name', 'flow.json');
       formData.append('asset_type', 'FLOW_JSON');
 
-      await axios.post(
+      const uploadResponse = await axios.post(
         `https://graph.facebook.com/v18.0/${flowId}/assets`,
         formData,
         {
@@ -195,10 +197,10 @@ export class FlowMessageService {
           }
         }
       );
-      console.log('Flow JSON uploaded');
+      console.log('Flow JSON uploaded:', uploadResponse.data);
 
       // Step 3: Publish the flow
-      await axios.post(
+      const publishResponse = await axios.post(
         `https://graph.facebook.com/v18.0/${flowId}/publish`,
         {},
         {
@@ -208,7 +210,7 @@ export class FlowMessageService {
           }
         }
       );
-      console.log('Flow published');
+      console.log('Flow published:', publishResponse.data);
 
       return { success: true, flowId, status: 'published' };
     } catch (error) {

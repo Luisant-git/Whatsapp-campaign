@@ -67,12 +67,18 @@ const FlowBuilder = ({ onBack }) => {
       alert('Please enter a flow name');
       return;
     }
+
+    if (screens[0].layout.children.length === 0) {
+      alert('Please add at least one component to the flow');
+      return;
+    }
+
     const flowJson = {
       version: '3.0',
       screens: screens.map(screen => ({
-        id: screen.id,
-        title: screen.title,
-        data: screen.data,
+        id: screen.id || 'SCREEN',
+        title: screen.title || flowName,
+        data: {},
         layout: screen.layout,
         terminal: true
       }))
@@ -83,7 +89,8 @@ const FlowBuilder = ({ onBack }) => {
       alert('Flow created successfully!');
       onBack();
     } catch (error) {
-      alert('Failed to create flow');
+      console.error('Flow creation error:', error);
+      alert('Failed to create flow: ' + (error.response?.data?.error?.message || error.message));
     }
   };
 

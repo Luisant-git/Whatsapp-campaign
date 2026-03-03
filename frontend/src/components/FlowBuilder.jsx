@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Save, Eye, ArrowLeft, Trash2, GripVertical, Type, AlignLeft, ChevronDown, Calendar, CheckSquare, Circle } from 'lucide-react';
+import { Save, Eye, ArrowLeft, Trash2, GripVertical, Type, AlignLeft, ChevronDown, Calendar, CheckSquare, Circle, X } from 'lucide-react';
 import flowAPI from '../api/flow';
 import '../styles/FlowBuilder.css';
 
@@ -95,7 +95,7 @@ const FlowBuilder = ({ onBack }) => {
           <div className="preview-header">
             <h3>{currentScreenData.title || 'Preview'}</h3>
             <button onClick={() => setShowPreview(false)}>
-              <ArrowLeft size={20} />
+              <X size={20} />
             </button>
           </div>
           <div className="preview-body">

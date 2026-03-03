@@ -426,22 +426,34 @@
 }
 
 .preview-header button {
-  width: 36px;
-  height: 36px;
-  background: #f3f4f6;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  color: #6b7280;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  width: 36px !important;
+  height: 36px !important;
+  background: #f3f4f6 !important;
+  border: none !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  color: #6b7280 !important;
+  transition: all 0.2s !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  flex-shrink: 0 !important;
+  font-size: 1rem !important;
+  line-height: 1 !important;
 }
 
 .preview-header button:hover {
-  background: #e5e7eb;
-  color: #1f2937;
+  background: #e5e7eb !important;
+  color: #1f2937 !important;
+}
+
+.preview-header button svg {
+  display: block !important;
+  width: 20px !important;
+  height: 20px !important;
 }
 
 .preview-body {

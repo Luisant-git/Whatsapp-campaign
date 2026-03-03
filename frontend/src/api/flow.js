@@ -3,7 +3,10 @@ import { API_BASE_URL } from './config';
 const flowAPI = {
   // Get available flows
   getFlows: async () => {
-    const response = await fetch(`${API_BASE_URL}/flow-messages/flows`);
+    const response = await fetch(`${API_BASE_URL}/flow-messages/flows`, {
+      credentials: 'include',
+    });
+    if (!response.ok) return [];
     return response.json();
   },
 
@@ -14,6 +17,7 @@ const flowAPI = {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify(data),
     });
     return response.json();
@@ -21,7 +25,9 @@ const flowAPI = {
 
   // Get sending history
   getHistory: async () => {
-    const response = await fetch(`${API_BASE_URL}/flow-messages/sent-history`);
+    const response = await fetch(`${API_BASE_URL}/flow-messages/sent-history`, {
+      credentials: 'include',
+    });
     return response.json();
   },
 };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Send, Plus, X } from 'lucide-react';
 import flowAPI from '../api/flow';
 import '../styles/FlowManager.css';
 
@@ -6,10 +7,10 @@ const FlowManager = () => {
   const [flows, setFlows] = useState([]);
   const [phoneNumbers, setPhoneNumbers] = useState(['']);
   const [selectedFlow, setSelectedFlow] = useState('');
-  const [headerText, setHeaderText] = useState('Welcome to Flow Sample');
-  const [bodyText, setBodyText] = useState('Click the button below to start the Flow experience!');
-  const [footerText, setFooterText] = useState('Powered by Meta Flow');
-  const [ctaText, setCtaText] = useState('Start Flow');
+  const [headerText, setHeaderText] = useState('');
+  const [bodyText, setBodyText] = useState('');
+  const [footerText, setFooterText] = useState('');
+  const [ctaText, setCtaText] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
 
@@ -83,130 +84,167 @@ const FlowManager = () => {
 
   return (
     <div className="flow-manager">
-      <div className="flow-header">
-        <h1>📱 WhatsApp Flow Manager</h1>
-        <p>Send interactive Flow messages to multiple phone numbers</p>
+      <div className="page-header">
+        <div className="page-title">
+          <h1>Flow Manager</h1>
+          <p className="page-subtitle">Send interactive Flow messages to multiple phone numbers</p>
+        </div>
       </div>
 
-      <div className="flow-card">
-        <h2>Send Flow Message</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Flow Selection:</label>
-            <select 
-              value={selectedFlow} 
-              onChange={(e) => setSelectedFlow(e.target.value)}
-              required
-            >
-              <option value="">Select a Flow...</option>
-              {flows.map(flow => (
-                <option key={flow.id} value={flow.id}>
-                  {flow.name} ({flow.description})
-                </option>
+      <div className="content-grid">
+        <div className="form-section">
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label className="form-label">
+                Flow Selection <span className="required">*</span>
+              </label>
+              <select 
+                className="form-input"
+                value={selectedFlow} 
+                onChange={(e) => setSelectedFlow(e.target.value)}
+                required
+              >
+                <option value="">Select a Flow...</option>
+                {flows.map(flow => (
+                  <option key={flow.id} value={flow.id}>
+                    {flow.name} - {flow.description}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                Phone Numbers <span className="required">*</span>
+              </label>
+              {phoneNumbers.map((phone, index) => (
+                <div key={index} className="phone-input-row">
+                  <input
+                    type="tel"
+                    className="form-input"
+                    placeholder="Enter phone number (e.g., 919360999351)"
+                    value={phone}
+                    onChange={(e) => updatePhoneNumber(index, e.target.value)}
+                    required={index === 0}
+                  />
+                  {phoneNumbers.length > 1 && (
+                    <button 
+                      type="button" 
+                      onClick={() => removePhoneNumber(index)}
+                      className="remove-phone-btn"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
               ))}
-            </select>
-          </div>
+              <button type="button" onClick={addPhoneNumber} className="add-phone-btn">
+                <Plus size={16} />
+                <span>Add Phone Number</span>
+              </button>
+            </div>
 
-          <div className="form-group">
-            <label>Phone Numbers:</label>
-            {phoneNumbers.map((phone, index) => (
-              <div key={index} className="phone-input">
-                <input
-                  type="tel"
-                  placeholder="Enter phone number (e.g., 919360999351)"
-                  value={phone}
-                  onChange={(e) => updatePhoneNumber(index, e.target.value)}
-                  required={index === 0}
-                />
-                {phoneNumbers.length > 1 && (
-                  <button 
-                    type="button" 
-                    onClick={() => removePhoneNumber(index)}
-                    className="remove-btn"
-                  >
-                    Remove
-                  </button>
+            <div className="form-group">
+              <label className="form-label">Header Text</label>
+              <input
+                type="text"
+                className="form-input"
+                value={headerText}
+                onChange={(e) => setHeaderText(e.target.value)}
+                maxLength={60}
+                placeholder="Enter header text"
+              />
+              <span className="form-hint">{headerText.length}/60 characters</span>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Body Text</label>
+              <textarea
+                className="form-textarea"
+                value={bodyText}
+                onChange={(e) => setBodyText(e.target.value)}
+                rows={3}
+                maxLength={1024}
+                placeholder="Enter body text"
+              />
+              <span className="form-hint">{bodyText.length}/1024 characters</span>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Footer Text</label>
+              <input
+                type="text"
+                className="form-input"
+                value={footerText}
+                onChange={(e) => setFooterText(e.target.value)}
+                maxLength={60}
+                placeholder="Enter footer text"
+              />
+              <span className="form-hint">{footerText.length}/60 characters</span>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Button Text</label>
+              <input
+                type="text"
+                className="form-input"
+                value={ctaText}
+                onChange={(e) => setCtaText(e.target.value)}
+                maxLength={20}
+                placeholder="Enter button text"
+              />
+              <span className="form-hint">{ctaText.length}/20 characters</span>
+            </div>
+
+            <div className="form-actions">
+              <button type="submit" disabled={loading} className="send-btn">
+                {loading ? (
+                  <>
+                    <div className="loading-spinner" />
+                    <span>Sending...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send size={18} className="send-icon" />
+                    <span>Send Flow Messages</span>
+                  </>
                 )}
-              </div>
-            ))}
-            <button type="button" onClick={addPhoneNumber} className="add-btn">
-              + Add Phone Number
-            </button>
-          </div>
-
-          <div className="form-group">
-            <label>Header Text:</label>
-            <input
-              type="text"
-              value={headerText}
-              onChange={(e) => setHeaderText(e.target.value)}
-              maxLength="60"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Body Text:</label>
-            <textarea
-              value={bodyText}
-              onChange={(e) => setBodyText(e.target.value)}
-              rows="3"
-              maxLength="1024"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Footer Text:</label>
-            <input
-              type="text"
-              value={footerText}
-              onChange={(e) => setFooterText(e.target.value)}
-              maxLength="60"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Button Text:</label>
-            <input
-              type="text"
-              value={ctaText}
-              onChange={(e) => setCtaText(e.target.value)}
-              maxLength="20"
-            />
-          </div>
-
-          <button type="submit" disabled={loading} className="send-btn">
-            {loading ? 'Sending...' : '🚀 Send Flow Messages'}
-          </button>
-        </form>
-
-        {loading && (
-          <div className="loading">
-            <p>Sending messages... Please wait</p>
-          </div>
-        )}
+              </button>
+            </div>
+          </form>
+        </div>
 
         {results && (
-          <div className="results">
-            {results.error ? (
-              <p className="error">❌ Error: {results.error}</p>
-            ) : (
-              <>
-                <h3>Results:</h3>
-                <p className="success">✅ Successfully sent: {results.totalSent}</p>
-                <p className="error">❌ Failed: {results.totalFailed}</p>
-                <div className="result-details">
-                  {results.results?.map((result, index) => (
-                    <p key={index} className={result.status === 'success' ? 'success' : 'error'}>
-                      {result.status === 'success' ? '✅' : '❌'} {result.phoneNumber} - 
-                      {result.status === 'success' 
-                        ? ` Message ID: ${result.messageId}` 
-                        : ` Error: ${result.error}`
-                      }
-                    </p>
-                  ))}
+          <div className="results-section">
+            <div className="results-header">
+              <h2>Results</h2>
+              <div className="results-summary">
+                <span className="success-count">✓ {results.totalSent} Sent</span>
+                <span className="failed-count">✗ {results.totalFailed} Failed</span>
+              </div>
+            </div>
+            
+            <div className="results-list">
+              {results.results?.map((result, index) => (
+                <div key={index} className={`result-item ${result.status === 'success' ? 'success' : 'error'}`}>
+                  <div className="result-info">
+                    <div className="result-phone">{result.phoneNumber}</div>
+                    {result.status === 'failed' && (
+                      <div className="result-error-msg">{result.error}</div>
+                    )}
+                    {result.status === 'success' && result.messageId && (
+                      <div className="result-error-msg">ID: {result.messageId}</div>
+                    )}
+                  </div>
+                  <div className="result-status">
+                    <span className={`status-icon ${result.status === 'success' ? 'success' : 'error'}`}>
+                      {result.status === 'success' ? '✓' : '✗'}
+                    </span>
+                    <span className="status-text">{result.status}</span>
+                  </div>
                 </div>
-              </>
-            )}
+              ))}
+            </div>
           </div>
         )}
       </div>

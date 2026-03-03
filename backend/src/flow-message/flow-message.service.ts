@@ -60,6 +60,7 @@ export class FlowMessageService {
       `https://graph.facebook.com/v18.0/${this.phoneNumberId}/messages`,
       {
         messaging_product: 'whatsapp',
+        recipient_type: 'individual',
         to: params.phoneNumber,
         type: 'interactive',
         interactive: {
@@ -78,7 +79,7 @@ export class FlowMessageService {
             name: 'flow',
             parameters: {
               flow_message_version: '3',
-              flow_token: 'flow_token_' + Date.now(),
+              flow_token: `flow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
               flow_id: params.flowId,
               flow_cta: params.ctaText,
               flow_action: 'navigate',

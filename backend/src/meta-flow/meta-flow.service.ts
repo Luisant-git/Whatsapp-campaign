@@ -56,11 +56,11 @@ sxEK+yx6I1EkGaK+/KWEpai7
     
     const iv = Buffer.from(initialVector, 'base64');
     
-    // For INIT calls, there's no flow data to decrypt
+    // For empty flow data, return default structure
     if (!encryptedFlowData) {
-      console.log('INIT call - no flow data to decrypt');
+      console.log('Empty flow data - returning default structure');
       return {
-        data: { action: 'ping', version: '1.0' },
+        data: { action: 'INIT', version: '1.0' },
         aesKey,
         iv
       };
@@ -71,17 +71,12 @@ sxEK+yx6I1EkGaK+/KWEpai7
     console.log('Encrypted Length:', encryptedData.length);
     console.log('Modulo 16:', encryptedData.length % 16);
     
-    // Check if this is a Flow INIT/health-check call
+    // Now all encrypted data should have valid block size
     if (encryptedData.length % 16 !== 0) {
-      console.log('Not valid AES block size. This is likely a Flow INIT/health-check call.');
-      return {
-        data: { action: 'ping', version: '1.0' },
-        aesKey,
-        iv
-      };
+      throw new Error(`Invalid AES block size: ${encryptedData.length} bytes`);
     }
     
-    console.log('Valid AES block size. Processing real flow data...');
+    console.log('Valid AES block size. Processing flow data...');
     
     const decipher = crypto.createDecipheriv('aes-128-cbc', aesKey, iv);
     

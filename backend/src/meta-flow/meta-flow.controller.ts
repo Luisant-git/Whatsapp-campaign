@@ -20,65 +20,20 @@ export class MetaFlowController {
       console.log('Is Buffer:', Buffer.isBuffer(req.body));
       console.log('Original URL:', req.originalUrl);
       
-      // Parse raw body to preserve base64 integrity
-      const body = JSON.parse(req.body.toString());
+      // Handle body parsing correctly - avoid double parsing
+      const body = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString('utf8')) : req.body;
       console.log('Body keys:', Object.keys(body));
+      console.log('Raw encrypted_flow_data:', body.encrypted_flow_data);
       
-      // Health check - MUST still encrypt response
-      if (!body.encrypted_flow_data || !body.encrypted_aes_key || !body.initial_vector) {
-        console.log('Not valid AES block size. This is likely a Flow INIT/health-check call.');
-        
-        // For INIT, we still need to decrypt the AES key and encrypt response
-        const { aesKey, iv } = this.metaFlowService.decryptRequest(
-          '', // No flow data for INIT
-          body.encrypted_aes_key?.replace(/ /g, '+') || '',
-          body.initial_vector?.replace(/ /g, '+') || ''
-        );
-        
-        const responsePayload = JSON.stringify({});
-        
-        console.log('JSON payload before encryption:', responsePayload);
-        console.log('Payload length:', Buffer.byteLength(responsePayload));
-        console.log('Expected length should be 2 bytes for empty object');
-        
-        // 1️⃣ Generate NEW IV for response
-        const responseIV = crypto.randomBytes(16);
-        
-        // 2️⃣ Encrypt using NEW IV
-        const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, responseIV);
-        cipher.setAutoPadding(true);
-        
-        let encrypted = cipher.update(responsePayload, 'utf8');
-        encrypted = Buffer.concat([encrypted, cipher.final()]);
-        
-        // 3️⃣ Prepend IV to encrypted data
-        const finalBuffer = Buffer.concat([responseIV, encrypted]);
-        
-        console.log('Response encrypted length:', encrypted.length);
-        console.log('Final buffer length (IV + encrypted):', finalBuffer.length);
-        console.log('Modulo 16:', finalBuffer.length % 16);
-        
-        // 4️⃣ Base64 encode IV + ciphertext
-        const encryptedBase64 = finalBuffer.toString('base64');
-        console.log('Sending response:', encryptedBase64);
-        
-        return res
-          .status(200)
-          .set('Content-Type', 'text/plain')
-          .send(encryptedBase64);
-      }
-
+      // Always try to decrypt the flow data - even for INIT
       console.log('encrypted_flow_data length:', body.encrypted_flow_data?.length);
       console.log('encrypted_aes_key length:', body.encrypted_aes_key?.length);
       console.log('initial_vector length:', body.initial_vector?.length);
       
-      // Log raw string to check for corruption
-      console.log('Encrypted string:', body.encrypted_flow_data);
-      
       // Normalize base64 string (fix + to space conversion)
-      const normalizedFlowData = body.encrypted_flow_data.replace(/ /g, '+');
-      const normalizedAesKey = body.encrypted_aes_key.replace(/ /g, '+');
-      const normalizedIV = body.initial_vector.replace(/ /g, '+');
+      const normalizedFlowData = body.encrypted_flow_data?.replace(/ /g, '+') || '';
+      const normalizedAesKey = body.encrypted_aes_key?.replace(/ /g, '+') || '';
+      const normalizedIV = body.initial_vector?.replace(/ /g, '+') || '';
       
       // Check buffer integrity
       const encryptedBuffer = Buffer.from(normalizedFlowData, 'base64');
@@ -91,6 +46,7 @@ export class MetaFlowController {
         normalizedIV
       );
 
+      console.log('Decrypted data:', data);
       const response = await this.metaFlowService.processFlow(data);
       
       // Encrypt response using SAME AES key + SAME IV from request

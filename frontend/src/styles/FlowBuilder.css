@@ -212,6 +212,24 @@
 
 .component-content {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.component-content input,
+.component-content textarea,
+.component-content select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: #f9fafb;
+}
+
+.component-content textarea {
+  resize: none;
 }
 
 .component-label {
@@ -413,10 +431,12 @@
   background: #f3f4f6;
   border: none;
   border-radius: 8px;
-  font-size: 1.5rem;
   cursor: pointer;
   color: #6b7280;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .preview-header button:hover {

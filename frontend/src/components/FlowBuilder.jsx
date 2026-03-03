@@ -7,8 +7,8 @@ const FlowBuilder = ({ onBack }) => {
   const [flowName, setFlowName] = useState('');
   const [screens, setScreens] = useState([
     {
-      id: 'SIGN_IN',
-      title: 'Sign In',
+      id: '',
+      title: '',
       data: {},
       layout: {
         type: 'SingleColumnLayout',
@@ -93,8 +93,10 @@ const FlowBuilder = ({ onBack }) => {
       <div className="preview-modal" onClick={() => setShowPreview(false)}>
         <div className="preview-content" onClick={(e) => e.stopPropagation()}>
           <div className="preview-header">
-            <h3>{currentScreenData.title}</h3>
-            <button onClick={() => setShowPreview(false)}>×</button>
+            <h3>{currentScreenData.title || 'Preview'}</h3>
+            <button onClick={() => setShowPreview(false)}>
+              <ArrowLeft size={20} />
+            </button>
           </div>
           <div className="preview-body">
             {currentScreenData.layout.children.map((component, index) => (
@@ -157,30 +159,6 @@ const FlowBuilder = ({ onBack }) => {
         </div>
 
         <div className="canvas-panel">
-          <div className="screen-header">
-            <input
-              type="text"
-              className="screen-title-input"
-              value={screens[currentScreen].title}
-              onChange={(e) => {
-                const updatedScreens = [...screens];
-                updatedScreens[currentScreen].title = e.target.value;
-                setScreens(updatedScreens);
-              }}
-              placeholder="Screen Title"
-            />
-            <input
-              type="text"
-              className="screen-id-input"
-              value={screens[currentScreen].id}
-              onChange={(e) => {
-                const updatedScreens = [...screens];
-                updatedScreens[currentScreen].id = e.target.value.toUpperCase().replace(/\s/g, '_');
-                setScreens(updatedScreens);
-              }}
-              placeholder="SCREEN_ID"
-            />
-          </div>
           <div className="canvas">
             {screens[currentScreen].layout.children.map((component, index) => (
               <div 
@@ -194,8 +172,13 @@ const FlowBuilder = ({ onBack }) => {
                 <div className="component-content">
                   <div className="component-label">
                     <span className="component-type">{component.type}</span>
-                    <span className="component-name">{component.label}</span>
                   </div>
+                  {component.type === 'TextInput' && <input type="text" placeholder={component.label} disabled />}
+                  {component.type === 'TextArea' && <textarea placeholder={component.label} rows={2} disabled />}
+                  {component.type === 'Dropdown' && <select disabled><option>{component.label}</option></select>}
+                  {component.type === 'DatePicker' && <input type="date" disabled />}
+                  {component.type === 'CheckboxGroup' && <div><label><input type="checkbox" disabled /> {component.label}</label></div>}
+                  {component.type === 'RadioButtonsGroup' && <div><label><input type="radio" disabled /> {component.label}</label></div>}
                   {component.required && <span className="required-badge">Required</span>}
                 </div>
                 <button className="component-delete" onClick={(e) => { e.stopPropagation(); removeComponent(index); }}>
@@ -238,6 +221,22 @@ const FlowBuilder = ({ onBack }) => {
                     type="text"
                     value={screens[currentScreen].layout.children[selectedComponent]['helper-text']}
                     onChange={(e) => updateComponent(selectedComponent, 'helper-text', e.target.value)}
+                  />
+                </div>
+              )}
+              {(screens[currentScreen].layout.children[selectedComponent].type === 'Dropdown' ||
+                screens[currentScreen].layout.children[selectedComponent].type === 'CheckboxGroup' ||
+                screens[currentScreen].layout.children[selectedComponent].type === 'RadioButtonsGroup') && (
+                <div className="form-group">
+                  <label>Options (comma separated)</label>
+                  <input
+                    type="text"
+                    placeholder="Option 1, Option 2, Option 3"
+                    value={(screens[currentScreen].layout.children[selectedComponent]['data-source'] || []).join(', ')}
+                    onChange={(e) => {
+                      const options = e.target.value.split(',').map(opt => opt.trim()).filter(opt => opt);
+                      updateComponent(selectedComponent, 'data-source', options);
+                    }}
                   />
                 </div>
               )}

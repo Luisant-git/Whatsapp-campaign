@@ -131,8 +131,11 @@ export class FlowTriggerService {
 
   // Send flow message via WhatsApp API
   private async sendFlowMessage(phoneNumber: string, trigger: any, accessToken: string, phoneNumberId: string) {
+    // Auto-fix old SIGN_IN screen names to SCREEN
+    const screenName = trigger.screenName === 'SIGN_IN' ? 'SCREEN' : trigger.screenName;
+    
     const flowActionPayload: any = {
-      screen: trigger.screenName,
+      screen: screenName,
     };
 
     // Only add data if it's not empty

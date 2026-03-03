@@ -25,7 +25,7 @@ export class FlowTriggerService {
         bodyText: data.bodyText,
         footerText: data.footerText,
         ctaText: data.ctaText,
-        screenName: data.screenName || 'APPOINTMENT',
+        screenName: data.screenName || 'SIGN_IN',
         screenData: data.screenData || {},
         isActive: data.isActive !== false,
       },

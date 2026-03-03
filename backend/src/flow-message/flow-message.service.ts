@@ -24,13 +24,41 @@ export class FlowMessageService {
         }
       );
       
-      return response.data.data.map((flow: any) => ({
-        id: flow.id,
-        name: flow.name,
-        description: flow.status,
-        status: flow.status,
-        updatedAt: flow.updated_time
-      }));
+      // Fetch details for each flow to get first screen
+      const flowsWithDetails = await Promise.all(
+        response.data.data.map(async (flow: any) => {
+          try {
+            const detailResponse = await axios.get(
+              `https://graph.facebook.com/v18.0/${flow.id}`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${this.accessToken}`,
+                }
+              }
+            );
+            
+            return {
+              id: flow.id,
+              name: flow.name,
+              description: flow.status,
+              status: flow.status,
+              updatedAt: flow.updated_time,
+              firstScreen: detailResponse.data.json_version?.screens?.[0]?.id || 'SIGN_IN'
+            };
+          } catch (error) {
+            return {
+              id: flow.id,
+              name: flow.name,
+              description: flow.status,
+              status: flow.status,
+              updatedAt: flow.updated_time,
+              firstScreen: 'SIGN_IN'
+            };
+          }
+        })
+      );
+      
+      return flowsWithDetails;
     } catch (error) {
       console.error('Error fetching flows from Meta:', error.response?.data || error.message);
       return [];
@@ -49,7 +77,7 @@ export class FlowMessageService {
           bodyText: data.bodyText || 'Click the button below to start the Flow experience!',
           footerText: data.footerText || 'Powered by Meta Flow',
           ctaText: data.ctaText || 'Start Flow',
-          screenName: data.screenName || 'APPOINTMENT',
+          screenName: data.screenName || 'SIGN_IN',
           screenData: data.screenData || {}
         });
 

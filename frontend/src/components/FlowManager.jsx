@@ -215,7 +215,14 @@ const FlowManager = () => {
                 <select
                   className="form-input"
                   value={formData.flowId}
-                  onChange={(e) => setFormData({ ...formData, flowId: e.target.value })}
+                  onChange={(e) => {
+                    const selectedFlow = flows.find(f => f.id === e.target.value);
+                    setFormData({ 
+                      ...formData, 
+                      flowId: e.target.value,
+                      screenName: selectedFlow?.firstScreen || 'SIGN_IN'
+                    });
+                  }}
                   required
                 >
                   <option value="">Select a flow...</option>

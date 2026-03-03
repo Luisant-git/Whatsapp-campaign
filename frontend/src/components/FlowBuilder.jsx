@@ -41,7 +41,7 @@ const FlowBuilder = ({ onBack }) => {
       required: false,
       position: { 
         x: 150,
-        y: 50 + (index * 150)
+        y: 50 + (index * 100)
       },
       id: Date.now(),
       ...(type === 'TextInput' && { 'input-type': 'text', 'helper-text': '' }),
@@ -88,6 +88,15 @@ const FlowBuilder = ({ onBack }) => {
   const removeComponent = (index) => {
     const updatedScreens = [...screens];
     updatedScreens[currentScreen].layout.children.splice(index, 1);
+    
+    // Reposition remaining components
+    updatedScreens[currentScreen].layout.children.forEach((comp, idx) => {
+      comp.position = {
+        x: 150,
+        y: 50 + (idx * 100)
+      };
+    });
+    
     setScreens(updatedScreens);
     setSelectedComponent(null);
   };
@@ -100,10 +109,11 @@ const FlowBuilder = ({ onBack }) => {
       const fromComp = components[i];
       const toComp = components[i + 1];
       
-      const fromX = (fromComp.position?.x || 150) + 90;
-      const fromY = (fromComp.position?.y || 0) + 60;
-      const toX = (toComp.position?.x || 150) + 90;
+      const fromX = (fromComp.position?.x || 150) + 80;
+      const fromY = (fromComp.position?.y || 0) + 50;
+      const toX = (toComp.position?.x || 150) + 80;
       const toY = (toComp.position?.y || 0);
+      const arrowLength = 30;
 
       lines.push(
         <g key={i}>
@@ -111,12 +121,12 @@ const FlowBuilder = ({ onBack }) => {
             x1={fromX}
             y1={fromY}
             x2={toX}
-            y2={toY}
+            y2={fromY + arrowLength}
             stroke="#DC2626"
-            strokeWidth="3"
+            strokeWidth="2"
           />
           <polygon
-            points={`${toX},${toY} ${toX-6},${toY-10} ${toX+6},${toY-10}`}
+            points={`${toX},${fromY + arrowLength + 8} ${toX-5},${fromY + arrowLength} ${toX+5},${fromY + arrowLength}`}
             fill="#DC2626"
           />
         </g>
@@ -248,7 +258,7 @@ const FlowBuilder = ({ onBack }) => {
                   className={`wireframe-node ${selectedComponent === index ? 'selected' : ''}`}
                   style={{
                     left: component.position?.x || 150,
-                    top: component.position?.y || 50 + (index * 150)
+                    top: component.position?.y || 50 + (index * 100)
                   }}
                   onClick={() => setSelectedComponent(index)}
                 >

@@ -61,14 +61,22 @@ sxEK+yx6I1EkGaK+/KWEpai7
     console.log('IV Length:', iv.length);
     console.log('Encrypted Buffer Length:', encryptedData.length);
     
+    // Critical debug logs
+    console.log('AES Key hex:', aesKey.toString('hex'));
+    console.log('IV hex:', iv.toString('hex'));
+    console.log('Encrypted hex (first 32 chars):', encryptedData.toString('hex').substring(0, 32));
+    
     console.log('Starting AES decryption...');
     const decipher = crypto.createDecipheriv('aes-128-cbc', aesKey, iv);
     
+    // NO encoding parameters when using Buffer input
     let decrypted = decipher.update(encryptedData);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     
-    const parsed = JSON.parse(decrypted.toString());
     console.log('AES decryption successful');
+    console.log('Decrypted JSON:', decrypted.toString());
+    
+    const parsed = JSON.parse(decrypted.toString());
     console.log('Decrypted Flow:', parsed);
     
     return {

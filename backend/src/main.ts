@@ -9,9 +9,7 @@ const connectPgSimple = require('connect-pg-simple');
 const PgSession = connectPgSimple(session);
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    bodyParser: false,
-  });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Trust proxy for production (nginx/apache)
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
@@ -27,8 +25,19 @@ async function bootstrap() {
     exposedHeaders: ['Set-Cookie'],
   });
 
-  // JSON body parser for all routes
-  app.use(express.json({ limit: '10mb' }));
+  // 🔴 1️⃣ RAW parser FIRST for Meta Flow (before any other parser)
+  app.use('/meta/flows', express.raw({
+    type: '*/*',
+    limit: '10mb',
+  }));
+
+  // 🟢 2️⃣ THEN JSON parser for everything else
+  app.use((req, res, next) => {
+    if (req.originalUrl.startsWith('/meta/flows')) {
+      return next();
+    }
+    express.json({ limit: '10mb' })(req, res, next);
+  });
 
   // Exclude session middleware from Meta Flow endpoint
   app.use((req, res, next) => {

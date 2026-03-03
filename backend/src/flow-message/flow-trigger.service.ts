@@ -25,7 +25,7 @@ export class FlowTriggerService {
         bodyText: data.bodyText,
         footerText: data.footerText,
         ctaText: data.ctaText,
-        screenName: data.screenName || 'SIGN_IN',
+        screenName: data.screenName || 'SCREEN',
         screenData: data.screenData || {},
         isActive: data.isActive !== false,
       },
@@ -141,7 +141,7 @@ export class FlowTriggerService {
     }
 
     return axios.post(
-      `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+      `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
       {
         messaging_product: 'whatsapp',
         recipient_type: 'individual',

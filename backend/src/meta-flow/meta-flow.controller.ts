@@ -17,14 +17,15 @@ export class MetaFlowController {
     try {
       console.log('=== META FLOW REQUEST ===');
       console.log('Body keys:', Object.keys(body));
+      
+      // Health check - no encryption
+      if (!body.encrypted_flow_data || !body.encrypted_aes_key || !body.initial_vector) {
+        return { version: '3.0', data: { status: 'active' } };
+      }
+
       console.log('encrypted_flow_data length:', body.encrypted_flow_data?.length);
-      console.log('encrypted_flow_data:', body.encrypted_flow_data);
       console.log('encrypted_aes_key length:', body.encrypted_aes_key?.length);
       console.log('initial_vector length:', body.initial_vector?.length);
-      
-      if (!body.encrypted_flow_data) {
-        return { status: 'active' };
-      }
 
       const { data, aesKey, iv } = this.metaFlowService.decryptRequest(
         body.encrypted_flow_data,

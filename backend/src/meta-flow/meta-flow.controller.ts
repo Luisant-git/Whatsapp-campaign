@@ -1,5 +1,5 @@
-import { Controller, Post, Get, Body, HttpCode } from '@nestjs/common';
-import type { Request, Response } from 'express';
+import { Controller, Post, Get, Body, HttpCode, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { MetaFlowService } from './meta-flow.service';
 
 @Controller('meta/flows')
@@ -13,14 +13,15 @@ export class MetaFlowController {
 
   @Post()
   @HttpCode(200)
-  async handleFlow(@Body() body: any) {
+  async handleFlow(@Body() body: any, @Res() res: Response) {
     try {
       console.log('=== META FLOW REQUEST ===');
       console.log('Body keys:', Object.keys(body));
       
       // Health check - no encryption
       if (!body.encrypted_flow_data || !body.encrypted_aes_key || !body.initial_vector) {
-        return { version: '3.0', data: { status: 'active' } };
+        const response = { version: '3.0', data: { status: 'active' } };
+        return res.send(Buffer.from(JSON.stringify(response)).toString('base64'));
       }
 
       console.log('encrypted_flow_data length:', body.encrypted_flow_data?.length);
@@ -34,10 +35,13 @@ export class MetaFlowController {
       );
 
       const response = await this.metaFlowService.processFlow(data);
-      return this.metaFlowService.encryptResponse(response, aesKey, iv);
+      const encryptedResponse = this.metaFlowService.encryptResponse(response, aesKey, iv);
+      
+      return res.send(Buffer.from(JSON.stringify(encryptedResponse)).toString('base64'));
     } catch (error) {
       console.error('Flow error:', error.message);
-      return { version: '3.0', data: { error: error.message } };
+      const errorResponse = { version: '3.0', data: { error: error.message } };
+      return res.send(Buffer.from(JSON.stringify(errorResponse)).toString('base64'));
     }
   }
 }

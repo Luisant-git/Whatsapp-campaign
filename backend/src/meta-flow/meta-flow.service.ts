@@ -40,45 +40,35 @@ sxEK+yx6I1EkGaK+/KWEpai7
   }
 
   decryptRequest(encryptedFlowData: string, encryptedAesKey: string, initialVector: string): { data: any; aesKey: Buffer; iv: Buffer } {
-    try {
-      const aesKey = crypto.privateDecrypt(
-        { 
-          key: this.privateKey, 
-          padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-          oaepHash: 'sha256'
-        },
-        Buffer.from(encryptedAesKey, 'base64')
-      );
-      
-      const iv = Buffer.from(initialVector, 'base64');
-      const encryptedBuffer = Buffer.from(encryptedFlowData, 'base64');
-      
-      console.log('AES Key Length:', aesKey.length);
-      console.log('IV Length:', iv.length);
-      console.log('Encrypted Buffer Length:', encryptedBuffer.length);
-      
-      // Validate buffer length is multiple of 16 for AES-128-CBC
-      if (encryptedBuffer.length % 16 !== 0) {
-        throw new Error(`Invalid encrypted data length: ${encryptedBuffer.length}. Must be multiple of 16 for AES-128-CBC`);
-      }
-      
-      const decipher = crypto.createDecipheriv('aes-128-cbc', aesKey, iv);
-      
-      let decrypted = '';
-      decrypted += decipher.update(encryptedBuffer, null, 'utf8');
-      decrypted += decipher.final('utf8');
-      
-      console.log('Decrypted Flow:', decrypted);
-      
-      return {
-        data: JSON.parse(decrypted),
-        aesKey,
-        iv
-      };
-    } catch (error) {
-      console.error('Decryption error:', error.message);
-      throw new Error(`Failed to decrypt flow data: ${error.message}`);
-    }
+    const aesKey = crypto.privateDecrypt(
+      { 
+        key: this.privateKey, 
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha256'
+      },
+      Buffer.from(encryptedAesKey, 'base64')
+    );
+    
+    const iv = Buffer.from(initialVector, 'base64');
+    const encryptedData = Buffer.from(encryptedFlowData, 'base64');
+    
+    console.log('AES Key Length:', aesKey.length);
+    console.log('IV Length:', iv.length);
+    console.log('Encrypted Buffer Length:', encryptedData.length);
+    
+    const decipher = crypto.createDecipheriv('aes-128-cbc', aesKey, iv);
+    
+    let decrypted = decipher.update(encryptedData);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    
+    const parsed = JSON.parse(decrypted.toString());
+    console.log('Decrypted Flow:', parsed);
+    
+    return {
+      data: parsed,
+      aesKey,
+      iv
+    };
   }
 
   encryptResponse(response: any, aesKey: Buffer, iv: Buffer): any {

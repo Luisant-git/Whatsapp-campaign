@@ -47,9 +47,13 @@ export class MetaFlowController {
         console.log('Response encrypted length:', encrypted.length);
         console.log('Modulo 16:', encrypted.length % 16);
         
-        return res.json({
-          encrypted_flow_data: encrypted.toString('base64')
-        });
+        const encryptedBase64 = encrypted.toString('base64');
+        console.log('Sending response:', encryptedBase64);
+        
+        return res
+          .status(200)
+          .set('Content-Type', 'text/plain')
+          .send(encryptedBase64);
       }
 
       console.log('encrypted_flow_data length:', body.encrypted_flow_data?.length);
@@ -94,9 +98,13 @@ export class MetaFlowController {
       console.log('Response encrypted length:', encrypted.length);
       console.log('Modulo 16:', encrypted.length % 16);
       
-      return res.json({
-        encrypted_flow_data: encrypted.toString('base64')
-      });
+      const encryptedBase64 = encrypted.toString('base64');
+      console.log('Sending response:', encryptedBase64);
+      
+      return res
+        .status(200)
+        .set('Content-Type', 'text/plain')
+        .send(encryptedBase64);
     } catch (error) {
       console.error('Flow error:', error.message);
       
@@ -119,9 +127,12 @@ export class MetaFlowController {
           let encrypted = cipher.update(errorPayload, 'utf8');
           encrypted = Buffer.concat([encrypted, cipher.final()]);
           
-          return res.json({
-            encrypted_flow_data: encrypted.toString('base64')
-          });
+          const encryptedBase64 = encrypted.toString('base64');
+          
+          return res
+            .status(200)
+            .set('Content-Type', 'text/plain')
+            .send(encryptedBase64);
         }
       } catch (encryptError) {
         console.error('Failed to encrypt error response:', encryptError.message);

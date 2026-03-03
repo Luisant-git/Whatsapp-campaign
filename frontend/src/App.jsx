@@ -19,6 +19,7 @@ import {
   LayoutTemplate,
   Sliders,
   Zap,
+  Workflow,
 } from "lucide-react";
 
 import { MENU_CONFIG } from "./config/menuconfig.js"
@@ -64,7 +65,7 @@ const ICON_MAP = {
   settings: Settings,
   credit: CreditCard,
   zap: Zap,
-  workflow: MessageSquare,
+  workflow: Workflow,
 };
 
 // Map MENU_CONFIG keys to activeView values

@@ -20,7 +20,7 @@ const FlowBuilder = ({ onBack }) => {
   // Auto-update screen ID and title when flow name changes
   const handleFlowNameChange = (name) => {
     setFlowName(name);
-    if (name && screens.length === 1 && screens[0].layout.children.length === 0) {
+    if (name && screens.length === 1) {
       const updatedScreens = [...screens];
       const screenId = name.toUpperCase().replace(/[^A-Z_]/g, '_');
       updatedScreens[0].id = screenId;

@@ -34,15 +34,23 @@ export class MetaFlowController {
       console.log('encrypted_aes_key length:', body.encrypted_aes_key?.length);
       console.log('initial_vector length:', body.initial_vector?.length);
       
+      // Log raw string to check for corruption
+      console.log('Encrypted string:', body.encrypted_flow_data);
+      
+      // Normalize base64 string (fix + to space conversion)
+      const normalizedFlowData = body.encrypted_flow_data.replace(/ /g, '+');
+      const normalizedAesKey = body.encrypted_aes_key.replace(/ /g, '+');
+      const normalizedIV = body.initial_vector.replace(/ /g, '+');
+      
       // Check buffer integrity
-      const encryptedBuffer = Buffer.from(body.encrypted_flow_data, 'base64');
+      const encryptedBuffer = Buffer.from(normalizedFlowData, 'base64');
       console.log('Encrypted Buffer Length:', encryptedBuffer.length);
       console.log('Modulo 16:', encryptedBuffer.length % 16);
 
       const { data, aesKey, iv } = this.metaFlowService.decryptRequest(
-        body.encrypted_flow_data,
-        body.encrypted_aes_key,
-        body.initial_vector
+        normalizedFlowData,
+        normalizedAesKey,
+        normalizedIV
       );
 
       const response = await this.metaFlowService.processFlow(data);

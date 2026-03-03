@@ -1,5 +1,5 @@
-import { Controller, Post, Get, Body, HttpCode, Res } from '@nestjs/common';
-import type { Response } from 'express';
+import { Controller, Post, Get, HttpCode, Res, Req } from '@nestjs/common';
+import type { Response, Request } from 'express';
 import * as crypto from 'crypto';
 import { MetaFlowService } from './meta-flow.service';
 
@@ -14,9 +14,12 @@ export class MetaFlowController {
 
   @Post()
   @HttpCode(200)
-  async handleFlow(@Body() body: any, @Res() res: Response) {
+  async handleFlow(@Req() req: any, @Res() res: Response) {
     try {
       console.log('=== META FLOW REQUEST ===');
+      
+      // Parse raw body to preserve base64 integrity
+      const body = JSON.parse(req.body.toString());
       console.log('Body keys:', Object.keys(body));
       
       // Health check - no encryption
@@ -28,6 +31,11 @@ export class MetaFlowController {
       console.log('encrypted_flow_data length:', body.encrypted_flow_data?.length);
       console.log('encrypted_aes_key length:', body.encrypted_aes_key?.length);
       console.log('initial_vector length:', body.initial_vector?.length);
+      
+      // Check buffer integrity
+      const encryptedBuffer = Buffer.from(body.encrypted_flow_data, 'base64');
+      console.log('Encrypted Buffer Length:', encryptedBuffer.length);
+      console.log('Modulo 16:', encryptedBuffer.length % 16);
 
       const { data, aesKey, iv } = this.metaFlowService.decryptRequest(
         body.encrypted_flow_data,

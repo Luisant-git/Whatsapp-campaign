@@ -131,6 +131,15 @@ export class FlowTriggerService {
 
   // Send flow message via WhatsApp API
   private async sendFlowMessage(phoneNumber: string, trigger: any, accessToken: string, phoneNumberId: string) {
+    const flowActionPayload: any = {
+      screen: trigger.screenName,
+    };
+
+    // Only add data if it's not empty
+    if (trigger.screenData && Object.keys(trigger.screenData).length > 0) {
+      flowActionPayload.data = trigger.screenData;
+    }
+
     return axios.post(
       `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
       {
@@ -158,10 +167,7 @@ export class FlowTriggerService {
               flow_id: trigger.flowId,
               flow_cta: trigger.ctaText,
               flow_action: 'navigate',
-              flow_action_payload: {
-                screen: trigger.screenName,
-                data: trigger.screenData,
-              },
+              flow_action_payload: flowActionPayload,
             },
           },
         },

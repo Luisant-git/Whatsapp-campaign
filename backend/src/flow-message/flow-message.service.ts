@@ -6,24 +6,17 @@ import { FlowResult, SendFlowDto, FlowResponse } from './flow-message.types';
 export class FlowMessageService {
   private readonly accessToken = process.env.META_ACCESS_TOKEN || 'EAAcMSpblosgBQ0Lr9x2byXAquXp5o1ceNowmZCJBDdHMtENNjHiZA8HkMALo6tP5ctnWyJWDIBZAENZAvQluvtGAdjouaEGIPYZBglCh1NZBFpWLUMTCZC79uWG468iYgh1nSYE1Fz4NO72sA6NeMjxG6CgD8JqcsGOH7kVjxfrdZACwOyRJl5AhxqlZBZAHPwuDPgBQZDZD';
   private readonly phoneNumberId = process.env.META_PHONE_NUMBER_ID || '803957376127788';
+  private readonly wabaId = process.env.META_WABA_ID || '24366060823054981'; // WhatsApp Business Account ID
 
   async getAvailableFlows() {
     try {
-      // First, get the WhatsApp Business Account ID from the phone number
-      const phoneResponse = await axios.get(
-        `https://graph.facebook.com/v18.0/${this.phoneNumberId}?fields=account_id`,
-        {
-          headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
-          }
-        }
-      );
-      
-      const wabaId = phoneResponse.data.account_id;
-      
-      // Then fetch flows using the WABA ID
+      if (!this.wabaId) {
+        console.error('META_WABA_ID not configured');
+        return [];
+      }
+
       const response = await axios.get(
-        `https://graph.facebook.com/v18.0/${wabaId}/flows`,
+        `https://graph.facebook.com/v18.0/${this.wabaId}/flows`,
         {
           headers: {
             'Authorization': `Bearer ${this.accessToken}`,

@@ -311,13 +311,11 @@ model FlowTrigger {
   screenName  String   @default("APPOINTMENT")
   screenData  Json     @default("{}")
   isActive    Boolean  @default(true)
-  userId      Int
   logs        FlowTriggerLog[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
   @@index([triggerWord])
-  @@index([userId])
 }
 
 model FlowTriggerLog {

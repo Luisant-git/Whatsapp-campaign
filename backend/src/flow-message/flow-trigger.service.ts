@@ -28,7 +28,6 @@ export class FlowTriggerService {
         screenName: data.screenName || 'APPOINTMENT',
         screenData: data.screenData || {},
         isActive: data.isActive !== false,
-        userId,
       },
     });
   }
@@ -37,7 +36,6 @@ export class FlowTriggerService {
   async getTriggers(userId: number) {
     const prisma = await this.getTenantClient(userId);
     return prisma.flowTrigger.findMany({
-      where: { userId },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -46,7 +44,7 @@ export class FlowTriggerService {
   async getTrigger(id: number, userId: number) {
     const prisma = await this.getTenantClient(userId);
     return prisma.flowTrigger.findFirst({
-      where: { id, userId },
+      where: { id },
     });
   }
 

@@ -40,6 +40,11 @@ export const MENU_CONFIG = [
       icon: "zap",
     },
     {
+      key: "flow-manager",
+      label: "Flow Manager",
+      icon: "workflow",
+    },
+    {
       key: "ecommerce",
       label: "E-Commerce",
       icon: "store",

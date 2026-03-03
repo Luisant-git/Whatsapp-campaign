@@ -7,15 +7,28 @@ export class FlowMessageService {
   private readonly accessToken = process.env.META_ACCESS_TOKEN || 'EAAcMSpblosgBQ0Lr9x2byXAquXp5o1ceNowmZCJBDdHMtENNjHiZA8HkMALo6tP5ctnWyJWDIBZAENZAvQluvtGAdjouaEGIPYZBglCh1NZBFpWLUMTCZC79uWG468iYgh1nSYE1Fz4NO72sA6NeMjxG6CgD8JqcsGOH7kVjxfrdZACwOyRJl5AhxqlZBZAHPwuDPgBQZDZD';
   private readonly phoneNumberId = process.env.META_PHONE_NUMBER_ID || '803957376127788';
 
-  getAvailableFlows() {
-    return [
-      {
-        id: '945035507959464',
-        name: 'Flow Sample',
-        description: 'Sample appointment booking flow',
-        firstScreen: 'APPOINTMENT'
-      }
-    ];
+  async getAvailableFlows() {
+    try {
+      const response = await axios.get(
+        `https://graph.facebook.com/v18.0/${this.phoneNumberId}/flows`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+          }
+        }
+      );
+      
+      return response.data.data.map((flow: any) => ({
+        id: flow.id,
+        name: flow.name,
+        description: flow.status,
+        status: flow.status,
+        updatedAt: flow.updated_time
+      }));
+    } catch (error) {
+      console.error('Error fetching flows from Meta:', error.response?.data || error.message);
+      return [];
+    }
   }
 
   async sendFlowToNumbers(data: SendFlowDto): Promise<FlowResponse> {

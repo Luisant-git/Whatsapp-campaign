@@ -105,6 +105,22 @@ export class FlowMessageService {
   }
 
   private async sendSingleFlowMessage(params: any) {
+    const actionParams: any = {
+      flow_message_version: '3',
+      flow_token: `flow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      flow_id: params.flowId,
+      flow_cta: params.ctaText,
+      flow_action: 'navigate',
+    };
+
+    // Only add screen navigation if screenName is provided and not default
+    if (params.screenName && params.screenName !== 'SCREEN') {
+      actionParams.flow_action_payload = {
+        screen: params.screenName,
+        data: params.screenData
+      };
+    }
+
     return axios.post(
       `https://graph.facebook.com/${this.apiVersion}/${this.phoneNumberId}/messages`,
       {
@@ -126,17 +142,7 @@ export class FlowMessageService {
           },
           action: {
             name: 'flow',
-            parameters: {
-              flow_message_version: '3',
-              flow_token: `flow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              flow_id: params.flowId,
-              flow_cta: params.ctaText,
-              flow_action: 'navigate',
-              flow_action_payload: {
-                screen: params.screenName,
-                data: params.screenData
-              }
-            }
+            parameters: actionParams
           }
         }
       },

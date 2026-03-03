@@ -131,16 +131,23 @@ export class FlowTriggerService {
 
   // Send flow message via WhatsApp API
   private async sendFlowMessage(phoneNumber: string, trigger: any, accessToken: string, phoneNumberId: string) {
-    // Auto-fix old SIGN_IN screen names to SCREEN
-    const screenName = trigger.screenName === 'SIGN_IN' ? 'SCREEN' : trigger.screenName;
-    
-    const flowActionPayload: any = {
-      screen: screenName,
+    const actionParams: any = {
+      flow_message_version: '3',
+      flow_token: `flow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      flow_id: trigger.flowId,
+      flow_cta: trigger.ctaText,
+      flow_action: 'navigate',
     };
 
-    // Only add data if it's not empty
-    if (trigger.screenData && Object.keys(trigger.screenData).length > 0) {
-      flowActionPayload.data = trigger.screenData;
+    // Only add screen navigation if screenName is provided and not default
+    if (trigger.screenName && trigger.screenName !== 'SCREEN' && trigger.screenName !== 'SIGN_IN') {
+      actionParams.flow_action_payload = {
+        screen: trigger.screenName,
+      };
+      
+      if (trigger.screenData && Object.keys(trigger.screenData).length > 0) {
+        actionParams.flow_action_payload.data = trigger.screenData;
+      }
     }
 
     return axios.post(
@@ -164,14 +171,7 @@ export class FlowTriggerService {
           } : undefined,
           action: {
             name: 'flow',
-            parameters: {
-              flow_message_version: '3',
-              flow_token: `flow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              flow_id: trigger.flowId,
-              flow_cta: trigger.ctaText,
-              flow_action: 'navigate',
-              flow_action_payload: flowActionPayload,
-            },
+            parameters: actionParams,
           },
         },
       },

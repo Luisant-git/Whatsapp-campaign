@@ -66,10 +66,7 @@ export class MetaFlowController {
         const encryptedBase64 = encrypted.toString('base64');
         console.log('Sending INIT response:', encryptedBase64);
         
-        const finalResponse = { encrypted_flow_data: encryptedBase64 };
-        console.log('FINAL RESPONSE BODY:', finalResponse);
-        
-        return finalResponse;
+        return encryptedBase64;
       } else {
         // Real flow data: Generate NEW IV and prepend it
         console.log('Real flow response - generating new IV and prepending');
@@ -90,10 +87,7 @@ export class MetaFlowController {
         const encryptedBase64 = finalBuffer.toString('base64');
         console.log('Sending flow response:', encryptedBase64);
         
-        const finalResponse = { encrypted_flow_data: encryptedBase64 };
-        console.log('FINAL RESPONSE BODY:', finalResponse);
-        
-        return finalResponse;
+        return encryptedBase64;
       }
     } catch (error) {
       console.error('Flow error:', error.message);
@@ -125,7 +119,7 @@ export class MetaFlowController {
           const finalBuffer = Buffer.concat([responseIV, encrypted]);
           const encryptedBase64 = finalBuffer.toString('base64');
           
-          return { encrypted_flow_data: encryptedBase64 };
+          return encryptedBase64;
         }
       } catch (encryptError) {
         console.error('Failed to encrypt error response:', encryptError.message);

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import axios from 'axios';
+import FormData from 'form-data';
 import { FlowResult, SendFlowDto, FlowResponse } from './flow-message.types';
 
 @Injectable()
@@ -176,13 +177,21 @@ export class FlowMessageService {
       console.log('Flow created:', flowId);
 
       // Step 2: Upload flow JSON
+      const formData = new FormData();
+      formData.append('file', JSON.stringify(flowData.flowJson), {
+        filename: 'flow.json',
+        contentType: 'application/json'
+      });
+      formData.append('name', 'flow.json');
+      formData.append('asset_type', 'FLOW_JSON');
+
       await axios.post(
         `https://graph.facebook.com/v18.0/${flowId}/assets`,
-        flowData.flowJson,
+        formData,
         {
           headers: {
             'Authorization': `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json'
+            ...formData.getHeaders()
           }
         }
       );

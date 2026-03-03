@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Save, Eye, ArrowLeft, Trash2, GripVertical } from 'lucide-react';
+import { Save, Eye, ArrowLeft, Trash2, GripVertical, Type, AlignLeft, ChevronDown, Calendar, CheckSquare, Circle } from 'lucide-react';
 import flowAPI from '../api/flow';
 import '../styles/FlowBuilder.css';
 
@@ -21,12 +21,12 @@ const FlowBuilder = ({ onBack }) => {
   const [showPreview, setShowPreview] = useState(false);
 
   const componentTypes = [
-    { type: 'TextInput', label: 'Text Input', icon: '📝' },
-    { type: 'TextArea', label: 'Text Area', icon: '📄' },
-    { type: 'Dropdown', label: 'Dropdown', icon: '📋' },
-    { type: 'DatePicker', label: 'Date Picker', icon: '📅' },
-    { type: 'CheckboxGroup', label: 'Checkbox', icon: '☑️' },
-    { type: 'RadioButtonsGroup', label: 'Radio Button', icon: '🔘' },
+    { type: 'TextInput', label: 'Text Input', Icon: Type },
+    { type: 'TextArea', label: 'Text Area', Icon: AlignLeft },
+    { type: 'Dropdown', label: 'Dropdown', Icon: ChevronDown },
+    { type: 'DatePicker', label: 'Date Picker', Icon: Calendar },
+    { type: 'CheckboxGroup', label: 'Checkbox', Icon: CheckSquare },
+    { type: 'RadioButtonsGroup', label: 'Radio Button', Icon: Circle },
   ];
 
   const addComponent = (type) => {
@@ -146,11 +146,10 @@ const FlowBuilder = ({ onBack }) => {
 
       <div className="builder-content">
         <div className="components-panel">
-          <h3>Components</h3>
           <div className="component-list">
             {componentTypes.map((comp) => (
               <button key={comp.type} onClick={() => addComponent(comp.type)} className="component-btn">
-                <span className="component-icon">{comp.icon}</span>
+                <comp.Icon size={20} className="component-icon" />
                 <span>{comp.label}</span>
               </button>
             ))}
@@ -206,7 +205,7 @@ const FlowBuilder = ({ onBack }) => {
             ))}
             {screens[currentScreen].layout.children.length === 0 && (
               <div className="empty-canvas">
-                <p>👈 Click on components to add them here</p>
+                <p>Click on components from the left panel to add them here</p>
               </div>
             )}
           </div>

@@ -1,5 +1,6 @@
 import { Controller, Post, Get, Body, HttpCode, Res } from '@nestjs/common';
 import type { Response } from 'express';
+import * as crypto from 'crypto';
 import { MetaFlowService } from './meta-flow.service';
 
 @Controller('meta/flows')
@@ -35,9 +36,15 @@ export class MetaFlowController {
       );
 
       const response = await this.metaFlowService.processFlow(data);
-      const encryptedResponse = this.metaFlowService.encryptResponse(response, aesKey, iv);
       
-      return res.send(Buffer.from(JSON.stringify(encryptedResponse)).toString('base64'));
+      // Encrypt response using SAME AES key + IV
+      const responseString = JSON.stringify(response);
+      const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
+      
+      let encrypted = cipher.update(responseString, 'utf8');
+      encrypted = Buffer.concat([encrypted, cipher.final()]);
+      
+      return res.send(encrypted.toString('base64'));
     } catch (error) {
       console.error('Flow error:', error.message);
       const errorResponse = { version: '3.0', data: { error: error.message } };

@@ -44,12 +44,12 @@ const FlowBuilder = ({ onBack }) => {
         y: 50 + (index * 100)
       },
       id: Date.now(),
-      ...(type === 'TextInput' && { 'input-type': 'text', 'helper-text': '' }),
-      ...(type === 'TextArea' && { 'helper-text': '' }),
-      ...(type === 'Dropdown' && { 'data-source': [] }),
+      ...(type === 'TextInput' && { 'input-type': 'text', 'helper-text': 'Enter text' }),
+      ...(type === 'TextArea' && { 'helper-text': 'Enter text' }),
+      ...(type === 'Dropdown' && { 'data-source': ['Option 1'] }),
       ...(type === 'DatePicker' && { 'helper-text': 'Select a date' }),
-      ...(type === 'CheckboxGroup' && { 'data-source': [] }),
-      ...(type === 'RadioButtonsGroup' && { 'data-source': [] })
+      ...(type === 'CheckboxGroup' && { 'data-source': ['Option 1'] }),
+      ...(type === 'RadioButtonsGroup' && { 'data-source': ['Option 1'] })
     };
 
     const updatedScreens = [...screens];
@@ -157,7 +157,10 @@ const FlowBuilder = ({ onBack }) => {
         id: screen.id || 'SCREEN',
         title: screen.title || flowName,
         data: {},
-        layout: screen.layout,
+        layout: {
+          type: screen.layout.type,
+          children: screen.layout.children.map(({ position, id, ...component }) => component)
+        },
         terminal: true
       }))
     };

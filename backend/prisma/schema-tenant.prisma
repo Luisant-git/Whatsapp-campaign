@@ -298,3 +298,39 @@ model FeatureAssignment {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
+
+model FlowTrigger {
+  id          Int      @id @default(autoincrement())
+  name        String
+  triggerWord String
+  flowId      String
+  headerText  String?
+  bodyText    String?
+  footerText  String?
+  ctaText     String
+  screenName  String   @default("APPOINTMENT")
+  screenData  Json     @default("{}")
+  isActive    Boolean  @default(true)
+  userId      Int
+  logs        FlowTriggerLog[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([triggerWord])
+  @@index([userId])
+}
+
+model FlowTriggerLog {
+  id             Int      @id @default(autoincrement())
+  flowTriggerId  Int
+  phoneNumber    String
+  triggerWord    String
+  status         String
+  messageId      String?
+  error          String?  @db.Text
+  flowTrigger    FlowTrigger @relation(fields: [flowTriggerId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  
+  @@index([flowTriggerId])
+  @@index([phoneNumber])
+}

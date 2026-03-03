@@ -11,9 +11,10 @@ import { WhatsappSessionModule } from '../whatsapp-session/whatsapp-session.modu
 import { SettingsModule } from '../settings/settings.module';
 import { ChatbotService } from '../chatbot/chatbot.service';
 import { EcommerceModule } from '../ecommerce/ecommerce.module';
+import { FlowMessageModule } from '../flow-message/flow-message.module';
 
 @Module({
-  imports: [WhatsappSessionModule, SettingsModule, EcommerceModule],
+  imports: [WhatsappSessionModule, SettingsModule, EcommerceModule, FlowMessageModule],
   controllers: [WhatsappController],
   providers: [WhatsappService, CampaignService, SchedulerService, PhoneRouterService, PrismaService, TenantPrismaService, CentralPrismaService, ChatbotService],
   exports: [WhatsappService, CampaignService, SchedulerService]

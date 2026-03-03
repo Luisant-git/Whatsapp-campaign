@@ -1,85 +1,102 @@
 import React, { useState, useEffect } from 'react';
-import { Send, Plus, X } from 'lucide-react';
+import { Send, Plus, X, Zap, Edit, Trash2, BarChart3 } from 'lucide-react';
 import flowAPI from '../api/flow';
+import flowTriggerAPI from '../api/flowTrigger';
 import '../styles/FlowManager.css';
 
 const FlowManager = () => {
   const [flows, setFlows] = useState([]);
-  const [phoneNumbers, setPhoneNumbers] = useState(['']);
-  const [selectedFlow, setSelectedFlow] = useState('');
-  const [headerText, setHeaderText] = useState('');
-  const [bodyText, setBodyText] = useState('');
-  const [footerText, setFooterText] = useState('');
-  const [ctaText, setCtaText] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState(null);
+  const [triggers, setTriggers] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [editingTrigger, setEditingTrigger] = useState(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    triggerWord: '',
+    flowId: '',
+    headerText: '',
+    bodyText: '',
+    footerText: '',
+    ctaText: '',
+    isActive: true,
+  });
 
   useEffect(() => {
     loadFlows();
+    loadTriggers();
   }, []);
 
   const loadFlows = async () => {
     try {
       const flowsData = await flowAPI.getFlows();
       setFlows(flowsData);
-      if (flowsData.length > 0) {
-        setSelectedFlow(flowsData[0].id);
-      }
     } catch (error) {
       console.error('Error loading flows:', error);
     }
   };
 
-  const addPhoneNumber = () => {
-    setPhoneNumbers([...phoneNumbers, '']);
-  };
-
-  const removePhoneNumber = (index) => {
-    if (phoneNumbers.length > 1) {
-      setPhoneNumbers(phoneNumbers.filter((_, i) => i !== index));
+  const loadTriggers = async () => {
+    try {
+      const triggersData = await flowTriggerAPI.getTriggers();
+      setTriggers(triggersData);
+    } catch (error) {
+      console.error('Error loading triggers:', error);
     }
   };
 
-  const updatePhoneNumber = (index, value) => {
-    const updated = [...phoneNumbers];
-    updated[index] = value;
-    setPhoneNumbers(updated);
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      triggerWord: '',
+      flowId: '',
+      headerText: '',
+      bodyText: '',
+      footerText: '',
+      ctaText: '',
+      isActive: true,
+    });
+    setEditingTrigger(null);
+    setShowModal(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setResults(null);
-
-    const validPhoneNumbers = phoneNumbers.filter(phone => phone.trim());
-    
-    if (validPhoneNumbers.length === 0) {
-      alert('Please enter at least one phone number');
-      setLoading(false);
-      return;
-    }
-
-    const selectedFlowData = flows.find(f => f.id === selectedFlow);
-
     try {
-      const result = await flowAPI.sendFlow({
-        phoneNumbers: validPhoneNumbers,
-        flowId: selectedFlow,
-        headerText,
-        bodyText,
-        footerText,
-        ctaText,
-        screenName: selectedFlowData?.firstScreen || 'APPOINTMENT',
-        screenData: {}
-      });
-
-      setResults(result);
+      if (editingTrigger) {
+        await flowTriggerAPI.updateTrigger(editingTrigger.id, formData);
+      } else {
+        await flowTriggerAPI.createTrigger(formData);
+      }
+      await loadTriggers();
+      resetForm();
     } catch (error) {
-      console.error('Error sending flow:', error);
-      setResults({ error: error.message });
+      console.error('Error saving trigger:', error);
+      alert('Failed to save trigger');
     }
+  };
 
-    setLoading(false);
+  const handleEdit = (trigger) => {
+    setFormData({
+      name: trigger.name,
+      triggerWord: trigger.triggerWord,
+      flowId: trigger.flowId,
+      headerText: trigger.headerText || '',
+      bodyText: trigger.bodyText || '',
+      footerText: trigger.footerText || '',
+      ctaText: trigger.ctaText,
+      isActive: trigger.isActive,
+    });
+    setEditingTrigger(trigger);
+    setShowModal(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this trigger?')) return;
+    try {
+      await flowTriggerAPI.deleteTrigger(id);
+      await loadTriggers();
+    } catch (error) {
+      console.error('Error deleting trigger:', error);
+    }
   };
 
   return (
@@ -87,167 +104,203 @@ const FlowManager = () => {
       <div className="page-header">
         <div className="page-title">
           <h1>Flow Manager</h1>
-          <p className="page-subtitle">Send interactive Flow messages to multiple phone numbers</p>
+          <p className="page-subtitle">Create trigger-based flows that automatically respond to keywords</p>
         </div>
+        <button className="add-trigger-btn" onClick={() => setShowModal(true)}>
+          <Plus size={18} />
+          <span>Create Trigger</span>
+        </button>
       </div>
 
-      <div className="content-grid">
-        <div className="form-section">
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="form-label">
-                Flow Selection <span className="required">*</span>
-              </label>
-              <select 
-                className="form-input"
-                value={selectedFlow} 
-                onChange={(e) => setSelectedFlow(e.target.value)}
-                required
-              >
-                <option value="">Select a Flow...</option>
-                {flows.map(flow => (
-                  <option key={flow.id} value={flow.id}>
-                    {flow.name} - {flow.description}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">
-                Phone Numbers <span className="required">*</span>
-              </label>
-              {phoneNumbers.map((phone, index) => (
-                <div key={index} className="phone-input-row">
-                  <input
-                    type="tel"
-                    className="form-input"
-                    placeholder="Enter phone number (e.g., 919360999351)"
-                    value={phone}
-                    onChange={(e) => updatePhoneNumber(index, e.target.value)}
-                    required={index === 0}
-                  />
-                  {phoneNumbers.length > 1 && (
-                    <button 
-                      type="button" 
-                      onClick={() => removePhoneNumber(index)}
-                      className="remove-phone-btn"
-                    >
-                      <X size={16} />
-                    </button>
-                  )}
+      <div className="triggers-grid">
+        {triggers.map((trigger) => (
+          <div key={trigger.id} className="trigger-card">
+            <div className="trigger-header">
+              <div className="trigger-info">
+                <h3>{trigger.name}</h3>
+                <div className="trigger-word">
+                  <Zap size={14} />
+                  <span>{trigger.triggerWord}</span>
                 </div>
-              ))}
-              <button type="button" onClick={addPhoneNumber} className="add-phone-btn">
-                <Plus size={16} />
-                <span>Add Phone Number</span>
-              </button>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Header Text</label>
-              <input
-                type="text"
-                className="form-input"
-                value={headerText}
-                onChange={(e) => setHeaderText(e.target.value)}
-                maxLength={60}
-                placeholder="Enter header text"
-              />
-              <span className="form-hint">{headerText.length}/60 characters</span>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Body Text</label>
-              <textarea
-                className="form-textarea"
-                value={bodyText}
-                onChange={(e) => setBodyText(e.target.value)}
-                rows={3}
-                maxLength={1024}
-                placeholder="Enter body text"
-              />
-              <span className="form-hint">{bodyText.length}/1024 characters</span>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Footer Text</label>
-              <input
-                type="text"
-                className="form-input"
-                value={footerText}
-                onChange={(e) => setFooterText(e.target.value)}
-                maxLength={60}
-                placeholder="Enter footer text"
-              />
-              <span className="form-hint">{footerText.length}/60 characters</span>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Button Text</label>
-              <input
-                type="text"
-                className="form-input"
-                value={ctaText}
-                onChange={(e) => setCtaText(e.target.value)}
-                maxLength={20}
-                placeholder="Enter button text"
-              />
-              <span className="form-hint">{ctaText.length}/20 characters</span>
-            </div>
-
-            <div className="form-actions">
-              <button type="submit" disabled={loading} className="send-btn">
-                {loading ? (
-                  <>
-                    <div className="loading-spinner" />
-                    <span>Sending...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send size={18} className="send-icon" />
-                    <span>Send Flow Messages</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {results && (
-          <div className="results-section">
-            <div className="results-header">
-              <h2>Results</h2>
-              <div className="results-summary">
-                <span className="success-count">✓ {results.totalSent} Sent</span>
-                <span className="failed-count">✗ {results.totalFailed} Failed</span>
+              </div>
+              <div className="trigger-status">
+                <span className={`status-badge ${trigger.isActive ? 'active' : 'inactive'}`}>
+                  {trigger.isActive ? 'Active' : 'Inactive'}
+                </span>
               </div>
             </div>
             
-            <div className="results-list">
-              {results.results?.map((result, index) => (
-                <div key={index} className={`result-item ${result.status === 'success' ? 'success' : 'error'}`}>
-                  <div className="result-info">
-                    <div className="result-phone">{result.phoneNumber}</div>
-                    {result.status === 'failed' && (
-                      <div className="result-error-msg">{result.error}</div>
-                    )}
-                    {result.status === 'success' && result.messageId && (
-                      <div className="result-error-msg">ID: {result.messageId}</div>
-                    )}
-                  </div>
-                  <div className="result-status">
-                    <span className={`status-icon ${result.status === 'success' ? 'success' : 'error'}`}>
-                      {result.status === 'success' ? '✓' : '✗'}
-                    </span>
-                    <span className="status-text">{result.status}</span>
-                  </div>
+            <div className="trigger-content">
+              <div className="trigger-detail">
+                <strong>Flow:</strong> {flows.find(f => f.id === trigger.flowId)?.name || trigger.flowId}
+              </div>
+              <div className="trigger-detail">
+                <strong>Button:</strong> {trigger.ctaText}
+              </div>
+              {trigger.bodyText && (
+                <div className="trigger-detail">
+                  <strong>Message:</strong> {trigger.bodyText.substring(0, 50)}{trigger.bodyText.length > 50 ? '...' : ''}
                 </div>
-              ))}
+              )}
             </div>
+
+            <div className="trigger-actions">
+              <button className="btn-icon" onClick={() => handleEdit(trigger)}>
+                <Edit size={16} />
+              </button>
+              <button className="btn-icon btn-danger" onClick={() => handleDelete(trigger.id)}>
+                <Trash2 size={16} />
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {triggers.length === 0 && (
+          <div className="empty-state">
+            <Zap size={48} />
+            <h3>No triggers yet</h3>
+            <p>Create your first trigger to automatically send flows when users send specific keywords</p>
+            <button className="add-trigger-btn" onClick={() => setShowModal(true)}>
+              <Plus size={18} />
+              <span>Create First Trigger</span>
+            </button>
           </div>
         )}
       </div>
+
+      {showModal && (
+        <div className="modal-overlay" onClick={resetForm}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{editingTrigger ? 'Edit Trigger' : 'Create New Trigger'}</h2>
+              <button className="close-btn" onClick={resetForm}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="trigger-form">
+              <div className="form-group">
+                <label className="form-label">
+                  Trigger Name <span className="required">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g., Appointment Booking"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  Trigger Word <span className="required">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={formData.triggerWord}
+                  onChange={(e) => setFormData({ ...formData, triggerWord: e.target.value })}
+                  placeholder="e.g., book, appointment, help"
+                  required
+                />
+                <span className="form-hint">When user sends this word, the flow will be triggered</span>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  Flow <span className="required">*</span>
+                </label>
+                <select
+                  className="form-input"
+                  value={formData.flowId}
+                  onChange={(e) => setFormData({ ...formData, flowId: e.target.value })}
+                  required
+                >
+                  <option value="">Select a flow...</option>
+                  {flows.map((flow) => (
+                    <option key={flow.id} value={flow.id}>
+                      {flow.name} - {flow.description}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Header Text</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={formData.headerText}
+                  onChange={(e) => setFormData({ ...formData, headerText: e.target.value })}
+                  maxLength={60}
+                  placeholder="Optional header text"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Body Text</label>
+                <textarea
+                  className="form-textarea"
+                  value={formData.bodyText}
+                  onChange={(e) => setFormData({ ...formData, bodyText: e.target.value })}
+                  rows={3}
+                  maxLength={1024}
+                  placeholder="Message to show with the flow"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Footer Text</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={formData.footerText}
+                  onChange={(e) => setFormData({ ...formData, footerText: e.target.value })}
+                  maxLength={60}
+                  placeholder="Optional footer text"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  Button Text <span className="required">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={formData.ctaText}
+                  onChange={(e) => setFormData({ ...formData, ctaText: e.target.value })}
+                  maxLength={20}
+                  placeholder="e.g., Start Booking"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={formData.isActive}
+                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                  />
+                  <span>Active (trigger will respond to messages)</span>
+                </label>
+              </div>
+
+              <div className="form-actions">
+                <button type="button" className="btn-secondary" onClick={resetForm}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary">
+                  {editingTrigger ? 'Update Trigger' : 'Create Trigger'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

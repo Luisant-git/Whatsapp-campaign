@@ -17,7 +17,7 @@ async function bootstrap() {
   // Enable CORS first
   app.enableCors({
     origin: true
-      ? ['https://whatsapp.luisant.cloud', 'https://whatsapp.admin.luisant.cloud','http://localhost:5173']
+      ? ['https://whatsapp.luisant.cloud', 'https://whatsapp.admin.luisant.cloud','http://localhost:5173', 'http://localhost:5174']
       : true,
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],

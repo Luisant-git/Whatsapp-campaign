@@ -45,6 +45,7 @@ import Labels from "./components/Labels";
 import Blacklist from "./components/BlackList";
 import CreateUser from "./components/CreateUser";
 import UngroupedContact from "./components/UngroupedContact";
+import FlowManager from "./components/FlowManager";
 
 import "./App.css";
 import "./styles/Analytics.css";
@@ -63,6 +64,7 @@ const ICON_MAP = {
   settings: Settings,
   credit: CreditCard,
   zap: Zap,
+  workflow: MessageSquare,
 };
 
 // Map MENU_CONFIG keys to activeView values
@@ -79,6 +81,7 @@ const MENU_TO_VIEW = {
 
   chatbot: "chatbot",
   "quick-reply": "quick-reply",
+  "flow-manager": "flow-manager",
 
   "ecommerce.categories": "categories",
   "ecommerce.products": "products",
@@ -438,6 +441,7 @@ function App() {
             {activeView === "auto-reply" && <AutoReply />}
             {activeView === "quick-reply" && useQuickReply && <QuickReply />}
             {activeView === "chatbot" && aiChatbotEnabled && <Chatbot />}
+            {activeView === "flow-manager" && <FlowManager />}
             {activeView === "analytics" && <Analytics />}
             {activeView === "settings" && (
               <SettingsPanel onNavigate={setActiveView} />

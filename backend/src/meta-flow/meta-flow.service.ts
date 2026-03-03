@@ -39,7 +39,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
     return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
   }
 
-  decryptRequest(encryptedFlowData: string, encryptedAesKey: string, initialVector: string): { data: any; aesKey: Buffer; iv: Buffer } {
+  decryptRequest(encryptedFlowData: string, encryptedAesKey: string, initialVector: string): { data: any; aesKey: Buffer; iv: Buffer; isInit?: boolean } {
     console.log('Starting RSA decryption...');
     
     const aesKey = crypto.privateDecrypt(
@@ -56,13 +56,14 @@ sxEK+yx6I1EkGaK+/KWEpai7
     
     const iv = Buffer.from(initialVector, 'base64');
     
-    // For empty flow data, return default structure
+    // For empty flow data, return INIT structure
     if (!encryptedFlowData) {
-      console.log('Empty flow data - returning default structure');
+      console.log('Empty flow data - returning INIT structure');
       return {
         data: { action: 'INIT', version: '1.0' },
         aesKey,
-        iv
+        iv,
+        isInit: true
       };
     }
     
@@ -71,12 +72,18 @@ sxEK+yx6I1EkGaK+/KWEpai7
     console.log('Encrypted Length:', encryptedData.length);
     console.log('Modulo 16:', encryptedData.length % 16);
     
-    // Now all encrypted data should have valid block size
+    // Check if this is INIT (invalid AES block size)
     if (encryptedData.length % 16 !== 0) {
-      throw new Error(`Invalid AES block size: ${encryptedData.length} bytes`);
+      console.log('Invalid AES block size - this is INIT handshake, not real encrypted data');
+      return {
+        data: { action: 'INIT', version: '1.0' },
+        aesKey,
+        iv,
+        isInit: true
+      };
     }
     
-    console.log('Valid AES block size. Processing flow data...');
+    console.log('Valid AES block size. Processing real flow data...');
     
     const decipher = crypto.createDecipheriv('aes-128-cbc', aesKey, iv);
     
@@ -110,12 +117,14 @@ sxEK+yx6I1EkGaK+/KWEpai7
   async processFlow(decryptedData: any): Promise<any> {
     const { screen, data, version, action } = decryptedData;
 
-    // For health check (ping), return empty object
-    if (action === 'ping') {
+    // For INIT/health check, return empty object
+    if (action === 'INIT' || action === 'ping') {
+      console.log('Processing INIT/health check - returning empty object');
       return {};
     }
 
     // For real flow data, return empty object for now
+    console.log('Processing real flow data - returning empty object');
     return {};
   }
 }

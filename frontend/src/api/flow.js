@@ -30,6 +30,19 @@ const flowAPI = {
     });
     return response.json();
   },
+
+  // Create new flow
+  createFlow: async (data) => {
+    const response = await fetch(`${API_BASE_URL}/flow-messages/create-flow`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+    return response.json();
+  },
 };
 
 export default flowAPI;

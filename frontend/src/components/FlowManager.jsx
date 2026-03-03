@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Send, Plus, X, Zap, Edit, Trash2, BarChart3 } from 'lucide-react';
+import { Send, Plus, X, Zap, Edit, Trash2, BarChart3, Workflow } from 'lucide-react';
 import flowAPI from '../api/flow';
 import flowTriggerAPI from '../api/flowTrigger';
+import FlowBuilder from './FlowBuilder';
 import '../styles/FlowManager.css';
 
 const FlowManager = () => {
   const [flows, setFlows] = useState([]);
   const [triggers, setTriggers] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showBuilder, setShowBuilder] = useState(false);
   const [editingTrigger, setEditingTrigger] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -100,16 +102,26 @@ const FlowManager = () => {
   };
 
   return (
+    <>
+      {showBuilder ? (
+        <FlowBuilder onBack={() => { setShowBuilder(false); loadFlows(); }} />
+      ) : (
     <div className="flow-manager">
       <div className="page-header">
         <div className="page-title">
           <h1>Flow Manager</h1>
           <p className="page-subtitle">Create trigger-based flows that automatically respond to keywords</p>
         </div>
-        <button className="add-trigger-btn" onClick={() => setShowModal(true)}>
-          <Plus size={18} />
-          <span>Create Trigger</span>
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="btn-secondary" onClick={() => setShowBuilder(true)}>
+            <Workflow size={18} />
+            <span>Build Flow</span>
+          </button>
+          <button className="add-trigger-btn" onClick={() => setShowModal(true)}>
+            <Plus size={18} />
+            <span>Create Trigger</span>
+          </button>
+        </div>
       </div>
 
       <div className="triggers-grid">
@@ -309,6 +321,8 @@ const FlowManager = () => {
         </div>
       )}
     </div>
+    )}
+    </>
   );
 };
 

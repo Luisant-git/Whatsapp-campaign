@@ -154,4 +154,45 @@ export class FlowMessageService {
       recentMessages: []
     };
   }
+
+  async createFlow(flowData: any) {
+    try {
+      const response = await axios.post(
+        `https://graph.facebook.com/v18.0/${this.wabaId}/flows`,
+        {
+          name: flowData.name,
+          categories: ['APPOINTMENT_BOOKING']
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const flowId = response.data.id;
+
+      // Update flow with JSON
+      await axios.post(
+        `https://graph.facebook.com/v18.0/${flowId}/assets`,
+        {
+          name: 'flow.json',
+          asset_type: 'FLOW_JSON',
+          flow_json: JSON.stringify(flowData.flowJson)
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      return { success: true, flowId };
+    } catch (error) {
+      console.error('Error creating flow:', error.response?.data || error.message);
+      throw error;
+    }
+  }
 }

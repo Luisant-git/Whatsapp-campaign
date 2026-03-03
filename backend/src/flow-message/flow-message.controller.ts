@@ -66,4 +66,10 @@ export class FlowMessageController {
   async getTriggerLogs(@Session() session: any, @Param('id') id: string) {
     return this.flowTriggerService.getTriggerLogs(parseInt(id), session.user.id);
   }
+
+  @Post('create-flow')
+  @UseGuards(SessionGuard)
+  async createFlow(@Body() flowData: any) {
+    return this.flowMessageService.createFlow(flowData);
+  }
 }

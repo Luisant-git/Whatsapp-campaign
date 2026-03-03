@@ -40,6 +40,8 @@ sxEK+yx6I1EkGaK+/KWEpai7
   }
 
   decryptRequest(encryptedFlowData: string, encryptedAesKey: string, initialVector: string): { data: any; aesKey: Buffer; iv: Buffer } {
+    console.log('Starting RSA decryption...');
+    
     const aesKey = crypto.privateDecrypt(
       { 
         key: this.privateKey, 
@@ -49,6 +51,9 @@ sxEK+yx6I1EkGaK+/KWEpai7
       Buffer.from(encryptedAesKey, 'base64')
     );
     
+    console.log('RSA decryption successful');
+    console.log('Decrypted AES Key (hex):', aesKey.toString('hex'));
+    
     const iv = Buffer.from(initialVector, 'base64');
     const encryptedData = Buffer.from(encryptedFlowData, 'base64');
     
@@ -56,12 +61,14 @@ sxEK+yx6I1EkGaK+/KWEpai7
     console.log('IV Length:', iv.length);
     console.log('Encrypted Buffer Length:', encryptedData.length);
     
+    console.log('Starting AES decryption...');
     const decipher = crypto.createDecipheriv('aes-128-cbc', aesKey, iv);
     
     let decrypted = decipher.update(encryptedData);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     
     const parsed = JSON.parse(decrypted.toString());
+    console.log('AES decryption successful');
     console.log('Decrypted Flow:', parsed);
     
     return {

@@ -1,17 +1,26 @@
 import { Injectable } from '@nestjs/common';
+import { BaseTenantService } from '../base-tenant.service';
 import { TenantPrismaService } from '../tenant-prisma.service';
+import { CentralPrismaService } from '../central-prisma.service';
+import { TenantContext } from '../tenant/tenant.decorator';
 import axios from 'axios';
 
 @Injectable()
-export class FlowTriggerService {
+export class FlowTriggerService extends BaseTenantService {
   private readonly accessToken = process.env.META_ACCESS_TOKEN;
   private readonly phoneNumberId = process.env.PHONE_NUMBER_ID;
 
-  constructor(private readonly prisma: TenantPrismaService) {}
+  constructor(
+    tenantPrisma: TenantPrismaService,
+    centralPrisma: CentralPrismaService,
+  ) {
+    super(tenantPrisma, centralPrisma);
+  }
 
   // Create a new flow trigger
   async createTrigger(userId: number, data: any) {
-    return this.prisma.flowTrigger.create({
+    const prisma = await this.getTenantDb(userId);
+    return prisma.flowTrigger.create({
       data: {
         name: data.name,
         triggerWord: data.triggerWord.toLowerCase().trim(),
@@ -30,7 +39,8 @@ export class FlowTriggerService {
 
   // Get all triggers for a user
   async getTriggers(userId: number) {
-    return this.prisma.flowTrigger.findMany({
+    const prisma = await this.getTenantDb(userId);
+    return prisma.flowTrigger.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
@@ -38,14 +48,16 @@ export class FlowTriggerService {
 
   // Get single trigger
   async getTrigger(id: number, userId: number) {
-    return this.prisma.flowTrigger.findFirst({
+    const prisma = await this.getTenantDb(userId);
+    return prisma.flowTrigger.findFirst({
       where: { id, userId },
     });
   }
 
   // Update trigger
   async updateTrigger(id: number, userId: number, data: any) {
-    return this.prisma.flowTrigger.update({
+    const prisma = await this.getTenantDb(userId);
+    return prisma.flowTrigger.update({
       where: { id },
       data: {
         name: data.name,
@@ -65,16 +77,18 @@ export class FlowTriggerService {
 
   // Delete trigger
   async deleteTrigger(id: number, userId: number) {
-    return this.prisma.flowTrigger.delete({
+    const prisma = await this.getTenantDb(userId);
+    return prisma.flowTrigger.delete({
       where: { id },
     });
   }
 
   // Check if message matches any trigger and send flow
   async checkAndSendFlow(message: string, phoneNumber: string, userId: number) {
+    const prisma = await this.getTenantDb(userId);
     const triggerWord = message.toLowerCase().trim();
     
-    const trigger = await this.prisma.flowTrigger.findFirst({
+    const trigger = await prisma.flowTrigger.findFirst({
       where: {
         userId,
         triggerWord,
@@ -90,7 +104,7 @@ export class FlowTriggerService {
       const response = await this.sendFlowMessage(phoneNumber, trigger);
       
       // Log success
-      await this.prisma.flowTriggerLog.create({
+      await prisma.flowTriggerLog.create({
         data: {
           flowTriggerId: trigger.id,
           phoneNumber,
@@ -103,7 +117,7 @@ export class FlowTriggerService {
       return { success: true, trigger, messageId: response.data.messages[0].id };
     } catch (error) {
       // Log error
-      await this.prisma.flowTriggerLog.create({
+      await prisma.flowTriggerLog.create({
         data: {
           flowTriggerId: trigger.id,
           phoneNumber,
@@ -165,18 +179,19 @@ export class FlowTriggerService {
 
   // Get trigger logs/analytics
   async getTriggerLogs(triggerId: number, userId: number) {
+    const prisma = await this.getTenantDb(userId);
     const trigger = await this.getTrigger(triggerId, userId);
     if (!trigger) {
       throw new Error('Trigger not found');
     }
 
-    const logs = await this.prisma.flowTriggerLog.findMany({
+    const logs = await prisma.flowTriggerLog.findMany({
       where: { flowTriggerId: triggerId },
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
 
-    const stats = await this.prisma.flowTriggerLog.groupBy({
+    const stats = await prisma.flowTriggerLog.groupBy({
       by: ['status'],
       where: { flowTriggerId: triggerId },
       _count: true,

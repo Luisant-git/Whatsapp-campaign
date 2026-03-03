@@ -80,6 +80,7 @@ export class FlowTriggerService {
   // Check if message matches any trigger and send flow (with tenant client)
   async checkAndSendFlowWithClient(message: string, phoneNumber: string, tenantClient: any, accessToken: string, phoneNumberId: string) {
     const triggerWord = message.toLowerCase().trim();
+    console.log(`[FlowTrigger] Checking for trigger word: "${triggerWord}"`);
     
     const trigger = await tenantClient.flowTrigger.findFirst({
       where: {
@@ -88,12 +89,16 @@ export class FlowTriggerService {
       },
     });
 
+    console.log(`[FlowTrigger] Found trigger:`, trigger);
+
     if (!trigger) {
       return null;
     }
 
     try {
+      console.log(`[FlowTrigger] Sending flow message to ${phoneNumber}`);
       const response = await this.sendFlowMessage(phoneNumber, trigger, accessToken, phoneNumberId);
+      console.log(`[FlowTrigger] Flow sent successfully:`, response.data);
       
       // Log success
       await tenantClient.flowTriggerLog.create({
@@ -108,6 +113,7 @@ export class FlowTriggerService {
 
       return { success: true, trigger, messageId: response.data.messages[0].id };
     } catch (error) {
+      console.error(`[FlowTrigger] Error sending flow:`, error.response?.data || error.message);
       // Log error
       await tenantClient.flowTriggerLog.create({
         data: {

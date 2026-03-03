@@ -27,7 +27,7 @@ export class MetaFlowController {
       // Health check - no encryption
       if (!body.encrypted_flow_data || !body.encrypted_aes_key || !body.initial_vector) {
         const response = { version: '3.0', data: { status: 'active' } };
-        return res.send(Buffer.from(JSON.stringify(response)).toString('base64'));
+        return res.json(response);
       }
 
       console.log('encrypted_flow_data length:', body.encrypted_flow_data?.length);
@@ -57,16 +57,23 @@ export class MetaFlowController {
       
       // Encrypt response using SAME AES key + IV
       const responseString = JSON.stringify(response);
-      const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
       
-      let encrypted = cipher.update(responseString, 'utf8');
+      // Add PKCS7 padding manually for consistent encryption
+      const blockSize = 16;
+      const padding = blockSize - (responseString.length % blockSize);
+      const paddedResponse = responseString + String.fromCharCode(padding).repeat(padding);
+      
+      const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
+      cipher.setAutoPadding(false); // Use manual padding
+      
+      let encrypted = cipher.update(paddedResponse, 'utf8');
       encrypted = Buffer.concat([encrypted, cipher.final()]);
       
       return res.send(encrypted.toString('base64'));
     } catch (error) {
       console.error('Flow error:', error.message);
       const errorResponse = { version: '3.0', data: { error: error.message } };
-      return res.send(Buffer.from(JSON.stringify(errorResponse)).toString('base64'));
+      return res.json(errorResponse);
     }
   }
 }

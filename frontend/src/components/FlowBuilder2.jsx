@@ -7,7 +7,7 @@ const FlowBuilder = ({ onBack }) => {
   const [flowName, setFlowName] = useState('');
   const [screens, setScreens] = useState([
     {
-      id: 'SCREEN_1',
+      id: 'SCREEN_ONE',
       title: 'Screen 1',
       data: {},
       layout: {
@@ -22,7 +22,7 @@ const FlowBuilder = ({ onBack }) => {
     setFlowName(name);
     if (name && screens.length === 1 && screens[0].layout.children.length === 0) {
       const updatedScreens = [...screens];
-      const screenId = name.toUpperCase().replace(/\s+/g, '_');
+      const screenId = name.toUpperCase().replace(/[^A-Z_]/g, '_');
       updatedScreens[0].id = screenId;
       updatedScreens[0].title = name;
       setScreens(updatedScreens);

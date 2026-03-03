@@ -35,14 +35,11 @@ export class MetaFlowController {
           body.initial_vector?.replace(/ /g, '+') || ''
         );
         
-        const responsePayload = JSON.stringify({
-          version: '1.0',
-          data: {}
-        });
+        const responsePayload = JSON.stringify({});
         
         console.log('JSON payload before encryption:', responsePayload);
         console.log('Payload length:', Buffer.byteLength(responsePayload));
-        console.log('Expected length should be 29 bytes for correct structure');
+        console.log('Expected length should be 2 bytes for empty object');
         
         // Debug encryption parameters
         console.log('AES Key length:', aesKey.length, 'bytes');

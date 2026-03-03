@@ -30,12 +30,9 @@ const FlowBuilder = ({ onBack }) => {
   ];
 
   const [draggedComponent, setDraggedComponent] = useState(null);
-  const canvasRef = React.useRef(null);
 
-  const addComponent = (type, x = null, y = null) => {
+  const addComponent = (type) => {
     const index = screens[currentScreen].layout.children.length;
-    const row = Math.floor(index / 3);
-    const col = index % 3;
     
     const newComponent = {
       type,
@@ -43,8 +40,8 @@ const FlowBuilder = ({ onBack }) => {
       label: `${type}`,
       required: false,
       position: { 
-        x: x !== null ? x : 50 + (col * 200),
-        y: y !== null ? y : 50 + (row * 120)
+        x: 150,
+        y: 50 + (index * 150)
       },
       id: Date.now(),
       ...(type === 'TextInput' && { 'input-type': 'text', 'helper-text': '' }),
@@ -62,28 +59,19 @@ const FlowBuilder = ({ onBack }) => {
   };
 
   const handleDragStart = (e, type) => {
-    setDraggedComponent(type);
+    // Removed drag functionality
   };
 
   const handleDrop = (e) => {
-    e.preventDefault();
-    if (draggedComponent) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      addComponent(draggedComponent, x - 60, y - 30);
-      setDraggedComponent(null);
-    }
+    // Removed drag functionality
   };
 
   const handleDragOver = (e) => {
-    e.preventDefault();
+    // Removed drag functionality
   };
 
   const moveComponent = (index, newX, newY) => {
-    const updatedScreens = [...screens];
-    updatedScreens[currentScreen].layout.children[index].position = { x: newX, y: newY };
-    setScreens(updatedScreens);
+    // Removed drag functionality
   };
 
   const getComponentIcon = (type) => {
@@ -112,32 +100,31 @@ const FlowBuilder = ({ onBack }) => {
       const fromComp = components[i];
       const toComp = components[i + 1];
       
-      const fromX = (fromComp.position?.x || 0) + 180;
-      const fromY = (fromComp.position?.y || 0) + 30;
-      const toX = (toComp.position?.x || 0);
-      const toY = (toComp.position?.y || 0) + 30;
+      const fromX = (fromComp.position?.x || 150) + 90;
+      const fromY = (fromComp.position?.y || 0) + 60;
+      const toX = (toComp.position?.x || 150) + 90;
+      const toY = (toComp.position?.y || 0);
 
       lines.push(
-        <line
-          key={i}
-          x1={fromX}
-          y1={fromY}
-          x2={toX}
-          y2={toY}
-          stroke="#25D366"
-          strokeWidth="2"
-          markerEnd="url(#arrowhead)"
-        />
+        <g key={i}>
+          <line
+            x1={fromX}
+            y1={fromY}
+            x2={toX}
+            y2={toY}
+            stroke="#DC2626"
+            strokeWidth="3"
+          />
+          <polygon
+            points={`${toX},${toY} ${toX-6},${toY-10} ${toX+6},${toY-10}`}
+            fill="#DC2626"
+          />
+        </g>
       );
     }
 
     return (
       <svg className="connection-svg">
-        <defs>
-          <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-            <polygon points="0 0, 10 3, 0 6" fill="#25D366" />
-          </marker>
-        </defs>
         {lines}
       </svg>
     );
@@ -238,26 +225,20 @@ const FlowBuilder = ({ onBack }) => {
         <div className="components-panel">
           <div className="component-list">
             {componentTypes.map((comp) => (
-              <div
+              <button
                 key={comp.type}
-                draggable
-                onDragStart={(e) => handleDragStart(e, comp.type)}
+                onClick={() => addComponent(comp.type)}
                 className="component-btn"
               >
                 <comp.Icon size={20} className="component-icon" />
                 <span>{comp.label}</span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
 
         <div className="canvas-panel">
-          <div 
-            ref={canvasRef}
-            className="canvas-wireframe"
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-          >
+          <div className="canvas-wireframe">
             {renderConnections()}
             {screens[currentScreen].layout.children.map((component, index) => {
               const ComponentIcon = getComponentIcon(component.type);
@@ -266,23 +247,10 @@ const FlowBuilder = ({ onBack }) => {
                   key={index} 
                   className={`wireframe-node ${selectedComponent === index ? 'selected' : ''}`}
                   style={{
-                    left: component.position?.x || 50 + ((index % 3) * 200),
-                    top: component.position?.y || 50 + (Math.floor(index / 3) * 120)
+                    left: component.position?.x || 150,
+                    top: component.position?.y || 50 + (index * 150)
                   }}
                   onClick={() => setSelectedComponent(index)}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.effectAllowed = 'move';
-                    e.dataTransfer.setData('index', index.toString());
-                  }}
-                  onDragEnd={(e) => {
-                    const rect = e.currentTarget.parentElement.getBoundingClientRect();
-                    const newX = e.clientX - rect.left - 90;
-                    const newY = e.clientY - rect.top - 30;
-                    if (newX > 0 && newY > 0) {
-                      moveComponent(index, newX, newY);
-                    }
-                  }}
                 >
                   <div className="node-content">
                     <ComponentIcon size={18} />

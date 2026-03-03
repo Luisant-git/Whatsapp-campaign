@@ -17,6 +17,8 @@ export class MetaFlowController {
   async handleFlow(@Req() req: any, @Res() res: Response) {
     try {
       console.log('=== META FLOW REQUEST ===');
+      console.log('Is Buffer:', Buffer.isBuffer(req.body));
+      console.log('Original URL:', req.originalUrl);
       
       // Parse raw body to preserve base64 integrity
       const body = JSON.parse(req.body.toString());

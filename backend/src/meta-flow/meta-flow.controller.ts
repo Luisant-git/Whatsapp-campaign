@@ -15,9 +15,11 @@ export class MetaFlowController {
   @HttpCode(200)
   async handleFlow(@Body() body: any) {
     try {
-      console.log('Raw body keys:', Object.keys(body));
+      console.log('=== META FLOW REQUEST ===');
+      console.log('Body keys:', Object.keys(body));
       console.log('encrypted_flow_data length:', body.encrypted_flow_data?.length);
-      console.log('encrypted_flow_data sample:', body.encrypted_flow_data?.substring(0, 50));
+      console.log('encrypted_aes_key length:', body.encrypted_aes_key?.length);
+      console.log('initial_vector length:', body.initial_vector?.length);
       
       if (!body.encrypted_flow_data) {
         return { status: 'active' };

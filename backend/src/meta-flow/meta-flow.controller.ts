@@ -35,7 +35,7 @@ export class MetaFlowController {
       console.log('Encrypted Buffer Length:', encryptedBuffer.length);
       console.log('Modulo 16:', encryptedBuffer.length % 16);
 
-      const { data, aesKey, iv } = this.metaFlowService.decryptRequest(
+      const { data, aesKey, iv, isInit } = this.metaFlowService.decryptRequest(
         body.encrypted_flow_data || '',
         body.encrypted_aes_key || '',
         body.initial_vector || ''
@@ -44,34 +44,54 @@ export class MetaFlowController {
       console.log('Decrypted data:', data);
       const response = await this.metaFlowService.processFlow(data);
       
-      // Encrypt response using SAME AES key + SAME IV from request
+      // Encrypt response - different logic for INIT vs real flow data
       const responseString = JSON.stringify(response);
       
-      // 1️⃣ Generate NEW IV for response
-      const responseIV = crypto.randomBytes(16);
-      
-      // 2️⃣ Encrypt using NEW IV
-      const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, responseIV);
-      cipher.setAutoPadding(true);
-      
-      let encrypted = cipher.update(responseString, 'utf8');
-      encrypted = Buffer.concat([encrypted, cipher.final()]);
-      
-      // 3️⃣ Prepend IV to encrypted data
-      const finalBuffer = Buffer.concat([responseIV, encrypted]);
-      
-      console.log('Response encrypted length:', encrypted.length);
-      console.log('Final buffer length (IV + encrypted):', finalBuffer.length);
-      console.log('Modulo 16:', finalBuffer.length % 16);
-      
-      // 4️⃣ Base64 encode IV + ciphertext
-      const encryptedBase64 = finalBuffer.toString('base64');
-      console.log('Sending response:', encryptedBase64);
-      
-      return res
-        .status(200)
-        .set('Content-Type', 'text/plain')
-        .send(encryptedBase64);
+      if (isInit) {
+        // INIT: Use SAME IV from request, NO IV prepending
+        console.log('INIT response - using request IV, no prepending');
+        const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
+        cipher.setAutoPadding(true);
+        
+        let encrypted = cipher.update(responseString, 'utf8');
+        encrypted = Buffer.concat([encrypted, cipher.final()]);
+        
+        console.log('Response encrypted length:', encrypted.length);
+        console.log('Final buffer length:', encrypted.length);
+        console.log('Modulo 16:', encrypted.length % 16);
+        
+        const encryptedBase64 = encrypted.toString('base64');
+        console.log('Sending INIT response:', encryptedBase64);
+        
+        return res
+          .status(200)
+          .set('Content-Type', 'text/plain')
+          .send(encryptedBase64);
+      } else {
+        // Real flow data: Generate NEW IV and prepend it
+        console.log('Real flow response - generating new IV and prepending');
+        const responseIV = crypto.randomBytes(16);
+        
+        const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, responseIV);
+        cipher.setAutoPadding(true);
+        
+        let encrypted = cipher.update(responseString, 'utf8');
+        encrypted = Buffer.concat([encrypted, cipher.final()]);
+        
+        const finalBuffer = Buffer.concat([responseIV, encrypted]);
+        
+        console.log('Response encrypted length:', encrypted.length);
+        console.log('Final buffer length (IV + encrypted):', finalBuffer.length);
+        console.log('Modulo 16:', finalBuffer.length % 16);
+        
+        const encryptedBase64 = finalBuffer.toString('base64');
+        console.log('Sending flow response:', encryptedBase64);
+        
+        return res
+          .status(200)
+          .set('Content-Type', 'text/plain')
+          .send(encryptedBase64);
+      }
     } catch (error) {
       console.error('Flow error:', error.message);
       

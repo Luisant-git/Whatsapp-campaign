@@ -53,38 +53,46 @@ export class MetaFlowController {
         console.log('INIT JSON EXACT:', responseString);
         console.log('Length:', Buffer.byteLength(responseString));
         
-        const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
-        cipher.setAutoPadding(true);
+        // For INIT, use flipped IV as per Meta specification
+        const flippedIV = Buffer.from(iv.map(byte => byte ^ 0xFF));
+        
+        const cipher = crypto.createCipheriv('aes-128-gcm', aesKey, flippedIV);
         
         let encrypted = cipher.update(responseString, 'utf8');
         encrypted = Buffer.concat([encrypted, cipher.final()]);
         
-        console.log('Response encrypted length:', encrypted.length);
-        console.log('Final buffer length:', encrypted.length);
-        console.log('Modulo 16:', encrypted.length % 16);
+        // Get the authentication tag and append it
+        const authTag = cipher.getAuthTag();
+        const finalEncrypted = Buffer.concat([encrypted, authTag]);
         
-        const encryptedBase64 = encrypted.toString('base64');
+        console.log('Response encrypted length:', finalEncrypted.length);
+        console.log('Final buffer length:', finalEncrypted.length);
+        console.log('Modulo 16:', finalEncrypted.length % 16);
+        
+        const encryptedBase64 = finalEncrypted.toString('base64');
         console.log('Sending INIT response:', encryptedBase64);
         
         return encryptedBase64;
       } else {
-        // Real flow data: Generate NEW IV and prepend it
-        console.log('Real flow response - generating new IV and prepending');
-        const responseIV = crypto.randomBytes(16);
+        // Real flow data: Use flipped IV for AES-GCM
+        console.log('Real flow response - using flipped IV for AES-GCM');
         
-        const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, responseIV);
-        cipher.setAutoPadding(true);
+        const flippedIV = Buffer.from(iv.map(byte => byte ^ 0xFF));
+        
+        const cipher = crypto.createCipheriv('aes-128-gcm', aesKey, flippedIV);
         
         let encrypted = cipher.update(responseString, 'utf8');
         encrypted = Buffer.concat([encrypted, cipher.final()]);
         
-        const finalBuffer = Buffer.concat([responseIV, encrypted]);
+        // Get the authentication tag and append it
+        const authTag = cipher.getAuthTag();
+        const finalEncrypted = Buffer.concat([encrypted, authTag]);
         
-        console.log('Response encrypted length:', encrypted.length);
-        console.log('Final buffer length (IV + encrypted):', finalBuffer.length);
-        console.log('Modulo 16:', finalBuffer.length % 16);
+        console.log('Response encrypted length:', finalEncrypted.length);
+        console.log('Final buffer length:', finalEncrypted.length);
+        console.log('Modulo 16:', finalEncrypted.length % 16);
         
-        const encryptedBase64 = finalBuffer.toString('base64');
+        const encryptedBase64 = finalEncrypted.toString('base64');
         console.log('Sending flow response:', encryptedBase64);
         
         return encryptedBase64;
@@ -107,17 +115,17 @@ export class MetaFlowController {
             data: { error: error.message }
           });
           
-          // Generate NEW IV for response
-          const responseIV = crypto.randomBytes(16);
+          // Use flipped IV for error response
+          const flippedIV = Buffer.from(iv.map(byte => byte ^ 0xFF));
           
-          const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, responseIV);
-          cipher.setAutoPadding(true);
+          const cipher = crypto.createCipheriv('aes-128-gcm', aesKey, flippedIV);
           
           let encrypted = cipher.update(errorPayload, 'utf8');
           encrypted = Buffer.concat([encrypted, cipher.final()]);
           
-          const finalBuffer = Buffer.concat([responseIV, encrypted]);
-          const encryptedBase64 = finalBuffer.toString('base64');
+          const authTag = cipher.getAuthTag();
+          const finalEncrypted = Buffer.concat([encrypted, authTag]);
+          const encryptedBase64 = finalEncrypted.toString('base64');
           
           return encryptedBase64;
         }

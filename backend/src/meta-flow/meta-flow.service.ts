@@ -85,9 +85,15 @@ sxEK+yx6I1EkGaK+/KWEpai7
     
     console.log('Valid AES block size. Processing real flow data...');
     
-    const decipher = crypto.createDecipheriv('aes-128-cbc', aesKey, iv);
+    // Extract the authentication tag (last 16 bytes) for AES-GCM
+    const TAG_LENGTH = 16;
+    const encryptedDataBody = encryptedData.subarray(0, -TAG_LENGTH);
+    const authTag = encryptedData.subarray(-TAG_LENGTH);
     
-    let decrypted = decipher.update(encryptedData);
+    const decipher = crypto.createDecipheriv('aes-128-gcm', aesKey, iv);
+    decipher.setAuthTag(authTag);
+    
+    let decrypted = decipher.update(encryptedDataBody);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     
     const parsed = JSON.parse(decrypted.toString());

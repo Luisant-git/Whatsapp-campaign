@@ -20,30 +20,25 @@ export class MetaFlowController {
       console.log('Is Buffer:', Buffer.isBuffer(req.body));
       console.log('Original URL:', req.originalUrl);
       
-      // Handle body parsing correctly - avoid double parsing
+      // Handle body parsing correctly - use parsed JSON directly
       const body = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString('utf8')) : req.body;
       console.log('Body keys:', Object.keys(body));
-      console.log('Raw encrypted_flow_data:', body.encrypted_flow_data);
+      console.log('Raw encrypted_flow_data length:', body.encrypted_flow_data?.length);
       
       // Always try to decrypt the flow data - even for INIT
       console.log('encrypted_flow_data length:', body.encrypted_flow_data?.length);
       console.log('encrypted_aes_key length:', body.encrypted_aes_key?.length);
       console.log('initial_vector length:', body.initial_vector?.length);
       
-      // Normalize base64 string (fix + to space conversion)
-      const normalizedFlowData = body.encrypted_flow_data?.replace(/ /g, '+') || '';
-      const normalizedAesKey = body.encrypted_aes_key?.replace(/ /g, '+') || '';
-      const normalizedIV = body.initial_vector?.replace(/ /g, '+') || '';
-      
-      // Check buffer integrity
-      const encryptedBuffer = Buffer.from(normalizedFlowData, 'base64');
+      // DO NOT modify base64 strings - use them directly
+      const encryptedBuffer = Buffer.from(body.encrypted_flow_data || '', 'base64');
       console.log('Encrypted Buffer Length:', encryptedBuffer.length);
       console.log('Modulo 16:', encryptedBuffer.length % 16);
 
       const { data, aesKey, iv } = this.metaFlowService.decryptRequest(
-        normalizedFlowData,
-        normalizedAesKey,
-        normalizedIV
+        body.encrypted_flow_data || '',
+        body.encrypted_aes_key || '',
+        body.initial_vector || ''
       );
 
       console.log('Decrypted data:', data);
@@ -82,12 +77,12 @@ export class MetaFlowController {
       
       // Even errors should be encrypted if we have keys
       try {
-        const body = JSON.parse(req.body.toString());
+        const body = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString('utf8')) : req.body;
         if (body.encrypted_aes_key && body.initial_vector) {
           const { aesKey, iv } = this.metaFlowService.decryptRequest(
             '',
-            body.encrypted_aes_key.replace(/ /g, '+'),
-            body.initial_vector.replace(/ /g, '+')
+            body.encrypted_aes_key,
+            body.initial_vector
           );
           
           const errorPayload = JSON.stringify({

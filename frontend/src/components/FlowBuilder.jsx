@@ -334,18 +334,26 @@ const FlowBuilder = ({ onBack }) => {
                         className="connection-dot connection-dot-right"
                         onMouseDown={(e) => handleConnectionStart(e, component.id)}
                       />
+                      <div 
+                        className="connection-dot connection-dot-top"
+                        onMouseDown={(e) => handleConnectionStart(e, component.id)}
+                      />
+                      <div 
+                        className="connection-dot connection-dot-bottom"
+                        onMouseDown={(e) => handleConnectionStart(e, component.id)}
+                      />
                     </>
                   )}
                   <div className="node-content">
-                    <ComponentIcon size={16} />
+                    <ComponentIcon size={18} />
                     <span className="node-label">{component.label}</span>
-                    <button 
-                      className="node-delete" 
-                      onClick={(e) => { e.stopPropagation(); removeComponent(index); }}
-                    >
-                      <X size={14} />
-                    </button>
                   </div>
+                  <button 
+                    className="node-delete" 
+                    onClick={(e) => { e.stopPropagation(); removeComponent(index); }}
+                  >
+                    <X size={12} />
+                  </button>
                 </div>
               );
             })}

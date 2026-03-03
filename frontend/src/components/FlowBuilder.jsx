@@ -166,7 +166,7 @@ const FlowBuilder = ({ onBack }) => {
     const flowJson = {
       version: '6.0',
       screens: screens.map(screen => ({
-        id: screen.id || 'SCREEN',
+        id: (screen.id || flowName.toUpperCase()).replace(/[^A-Z_]/g, '_') || 'SCREEN_ONE',
         title: screen.title || flowName,
         data: {},
         layout: {

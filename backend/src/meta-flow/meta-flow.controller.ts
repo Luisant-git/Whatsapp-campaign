@@ -1,5 +1,5 @@
-import { Controller, Post, Get, HttpCode, Res, Req } from '@nestjs/common';
-import type { Response, Request } from 'express';
+import { Controller, Post, Get, HttpCode, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import * as crypto from 'crypto';
 import { MetaFlowService } from './meta-flow.service';
 
@@ -14,7 +14,7 @@ export class MetaFlowController {
 
   @Post()
   @HttpCode(200)
-  async handleFlow(@Req() req: any, @Res() res: Response) {
+  async handleFlow(@Req() req: any) {
     try {
       console.log('=== META FLOW REQUEST ===');
       console.log('Is Buffer:', Buffer.isBuffer(req.body));
@@ -69,9 +69,7 @@ export class MetaFlowController {
         const finalResponse = { encrypted_flow_data: encryptedBase64 };
         console.log('FINAL RESPONSE BODY:', finalResponse);
         
-        return res
-          .status(200)
-          .json(finalResponse);
+        return finalResponse;
       } else {
         // Real flow data: Generate NEW IV and prepend it
         console.log('Real flow response - generating new IV and prepending');
@@ -95,9 +93,7 @@ export class MetaFlowController {
         const finalResponse = { encrypted_flow_data: encryptedBase64 };
         console.log('FINAL RESPONSE BODY:', finalResponse);
         
-        return res
-          .status(200)
-          .json(finalResponse);
+        return finalResponse;
       }
     } catch (error) {
       console.error('Flow error:', error.message);
@@ -117,33 +113,25 @@ export class MetaFlowController {
             data: { error: error.message }
           });
           
-          // 1️⃣ Generate NEW IV for response
+          // Generate NEW IV for response
           const responseIV = crypto.randomBytes(16);
           
-          // 2️⃣ Encrypt using NEW IV
           const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, responseIV);
           cipher.setAutoPadding(true);
           
           let encrypted = cipher.update(errorPayload, 'utf8');
           encrypted = Buffer.concat([encrypted, cipher.final()]);
           
-          // 3️⃣ Prepend IV to encrypted data
           const finalBuffer = Buffer.concat([responseIV, encrypted]);
-          
-          // 4️⃣ Base64 encode IV + ciphertext
           const encryptedBase64 = finalBuffer.toString('base64');
           
-          const finalResponse = { encrypted_flow_data: encryptedBase64 };
-          
-          return res
-            .status(200)
-            .json(finalResponse);
+          return { encrypted_flow_data: encryptedBase64 };
         }
       } catch (encryptError) {
         console.error('Failed to encrypt error response:', encryptError.message);
       }
       
-      return res.status(500).json({ error: 'Internal server error' });
+      return { error: 'Internal server error' };
     }
   }
 }

@@ -345,7 +345,6 @@ const FlowBuilder = ({ onBack }) => {
                     >
                       <X size={14} />
                     </button>
-                  </div>an className="node-badge">Required</span>}
                   </div>
                 </div>
               );

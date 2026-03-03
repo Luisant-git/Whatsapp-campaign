@@ -44,8 +44,16 @@ export class MetaFlowController {
         console.log('Payload length:', Buffer.byteLength(responsePayload));
         console.log('Expected length should be 29 bytes for correct structure');
         
+        // Debug encryption parameters
+        console.log('AES Key length:', aesKey.length, 'bytes');
+        console.log('AES Key (hex):', aesKey.toString('hex'));
+        console.log('IV length:', iv.length, 'bytes');
+        console.log('IV (hex):', iv.toString('hex'));
+        
         // CRITICAL: Use SAME IV from request for response encryption
         const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
+        cipher.setAutoPadding(true); // Ensure PKCS7 padding
+        
         let encrypted = cipher.update(responsePayload, 'utf8');
         encrypted = Buffer.concat([encrypted, cipher.final()]);
         
@@ -89,7 +97,14 @@ export class MetaFlowController {
       // Encrypt response using SAME AES key + SAME IV from request
       const responseString = JSON.stringify(response);
       
+      console.log('Response JSON:', responseString);
+      console.log('Response length:', Buffer.byteLength(responseString));
+      console.log('AES Key length:', aesKey.length, 'bytes');
+      console.log('IV length:', iv.length, 'bytes');
+      
       const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, iv);
+      cipher.setAutoPadding(true); // Ensure PKCS7 padding
+      
       let encrypted = cipher.update(responseString, 'utf8');
       encrypted = Buffer.concat([encrypted, cipher.final()]);
       

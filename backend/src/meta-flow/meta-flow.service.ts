@@ -120,10 +120,21 @@ sxEK+yx6I1EkGaK+/KWEpai7
     }
     
     if (action === 'data_exchange') {
-      return {
-        screen: screen || 'SCREEN',
-        data: {}
-      };
+      // Navigate based on current screen
+      if (!screen || screen === 'APPOINTMENT') {
+        return { screen: 'DETAILS', data: data || {} };
+      }
+      
+      if (screen === 'DETAILS') {
+        return { screen: 'SUMMARY', data: data || {} };
+      }
+      
+      if (screen === 'SUMMARY') {
+        return { screen: 'TERMS', data: data || {} };
+      }
+      
+      // Default: return same screen with data
+      return { screen: screen || 'APPOINTMENT', data: data || {} };
     }
     
     return { 

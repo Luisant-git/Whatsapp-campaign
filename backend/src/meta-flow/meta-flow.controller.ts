@@ -48,15 +48,12 @@ export class MetaFlowController {
       const responseString = JSON.stringify(response);
       
       if (isInit) {
-        // INIT: Use SAME IV from request, NO IV prepending
-        console.log('INIT response - using request IV, no prepending');
+        // INIT: Use SAME IV from request (NOT flipped)
+        console.log('INIT response - using original IV');
         console.log('INIT JSON EXACT:', responseString);
         console.log('Length:', Buffer.byteLength(responseString));
         
-        // For INIT, use flipped IV as per Meta specification
-        const flippedIV = Buffer.from(iv.map(byte => byte ^ 0xFF));
-        
-        const cipher = crypto.createCipheriv('aes-128-gcm', aesKey, flippedIV);
+        const cipher = crypto.createCipheriv('aes-128-gcm', aesKey, iv);
         
         let encrypted = cipher.update(responseString, 'utf8');
         encrypted = Buffer.concat([encrypted, cipher.final()]);

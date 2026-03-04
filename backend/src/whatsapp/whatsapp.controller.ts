@@ -23,13 +23,15 @@ import { WhatsappService } from './whatsapp.service';
 import { CampaignService } from './campaign.service';
 import { SendMessageDto, SendBulkDto, SendMediaDto, MessageResponseDto, BulkMessageResultDto, WhatsAppMessageDto, UploadResponseDto, AnalyticsDto, WhatsAppSettingsDto, CreateCampaignDto, UpdateCampaignDto, CampaignResponseDto } from './dto';
 import { SessionGuard } from '../auth/session.guard';
+import { FlowAppointmentService } from '../flow-appointment/flow-appointment.service';
  
 @ApiTags('WhatsApp')
 @Controller('whatsapp')
 export class WhatsappController {
   constructor(
     private readonly whatsappService: WhatsappService,
-    private readonly campaignService: CampaignService
+    private readonly campaignService: CampaignService,
+    private readonly flowAppointmentService: FlowAppointmentService
   ) {}
  
   @Get('webhook/:verifyToken')
@@ -128,6 +130,18 @@ export class WhatsappController {
               console.log(`📞 Display Phone: ${displayPhoneNumber}`);
               
               if (message) {
+                // Check if it's a flow response
+                if (message.type === 'interactive' && message.interactive?.type === 'nfm_reply') {
+                  console.log('📋 Flow response received');
+                  const responseData = JSON.parse(message.interactive.nfm_reply.response_json);
+                  await this.flowAppointmentService.saveAppointmentFromWebhook(
+                    responseData,
+                    message.from,
+                    phoneNumberId
+                  );
+                  return;
+                }
+                
                 try {
                   console.log('Processing incoming message:', message);
                  
@@ -209,6 +223,18 @@ export class WhatsappController {
               console.log(`📞 Display Phone: ${displayPhoneNumber}`);
               
               if (message) {
+                // Check if it's a flow response
+                if (message.type === 'interactive' && message.interactive?.type === 'nfm_reply') {
+                  console.log('📋 Flow response received');
+                  const responseData = JSON.parse(message.interactive.nfm_reply.response_json);
+                  await this.flowAppointmentService.saveAppointmentFromWebhook(
+                    responseData,
+                    message.from,
+                    phoneNumberId
+                  );
+                  return;
+                }
+                
                 try {
                   console.log('Processing message for phone number ID:', phoneNumberId);
                   

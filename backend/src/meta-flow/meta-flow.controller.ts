@@ -43,6 +43,7 @@ export class MetaFlowController {
 
       console.log('Decrypted data:', data);
       const response = await this.metaFlowService.processFlow(data);
+      console.log('RESPONSE JSON:', JSON.stringify(response));
       
       // Encrypt response - different logic for INIT vs real flow data
       const responseString = JSON.stringify(response);

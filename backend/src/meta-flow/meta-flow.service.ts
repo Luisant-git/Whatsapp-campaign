@@ -140,11 +140,8 @@ sxEK+yx6I1EkGaK+/KWEpai7
     
     if (action === 'data_exchange') {
       return {
-        version: version || '3.0',
-        data: {
-          screen: 'SUCCESS',
-          data: {}
-        }
+        screen: 'SUCCESS',
+        data: {}
       };
     }
     

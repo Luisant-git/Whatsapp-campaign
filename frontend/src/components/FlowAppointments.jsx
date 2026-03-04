@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Calendar, Clock, User, Mail, Phone, MapPin, FileText } from 'lucide-react';
 import { API_BASE_URL } from '../api/config';
 import './FlowAppointments.css';
 
-const FlowAppointments = () => {
+const FlowAppointments = ({ isStandardPlan = false }) => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchAppointments();
@@ -34,79 +34,61 @@ const FlowAppointments = () => {
     return labels[dept] || dept;
   };
 
+  const filteredAppointments = appointments.filter(appointment =>
+    appointment.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    appointment.phone?.includes(searchQuery) ||
+    appointment.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    getDepartmentLabel(appointment.department)?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (loading) {
-    return <div className="loading-container">Loading...</div>;
+    return <div className="appointments-container"><div style={{textAlign: 'center', padding: '50px'}}>Loading...</div></div>;
   }
 
   return (
     <div className="appointments-container">
       <div className="page-header">
-        <div>
-          <h1 className="appointments-title">Flow Appointments</h1>
-          <p className="page-subtitle">Manage appointments from WhatsApp flows</p>
-        </div>
+        <h2>{isStandardPlan ? 'Standard Plan' : 'Flow Appointments'}</h2>
+        <p>{isStandardPlan ? 'Standard Plan appointments from WhatsApp flows' : 'Manage appointments from WhatsApp flows'}</p>
       </div>
-      
-      <div className="appointments-wrapper">
-        {appointments.length === 0 ? (
-          <div className="no-appointments">
-            <p>No appointments found</p>
-          </div>
-        ) : (
-          <div className="appointments-grid">
+
+      <div className="table-container">
+        <table className="contacts-table">
+          <thead>
+            <tr>
+              <th>Department</th>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Email</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Location</th>
+              <th>Details</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody>
             {appointments.map((appointment) => (
-              <div key={appointment.id} className="appointment-card">
-                <div className="card-header">
-                  <span className="department-badge">
+              <tr key={appointment.id}>
+                <td>
+                  <span className="status-badge active">
                     {getDepartmentLabel(appointment.department)}
                   </span>
-                  <span className="date-created">
-                    {new Date(appointment.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-
-                <div className="card-content">
-                  <div className="info-row">
-                    <User className="icon" />
-                    <span className="name">{appointment.name}</span>
-                  </div>
-
-                  <div className="info-row">
-                    <Phone className="icon" />
-                    <span>{appointment.phone}</span>
-                  </div>
-
-                  <div className="info-row">
-                    <Mail className="icon" />
-                    <span className="email">{appointment.email}</span>
-                  </div>
-
-                  <div className="info-row">
-                    <Calendar className="icon" />
-                    <span>{appointment.date}</span>
-                  </div>
-
-                  <div className="info-row">
-                    <Clock className="icon" />
-                    <span>{appointment.time}</span>
-                  </div>
-
-                  <div className="info-row">
-                    <MapPin className="icon" />
-                    <span>Location {appointment.location}</span>
-                  </div>
-
-                  {appointment.moreDetails && (
-                    <div className="info-row details">
-                      <FileText className="icon" />
-                      <span>{appointment.moreDetails}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+                </td>
+                <td style={{fontWeight: 500}}>{appointment.name}</td>
+                <td>{appointment.phone}</td>
+                <td style={{fontSize: '13px'}}>{appointment.email}</td>
+                <td style={{fontWeight: 500}}>{appointment.date}</td>
+                <td>{appointment.time}</td>
+                <td>Location {appointment.location}</td>
+                <td style={{fontSize: '13px', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+                  {appointment.moreDetails || 'N/A'}
+                </td>
+                <td>{new Date(appointment.createdAt).toLocaleDateString()}</td>
+              </tr>
             ))}
-          </div>
-        )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

@@ -139,15 +139,13 @@ export class FlowTriggerService {
       flow_action: 'navigate',
     };
 
-    if (trigger.screenName && trigger.screenName !== 'SCREEN' && trigger.screenName !== 'SCREEN_ONE') {
-      actionParams.flow_action_payload = {
-        screen: trigger.screenName,
-      };
-      
-      if (trigger.screenData && Object.keys(trigger.screenData).length > 0) {
-        actionParams.flow_action_payload.data = trigger.screenData;
-      }
-    }
+    // Always include screen and data for APPOINTMENT screen
+    actionParams.flow_action_payload = {
+      screen: trigger.screenName || 'APPOINTMENT',
+      data: trigger.screenData && Object.keys(trigger.screenData).length > 0 
+        ? trigger.screenData 
+        : await this.getDefaultAppointmentData()
+    };
 
     const interactive: any = {
       type: 'flow',
@@ -191,6 +189,30 @@ export class FlowTriggerService {
         },
       }
     );
+  }
+  
+  private async getDefaultAppointmentData() {
+    // Fetch from database or return default data
+    return {
+      department: [
+        { id: 'shopping', title: 'Shopping & Groceries' },
+        { id: 'clothing', title: 'Clothing & Apparel' },
+        { id: 'beauty', title: 'Beauty & Personal Care' }
+      ],
+      location: [
+        { id: '1', title: "King's Cross, London" },
+        { id: '2', title: 'Oxford Street, London' }
+      ],
+      date: [
+        { id: '2024-01-01', title: 'Mon Jan 01 2024' },
+        { id: '2024-01-02', title: 'Tue Jan 02 2024' }
+      ],
+      time: [
+        { id: '10:30', title: '10:30' },
+        { id: '11:30', title: '11:30' },
+        { id: '12:30', title: '12:30' }
+      ]
+    };
   }
 
   private async getTenantClient(userId: number) {

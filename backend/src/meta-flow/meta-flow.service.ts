@@ -134,7 +134,18 @@ sxEK+yx6I1EkGaK+/KWEpai7
 
     console.log('Flow request - screen:', screen, 'action:', action, 'data:', data);
     
-    // Return minimal response - let Meta Flow JSON handle everything
+    // For data_exchange, return screen data
+    if (action === 'data_exchange') {
+      return {
+        version: version || '3.0',
+        screen: 'SCREEN',
+        data: {
+          // Return empty object or initial data for the first screen
+        }
+      };
+    }
+    
+    // Default response
     return { 
       version: version || '3.0',
       data: {}

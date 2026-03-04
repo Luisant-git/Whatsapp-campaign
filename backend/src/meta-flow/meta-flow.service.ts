@@ -134,29 +134,28 @@ sxEK+yx6I1EkGaK+/KWEpai7
           console.log('💾 Saving appointment from data_exchange:', data);
           await this.flowAppointmentService.saveAppointment(data, 1);
           console.log('✅ Appointment saved successfully');
+          
+          // Return success response that triggers navigation to SUCCESS screen
+          return { 
+            version: '3.0',
+            screen: 'SUCCESS',
+            data: data
+          };
         } catch (error) {
           console.error('❌ Failed to save appointment:', error.message);
+          return {
+            version: '3.0',
+            data: {
+              error: 'Failed to save appointment'
+            }
+          };
         }
       }
       
       return { 
         version: '3.0',
-        data: {}
+        data: data || {}
       };
-    }
-    
-    // Handle any screen transition with data
-    if (screen && data && Object.keys(data).length > 0) {
-      // Check if data has appointment fields
-      if (data.department && data.name && data.email) {
-        try {
-          console.log('💾 Saving appointment from screen transition:', data);
-          await this.flowAppointmentService.saveAppointment(data, 1);
-          console.log('✅ Appointment saved successfully');
-        } catch (error) {
-          console.error('❌ Failed to save appointment:', error.message);
-        }
-      }
     }
     
     return { 

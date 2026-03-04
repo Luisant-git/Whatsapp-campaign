@@ -217,8 +217,8 @@ sxEK+yx6I1EkGaK+/KWEpai7
     };
   }
   
-  private generateDates(days: number): any[] {
-    const dates = [];
+  private generateDates(days: number): Array<{id: string, title: string}> {
+    const dates: Array<{id: string, title: string}> = [];
     const today = new Date();
     
     for (let i = 0; i < days; i++) {

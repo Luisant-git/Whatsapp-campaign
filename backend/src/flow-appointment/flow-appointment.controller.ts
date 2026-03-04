@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Req, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Req, HttpCode, Res } from '@nestjs/common';
 import { FlowAppointmentService } from './flow-appointment.service';
 import { SessionGuard } from '../auth/session.guard';
 
@@ -15,32 +15,45 @@ export class FlowAppointmentController {
 
   @Post('exchange')
   @HttpCode(200)
-  async handleFlowExchange(@Body() body: any) {
+  async handleFlowExchange(@Body() body: any, @Res() res: any) {
     console.log('Flow exchange received:', JSON.stringify(body, null, 2));
     
-    const { screen, data, version, action } = body;
+    const { screen, data, version, action, flow_token } = body;
+    
+    // Handle ping request
+    if (action === 'ping') {
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(200).json({
+        version: '3.0',
+        data: {}
+      });
+    }
     
     if (action === 'data_exchange' && screen === 'SUMMARY') {
       try {
         await this.flowAppointmentService.saveAppointmentFromFlow(data);
         
-        return {
+        res.setHeader('Content-Type', 'application/json');
+        return res.status(200).json({
           version: '3.0',
           screen: 'SUCCESS',
-          data: {}
-        };
+          data: {},
+          ...(flow_token && { flow_token })
+        });
       } catch (error) {
         console.error('Error saving appointment:', error);
-        return {
+        res.setHeader('Content-Type', 'application/json');
+        return res.status(200).json({
           version: '3.0',
           screen: 'SUMMARY',
           data: {
             error_message: 'Sorry, we couldn\'t book your appointment. Please try again.'
           }
-        };
+        });
       }
     }
     
-    return { version: '3.0', screen, data };
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).json({ version: '3.0', screen, data });
   }
 }

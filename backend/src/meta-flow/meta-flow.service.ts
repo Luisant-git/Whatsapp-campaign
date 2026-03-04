@@ -128,17 +128,27 @@ sxEK+yx6I1EkGaK+/KWEpai7
           console.log('Saving appointment:', data);
           await this.flowAppointmentService.saveAppointment(data, 1);
           console.log('Appointment saved successfully');
+          
+          return { 
+            version: '3.0',
+            screen: 'SUCCESS',
+            data: {}
+          };
         } catch (error) {
           console.error('Failed to save appointment:', error.message);
+          return {
+            version: '3.0',
+            data: {
+              error_message: 'Failed to save appointment. Please try again.'
+            }
+          };
         }
-        
-        return { 
-          version: '3.0',
-          data: {
-            acknowledged: true
-          }
-        };
       }
+      
+      return { 
+        version: '3.0',
+        data: data || {}
+      };
     }
     
     return { 

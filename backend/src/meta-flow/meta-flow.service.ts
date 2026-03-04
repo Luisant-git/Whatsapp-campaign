@@ -166,16 +166,14 @@ sxEK+yx6I1EkGaK+/KWEpai7
           version: '3.0',
           screen: 'SUMMARY',
           data: {
-            appointment: `${deptTitle} Department at ${locTitle}\n${data.date} at ${data.time}.`,
-            details: `Name: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}\n\n${data.more_details || ''}`,
+            summary: `${deptTitle} at ${locTitle} on ${data.date} at ${data.time}\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}`,
             department: data.department,
             location: data.location,
             date: data.date,
             time: data.time,
             name: data.name,
             email: data.email,
-            phone: data.phone,
-            more_details: data.more_details
+            phone: data.phone
           }
         };
       }

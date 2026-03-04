@@ -9,7 +9,7 @@ export class FlowAppointmentController {
 
   @Get()
   async getAppointments(@Req() req: any) {
-    const userId = req.user.userId;
+    const userId = req.session.userId || req.session.user?.id;
     return this.flowAppointmentService.getAppointments(userId);
   }
 }

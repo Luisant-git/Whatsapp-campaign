@@ -6,37 +6,7 @@ export default function MenuPermissions() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState({});
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [permissions, setPermissions] = useState({});
   const { showToast } = useToast();
-
-  const menuItems = [
-    'Dashboard',
-    'WhatsApp Chats',
-    'Contacts',
-    'All Contacts',
-    'Blacklist',
-    'Ungrouped Contacts',
-    'Campaigns',
-    'Compose Campaign',
-    'Campaign Reports',
-    'AI Chatbot',
-    'Quick Reply',
-    'Flow Manager',
-    'Flow Appointments',
-    'E-Commerce',
-    'Categories',
-    'Products',
-    'Orders',
-    'Customers',
-    'Settings',
-    'WhatsApp Setup',
-    'Templates',
-    'Labels',
-    'Create User',
-    'Subscription'
-  ];
 
   useEffect(() => {
     fetchUsers();
@@ -58,50 +28,32 @@ export default function MenuPermissions() {
     }
   };
 
-  const openPermissionModal = async (user) => {
-    setSelectedUser(user);
+  const handlePermissionToggle = async (userId, hasPermission) => {
+    setUpdating(prev => ({ ...prev, [userId]: true }));
     try {
-      const response = await fetch(`/api/menu-permissions/${user.id}`, {
-        credentials: 'include'
-      });
-      const data = await response.json();
-      setPermissions(data.permission || {});
-    } catch (err) {
-      console.error('Error fetching permissions:', err);
-      setPermissions({});
-    }
-    setShowModal(true);
-  };
-
-  const handlePermissionChange = (menuItem, checked) => {
-    setPermissions(prev => ({
-      ...prev,
-      [menuItem.toLowerCase().replace(/\s+/g, '')]: checked
-    }));
-  };
-
-  const savePermissions = async () => {
-    if (!selectedUser) return;
-    
-    setUpdating(prev => ({ ...prev, [selectedUser.id]: true }));
-    try {
-      const response = await fetch(`/api/menu-permissions/${selectedUser.id}`, {
+      const response = await fetch(`/api/menu-permissions/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ permission: permissions })
+        body: JSON.stringify({
+          permission: { flowAppointments: !hasPermission }
+        })
       });
 
-      if (!response.ok) throw new Error('Failed to update permissions');
+      if (!response.ok) throw new Error('Failed to update permission');
 
-      showToast('Permissions updated successfully', 'success');
-      setShowModal(false);
-      fetchUsers();
+      setUsers(prev => prev.map(user => 
+        user.id === userId 
+          ? { ...user, menuPermission: { ...user.menuPermission, permission: { flowAppointments: !hasPermission } } }
+          : user
+      ));
+
+      showToast(`Flow Appointments ${!hasPermission ? 'enabled' : 'disabled'}`, 'success');
     } catch (err) {
-      console.error('Error updating permissions:', err);
-      showToast('Error updating permissions', 'error');
+      console.error('Error updating permission:', err);
+      showToast('Error updating permission', 'error');
     } finally {
-      setUpdating(prev => ({ ...prev, [selectedUser.id]: false }));
+      setUpdating(prev => ({ ...prev, [userId]: false }));
     }
   };
 
@@ -113,7 +65,7 @@ export default function MenuPermissions() {
     <div className="users-page">
       <div className="users-header">
         <h1>Menu Permissions</h1>
-        <p>Manage menu access for Standard plan users</p>
+        <p>Manage Flow Appointments access for Standard plan users</p>
       </div>
 
       <div className="users-table-container">
@@ -124,81 +76,37 @@ export default function MenuPermissions() {
               <th>Company Name</th>
               <th>Email</th>
               <th>Plan</th>
-              <th>Action</th>
+              <th>Flow Appointments</th>
             </tr>
           </thead>
           <tbody>
-            {users.map((user, idx) => (
-              <tr key={user.id}>
-                <td>{idx + 1}</td>
-                <td>{user.companyName || user.name}</td>
-                <td>{user.email}</td>
-                <td>
-                  <span className="status-badge active">
-                    {user.subscription?.name || 'Standard'}
-                  </span>
-                </td>
-                <td>
-                  <button
-                    className="btn-create"
-                    onClick={() => openPermissionModal(user)}
-                    style={{ padding: '6px 12px', fontSize: '12px' }}
-                  >
-                    Manage Permissions
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {users.map((user, idx) => {
+              const hasPermission = user.menuPermission?.permission?.flowAppointments || false;
+              return (
+                <tr key={user.id}>
+                  <td>{idx + 1}</td>
+                  <td>{user.companyName || user.name}</td>
+                  <td>{user.email}</td>
+                  <td>
+                    <span className="status-badge active">
+                      {user.subscription?.name || 'Standard'}
+                    </span>
+                  </td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={hasPermission}
+                      onChange={() => handlePermissionToggle(user.id, hasPermission)}
+                      disabled={updating[user.id]}
+                    />
+                    {updating[user.id] && <span style={{marginLeft: '8px', fontSize: '12px', color: '#666'}}>Updating...</span>}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
-
-      {/* Permission Modal */}
-      {showModal && selectedUser && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Plan Menu Permission</h2>
-              <p>Standard Plan</p>
-              <button className="close-btn" onClick={() => setShowModal(false)}>×</button>
-            </div>
-            <div className="modal-body" style={{ padding: '20px', maxHeight: '400px', overflowY: 'auto' }}>
-              {menuItems.map((item) => {
-                const key = item.toLowerCase().replace(/\s+/g, '');
-                return (
-                  <div key={item} style={{ marginBottom: '12px', display: 'flex', alignItems: 'center' }}>
-                    <input
-                      type="checkbox"
-                      id={key}
-                      checked={permissions[key] || false}
-                      onChange={(e) => handlePermissionChange(item, e.target.checked)}
-                      style={{ marginRight: '8px' }}
-                    />
-                    <label htmlFor={key} style={{ cursor: 'pointer' }}>{item}</label>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="form-actions">
-              <button
-                type="button"
-                className="btn-cancel"
-                onClick={() => setShowModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-submit"
-                onClick={savePermissions}
-                disabled={updating[selectedUser.id]}
-              >
-                {updating[selectedUser.id] ? 'Saving...' : 'Save Permissions'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

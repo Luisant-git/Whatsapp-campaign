@@ -40,8 +40,6 @@ sxEK+yx6I1EkGaK+/KWEpai7
   }
 
   decryptRequest(encryptedFlowData: string, encryptedAesKey: string, initialVector: string): { data: any; aesKey: Buffer; iv: Buffer; isInit?: boolean } {
-    console.log('Starting RSA decryption...');
-    
     const aesKey = crypto.privateDecrypt(
       { 
         key: this.privateKey, 
@@ -51,15 +49,9 @@ sxEK+yx6I1EkGaK+/KWEpai7
       Buffer.from(encryptedAesKey, 'base64')
     );
     
-    console.log('RSA decryption successful');
-    console.log('Decrypted AES Key (hex):', aesKey.toString('hex'));
-    console.log('AES Key Length:', aesKey.length, 'bytes');
-    
     const iv = Buffer.from(initialVector, 'base64');
     
-    // For empty flow data, return INIT structure
     if (!encryptedFlowData) {
-      console.log('Empty flow data - returning INIT structure');
       return {
         data: { action: 'INIT', version: '1.0' },
         aesKey,
@@ -70,16 +62,12 @@ sxEK+yx6I1EkGaK+/KWEpai7
     
     const encryptedData = Buffer.from(encryptedFlowData, 'base64');
     
-    console.log('Encrypted Length:', encryptedData.length);
-    
-    // Try to decrypt with AES-GCM (use aes-128-gcm if key is 16 bytes, aes-256-gcm if 32 bytes)
     try {
       const TAG_LENGTH = 16;
       const encryptedDataBody = encryptedData.subarray(0, -TAG_LENGTH);
       const authTag = encryptedData.subarray(-TAG_LENGTH);
       
       const algorithm = aesKey.length === 16 ? 'aes-128-gcm' : 'aes-256-gcm';
-      console.log('Using algorithm:', algorithm);
       
       const decipher = crypto.createDecipheriv(algorithm, aesKey, iv);
       decipher.setAuthTag(authTag);
@@ -88,11 +76,8 @@ sxEK+yx6I1EkGaK+/KWEpai7
       decrypted = Buffer.concat([decrypted, decipher.final()]);
       
       const parsed = JSON.parse(decrypted.toString());
-      console.log('Decrypted Flow:', parsed);
       
-      // Check if this is INIT based on content
       if (parsed.action === 'INIT') {
-        console.log('INIT action detected');
         return {
           data: parsed,
           aesKey,
@@ -100,8 +85,6 @@ sxEK+yx6I1EkGaK+/KWEpai7
           isInit: true
         };
       }
-      
-      console.log('Real flow data detected');
     
       return {
         data: parsed,
@@ -110,7 +93,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
         isInit: false
       };
     } catch (error) {
-      console.error('Decryption failed:', error.message);
+      console.error('AES-GCM decryption failed:', error.message);
       throw error;
     }
   }
@@ -135,11 +118,8 @@ sxEK+yx6I1EkGaK+/KWEpai7
     if (action === 'INIT' || action === 'ping') {
       return { data: { status: 'active' } };
     }
-
-    console.log('Flow request - screen:', screen, 'action:', action, 'data:', data);
     
     if (action === 'data_exchange') {
-      // Return first screen or handle based on current screen
       return {
         screen: screen || 'SCREEN',
         data: {}

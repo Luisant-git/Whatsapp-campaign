@@ -27,6 +27,8 @@ export class FlowAppointmentService {
 
   async saveAppointmentFromWebhook(responseData: any, phoneNumber: string, phoneNumberId: string) {
     try {
+      console.log('Raw responseData:', JSON.stringify(responseData, null, 2));
+      
       const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
       
       for (const tenant of tenants) {
@@ -40,14 +42,14 @@ export class FlowAppointmentService {
         if (settings) {
           await (tenantClient as any).flowAppointment.create({
             data: {
-              department: responseData.department,
-              location: responseData.location,
-              date: responseData.date,
-              time: responseData.time,
-              name: responseData.name,
-              email: responseData.email,
+              department: responseData.department || '',
+              location: responseData.location || '',
+              date: responseData.date || '',
+              time: responseData.time || '',
+              name: responseData.name || '',
+              email: responseData.email || '',
               phone: responseData.phone || phoneNumber,
-              moreDetails: responseData.more_details,
+              moreDetails: responseData.more_details || null,
             },
           });
           console.log('✅ Flow appointment saved successfully');

@@ -139,7 +139,6 @@ export class FlowTriggerService {
       flow_action: 'navigate',
     };
 
-    // Only add screen navigation if screenName is explicitly set and not default
     if (trigger.screenName && trigger.screenName !== 'SCREEN' && trigger.screenName !== 'SCREEN_ONE') {
       actionParams.flow_action_payload = {
         screen: trigger.screenName,
@@ -150,7 +149,31 @@ export class FlowTriggerService {
       }
     }
 
-    console.log('[FlowTrigger] Sending flow with params:', JSON.stringify(actionParams, null, 2));
+    const interactive: any = {
+      type: 'flow',
+      body: {
+        text: trigger.bodyText || 'Click the button below to continue',
+      },
+      action: {
+        name: 'flow',
+        parameters: actionParams,
+      },
+    };
+
+    if (trigger.headerText) {
+      interactive.header = {
+        type: 'text',
+        text: trigger.headerText,
+      };
+    }
+
+    if (trigger.footerText) {
+      interactive.footer = {
+        text: trigger.footerText,
+      };
+    }
+
+    console.log('[FlowTrigger] Sending flow:', JSON.stringify({ interactive }, null, 2));
 
     return axios.post(
       `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
@@ -159,23 +182,7 @@ export class FlowTriggerService {
         recipient_type: 'individual',
         to: phoneNumber,
         type: 'interactive',
-        interactive: {
-          type: 'flow',
-          header: trigger.headerText ? {
-            type: 'text',
-            text: trigger.headerText,
-          } : undefined,
-          body: {
-            text: trigger.bodyText || 'Click the button below to continue',
-          },
-          footer: trigger.footerText ? {
-            text: trigger.footerText,
-          } : undefined,
-          action: {
-            name: 'flow',
-            parameters: actionParams,
-          },
-        },
+        interactive,
       },
       {
         headers: {

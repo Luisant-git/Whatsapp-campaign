@@ -113,11 +113,34 @@ export class FlowMessageService {
       flow_action: 'navigate',
     };
 
-    // Only add screen navigation if screenName is provided and not default
     if (params.screenName && params.screenName !== 'SCREEN') {
       actionParams.flow_action_payload = {
         screen: params.screenName,
         data: params.screenData
+      };
+    }
+
+    const interactive: any = {
+      type: 'flow',
+      body: {
+        text: params.bodyText
+      },
+      action: {
+        name: 'flow',
+        parameters: actionParams
+      }
+    };
+
+    if (params.headerText) {
+      interactive.header = {
+        type: 'text',
+        text: params.headerText
+      };
+    }
+
+    if (params.footerText) {
+      interactive.footer = {
+        text: params.footerText
       };
     }
 
@@ -128,23 +151,7 @@ export class FlowMessageService {
         recipient_type: 'individual',
         to: params.phoneNumber,
         type: 'interactive',
-        interactive: {
-          type: 'flow',
-          header: {
-            type: 'text',
-            text: params.headerText
-          },
-          body: {
-            text: params.bodyText
-          },
-          footer: {
-            text: params.footerText
-          },
-          action: {
-            name: 'flow',
-            parameters: actionParams
-          }
-        }
+        interactive
       },
       {
         headers: {

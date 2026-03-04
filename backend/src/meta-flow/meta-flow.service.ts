@@ -116,7 +116,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
   }
 
   async processFlow(decryptedData: any): Promise<any> {
-    const { screen, data, version, action, flow_token } = decryptedData;
+    const { screen, data, version, action } = decryptedData;
 
     console.log('=== FLOW REQUEST ===');
     console.log('Screen:', screen);
@@ -131,16 +131,17 @@ sxEK+yx6I1EkGaK+/KWEpai7
     if (action === 'data_exchange') {
       if (screen === 'SUMMARY') {
         try {
-          console.log('💾 Saving appointment from data_exchange:', data);
+          console.log('💾 Saving appointment:', data);
           await this.flowAppointmentService.saveAppointment(data, 1);
           console.log('✅ Appointment saved successfully');
           
-          // Return success response that triggers navigation to SUCCESS screen
-          return { 
+          const response = { 
             version: '3.0',
             screen: 'SUCCESS',
-            data: data
+            data: {}
           };
+          console.log('Sending response:', JSON.stringify(response));
+          return response;
         } catch (error) {
           console.error('❌ Failed to save appointment:', error.message);
           return {

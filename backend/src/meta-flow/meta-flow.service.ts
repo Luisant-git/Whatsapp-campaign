@@ -188,7 +188,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
           
           const response = { 
             version: '3.0',
-            screen: 'TERMS',
+            screen: 'SUCCESS',
             data: {}
           };
           console.log('Sending response:', JSON.stringify(response));

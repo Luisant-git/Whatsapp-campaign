@@ -139,8 +139,9 @@ sxEK+yx6I1EkGaK+/KWEpai7
     console.log('Flow request - screen:', screen, 'action:', action, 'data:', data);
     
     if (action === 'data_exchange') {
+      // Return first screen or handle based on current screen
       return {
-        screen: 'SUCCESS',
+        screen: screen || 'SCREEN',
         data: {}
       };
     }

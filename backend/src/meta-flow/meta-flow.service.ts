@@ -70,40 +70,45 @@ sxEK+yx6I1EkGaK+/KWEpai7
     const encryptedData = Buffer.from(encryptedFlowData, 'base64');
     
     console.log('Encrypted Length:', encryptedData.length);
-    console.log('Modulo 16:', encryptedData.length % 16);
     
-    // Check if this is INIT (invalid AES block size)
-    if (encryptedData.length % 16 !== 0) {
-      console.log('Invalid AES block size - this is INIT handshake, not real encrypted data');
+    // Try to decrypt with AES-GCM
+    try {
+      const TAG_LENGTH = 16;
+      const encryptedDataBody = encryptedData.subarray(0, -TAG_LENGTH);
+      const authTag = encryptedData.subarray(-TAG_LENGTH);
+      
+      const decipher = crypto.createDecipheriv('aes-128-gcm', aesKey, iv);
+      decipher.setAuthTag(authTag);
+      
+      let decrypted = decipher.update(encryptedDataBody);
+      decrypted = Buffer.concat([decrypted, decipher.final()]);
+      
+      const parsed = JSON.parse(decrypted.toString());
+      console.log('Decrypted Flow:', parsed);
+      
+      // Check if this is INIT based on content
+      if (parsed.action === 'INIT') {
+        console.log('INIT action detected');
+        return {
+          data: parsed,
+          aesKey,
+          iv,
+          isInit: true
+        };
+      }
+      
+      console.log('Real flow data detected');
+    
       return {
-        data: { action: 'INIT', version: '1.0' },
+        data: parsed,
         aesKey,
         iv,
-        isInit: true
+        isInit: false
       };
+    } catch (error) {
+      console.error('Decryption failed:', error.message);
+      throw error;
     }
-    
-    console.log('Valid AES block size. Processing real flow data...');
-    
-    // Extract the authentication tag (last 16 bytes) for AES-GCM
-    const TAG_LENGTH = 16;
-    const encryptedDataBody = encryptedData.subarray(0, -TAG_LENGTH);
-    const authTag = encryptedData.subarray(-TAG_LENGTH);
-    
-    const decipher = crypto.createDecipheriv('aes-128-gcm', aesKey, iv);
-    decipher.setAuthTag(authTag);
-    
-    let decrypted = decipher.update(encryptedDataBody);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    
-    const parsed = JSON.parse(decrypted.toString());
-    console.log('Decrypted Flow:', parsed);
-    
-    return {
-      data: parsed,
-      aesKey,
-      iv
-    };
   }
 
   encryptResponse(response: any, aesKey: Buffer, iv: Buffer): any {

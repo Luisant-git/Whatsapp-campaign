@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
+import { FlowAppointmentService } from '../flow-appointment/flow-appointment.service';
 
 @Injectable()
 export class MetaFlowService {
@@ -32,6 +33,8 @@ RP+AgXfbu8yAcTjWrr40DwnupV3NoO+4CcvUFkVUWgA97j7PDTwPeXkqYbIdrxU9
 sxEK+yx6I1EkGaK+/KWEpai7
 -----END PRIVATE KEY-----`;
   private readonly appSecret = process.env.META_APP_SECRET || '';
+
+  constructor(private flowAppointmentService: FlowAppointmentService) {}
 
   verifySignature(payload: string, signature: string): boolean {
     if (!signature || !this.appSecret) return false;
@@ -130,16 +133,14 @@ sxEK+yx6I1EkGaK+/KWEpai7
       }
       
       if (screen === 'SUMMARY') {
-        // Save appointment to database
         try {
           console.log('Saving appointment:', data);
-          // TODO: Add your database save logic here
-          // await this.prisma.appointment.create({ data: { ... } });
+          await this.flowAppointmentService.saveAppointment(data, 1);
         } catch (error) {
           console.error('Failed to save appointment:', error.message);
         }
         
-        return { screen: 'TERMS', data: data || {} };
+        return { screen: 'SUCCESS', data: {} };
       }
       
       // Default: return same screen with data

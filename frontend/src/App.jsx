@@ -47,6 +47,7 @@ import Blacklist from "./components/BlackList";
 import CreateUser from "./components/CreateUser";
 import UngroupedContact from "./components/UngroupedContact";
 import FlowManager from "./components/FlowManager";
+import FlowAppointments from "./components/FlowAppointments";
 
 import "./App.css";
 import "./styles/Analytics.css";
@@ -83,6 +84,7 @@ const MENU_TO_VIEW = {
   chatbot: "chatbot",
   "quick-reply": "quick-reply",
   "flow-manager": "flow-manager",
+  "flow-appointments": "flow-appointments",
 
   "ecommerce.categories": "categories",
   "ecommerce.products": "products",
@@ -443,6 +445,7 @@ function App() {
             {activeView === "quick-reply" && useQuickReply && <QuickReply />}
             {activeView === "chatbot" && aiChatbotEnabled && <Chatbot />}
             {activeView === "flow-manager" && <FlowManager />}
+            {activeView === "flow-appointments" && <FlowAppointments />}
             {activeView === "analytics" && <Analytics />}
             {activeView === "settings" && (
               <SettingsPanel onNavigate={setActiveView} />

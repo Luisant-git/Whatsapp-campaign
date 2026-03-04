@@ -25,6 +25,7 @@ import { MenuPermissionModule } from './menu-permission/menu-permission.module';
 import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
 import { MetaFlowModule } from './meta-flow/meta-flow.module';
 import { FlowMessageModule } from './flow-message/flow-message.module';
+import { FlowAppointmentModule } from './flow-appointment/flow-appointment.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { FlowMessageModule } from './flow-message/flow-message.module';
     AdminAnalyticsModule,
     MetaFlowModule,
     FlowMessageModule,
+    FlowAppointmentModule,
   ],
   controllers: [AppController, TestController],
   providers: [AppService],

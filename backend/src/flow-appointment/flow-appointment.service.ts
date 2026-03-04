@@ -25,6 +25,36 @@ export class FlowAppointmentService {
     });
   }
 
+  async saveAppointmentFromFlow(data: any) {
+    try {
+      console.log('Saving appointment from flow:', JSON.stringify(data, null, 2));
+      
+      const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
+      
+      if (tenants.length > 0) {
+        const tenant = tenants[0];
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+        
+        await (tenantClient as any).flowAppointment.create({
+          data: {
+            department: data.department || '',
+            location: data.location || '',
+            date: data.date || '',
+            time: data.time || '',
+            name: data.name || '',
+            email: data.email || '',
+            phone: data.phone || '',
+            moreDetails: data.more_details || null,
+          },
+        });
+        console.log('✅ Flow appointment saved successfully');
+      }
+    } catch (error) {
+      console.error('Error saving flow appointment:', error);
+    }
+  }
+
   async saveAppointmentFromWebhook(responseData: any, phoneNumber: string, phoneNumberId: string) {
     try {
       console.log('Raw responseData:', JSON.stringify(responseData, null, 2));

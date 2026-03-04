@@ -47,7 +47,7 @@ export const MENU_CONFIG = [
     {
       key: "flow-appointments",
       label: "Flow Appointments",
-      icon: "workflow",
+      icon: "calendar",
     },
     {
       key: "ecommerce",

@@ -51,48 +51,36 @@ export class MetaFlowController {
         // INIT: Use SAME IV from request (NOT flipped)
         console.log('INIT response - using original IV');
         console.log('INIT JSON EXACT:', responseString);
-        console.log('Length:', Buffer.byteLength(responseString));
         
-        const cipher = crypto.createCipheriv('aes-128-gcm', aesKey, iv);
+        const algorithm = aesKey.length === 16 ? 'aes-128-gcm' : 'aes-256-gcm';
+        const cipher = crypto.createCipheriv(algorithm, aesKey, iv);
         
         let encrypted = cipher.update(responseString, 'utf8');
         encrypted = Buffer.concat([encrypted, cipher.final()]);
-        
-        // Get the authentication tag and append it
         const authTag = cipher.getAuthTag();
         const finalEncrypted = Buffer.concat([encrypted, authTag]);
         
         console.log('Response encrypted length:', finalEncrypted.length);
-        console.log('Final buffer length:', finalEncrypted.length);
         console.log('Modulo 16:', finalEncrypted.length % 16);
         
-        const encryptedBase64 = finalEncrypted.toString('base64');
-        console.log('Sending INIT response:', encryptedBase64);
-        
-        return encryptedBase64;
+        return finalEncrypted.toString('base64');
       } else {
         // Real flow data: Use flipped IV for AES-GCM
-        console.log('Real flow response - using flipped IV for AES-GCM');
+        console.log('Real flow response - using flipped IV');
         
         const flippedIV = Buffer.from(iv.map(byte => byte ^ 0xFF));
-        
-        const cipher = crypto.createCipheriv('aes-128-gcm', aesKey, flippedIV);
+        const algorithm = aesKey.length === 16 ? 'aes-128-gcm' : 'aes-256-gcm';
+        const cipher = crypto.createCipheriv(algorithm, aesKey, flippedIV);
         
         let encrypted = cipher.update(responseString, 'utf8');
         encrypted = Buffer.concat([encrypted, cipher.final()]);
-        
-        // Get the authentication tag and append it
         const authTag = cipher.getAuthTag();
         const finalEncrypted = Buffer.concat([encrypted, authTag]);
         
         console.log('Response encrypted length:', finalEncrypted.length);
-        console.log('Final buffer length:', finalEncrypted.length);
         console.log('Modulo 16:', finalEncrypted.length % 16);
         
-        const encryptedBase64 = finalEncrypted.toString('base64');
-        console.log('Sending flow response:', encryptedBase64);
-        
-        return encryptedBase64;
+        return finalEncrypted.toString('base64');
       }
     } catch (error) {
       console.error('Flow error:', error.message);
@@ -115,7 +103,8 @@ export class MetaFlowController {
           // Use flipped IV for error response
           const flippedIV = Buffer.from(iv.map(byte => byte ^ 0xFF));
           
-          const cipher = crypto.createCipheriv('aes-128-gcm', aesKey, flippedIV);
+          const algorithm = aesKey.length === 16 ? 'aes-128-gcm' : 'aes-256-gcm';
+          const cipher = crypto.createCipheriv(algorithm, aesKey, flippedIV);
           
           let encrypted = cipher.update(errorPayload, 'utf8');
           encrypted = Buffer.concat([encrypted, cipher.final()]);

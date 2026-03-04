@@ -53,6 +53,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
     
     console.log('RSA decryption successful');
     console.log('Decrypted AES Key (hex):', aesKey.toString('hex'));
+    console.log('AES Key Length:', aesKey.length, 'bytes');
     
     const iv = Buffer.from(initialVector, 'base64');
     
@@ -71,13 +72,16 @@ sxEK+yx6I1EkGaK+/KWEpai7
     
     console.log('Encrypted Length:', encryptedData.length);
     
-    // Try to decrypt with AES-GCM
+    // Try to decrypt with AES-GCM (use aes-128-gcm if key is 16 bytes, aes-256-gcm if 32 bytes)
     try {
       const TAG_LENGTH = 16;
       const encryptedDataBody = encryptedData.subarray(0, -TAG_LENGTH);
       const authTag = encryptedData.subarray(-TAG_LENGTH);
       
-      const decipher = crypto.createDecipheriv('aes-128-gcm', aesKey, iv);
+      const algorithm = aesKey.length === 16 ? 'aes-128-gcm' : 'aes-256-gcm';
+      console.log('Using algorithm:', algorithm);
+      
+      const decipher = crypto.createDecipheriv(algorithm, aesKey, iv);
       decipher.setAuthTag(authTag);
       
       let decrypted = decipher.update(encryptedDataBody);
@@ -134,18 +138,16 @@ sxEK+yx6I1EkGaK+/KWEpai7
 
     console.log('Flow request - screen:', screen, 'action:', action, 'data:', data);
     
-    // For data_exchange, return screen data
     if (action === 'data_exchange') {
       return {
         version: version || '3.0',
-        screen: 'SCREEN',
         data: {
-          // Return empty object or initial data for the first screen
+          screen: 'SUCCESS',
+          data: {}
         }
       };
     }
     
-    // Default response
     return { 
       version: version || '3.0',
       data: {}

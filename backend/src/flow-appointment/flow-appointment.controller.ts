@@ -18,18 +18,29 @@ export class FlowAppointmentController {
   async handleFlowExchange(@Body() body: any) {
     console.log('Flow exchange received:', JSON.stringify(body, null, 2));
     
-    const { screen, data, version, action, flow_token } = body;
+    const { screen, data, version, action } = body;
     
-    if (action === 'data_exchange') {
-      await this.flowAppointmentService.saveAppointmentFromFlow(data);
-      
-      return {
-        version,
-        screen: 'SUCCESS',
-        data: data
-      };
+    if (action === 'data_exchange' && screen === 'SUMMARY') {
+      try {
+        await this.flowAppointmentService.saveAppointmentFromFlow(data);
+        
+        return {
+          version: '3.0',
+          screen: 'SUCCESS',
+          data: {}
+        };
+      } catch (error) {
+        console.error('Error saving appointment:', error);
+        return {
+          version: '3.0',
+          screen: 'SUMMARY',
+          data: {
+            error_message: 'Sorry, we couldn\'t book your appointment. Please try again.'
+          }
+        };
+      }
     }
     
-    return { version, screen, data };
+    return { version: '3.0', screen, data };
   }
 }

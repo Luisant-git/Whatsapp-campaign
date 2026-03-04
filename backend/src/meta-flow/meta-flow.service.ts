@@ -123,20 +123,16 @@ sxEK+yx6I1EkGaK+/KWEpai7
   async processFlow(decryptedData: any): Promise<any> {
     const { screen, data, version, action } = decryptedData;
 
-    // For INIT/health check, return the expected format
     if (action === 'INIT' || action === 'ping') {
-      console.log('Processing INIT/health check - returning data with status active');
       return { data: { status: 'active' } };
     }
 
-    // For real flow data, return the screen data
-    console.log('Processing real flow data - screen:', screen, 'action:', action, 'data:', data);
+    console.log('Flow request - screen:', screen, 'action:', action, 'data:', data);
     
-    // Return empty data object to let the flow JSON handle the layout
-    // The flow JSON uploaded to Meta already contains all screen definitions
+    // Return minimal response - let Meta Flow JSON handle everything
     return { 
       version: version || '3.0',
-      data: data || {}
+      data: {}
     };
   }
 }

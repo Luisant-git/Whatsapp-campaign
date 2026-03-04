@@ -119,36 +119,30 @@ sxEK+yx6I1EkGaK+/KWEpai7
     const { screen, data, version, action } = decryptedData;
 
     if (action === 'INIT' || action === 'ping') {
-      return { data: { status: 'active' } };
+      return { version: '3.0', data: { status: 'active' } };
     }
     
     if (action === 'data_exchange') {
-      // Navigate based on current screen
-      if (!screen || screen === 'APPOINTMENT') {
-        return { screen: 'DETAILS', data: data || {} };
-      }
-      
-      if (screen === 'DETAILS') {
-        return { screen: 'SUMMARY', data: data || {} };
-      }
-      
       if (screen === 'SUMMARY') {
         try {
           console.log('Saving appointment:', data);
           await this.flowAppointmentService.saveAppointment(data, 1);
+          console.log('Appointment saved successfully');
         } catch (error) {
           console.error('Failed to save appointment:', error.message);
         }
         
-        return { screen: 'SUCCESS', data: {} };
+        return { 
+          version: '3.0',
+          data: {
+            acknowledged: true
+          }
+        };
       }
-      
-      // Default: return same screen with data
-      return { screen: screen || 'APPOINTMENT', data: data || {} };
     }
     
     return { 
-      version: version || '3.0',
+      version: '3.0',
       data: {}
     };
   }

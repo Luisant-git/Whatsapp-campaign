@@ -130,6 +130,15 @@ sxEK+yx6I1EkGaK+/KWEpai7
       }
       
       if (screen === 'SUMMARY') {
+        // Save appointment to database
+        try {
+          console.log('Saving appointment:', data);
+          // TODO: Add your database save logic here
+          // await this.prisma.appointment.create({ data: { ... } });
+        } catch (error) {
+          console.error('Failed to save appointment:', error.message);
+        }
+        
         return { screen: 'TERMS', data: data || {} };
       }
       

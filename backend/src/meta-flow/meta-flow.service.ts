@@ -129,6 +129,13 @@ sxEK+yx6I1EkGaK+/KWEpai7
     }
     
     if (action === 'data_exchange') {
+      if (screen === 'APPOINTMENT') {
+        return {
+          version: '3.0',
+          data: data || {}
+        };
+      }
+      
       if (screen === 'SUMMARY') {
         try {
           console.log('💾 Saving appointment:', data);

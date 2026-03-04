@@ -116,7 +116,9 @@ sxEK+yx6I1EkGaK+/KWEpai7
   }
 
   async processFlow(decryptedData: any): Promise<any> {
-    const { screen, data, version, action } = decryptedData;
+    const { screen, data, version, action, flow_token } = decryptedData;
+
+    console.log('Flow request:', { screen, action, data });
 
     if (action === 'INIT' || action === 'ping') {
       return { version: '3.0', data: { status: 'active' } };
@@ -128,27 +130,26 @@ sxEK+yx6I1EkGaK+/KWEpai7
           console.log('Saving appointment:', data);
           await this.flowAppointmentService.saveAppointment(data, 1);
           console.log('Appointment saved successfully');
-          
-          return { 
-            version: '3.0',
-            screen: 'SUCCESS',
-            data: {}
-          };
         } catch (error) {
           console.error('Failed to save appointment:', error.message);
-          return {
-            version: '3.0',
-            data: {
-              error_message: 'Failed to save appointment. Please try again.'
-            }
-          };
         }
       }
       
       return { 
         version: '3.0',
-        data: data || {}
+        data: {}
       };
+    }
+    
+    // Handle navigate action - save data when navigating to SUCCESS
+    if (screen === 'SUMMARY' && data) {
+      try {
+        console.log('Saving appointment on navigate:', data);
+        await this.flowAppointmentService.saveAppointment(data, 1);
+        console.log('Appointment saved successfully');
+      } catch (error) {
+        console.error('Failed to save appointment:', error.message);
+      }
     }
     
     return { 

@@ -130,9 +130,53 @@ sxEK+yx6I1EkGaK+/KWEpai7
     
     if (action === 'data_exchange') {
       if (screen === 'APPOINTMENT') {
+        const trigger = data?.trigger;
+        console.log('📤 APPOINTMENT trigger:', trigger);
+        
+        // Fetch dynamic data from database
+        const departments = await this.flowAppointmentService.getDepartments();
+        const locations = await this.flowAppointmentService.getLocations();
+        const timeSlots = await this.flowAppointmentService.getTimeSlots();
+        const dates = this.generateDates(7); // Next 7 days
+        
+        const response = {
+          version: '3.0',
+          data: {
+            department: departments,
+            location: locations,
+            is_location_enabled: true,
+            date: dates,
+            is_date_enabled: true,
+            time: timeSlots,
+            is_time_enabled: true
+          }
+        };
+        console.log('📤 Sending APPOINTMENT response with dynamic data');
+        return response;
+      }
+      
+      if (screen === 'DETAILS') {
+        console.log('📤 DETAILS screen - navigating to SUMMARY');
+        
+        // Get department and location titles
+        const deptTitle = await this.flowAppointmentService.getDepartmentTitle(data.department);
+        const locTitle = await this.flowAppointmentService.getLocationTitle(data.location);
+        
         return {
           version: '3.0',
-          data: data || {}
+          screen: 'SUMMARY',
+          data: {
+            appointment: `${deptTitle} Department at ${locTitle}\n${data.date} at ${data.time}.`,
+            details: `Name: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}\n\n${data.more_details || ''}`,
+            department: data.department,
+            location: data.location,
+            date: data.date,
+            time: data.time,
+            name: data.name,
+            email: data.email,
+            phone: data.phone,
+            more_details: data.more_details
+          }
         };
       }
       
@@ -144,7 +188,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
           
           const response = { 
             version: '3.0',
-            screen: 'SUCCESS',
+            screen: 'TERMS',
             data: {}
           };
           console.log('Sending response:', JSON.stringify(response));
@@ -153,6 +197,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
           console.error('❌ Failed to save appointment:', error.message);
           return {
             version: '3.0',
+            screen: 'SUMMARY',
             data: {
               error: 'Failed to save appointment'
             }
@@ -170,5 +215,30 @@ sxEK+yx6I1EkGaK+/KWEpai7
       version: '3.0',
       data: data || {}
     };
+  }
+  
+  private generateDates(days: number): any[] {
+    const dates = [];
+    const today = new Date();
+    
+    for (let i = 0; i < days; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      
+      const dateStr = date.toISOString().split('T')[0];
+      const dateTitle = date.toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        month: 'short', 
+        day: '2-digit', 
+        year: 'numeric' 
+      });
+      
+      dates.push({
+        id: dateStr,
+        title: dateTitle
+      });
+    }
+    
+    return dates;
   }
 }

@@ -349,3 +349,31 @@ model FlowAppointment {
   @@index([phone])
   @@index([date])
 }
+
+
+model FlowDepartment {
+  id        Int      @id @default(autoincrement())
+  name      String
+  title     String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FlowLocation {
+  id        Int      @id @default(autoincrement())
+  name      String
+  title     String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FlowTimeSlot {
+  id        Int      @id @default(autoincrement())
+  time      String
+  title     String
+  isEnabled Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

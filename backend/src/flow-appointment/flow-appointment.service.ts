@@ -97,6 +97,88 @@ export class FlowAppointmentService {
       orderBy: { createdAt: 'desc' },
     });
   }
+  
+  async getDepartments() {
+    const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
+    if (tenants.length > 0) {
+      const tenant = tenants[0];
+      const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+      const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+      
+      const departments = await (tenantClient as any).flowDepartment.findMany({
+        where: { isActive: true }
+      });
+      
+      return departments.map(d => ({ id: d.name, title: d.title }));
+    }
+    return [];
+  }
+  
+  async getLocations() {
+    const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
+    if (tenants.length > 0) {
+      const tenant = tenants[0];
+      const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+      const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+      
+      const locations = await (tenantClient as any).flowLocation.findMany({
+        where: { isActive: true }
+      });
+      
+      return locations.map(l => ({ id: l.name, title: l.title }));
+    }
+    return [];
+  }
+  
+  async getTimeSlots() {
+    const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
+    if (tenants.length > 0) {
+      const tenant = tenants[0];
+      const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+      const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+      
+      const timeSlots = await (tenantClient as any).flowTimeSlot.findMany();
+      
+      return timeSlots.map(t => ({ 
+        id: t.time, 
+        title: t.title,
+        ...(t.isEnabled === false && { enabled: false })
+      }));
+    }
+    return [];
+  }
+  
+  async getDepartmentTitle(name: string): Promise<string> {
+    const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
+    if (tenants.length > 0) {
+      const tenant = tenants[0];
+      const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+      const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+      
+      const dept = await (tenantClient as any).flowDepartment.findFirst({
+        where: { name }
+      });
+      
+      return dept?.title || name;
+    }
+    return name;
+  }
+  
+  async getLocationTitle(name: string): Promise<string> {
+    const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
+    if (tenants.length > 0) {
+      const tenant = tenants[0];
+      const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+      const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+      
+      const loc = await (tenantClient as any).flowLocation.findFirst({
+        where: { name }
+      });
+      
+      return loc?.title || name;
+    }
+    return name;
+  }
 
   private async getTenantClient(userId: number) {
     const tenant = await this.centralPrisma.tenant.findUnique({ where: { id: userId } });

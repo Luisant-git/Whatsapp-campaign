@@ -118,7 +118,11 @@ sxEK+yx6I1EkGaK+/KWEpai7
   async processFlow(decryptedData: any): Promise<any> {
     const { screen, data, version, action, flow_token } = decryptedData;
 
-    console.log('Flow request:', { screen, action, data });
+    console.log('=== FLOW REQUEST ===');
+    console.log('Screen:', screen);
+    console.log('Action:', action);
+    console.log('Data:', JSON.stringify(data, null, 2));
+    console.log('==================');
 
     if (action === 'INIT' || action === 'ping') {
       return { version: '3.0', data: { status: 'active' } };
@@ -127,11 +131,11 @@ sxEK+yx6I1EkGaK+/KWEpai7
     if (action === 'data_exchange') {
       if (screen === 'SUMMARY') {
         try {
-          console.log('Saving appointment:', data);
+          console.log('💾 Saving appointment from data_exchange:', data);
           await this.flowAppointmentService.saveAppointment(data, 1);
-          console.log('Appointment saved successfully');
+          console.log('✅ Appointment saved successfully');
         } catch (error) {
-          console.error('Failed to save appointment:', error.message);
+          console.error('❌ Failed to save appointment:', error.message);
         }
       }
       
@@ -141,20 +145,23 @@ sxEK+yx6I1EkGaK+/KWEpai7
       };
     }
     
-    // Handle navigate action - save data when navigating to SUCCESS
-    if (screen === 'SUMMARY' && data) {
-      try {
-        console.log('Saving appointment on navigate:', data);
-        await this.flowAppointmentService.saveAppointment(data, 1);
-        console.log('Appointment saved successfully');
-      } catch (error) {
-        console.error('Failed to save appointment:', error.message);
+    // Handle any screen transition with data
+    if (screen && data && Object.keys(data).length > 0) {
+      // Check if data has appointment fields
+      if (data.department && data.name && data.email) {
+        try {
+          console.log('💾 Saving appointment from screen transition:', data);
+          await this.flowAppointmentService.saveAppointment(data, 1);
+          console.log('✅ Appointment saved successfully');
+        } catch (error) {
+          console.error('❌ Failed to save appointment:', error.message);
+        }
       }
     }
     
     return { 
       version: '3.0',
-      data: {}
+      data: data || {}
     };
   }
 }

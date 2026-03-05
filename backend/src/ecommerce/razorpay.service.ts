@@ -185,7 +185,9 @@ export class RazorpayService {
   }
 
   async sendOrderConfirmation(phone: string, phoneNumberId: string, order: any) {
-    const productList = order.product ? `${order.product.name} (x${order.quantity})` : 'Your order';
+    const productList = order.items?.length > 0 
+      ? order.items.map(item => `${item.product?.name || 'Product'} (x${item.quantity})`).join(', ')
+      : 'Your order';
     const message = `✅ *Payment Successful!*\n\n${productList}\nAmount: ₹${order.totalAmount}\n\nDelivery Details:\nName: ${order.customerName}\nAddress: ${order.customerAddress}\n\n📦 Your order is confirmed. We'll deliver within 3-5 business days.\n\nThank you! 🙂`;
     
     await axios.post(

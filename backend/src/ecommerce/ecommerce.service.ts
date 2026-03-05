@@ -126,10 +126,23 @@ export class EcommerceService {
   }
 
   async getOrderById(id: number) {
-    return this.prisma.order.findUnique({
-      where: { id },
-      include: { product: true },
-    });
+    // Try to find order across all tenants
+    const tenants = await this.centralPrisma.tenant.findMany();
+    
+    for (const tenant of tenants) {
+      try {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}?schema=public`;
+        const client = await this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+        const order = await client.order.findUnique({
+          where: { id },
+          include: { product: true },
+        });
+        if (order) return order;
+      } catch (error) {
+        continue;
+      }
+    }
+    return null;
   }
 
   async updateOrder(id: number, data: any, userId?: number) {

@@ -71,6 +71,7 @@ export class AppModule implements NestModule {
         'test/(.*)',
         'whatsapp/webhook',
         'whatsapp/webhook/(.*)',
+        'webhooks/(.*)',
         'meta/flows',
         'menu-permission/(.*)',  
         'menu-permission',  

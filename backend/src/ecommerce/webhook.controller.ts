@@ -61,8 +61,9 @@ export class WebhookController {
       
         const phoneNumberId = process.env.PHONE_NUMBER_ID || '';
         if (phoneNumberId) {
-        const product = await this.ecommerceService.getProduct(order.productId);
-        const productList = `${product?.name} (x${order.quantity})`;
+        const productName = order.items?.[0]?.product?.name || 'Product';
+        const quantity = order.items?.[0]?.quantity || 1;
+        const productList = `${productName} (x${quantity})`;
           const message = `✅ *Payment Successful!*\n\n${productList}\nAmount: ₹${order.totalAmount}\n\nDelivery Details:\nName: ${order.customerName}\nAddress: ${order.customerAddress}\n\n📦 Your order is confirmed. We'll contact you soon for delivery!`;
           
           await this.razorpayService.sendOrderConfirmation(

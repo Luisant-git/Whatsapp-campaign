@@ -388,26 +388,28 @@ export class MetaCatalogService {
           }
           
           const orders: any[] = [];
-          const orderGroupId = `group_${Date.now()}_${phone.slice(-4)}`;
-          console.log(`[Meta Catalog] Creating order group ${orderGroupId} for ${cartProducts.length} products`);
+          console.log(`[Meta Catalog] Creating single order for ${cartProducts.length} products`);
           
-          for (const cartItem of cartProducts) {
-            const order = await this.ecommerceService.createOrder({
-              customerName: session.customerName,
-              customerPhone: phone,
-              customerAddress: fullAddress,
-              productId: cartItem.id,
-              quantity: cartItem.quantity,
-              totalAmount: cartItem.price * cartItem.quantity,
-              paymentMethod: method,
-              paymentStatus: method === 'cod' ? 'cod' : 'pending',
-              paymentId: orderGroupId // Use as group identifier
-            }, userId);
-            
-            orders.push(order);
-          }
+          // Create order items for all products
+          const orderItems = cartProducts.map(cartItem => ({
+            productId: cartItem.id,
+            quantity: cartItem.quantity,
+            price: cartItem.price
+          }));
           
-          console.log(`[Meta Catalog] Order group created: ${orderGroupId} with ${orders.length} orders`);
+          // Create single order with all items
+          const order = await this.ecommerceService.createOrder({
+            customerName: session.customerName,
+            customerPhone: phone,
+            customerAddress: fullAddress,
+            totalAmount,
+            paymentMethod: method,
+            paymentStatus: method === 'cod' ? 'cod' : 'pending',
+            items: orderItems
+          }, userId);
+          
+          console.log(`[Meta Catalog] Single order created:`, { orderId: order.id, itemCount: orderItems.length });
+          orders.push(order);
           
           if (method === 'razorpay') {
             try {
@@ -697,10 +699,10 @@ export class MetaCatalogService {
     const orderDetails = await this.ecommerceService.getOrder(orderId, userId);
     if (!orderDetails) return order;
     
-    const product = await this.ecommerceService.getProduct(orderDetails.productId, userId);
     const phoneNumberId = process.env.PHONE_NUMBER_ID || '';
+    const productName = orderDetails.items?.[0]?.product?.name || 'Product';
     
-    const confirmationMessage = `✅ *Payment Successful!*\n\nOrder #${orderId}\nProduct: ${product?.name}\nAmount: ₹${orderDetails.totalAmount}\n\nName: ${orderDetails.customerName}\nAddress: ${orderDetails.customerAddress}\n\nYour order is confirmed. We'll contact you soon 🙂`;
+    const confirmationMessage = `✅ *Payment Successful!*\n\nOrder #${orderId}\nProduct: ${productName}\nAmount: ₹${orderDetails.totalAmount}\n\nName: ${orderDetails.customerName}\nAddress: ${orderDetails.customerAddress}\n\nYour order is confirmed. We'll contact you soon 🙂`;
     
     await this.sendTextMessage(orderDetails.customerPhone, phoneNumberId, confirmationMessage);
     return order;

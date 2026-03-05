@@ -111,8 +111,16 @@ export class EcommerceService {
   // Orders
   async createOrder(data: any, userId?: number) {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
+    const { items, ...orderData } = data;
+    
     return client.order.create({
-      data
+      data: {
+        ...orderData,
+        items: {
+          create: items || []
+        }
+      },
+      include: { items: { include: { product: true } } },
     });
   }
 
@@ -120,6 +128,7 @@ export class EcommerceService {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
     return client.order.findUnique({
       where: { id },
+      include: { items: { include: { product: true } } },
     });
   }
 
@@ -133,6 +142,7 @@ export class EcommerceService {
         const client = await this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
         const order = await client.order.findUnique({
           where: { id },
+          include: { items: { include: { product: true } } },
         });
         if (order) return order;
       } catch (error) {
@@ -153,6 +163,7 @@ export class EcommerceService {
   async getOrders(userId?: number) {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
     return client.order.findMany({
+      include: { items: { include: { product: true } } },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -181,6 +192,7 @@ export class EcommerceService {
   async getCustomers(userId?: number) {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
     const orders = await client.order.findMany({
+      include: { items: { include: { product: true } } },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -202,10 +214,10 @@ export class EcommerceService {
       customer.totalOrders++;
       customer.totalSpent += order.totalAmount;
       
-      const product = await this.getProduct(order.productId, userId);
+      const productNames = order.items?.map(item => item.product?.name).join(', ') || 'Unknown';
       customer.orders.push({
         id: order.id,
-        productName: product?.name,
+        productName: productNames,
         amount: order.totalAmount,
         status: order.status,
         date: order.createdAt

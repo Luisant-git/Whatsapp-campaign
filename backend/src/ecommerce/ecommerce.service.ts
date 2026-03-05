@@ -163,11 +163,24 @@ export class EcommerceService {
   }
 
   async updateOrderStatus(id: number, status: string, userId?: number) {
-    const client = userId ? await this.getTenantClient(userId) : this.prisma;
-    return client.order.update({
-      where: { id },
-      data: { status },
-    });
+    if (!userId) {
+      const tenants = await this.centralPrisma.tenant.findMany();
+      for (const tenant of tenants) {
+        try {
+          const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}?schema=public`;
+          const client = await this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+          const order = await client.order.findUnique({ where: { id } });
+          if (order) {
+            return client.order.update({ where: { id }, data: { status } });
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+      throw new Error('Order not found');
+    }
+    const client = await this.getTenantClient(userId);
+    return client.order.update({ where: { id }, data: { status } });
   }
 
   async getCustomers(userId?: number) {

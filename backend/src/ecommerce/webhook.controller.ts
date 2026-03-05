@@ -25,7 +25,7 @@ export class WebhookController {
       const referenceId = notes.reference_id;
 
       if (orderId) {
-        await this.ecommerceService.updateOrderStatus(orderId, 'confirmed', userId);
+        await this.ecommerceService.updateOrderStatus(orderId, 'placed', userId);
         
         const order = await this.ecommerceService.getOrder(orderId, userId);
         if (order && referenceId) {
@@ -57,7 +57,7 @@ export class WebhookController {
       const order = await this.ecommerceService.getOrderById(parseInt(orderId));
       
       if (order) {
-        await this.ecommerceService.updateOrderStatus(parseInt(orderId), 'confirmed', undefined);
+        await this.ecommerceService.updateOrderStatus(parseInt(orderId), 'placed', undefined);
       
         const phoneNumberId = process.env.PHONE_NUMBER_ID || '';
         if (phoneNumberId) {

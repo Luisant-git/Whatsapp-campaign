@@ -11,6 +11,8 @@ interface ShoppingSession {
   customerAddress?: string;
   customerCity?: string;
   customerPincode?: string;
+  cartProducts?: any[];
+  totalAmount?: number;
   timestamp: number;
 }
 

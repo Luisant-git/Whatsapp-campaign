@@ -37,6 +37,12 @@ export class WebhookController {
               referenceId,
               'completed'
             );
+            
+            await this.razorpayService.sendOrderConfirmation(
+              order.customerPhone,
+              phoneNumberId,
+              order
+            );
           }
         }
       }

@@ -125,6 +125,13 @@ export class EcommerceService {
     });
   }
 
+  async getOrderById(id: number) {
+    return this.prisma.order.findUnique({
+      where: { id },
+      include: { product: true },
+    });
+  }
+
   async updateOrder(id: number, data: any, userId?: number) {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
     return client.order.update({

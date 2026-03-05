@@ -53,26 +53,31 @@ export class WebhookController {
 
   @Post('payment-success/:orderId')
   async manualPaymentConfirm(@Param('orderId') orderId: string) {
-    const order = await this.ecommerceService.getOrder(parseInt(orderId), undefined);
-    
-    if (order) {
-      await this.ecommerceService.updateOrderStatus(parseInt(orderId), 'confirmed', undefined);
+    try {
+      const order = await this.ecommerceService.getOrderById(parseInt(orderId));
       
-      const phoneNumberId = process.env.PHONE_NUMBER_ID || '';
-      if (phoneNumberId) {
-        const productList = `${order.product.name} (x${order.quantity})`;
-        const message = `✅ *Payment Successful!*\n\n${productList}\nAmount: ₹${order.totalAmount}\n\nDelivery Details:\nName: ${order.customerName}\nAddress: ${order.customerAddress}\n\n📦 Your order is confirmed. We'll contact you soon for delivery!`;
+      if (order) {
+        await this.ecommerceService.updateOrderStatus(parseInt(orderId), 'confirmed', undefined);
+      
+        const phoneNumberId = process.env.PHONE_NUMBER_ID || '';
+        if (phoneNumberId) {
+          const productList = `${order.product.name} (x${order.quantity})`;
+          const message = `✅ *Payment Successful!*\n\n${productList}\nAmount: ₹${order.totalAmount}\n\nDelivery Details:\nName: ${order.customerName}\nAddress: ${order.customerAddress}\n\n📦 Your order is confirmed. We'll contact you soon for delivery!`;
+          
+          await this.razorpayService.sendOrderConfirmation(
+            order.customerPhone,
+            phoneNumberId,
+            order
+          );
+        }
         
-        await this.razorpayService.sendOrderConfirmation(
-          order.customerPhone,
-          phoneNumberId,
-          order
-        );
+        return { success: true, message: 'Payment confirmed' };
       }
       
-      return { success: true, message: 'Payment confirmed' };
+      return { success: false, message: 'Order not found' };
+    } catch (error) {
+      console.error('Payment confirmation error:', error);
+      return { success: false, message: error.message };
     }
-    
-    return { success: false, message: 'Order not found' };
   }
 }

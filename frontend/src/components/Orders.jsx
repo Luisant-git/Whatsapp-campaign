@@ -40,7 +40,7 @@ export default function Orders() {
       'Customer Name': order.customerName,
       Phone: order.customerPhone,
       Address: order.customerAddress || 'N/A',
-      Product: order.product?.name,
+      Product: order.items?.[0]?.product?.name || 'N/A',
       Amount: `₹${order.totalAmount}`,
       Status: order.status,
       Date: new Date(order.createdAt).toLocaleDateString(),
@@ -67,7 +67,7 @@ export default function Orders() {
       (o) =>
         o.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         o.customerPhone?.includes(searchQuery) ||
-        o.product?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        o.items?.[0]?.product?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         o.id?.toString().includes(searchQuery)
     );
 
@@ -217,7 +217,7 @@ export default function Orders() {
                   </div>
                 </td>
                 <td>{order.customerPhone}</td>
-                <td>{order.product?.name}</td>
+                <td>{order.items?.[0]?.product?.name || 'N/A'}</td>
                 <td style={{ fontWeight: 600 }}>₹{order.totalAmount}</td>
                 <td style={{ fontSize: '13px' }}>
                   {new Date(order.createdAt).toLocaleDateString()}
@@ -337,33 +337,40 @@ export default function Orders() {
                 <div className="order-info-card">
                   <h4>Order Items</h4>
                   <div className="order-items-list">
-                    <div className="order-item-card">
-                      {viewOrder.product?.imageUrl && (
-                        <img
-                          src={
-                            viewOrder.product.imageUrl.startsWith('http')
-                              ? viewOrder.product.imageUrl
-                              : `http://localhost:3010${viewOrder.product.imageUrl}`
-                          }
-                          alt={viewOrder.product.name}
-                          className="order-item-image"
-                        />
-                      )}
-                      <div className="order-item-info">
-                        <div className="order-item-name">
-                          {viewOrder.product?.name || 'Product'}
-                        </div>
-                        {viewOrder.product?.description && (
-                          <div className="order-item-desc">
-                            {viewOrder.product.description}
-                          </div>
+                    {viewOrder.items?.map((item, index) => (
+                      <div key={index} className="order-item-card">
+                        {item.product?.imageUrl && (
+                          <img
+                            src={
+                              item.product.imageUrl.startsWith('http')
+                                ? item.product.imageUrl
+                                : `http://localhost:3010${item.product.imageUrl}`
+                            }
+                            alt={item.product.name}
+                            className="order-item-image"
+                          />
                         )}
-                        <div className="order-item-meta">
-                          Qty: {viewOrder.quantity || 1} × ₹
-                          {viewOrder.totalAmount}
+                        <div className="order-item-info">
+                          <div className="order-item-name">
+                            {item.product?.name || 'Product'}
+                          </div>
+                          {item.product?.description && (
+                            <div className="order-item-desc">
+                              {item.product.description}
+                            </div>
+                          )}
+                          <div className="order-item-meta">
+                            Qty: {item.quantity} × ₹{item.price}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )) || (
+                      <div className="order-item-card">
+                        <div className="order-item-info">
+                          <div className="order-item-name">No items found</div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

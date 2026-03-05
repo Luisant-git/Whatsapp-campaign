@@ -9,8 +9,7 @@ export class RazorpayService {
   async sendPaymentRequest(phone: string, phoneNumberId: string, amount: number, orderId: number, productName?: string) {
     try {
       const subtotal = Math.round(amount * 100);
-      const tax = 0;
-      const totalAmount = subtotal + tax;
+      const totalAmount = subtotal;
 
       console.log('[Razorpay] Sending payment request:', { phone, orderId, amount, productName });
 
@@ -31,8 +30,15 @@ export class RazorpayService {
               parameters: {
                 reference_id: `order_${orderId}_${Date.now()}`,
                 type: 'digital-goods',
-                payment_type: 'upi',
-                payment_configuration: 'Payment_Razorpay',
+                payment_settings: [
+                  {
+                    type: 'payment_gateway',
+                    payment_gateway: {
+                      type: 'razorpay',
+                      configuration_name: 'Payment_Razorpay'
+                    }
+                  }
+                ],
                 currency: 'INR',
                 total_amount: {
                   value: totalAmount,
@@ -41,6 +47,7 @@ export class RazorpayService {
                 order: {
                   status: 'pending',
                   items: [{
+                    retailer_id: `item_${orderId}`,
                     name: productName || `Order #${orderId}`,
                     amount: {
                       value: subtotal,
@@ -50,10 +57,6 @@ export class RazorpayService {
                   }],
                   subtotal: {
                     value: subtotal,
-                    offset: 100
-                  },
-                  tax: {
-                    value: tax,
                     offset: 100
                   }
                 }

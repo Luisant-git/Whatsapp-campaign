@@ -194,6 +194,7 @@ export default function Orders() {
               <th>Customer</th>
               <th>Phone</th>
               <th>Product</th>
+              <th>Qty</th>
               <th>Amount</th>
               <th>Date</th>
               <th>Status</th>
@@ -217,19 +218,11 @@ export default function Orders() {
                   </div>
                 </td>
                 <td>{order.customerPhone}</td>
-                <td>
-                  {order.items?.length > 1 ? (
-                    <div>
-                      <div style={{ fontWeight: 500 }}>
-                        {order.items[0]?.product?.name}
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#9ca3af' }}>
-                        +{order.items.length - 1} more items
-                      </div>
-                    </div>
-                  ) : (
-                    order.items?.[0]?.product?.name || 'N/A'
-                  )}
+                <td style={{ fontWeight: 500 }}>
+                  {order.items?.length || 0} items
+                </td>
+                <td style={{ fontWeight: 500 }}>
+                  {order.items?.reduce((total, item) => total + item.quantity, 0) || 0}
                 </td>
                 <td style={{ fontWeight: 600 }}>₹{order.totalAmount}</td>
                 <td style={{ fontSize: '13px' }}>

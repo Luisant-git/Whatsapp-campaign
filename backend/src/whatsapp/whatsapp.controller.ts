@@ -186,10 +186,13 @@ export class WhatsappController {
                         try {
                           const axios = require('axios');
                           const backendUrl = process.env.BACKEND_URL || 'http://localhost:3010';
-                          await axios.post(`${backendUrl}/webhooks/payment-success/${orderId}`);
-                          console.log('✅ Payment confirmation triggered');
+                          const response = await axios.post(`${backendUrl}/webhooks/payment-success/${orderId}`, {}, {
+                            headers: { 'Content-Type': 'application/json' },
+                            timeout: 5000
+                          });
+                          console.log('✅ Payment confirmation triggered:', response.data);
                         } catch (paymentError) {
-                          console.error('Payment processing error:', paymentError.message);
+                          console.error('Payment processing error:', paymentError.response?.data || paymentError.message);
                         }
                       }
                     }
@@ -280,10 +283,13 @@ export class WhatsappController {
                         try {
                           const axios = require('axios');
                           const backendUrl = process.env.BACKEND_URL || 'http://localhost:3010';
-                          await axios.post(`${backendUrl}/webhooks/payment-success/${orderId}`);
-                          console.log('✅ Payment confirmation triggered');
+                          const response = await axios.post(`${backendUrl}/webhooks/payment-success/${orderId}`, {}, {
+                            headers: { 'Content-Type': 'application/json' },
+                            timeout: 5000
+                          });
+                          console.log('✅ Payment confirmation triggered:', response.data);
                         } catch (paymentError) {
-                          console.error('Payment processing error:', paymentError.message);
+                          console.error('Payment processing error:', paymentError.response?.data || paymentError.message);
                         }
                       }
                     }

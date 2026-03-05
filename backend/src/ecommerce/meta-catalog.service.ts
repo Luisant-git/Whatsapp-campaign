@@ -474,7 +474,7 @@ export class MetaCatalogService {
             totalAmount,
             paymentMethod: method,
             paymentStatus: method === 'cod' ? 'cod' : 'pending',
-            status: method === 'razorpay' ? 'pending' : 'placed',
+            status: method === 'cod' ? 'placed' : 'pending',
             items: orderItems
           }, userId);
           

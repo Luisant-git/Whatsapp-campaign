@@ -1,74 +1,92 @@
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
-import session from 'express-session';
-import connectPgSimple from 'connect-pg-simple';
-import cookieParser from 'cookie-parser';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as express from 'express';
+const session = require('express-session');
+const connectPgSimple = require('connect-pg-simple');
+const PgSession = connectPgSimple(session);
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // Trust proxy (for production behind nginx)
+  // Trust proxy for production (nginx/apache)
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
-  // Enable CORS
+  // Enable CORS first
   app.enableCors({
-    origin: [
-      'http://localhost:5173',
-      'http://localhost:5174',
-      'https://whatsapp.luisant.cloud',
-      'https://whatsapp.admin.luisant.cloud',
-    ],
+    origin: true
+      ? ['https://whatsapp.luisant.cloud', 'https://whatsapp.admin.luisant.cloud','http://localhost:5173', 'http://localhost:5174']
+      : true,
     credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Cookie'],
+    exposedHeaders: ['Set-Cookie'],
   });
 
-  // Cookie parser
-  app.use(cookieParser());
+  // 🔴 1️⃣ RAW parser FIRST for Meta Flow (before any other parser)
+  app.use('/meta/flows', express.raw({
+    type: '*/*',
+    limit: '10mb',
+  }));
 
-  // Postgres session store
-  const PgSession = connectPgSimple(session);
-  app.use(
+  // 🟢 2️⃣ THEN JSON parser for everything else
+  app.use((req, res, next) => {
+    if (req.originalUrl.startsWith('/meta/flows')) {
+      return next();
+    }
+    express.json({ limit: '10mb' })(req, res, next);
+  });
+
+  // Exclude session middleware from Meta Flow endpoint
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/meta/flows')) {
+      return next();
+    }
     session({
       store: new PgSession({
         conString: process.env.CENTRAL_DATABASE_URL,
         tableName: 'session',
         createTableIfMissing: true,
       }),
-      name: 'user.sid', // ✅ Different from tenant/admin
-      secret: process.env.SESSION_SECRET || 'keyboardcat',
+      name: 'admin.sid',
+      secret: process.env.SESSION_SECRET || 'your-session-secret',
       resave: false,
       saveUninitialized: false,
       cookie: {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 24 * 60 * 60 * 1000, // 1 day
+       
+        maxAge: 365 * 24 * 60 * 60 * 1000,
       },
       proxy: true,
-    }),
-  );
+    })(req, res, next);
+  });
+  
+  // Serve static files from uploads directory
+  const uploadsPath = process.env.NODE_ENV === 'production'
+    ? join(__dirname, '..', 'uploads')
+    : join(process.cwd(), 'uploads');
 
-  // Serve static uploads
-  const uploadsPath =
-    process.env.NODE_ENV === 'production'
-      ? join(__dirname, '..', 'uploads')
-      : join(process.cwd(), 'uploads');
-  app.useStaticAssets(uploadsPath, { prefix: '/uploads/' });
+  app.useStaticAssets(uploadsPath, {
+    prefix: '/uploads/',
+  });
 
-  // Swagger setup
+
+
   const config = new DocumentBuilder()
     .setTitle('WhatsApp Campaign API')
-    .setDescription('API for WhatsApp Campaign Management')
+    .setDescription('API for WhatsApp Campaign Management with bulk messaging')
     .setVersion('1.0')
-    .addTag('Admin')
-    .addTag('WhatsApp')
+    .addTag('WhatsApp', 'WhatsApp messaging endpoints')
+    .addTag('Admin', 'Admin authentication endpoints')
     .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
 
+
+  const document = SwaggerModule.createDocument(app, config);
+
+  SwaggerModule.setup('api', app, document);
+  
   await app.listen(process.env.PORT ?? 3010);
-  console.log(`Server running on http://localhost:${process.env.PORT ?? 3010}`);
 }
 bootstrap();

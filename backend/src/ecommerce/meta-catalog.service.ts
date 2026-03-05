@@ -304,46 +304,39 @@ export class MetaCatalogService {
     const productItems = order.product_items || [];
     
     console.log(`[Meta Catalog] Full order data:`, JSON.stringify(order, null, 2));
+    console.log(`[Meta Catalog] Total products in cart: ${productItems.length}`);
     
-    let productId: number | undefined;
+    const allProducts = await this.ecommerceService.getProducts(undefined, userId);
+    const cartProducts: any[] = [];
+    let totalAmount = 0;
     
-    if (productItems.length > 0) {
-      const firstProduct = productItems[0];
-      const catalogItemId = firstProduct.catalog_item_id || firstProduct.product_retailer_id;
-      
-      console.log(`[Meta Catalog] Order received - catalog_item_id: ${catalogItemId}`);
-      console.log(`[Meta Catalog] First product data:`, JSON.stringify(firstProduct, null, 2));
-      
-      const allProducts = await this.ecommerceService.getProducts(undefined, userId);
-      console.log(`[Meta Catalog] All products in DB:`, allProducts.map(p => ({ id: p.id, name: p.name, metaProductId: p.metaProductId })));
+    for (const item of productItems) {
+      const catalogItemId = item.catalog_item_id || item.product_retailer_id;
+      const quantity = item.quantity || 1;
       
       let product;
-      
       if (catalogItemId?.startsWith('product_')) {
         const prodId = parseInt(catalogItemId.replace('product_', ''));
         product = allProducts.find(p => p.id === prodId);
-        console.log(`[Meta Catalog] Trying retailer_id match for ID ${prodId}:`, product ? `Found ${product.name}` : 'Not found');
       }
-      
       if (!product) {
         product = allProducts.find(p => p.metaProductId === catalogItemId);
-        console.log(`[Meta Catalog] Trying metaProductId match:`, product ? `Found ${product.name}` : 'Not found');
       }
       
       if (product) {
-        console.log(`[Meta Catalog] Product found: ${product.name} (ID: ${product.id}, metaProductId: ${product.metaProductId})`);
-        productId = product.id;
-      } else {
-        console.error(`[Meta Catalog] Product not found for catalog_item_id: ${catalogItemId}`);
+        cartProducts.push({ ...product, quantity });
+        totalAmount += product.price * quantity;
       }
     }
     
-    // Check if customer exists
+    console.log(`[Meta Catalog] Cart products:`, cartProducts.map(p => ({ name: p.name, qty: p.quantity })));
+    
     const existingCustomer = await this.ecommerceService.getCustomerByPhone(phone, userId);
     
     if (existingCustomer) {
       await this.sessionService.setSession(phone, { 
-        currentProductId: productId,
+        cartProducts,
+        totalAmount,
         customerName: existingCustomer.customerName,
         customerAddress: existingCustomer.customerAddress || undefined,
         step: 'confirm_details'
@@ -352,7 +345,8 @@ export class MetaCatalogService {
       await this.sendCustomerDetailsConfirmation(phone, phoneNumberId, existingCustomer);
     } else {
       await this.sessionService.setSession(phone, { 
-        currentProductId: productId,
+        cartProducts,
+        totalAmount,
         step: 'awaiting_name' 
       }, userId);
       
@@ -449,54 +443,71 @@ export class MetaCatalogService {
         const paymentMethod = (method === 'razorpay' || method === 'pay online') ? 'razorpay' : 'cod';
         await this.sessionService.setPaymentMethod(phone, paymentMethod, userId);
         const session = await this.sessionService.getSession(phone, userId);
-        const productId = session?.currentProductId;
+        const cartProducts = session?.cartProducts || [];
+        const totalAmount = session?.totalAmount || 0;
         
-        if (productId) {
-          const product = await this.ecommerceService.getProduct(productId, userId);
-          
-          if (product && session) {
-            // Build address: use saved full address OR construct from parts
-            let fullAddress;
-            if (session.customerAddress && !session.customerCity && !session.customerPincode) {
-              // Existing customer with saved full address
-              fullAddress = session.customerAddress;
-            } else {
-              // New customer with individual parts
-              fullAddress = [session.customerAddress, session.customerCity, session.customerPincode]
-                .filter(part => part && part !== 'undefined')
-                .join(', ');
-            }
-            
-            const order = await this.ecommerceService.createOrder({
-              customerName: session.customerName,
-              customerPhone: phone,
-              customerAddress: fullAddress,
-              productId,
-              quantity: 1,
-              totalAmount: product.price,
-              paymentMethod: method,
-              paymentStatus: method === 'cod' ? 'cod' : 'pending',
-            }, userId);
-            
-            if (method === 'razorpay') {
-              try {
-                await this.razorpayService.sendPaymentRequest(
-                  phone,
-                  phoneNumberId,
-                  product.price,
-                  order.id
-                );
-              } catch (error) {
-                console.error('Payment link error:', error);
-                await this.sendTextMessage(phone, phoneNumberId, `✅ *Order Placed*\n\nOrder #${order.id}\nProduct: ${product.name}\nAmount: ₹${product.price}\n\nOur team will send you payment link shortly 📞`);
-              }
-            } else {
-              await this.sendOrderConfirmation(phone, phoneNumberId, product, session, fullAddress);
-            }
-            
-            await this.sessionService.clearSession(phone, userId);
-            return true;
+        if (cartProducts.length > 0 && session) {
+          let fullAddress;
+          if (session.customerAddress && !session.customerCity && !session.customerPincode) {
+            fullAddress = session.customerAddress;
+          } else {
+            fullAddress = [session.customerAddress, session.customerCity, session.customerPincode]
+              .filter(part => part && part !== 'undefined')
+              .join(', ');
           }
+          
+          const orders: any[] = [];
+          console.log(`[Meta Catalog] Creating single order for ${cartProducts.length} products`);
+          
+          // Create order items for all products
+          const orderItems = cartProducts.map(cartItem => ({
+            productId: cartItem.id,
+            quantity: cartItem.quantity,
+            price: cartItem.price
+          }));
+          
+          // Create single order with all items
+          const order = await this.ecommerceService.createOrder({
+            customerName: session.customerName,
+            customerPhone: phone,
+            customerAddress: fullAddress,
+            totalAmount,
+            paymentMethod: method,
+            paymentStatus: method === 'cod' ? 'cod' : 'pending',
+            items: orderItems
+          }, userId);
+          
+          console.log(`[Meta Catalog] Single order created:`, { orderId: order.id, itemCount: orderItems.length });
+          orders.push(order);
+          
+          if (method === 'razorpay') {
+            try {
+              const items = cartProducts.map(p => ({
+                name: p.name,
+                price: p.price,
+                quantity: p.quantity
+              }));
+              
+              await this.razorpayService.sendPaymentRequestMultiple(
+                phone,
+                phoneNumberId,
+                totalAmount,
+                orders[0].id,
+                items
+              );
+            } catch (error) {
+              console.error('Payment link error:', error);
+              const productList = cartProducts.map(p => `${p.name} x${p.quantity}`).join('\n');
+              await this.sendTextMessage(phone, phoneNumberId, `✅ *Order Placed*\n\n${productList}\nTotal: ₹${totalAmount}\n\nOur team will send you payment link shortly 📞`);
+            }
+          } else {
+            const productList = cartProducts.map(p => `${p.name} (x${p.quantity}) - ₹${p.price * p.quantity}`).join('\n');
+            const confirmationMessage = `✅ *Order Confirmed*\n\n${productList}\n\nTotal: ₹${totalAmount}\nPayment: Cash on Delivery\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`;
+            await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
+          }
+          
+          await this.sessionService.clearSession(phone, userId);
+          return true;
         }
       }
       
@@ -758,8 +769,9 @@ export class MetaCatalogService {
     if (!orderDetails) return order;
     
     const phoneNumberId = process.env.PHONE_NUMBER_ID || '';
+    const productName = orderDetails.items?.[0]?.product?.name || 'Product';
     
-    const confirmationMessage = `✅ *Payment Successful!*\n\nOrder #${orderId}\nProduct: ${orderDetails.product.name}\nAmount: ₹${orderDetails.totalAmount}\n\nName: ${orderDetails.customerName}\nAddress: ${orderDetails.customerAddress}\n\nYour order is confirmed. We'll contact you soon 🙂`;
+    const confirmationMessage = `✅ *Payment Successful!*\n\nOrder #${orderId}\nProduct: ${productName}\nAmount: ₹${orderDetails.totalAmount}\n\nName: ${orderDetails.customerName}\nAddress: ${orderDetails.customerAddress}\n\nYour order is confirmed. We'll contact you soon 🙂`;
     
     await this.sendTextMessage(orderDetails.customerPhone, phoneNumberId, confirmationMessage);
     return order;

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { EcommerceController } from './ecommerce.controller';
+import { WebhookController } from './webhook.controller';
 import { EcommerceService } from './ecommerce.service';
 import { WhatsappEcommerceService } from './whatsapp-ecommerce.service';
 import { ShoppingSessionService } from './shopping-session.service';
@@ -10,7 +11,7 @@ import { TenantPrismaService } from '../tenant-prisma.service';
 import { CentralPrismaService } from '../central-prisma.service';
 
 @Module({
-  controllers: [EcommerceController],
+  controllers: [EcommerceController, WebhookController],
   providers: [EcommerceService, WhatsappEcommerceService, ShoppingSessionService, MetaCatalogService, RazorpayService, PrismaService, TenantPrismaService, CentralPrismaService],
   exports: [EcommerceService, WhatsappEcommerceService, MetaCatalogService],
 })

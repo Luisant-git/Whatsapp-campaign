@@ -111,9 +111,16 @@ export class EcommerceService {
   // Orders
   async createOrder(data: any, userId?: number) {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
+    const { items, ...orderData } = data;
+    
     return client.order.create({
-      data,
-      include: { product: true },
+      data: {
+        ...orderData,
+        items: {
+          create: items || []
+        }
+      },
+      include: { items: { include: { product: true } } },
     });
   }
 
@@ -121,8 +128,56 @@ export class EcommerceService {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
     return client.order.findUnique({
       where: { id },
-      include: { product: true },
+      include: { 
+        items: { 
+          include: { 
+            product: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                imageUrl: true,
+                description: true
+              }
+            }
+          }
+        }
+      },
     });
+  }
+
+  async getOrderById(id: number) {
+    // Try to find order across all tenants
+    const tenants = await this.centralPrisma.tenant.findMany();
+    
+    for (const tenant of tenants) {
+      try {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}?schema=public`;
+        const client = await this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+        const order = await client.order.findUnique({
+          where: { id },
+          include: { 
+            items: { 
+              include: { 
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                    price: true,
+                    imageUrl: true,
+                    description: true
+                  }
+                }
+              }
+            }
+          },
+        });
+        if (order) return order;
+      } catch (error) {
+        continue;
+      }
+    }
+    return null;
   }
 
   async updateOrder(id: number, data: any, userId?: number) {
@@ -130,35 +185,61 @@ export class EcommerceService {
     return client.order.update({
       where: { id },
       data,
-      include: { product: true },
     });
   }
 
   async getOrders(userId?: number) {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
     return client.order.findMany({
-      include: { product: true },
+      include: { 
+        items: { 
+          include: { 
+            product: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                imageUrl: true,
+                description: true
+              }
+            }
+          }
+        }
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async updateOrderStatus(id: number, status: string, userId?: number) {
-    const client = userId ? await this.getTenantClient(userId) : this.prisma;
-    return client.order.update({
-      where: { id },
-      data: { status },
-    });
+    if (!userId) {
+      const tenants = await this.centralPrisma.tenant.findMany();
+      for (const tenant of tenants) {
+        try {
+          const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}?schema=public`;
+          const client = await this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+          const order = await client.order.findUnique({ where: { id } });
+          if (order) {
+            return client.order.update({ where: { id }, data: { status } });
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+      throw new Error('Order not found');
+    }
+    const client = await this.getTenantClient(userId);
+    return client.order.update({ where: { id }, data: { status } });
   }
 
   async getCustomers(userId?: number) {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
     const orders = await client.order.findMany({
-      include: { product: true },
+      include: { items: { include: { product: true } } },
       orderBy: { createdAt: 'desc' },
     });
 
     const customerMap = new Map();
-    orders.forEach(order => {
+    for (const order of orders) {
       const phone = order.customerPhone;
       if (!customerMap.has(phone)) {
         customerMap.set(phone, {
@@ -174,14 +255,16 @@ export class EcommerceService {
       const customer = customerMap.get(phone);
       customer.totalOrders++;
       customer.totalSpent += order.totalAmount;
+      
+      const productNames = order.items?.map(item => item.product?.name).join(', ') || 'Unknown';
       customer.orders.push({
         id: order.id,
-        productName: order.product?.name,
+        productName: productNames,
         amount: order.totalAmount,
         status: order.status,
         date: order.createdAt
       });
-    });
+    }
 
     return Array.from(customerMap.values());
   }

@@ -34,7 +34,7 @@ model Tenant {
   isActive    Boolean  @default(true)
   dbName      String   @unique
   dbHost      String   @default("localhost")
-  role        String  @default("company")
+  
   dbPort      Int      @default(5432)
   dbUser      String
   dbPassword  String

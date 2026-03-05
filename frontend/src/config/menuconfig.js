@@ -39,6 +39,16 @@ export const MENU_CONFIG = [
       label: "Quick Reply",
       icon: "zap",
     },
+    {
+      key: "flow-manager",
+      label: "Flow Manager",
+      icon: "workflow",
+    },
+    {
+      key: "flow-appointments",
+      label: "Flow Appointments",
+      icon: "calendar",
+    },
 
     
 

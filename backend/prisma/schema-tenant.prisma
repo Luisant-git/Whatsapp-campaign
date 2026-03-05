@@ -235,7 +235,7 @@ model Product {
   subCategoryId Int
   isActive      Boolean     @default(true)
   subCategory   SubCategory @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
-  orders        Order[]
+  orderItems    OrderItem[]
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   variants      ProductVariant[] 
@@ -273,8 +273,6 @@ model Order {
   customerName    String
   customerPhone   String
   customerAddress String?  @db.Text
-  productId       Int
-  quantity        Int      @default(1)
   totalAmount     Float
   status          String   @default("placed")
   paymentMethod   String?
@@ -282,9 +280,24 @@ model Order {
   paymentLink     String?
   paymentStatus   String   @default("pending")
   isAbandoned     Boolean  @default(false)
-  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  items           OrderItem[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model OrderItem {
+  id        Int      @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Int      @default(1)
+  price     Float
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([orderId])
+  @@index([productId])
 }
 
 model ShoppingSession {
@@ -316,4 +329,83 @@ model FeatureAssignment {
   campaigns    String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model FlowTrigger {
+  id          Int      @id @default(autoincrement())
+  name        String
+  triggerWord String
+  flowId      String
+  headerText  String?
+  bodyText    String?
+  footerText  String?
+  ctaText     String
+  screenName  String   @default("APPOINTMENT")
+  screenData  Json     @default("{}")
+  isActive    Boolean  @default(true)
+  logs        FlowTriggerLog[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([triggerWord])
+}
+
+model FlowTriggerLog {
+  id             Int      @id @default(autoincrement())
+  flowTriggerId  Int
+  phoneNumber    String
+  triggerWord    String
+  status         String
+  messageId      String?
+  error          String?  @db.Text
+  flowTrigger    FlowTrigger @relation(fields: [flowTriggerId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  
+  @@index([flowTriggerId])
+  @@index([phoneNumber])
+}
+
+model FlowAppointment {
+  id          Int      @id @default(autoincrement())
+  department  String
+  location    String
+  date        String
+  time        String
+  name        String
+  email       String
+  phone       String
+  moreDetails String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([phone])
+  @@index([date])
+}
+
+
+model FlowDepartment {
+  id        Int      @id @default(autoincrement())
+  name      String
+  title     String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FlowLocation {
+  id        Int      @id @default(autoincrement())
+  name      String
+  title     String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FlowTimeSlot {
+  id        Int      @id @default(autoincrement())
+  time      String
+  title     String
+  isEnabled Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

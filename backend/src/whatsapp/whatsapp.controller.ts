@@ -23,13 +23,15 @@ import { WhatsappService } from './whatsapp.service';
 import { CampaignService } from './campaign.service';
 import { SendMessageDto, SendBulkDto, SendMediaDto, MessageResponseDto, BulkMessageResultDto, WhatsAppMessageDto, UploadResponseDto, AnalyticsDto, WhatsAppSettingsDto, CreateCampaignDto, UpdateCampaignDto, CampaignResponseDto } from './dto';
 import { SessionGuard } from '../auth/session.guard';
+import { FlowAppointmentService } from '../flow-appointment/flow-appointment.service';
  
 @ApiTags('WhatsApp')
 @Controller('whatsapp')
 export class WhatsappController {
   constructor(
     private readonly whatsappService: WhatsappService,
-    private readonly campaignService: CampaignService
+    private readonly campaignService: CampaignService,
+    private readonly flowAppointmentService: FlowAppointmentService
   ) {}
  
   @Get('webhook/:verifyToken')
@@ -128,6 +130,18 @@ export class WhatsappController {
               console.log(`📞 Display Phone: ${displayPhoneNumber}`);
               
               if (message) {
+                // Check if it's a flow response
+                if (message.type === 'interactive' && message.interactive?.type === 'nfm_reply') {
+                  console.log('📋 Flow response received');
+                  const responseData = JSON.parse(message.interactive.nfm_reply.response_json);
+                  await this.flowAppointmentService.saveAppointmentFromWebhook(
+                    responseData,
+                    message.from,
+                    phoneNumberId
+                  );
+                  return;
+                }
+                
                 try {
                   console.log('Processing incoming message:', message);
                  
@@ -160,6 +174,29 @@ export class WhatsappController {
               if (statuses) {
                 for (const status of statuses) {
                   try {
+                    // Check if it's a payment status
+                    if (status.type === 'payment' && status.status === 'captured') {
+                      console.log('💳 Payment captured:', status);
+                      const referenceId = status.payment?.reference_id;
+                      const orderId = referenceId ? parseInt(referenceId.split('_')[1]) : null;
+                      
+                      if (orderId) {
+                        console.log(`Processing payment for order #${orderId}`);
+                        
+                        try {
+                          const axios = require('axios');
+                          const backendUrl = process.env.BACKEND_URL || 'http://localhost:3010';
+                          const response = await axios.post(`${backendUrl}/webhooks/payment-success/${orderId}`, {}, {
+                            headers: { 'Content-Type': 'application/json' },
+                            timeout: 5000
+                          });
+                          console.log('✅ Payment confirmation triggered:', response.data);
+                        } catch (paymentError) {
+                          console.error('Payment processing error:', paymentError.response?.data || paymentError.message);
+                        }
+                      }
+                    }
+                    
                     await this.whatsappService.updateMessageStatus(status.id, status.status);
                   } catch (statusError) {
                     console.error('Error updating status:', statusError);
@@ -209,6 +246,18 @@ export class WhatsappController {
               console.log(`📞 Display Phone: ${displayPhoneNumber}`);
               
               if (message) {
+                // Check if it's a flow response
+                if (message.type === 'interactive' && message.interactive?.type === 'nfm_reply') {
+                  console.log('📋 Flow response received');
+                  const responseData = JSON.parse(message.interactive.nfm_reply.response_json);
+                  await this.flowAppointmentService.saveAppointmentFromWebhook(
+                    responseData,
+                    message.from,
+                    phoneNumberId
+                  );
+                  return;
+                }
+                
                 try {
                   console.log('Processing message for phone number ID:', phoneNumberId);
                   
@@ -222,6 +271,29 @@ export class WhatsappController {
               if (statuses) {
                 for (const status of statuses) {
                   try {
+                    // Check if it's a payment status
+                    if (status.type === 'payment' && status.status === 'captured') {
+                      console.log('💳 Payment captured:', status);
+                      const referenceId = status.payment?.reference_id;
+                      const orderId = referenceId ? parseInt(referenceId.split('_')[1]) : null;
+                      
+                      if (orderId) {
+                        console.log(`Processing payment for order #${orderId}`);
+                        
+                        try {
+                          const axios = require('axios');
+                          const backendUrl = process.env.BACKEND_URL || 'http://localhost:3010';
+                          const response = await axios.post(`${backendUrl}/webhooks/payment-success/${orderId}`, {}, {
+                            headers: { 'Content-Type': 'application/json' },
+                            timeout: 5000
+                          });
+                          console.log('✅ Payment confirmation triggered:', response.data);
+                        } catch (paymentError) {
+                          console.error('Payment processing error:', paymentError.response?.data || paymentError.message);
+                        }
+                      }
+                    }
+                    
                     await this.whatsappService.updateMessageStatusWithoutContext(status.id, status.status, change.value.metadata?.phone_number_id);
                   } catch (statusError) {
                     console.error('Error updating status:', statusError);

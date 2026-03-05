@@ -8,6 +8,7 @@ import { SettingsService } from '../settings/settings.service';
 import { ChatbotService } from '../chatbot/chatbot.service';
 import { WhatsappEcommerceService } from '../ecommerce/whatsapp-ecommerce.service';
 import { PhoneRouterService } from './phone-router.service';
+import { FlowTriggerService } from '../flow-message/flow-trigger.service';
 
 @Injectable()
 export class WhatsappService {
@@ -23,7 +24,8 @@ export class WhatsappService {
     private settingsService: SettingsService,
     private chatbotService: ChatbotService,
     private ecommerceService: WhatsappEcommerceService,
-    private phoneRouter: PhoneRouterService
+    private phoneRouter: PhoneRouterService,
+    private flowTriggerService: FlowTriggerService
   ) {}
 
   private async getSettings(userId: number) {
@@ -207,6 +209,18 @@ export class WhatsappService {
       if (lowerText === 'stop' || lowerText === 'yes') {
         this.logger.log(`Skipping auto-reply/chatbot for ${lowerText} message`);
         return;
+      }
+
+      // Check for flow triggers first
+      try {
+        const settings = await this.getSettings(userId);
+        const flowResult = await this.flowTriggerService.checkAndSendFlowWithClient(text, from, this.prisma, settings.accessToken, settings.phoneNumberId);
+        if (flowResult?.success) {
+          this.logger.log(`✅ Flow triggered: ${flowResult.trigger.name}`);
+          return;
+        }
+      } catch (error) {
+        this.logger.error('Flow trigger error:', error);
       }
 
       // Check for ecommerce keywords first
@@ -807,6 +821,17 @@ export class WhatsappService {
       if (routing.route === 'campaigns-only') {
         this.logger.log('⛔ Campaigns-only number - ignoring incoming message');
         return;
+      }
+
+      // Check for flow triggers first
+      try {
+        const flowResult = await this.flowTriggerService.checkAndSendFlowWithClient(text, from, tenantClient, whatsappSettings.accessToken, whatsappSettings.phoneNumberId);
+        if (flowResult?.success) {
+          this.logger.log(`✅ Flow triggered: ${flowResult.trigger.name}`);
+          return;
+        }
+      } catch (error) {
+        this.logger.error('Flow trigger error:', error);
       }
       
       // 🔥 ECOMMERCE NUMBER: Route to catalog

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Headers } from '@nestjs/common';
+import { Controller, Post, Body, Headers, Param } from '@nestjs/common';
 import { RazorpayService } from './razorpay.service';
 import { EcommerceService } from './ecommerce.service';
 import { MetaCatalogService } from './meta-catalog.service';
@@ -49,5 +49,30 @@ export class WebhookController {
     }
 
     return { status: 'ok' };
+  }
+
+  @Post('payment-success/:orderId')
+  async manualPaymentConfirm(@Param('orderId') orderId: string) {
+    const order = await this.ecommerceService.getOrder(parseInt(orderId), undefined);
+    
+    if (order) {
+      await this.ecommerceService.updateOrderStatus(parseInt(orderId), 'confirmed', undefined);
+      
+      const phoneNumberId = process.env.PHONE_NUMBER_ID || '';
+      if (phoneNumberId) {
+        const productList = `${order.product.name} (x${order.quantity})`;
+        const message = `✅ *Payment Successful!*\n\n${productList}\nAmount: ₹${order.totalAmount}\n\nDelivery Details:\nName: ${order.customerName}\nAddress: ${order.customerAddress}\n\n📦 Your order is confirmed. We'll contact you soon for delivery!`;
+        
+        await this.razorpayService.sendOrderConfirmation(
+          order.customerPhone,
+          phoneNumberId,
+          order
+        );
+      }
+      
+      return { success: true, message: 'Payment confirmed' };
+    }
+    
+    return { success: false, message: 'Order not found' };
   }
 }

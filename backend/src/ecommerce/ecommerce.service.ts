@@ -128,7 +128,21 @@ export class EcommerceService {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
     return client.order.findUnique({
       where: { id },
-      include: { items: { include: { product: true } } },
+      include: { 
+        items: { 
+          include: { 
+            product: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                imageUrl: true,
+                description: true
+              }
+            }
+          }
+        }
+      },
     });
   }
 
@@ -142,7 +156,21 @@ export class EcommerceService {
         const client = await this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
         const order = await client.order.findUnique({
           where: { id },
-          include: { items: { include: { product: true } } },
+          include: { 
+            items: { 
+              include: { 
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                    price: true,
+                    imageUrl: true,
+                    description: true
+                  }
+                }
+              }
+            }
+          },
         });
         if (order) return order;
       } catch (error) {
@@ -163,7 +191,21 @@ export class EcommerceService {
   async getOrders(userId?: number) {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
     return client.order.findMany({
-      include: { items: { include: { product: true } } },
+      include: { 
+        items: { 
+          include: { 
+            product: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                imageUrl: true,
+                description: true
+              }
+            }
+          }
+        }
+      },
       orderBy: { createdAt: 'desc' },
     });
   }

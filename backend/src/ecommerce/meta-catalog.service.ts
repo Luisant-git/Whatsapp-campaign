@@ -388,11 +388,10 @@ export class MetaCatalogService {
           }
           
           const orders: any[] = [];
-          console.log(`[Meta Catalog] Creating orders for ${cartProducts.length} products`);
+          const orderGroupId = `group_${Date.now()}_${phone.slice(-4)}`;
+          console.log(`[Meta Catalog] Creating order group ${orderGroupId} for ${cartProducts.length} products`);
           
           for (const cartItem of cartProducts) {
-            console.log(`[Meta Catalog] Creating order for product:`, { id: cartItem.id, name: cartItem.name, qty: cartItem.quantity });
-            
             const order = await this.ecommerceService.createOrder({
               customerName: session.customerName,
               customerPhone: phone,
@@ -402,14 +401,13 @@ export class MetaCatalogService {
               totalAmount: cartItem.price * cartItem.quantity,
               paymentMethod: method,
               paymentStatus: method === 'cod' ? 'cod' : 'pending',
+              paymentId: orderGroupId // Use as group identifier
             }, userId);
             
-            console.log(`[Meta Catalog] Order created:`, { orderId: order.id, productId: cartItem.id });
             orders.push(order);
           }
           
-          console.log(`[Meta Catalog] Total orders created: ${orders.length}`);
-          console.log(`[Meta Catalog] Order IDs:`, orders.map(o => o.id));
+          console.log(`[Meta Catalog] Order group created: ${orderGroupId} with ${orders.length} orders`);
           
           if (method === 'razorpay') {
             try {
@@ -699,9 +697,10 @@ export class MetaCatalogService {
     const orderDetails = await this.ecommerceService.getOrder(orderId, userId);
     if (!orderDetails) return order;
     
+    const product = await this.ecommerceService.getProduct(orderDetails.productId, userId);
     const phoneNumberId = process.env.PHONE_NUMBER_ID || '';
     
-    const confirmationMessage = `✅ *Payment Successful!*\n\nOrder #${orderId}\nProduct: ${orderDetails.product.name}\nAmount: ₹${orderDetails.totalAmount}\n\nName: ${orderDetails.customerName}\nAddress: ${orderDetails.customerAddress}\n\nYour order is confirmed. We'll contact you soon 🙂`;
+    const confirmationMessage = `✅ *Payment Successful!*\n\nOrder #${orderId}\nProduct: ${product?.name}\nAmount: ₹${orderDetails.totalAmount}\n\nName: ${orderDetails.customerName}\nAddress: ${orderDetails.customerAddress}\n\nYour order is confirmed. We'll contact you soon 🙂`;
     
     await this.sendTextMessage(orderDetails.customerPhone, phoneNumberId, confirmationMessage);
     return order;

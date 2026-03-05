@@ -388,7 +388,11 @@ export class MetaCatalogService {
           }
           
           const orders: any[] = [];
+          console.log(`[Meta Catalog] Creating orders for ${cartProducts.length} products`);
+          
           for (const cartItem of cartProducts) {
+            console.log(`[Meta Catalog] Creating order for product:`, { id: cartItem.id, name: cartItem.name, qty: cartItem.quantity });
+            
             const order = await this.ecommerceService.createOrder({
               customerName: session.customerName,
               customerPhone: phone,
@@ -399,8 +403,13 @@ export class MetaCatalogService {
               paymentMethod: method,
               paymentStatus: method === 'cod' ? 'cod' : 'pending',
             }, userId);
+            
+            console.log(`[Meta Catalog] Order created:`, { orderId: order.id, productId: cartItem.id });
             orders.push(order);
           }
+          
+          console.log(`[Meta Catalog] Total orders created: ${orders.length}`);
+          console.log(`[Meta Catalog] Order IDs:`, orders.map(o => o.id));
           
           if (method === 'razorpay') {
             try {

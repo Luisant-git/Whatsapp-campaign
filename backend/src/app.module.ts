@@ -19,8 +19,6 @@ import { TestModule } from './test/test.module';
 import { TenantMiddleware } from './tenant/tenant.middleware';
 import { TestController } from './test.controller';
 import { EcommerceModule } from './ecommerce/ecommerce.module';
-
-import { SubuserModule } from './subuser/subuser.module';
 import { MenuPermissionModule } from './menu-permission/menu-permission.module';
 import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
 import { MetaFlowModule } from './meta-flow/meta-flow.module';
@@ -46,7 +44,7 @@ import { FlowAppointmentModule } from './flow-appointment/flow-appointment.modul
     TestModule,
     EcommerceModule,
    
-    SubuserModule,
+   
    
     MenuPermissionModule,
    

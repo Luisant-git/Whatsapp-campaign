@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Session, HttpCode, HttpStatus, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Session, HttpCode, HttpStatus, UnauthorizedException, ParseIntPipe, ForbiddenException } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { LoginAdminDto } from './dto/login-admin.dto';
@@ -6,18 +6,19 @@ import { UpdateAdminDto } from './dto/update-admin.dto';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { CreateUserDto } from 'src/user/dto/create-user.dto';
 import { UpdateUserDto } from 'src/user/dto/update-user.dto';
- 
+import { CreateSubUserDto } from './dto/create-subuser.dto';
+
 @ApiTags('Admin')
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
- 
+  constructor(private readonly adminService: AdminService) { }
+
   @Post('register')
   @ApiOperation({ summary: 'Register a new admin' })
   async register(@Body() createAdminDto: CreateAdminDto) {
     return this.adminService.register(createAdminDto);
   }
- 
+
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Admin login' })
@@ -26,7 +27,7 @@ export class AdminController {
     session.adminId = admin.id;
     session.adminEmail = admin.email;
     session.adminName = admin.name;
-   
+
     return {
       message: 'Login successful',
       admin: {
@@ -36,7 +37,7 @@ export class AdminController {
       }
     };
   }
- 
+
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Admin logout' })
@@ -44,7 +45,39 @@ export class AdminController {
     session.destroy();
     return { message: 'Logout successful' };
   }
- 
+
+  @ApiOperation({ summary: 'Register a new sub-user for a tenant' })
+@Post('subusers/register')
+async registerSubUser(
+  @Body() createSubUserDto: CreateSubUserDto,
+  @Session() session: Record<string, any>,
+) {
+  const isAdmin = !!session?.adminId;
+  const isTenant = !!session?.tenantId;
+
+  if (!isAdmin && !isTenant) {
+    throw new UnauthorizedException('Authentication required');
+  }
+
+  // Tenant logged in: force tenantId from session (do not trust request body)
+  if (isTenant) {
+    if (
+      createSubUserDto.tenantId &&
+      Number(createSubUserDto.tenantId) !== Number(session.tenantId)
+    ) {
+      throw new ForbiddenException('Cannot create sub-user for another tenant');
+    }
+
+    return this.adminService.registerSubUser({
+      ...createSubUserDto,
+      tenantId: Number(session.tenantId),
+    });
+  }
+
+  // Admin logged in
+  return this.adminService.registerSubUser(createSubUserDto);
+}
+
   @Get('me')
   @ApiOperation({ summary: 'Get current admin session' })
   getMe(@Session() session: Record<string, any>) {
@@ -57,7 +90,28 @@ export class AdminController {
       name: session.adminName,
     };
   }
- 
+
+  @ApiOperation({ summary: 'Get all sub-users of a tenant' })
+@Get('tenants/:tenantId/subusers')
+async getTenantSubUsers(
+  @Param('tenantId', ParseIntPipe) tenantId: number,
+  @Session() session: Record<string, any>,
+) {
+  const isAdmin = !!session?.adminId;
+  const isTenant = !!session?.tenantId;
+
+  if (!isAdmin && !isTenant) {
+    throw new UnauthorizedException('Authentication required');
+  }
+
+  // Tenant can only access their own tenantId
+  if (isTenant && Number(session.tenantId) !== tenantId) {
+    throw new ForbiddenException('Cannot access another tenant');
+  }
+
+  const effectiveTenantId = isAdmin ? tenantId : Number(session.tenantId);
+  return this.adminService.getTenantSubUsers(effectiveTenantId);
+}
   @Get('test-session')
   @ApiOperation({ summary: 'Test session (debug)' })
   testSession(@Session() session: Record<string, any>) {
@@ -67,27 +121,66 @@ export class AdminController {
       sessionData: session,
     };
   }
- 
+
   @Get()
   findAll() {
     return this.adminService.findAll();
   }
- 
+
   @Get(':id')
   findOne(@Param('id') id: number) {
     return this.adminService.findOne(+id);
   }
- 
+
   @Patch(':id')
   update(@Param('id') id: number, @Body() updateAdminDto: UpdateAdminDto) {
     return this.adminService.update(id, updateAdminDto);
   }
- 
+
+
+  @ApiOperation({ summary: 'Deactivate a sub-user (soft delete)' })
+  @Patch('subusers/:id/deactivate')
+  async deactivateSubUser(
+    @Param('id', ParseIntPipe) id: number,
+    @Session() session: Record<string, any>,
+  ) {
+    const isAdmin = !!session?.adminId;
+    const isTenant = !!session?.tenantId;
+  
+    if (!isAdmin && !isTenant) {
+      throw new UnauthorizedException('Authentication required');
+    }
+  
+    // If tenant: only allow deactivating subusers under the same tenant
+    const tenantId = isTenant ? Number(session.tenantId) : undefined;
+  
+    return this.adminService.deactivateSubUser(id, tenantId);
+  }
+
+  @ApiOperation({ summary: 'Update a sub-user' })
+@Patch('subusers/:id')
+async updateSubUser(
+  @Param('id', ParseIntPipe) id: number,
+  @Body() dto: Partial<CreateSubUserDto>,
+  @Session() session: Record<string, any>,
+) {
+  const isAdmin = !!session?.adminId;
+  const isTenant = !!session?.tenantId;
+
+  if (!isAdmin && !isTenant) {
+    throw new UnauthorizedException('Authentication required');
+  }
+
+  const tenantId = isTenant ? Number(session.tenantId) : undefined;
+
+  // tenantId is used only for ownership check inside service
+  return this.adminService.updateSubUser(id, dto, tenantId);
+}
   @Delete(':id')
   remove(@Param('id') id: number) {
     return this.adminService.remove(id);
   }
- 
+
   @Get('users/all')
   @ApiOperation({ summary: 'Get all users' })
   getAllUsers() {
@@ -99,7 +192,7 @@ export class AdminController {
   async registerUser(@Body() createUserDto: CreateUserDto) {
     return this.adminService.registerUser(createUserDto);
   }
-  
+
   @Patch('users/:id')
   @ApiOperation({ summary: 'Admin: Update tenant (status, etc.)' })
   async adminUpdateUser(
@@ -141,4 +234,6 @@ export class AdminController {
     }
     return this.adminService.createUserSubscription(+id, data);
   }
+
+
 }

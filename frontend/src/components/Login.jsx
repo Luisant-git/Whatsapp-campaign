@@ -1,44 +1,87 @@
-import { useState } from 'react'
-import { loginUser } from '../api/auth'
-import { useToast } from '../contexts/ToastContext'
-import '../styles/Login.css'
+import { useState } from "react";
+
+import { loginUser, getProfile } from "../api/auth";
+import { useToast } from "../contexts/ToastContext";
+import "../styles/Login.css";
 
 function Login({ onLogin }) {
-  const { showSuccess } = useToast()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [showErrorModal, setShowErrorModal] = useState(false)
-  const [errorMessage, setErrorMessage] = useState('')
+  
+  const { showSuccess, showError } = useToast();
+
+  const [role, setRole] = useState("tenant");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+
+ 
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-
+    e.preventDefault();
+    setLoading(true);
+  
+    localStorage.clear();
+  
     try {
-      const result = await loginUser(email, password)
-      localStorage.setItem('token', result.token)
-      showSuccess('Login successful!')
-      onLogin(result.user)
+      await loginUser(email, password, role);
+  
+      const profile = await getProfile();
+  
+      localStorage.setItem("user", JSON.stringify(profile.user));
+      localStorage.setItem("userRole", profile.role || "owner");
+      localStorage.setItem("userType", profile.userType || "tenant");
+  
+      if (profile.menuPermission) {
+        localStorage.setItem(
+          "menuPermission",
+          JSON.stringify(profile.menuPermission)
+        );
+      }
+  
+      onLogin(profile.user, profile.role, profile);
+  
+      showSuccess("Login successful!");
+  
+      navigate("/dashboard", { replace: true });
+  
     } catch (err) {
-      console.error('Login error:', err);
-      setErrorMessage(err.message || 'Login failed')
-      setShowErrorModal(true)
+      console.error("Login error:", err);
+  
+      let customMessage = "Login failed";
+  
+      if (err.status === 401 && err.message === "SUBSCRIPTION_REQUIRED") {
+        customMessage =
+          "Your company doesn't have a current subscription plan. Please contact admin to subscribe.";
+      } else if (err.message === "Invalid credentials") {
+        customMessage = "Invalid email or password.";
+      } else if (err.message === "Account is deactivated") {
+        customMessage = "Your account has been deactivated. Contact admin.";
+      } else {
+        customMessage = err.message || "Login failed";
+      }
+  
+      setErrorMessage(customMessage);
+      setShowErrorModal(true);
+      showError(customMessage);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="login-container">
       <div className="login-box">
         <h1>WhatsApp Dashboard</h1>
+
         <form onSubmit={handleSubmit}>
           <input
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            disabled={loading}
             required
           />
           <input
@@ -46,10 +89,11 @@ function Login({ onLogin }) {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
             required
           />
           <button type="submit" disabled={loading}>
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? "Logging in…" : "Login"}
           </button>
         </form>
       </div>
@@ -67,7 +111,7 @@ function Login({ onLogin }) {
         </div>
       )}
     </div>
-  )
+  );
 }
 
-export default Login
+export default Login;

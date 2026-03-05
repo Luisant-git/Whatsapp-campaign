@@ -1,21 +1,31 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Users,
   Search,
   ChevronLeft,
   ChevronRight,
   Plus,
-  Edit2,
   Eye,
   X,
   Loader2,
   AlertCircle,
+  Edit2,
 } from "lucide-react";
 
 import "../styles/CreateUser.css";
 import { useToast } from "../contexts/ToastContext";
-import { createSubUser, getSubUsers, updateSubUser } from "../api/subuser";
-export default function CreateUser() {
+import {
+  createSubUser,
+  getTenantSubUsers,
+  updateSubUser,
+  deactivateSubUser,
+} from "../api/subuser";
+
+export default function CreateUser({ tenantId: tenantIdProp }) {
+  const tenantIdStr = tenantIdProp ?? localStorage.getItem("tenantId");
+  const tenantId = Number(tenantIdStr);
+  const hasTenantId = Number.isInteger(tenantId) && tenantId > 0;
+
   // ---------- UI state ----------
   const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -36,31 +46,37 @@ export default function CreateUser() {
 
   const { showSuccess, showError } = useToast();
 
-  // ---------- form data ----------
+  // ---------- form data (role removed) ----------
   const [formData, setFormData] = useState({
-    username: "",
+    email: "",
+    password: "", // only used for CREATE
     mobileNumber: "",
     designation: "",
-    isActive: true,
   });
 
   const resetForm = () =>
     setFormData({
-      username: "",
+      email: "",
+      password: "",
       mobileNumber: "",
       designation: "",
-      isActive: true,
     });
 
-  // ---------- Fetch from API ----------
+  // ---------- Fetch ----------
   const fetchSubUsers = async () => {
     setError("");
+
+    if (!hasTenantId) {
+      setUsers([]);
+      setError("Missing tenantId in localStorage. Please login again.");
+      return;
+    }
+
     setLoading(true);
     try {
-      const data = await getSubUsers();
-      setUsers(Array.isArray(data) ? data : []);
+      const list = await getTenantSubUsers(tenantId); // normalized array
+      setUsers(Array.isArray(list) ? list : []);
     } catch (e) {
-      console.error(e);
       setError(e.message || "Failed to load users");
       showError(e.message || "Failed to load users");
     } finally {
@@ -71,19 +87,20 @@ export default function CreateUser() {
   useEffect(() => {
     fetchSubUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [tenantIdStr]);
 
-  // ---------- Derived: filtered + paginated users ----------
-  const filteredUsers = users.filter((u) => {
+  // ---------- Filter + paginate ----------
+  const filteredUsers = useMemo(() => {
     const s = searchQuery.toLowerCase();
-    if (!s) return true;
-
-    return (
-      (u.username || "").toLowerCase().includes(s) ||
-      (u.mobileNumber || "").toLowerCase().includes(s) ||
-      (u.designation || "").toLowerCase().includes(s)
-    );
-  });
+    return users.filter((u) => {
+      if (!s) return true;
+      return (
+        (u.email || "").toLowerCase().includes(s) ||
+        (u.mobileNumber || "").toLowerCase().includes(s) ||
+        (u.designation || "").toLowerCase().includes(s)
+      );
+    });
+  }, [users, searchQuery]);
 
   useEffect(() => {
     const t = filteredUsers.length;
@@ -99,19 +116,22 @@ export default function CreateUser() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const phone = formData.mobileNumber.replace(/[^0-9]/g, "");
+    const phone = (formData.mobileNumber || "").replace(/[^0-9]/g, "");
 
-    // Validation
-    if (!formData.username.trim()) {
-      setValidationError("Please enter a username.");
+    if (!hasTenantId) {
+      setValidationError("Missing tenantId.");
+      return;
+    }
+    if (!formData.email.trim()) {
+      setValidationError("Please enter email.");
+      return;
+    }
+    if (!editingUser && !formData.password.trim()) {
+      setValidationError("Please enter password.");
       return;
     }
     if (phone.length !== 10) {
       setValidationError("Please enter a valid 10‑digit mobile number.");
-      return;
-    }
-    if (!formData.designation.trim()) {
-      setValidationError("Please enter a designation.");
       return;
     }
 
@@ -120,29 +140,56 @@ export default function CreateUser() {
     setLoading(true);
 
     try {
-      const payload = {
-        username: formData.username.trim(),
-        mobileNumber: phone,
-        designation: formData.designation.trim(),
-        isActive: !!formData.isActive,
-      };
-
       if (editingUser) {
-        await updateSubUser(editingUser.id, payload);
-        showSuccess(`Successfully updated user "${payload.username}"`);
+        // UPDATE (no password, no role)
+        const payload = {
+          email: formData.email.trim(),
+          mobileNumber: phone,
+          designation: formData.designation?.trim() || null,
+        };
+
+        const res = await updateSubUser(editingUser.id, payload);
+        showSuccess(res?.message || "Sub-user updated successfully");
       } else {
-        await createSubUser(payload);
-        showSuccess(`Successfully created user "${payload.username}"`);
+        // CREATE (password required; role omitted -> backend default staff)
+        const payload = {
+          tenantId,
+          email: formData.email.trim(),
+          password: formData.password,
+          mobileNumber: phone,
+          designation: formData.designation?.trim() || undefined,
+        };
+
+        const res = await createSubUser(payload);
+        showSuccess(res?.message || "Sub-user registered successfully");
       }
 
       setShowAddModal(false);
       setEditingUser(null);
       resetForm();
-
       await fetchSubUsers();
     } catch (err) {
-      console.error("Save error", err);
       const msg = err.message || "Failed to save user";
+      setError(msg);
+      showError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ---------- Deactivate ----------
+  const handleDeactivate = async (id) => {
+    const ok = window.confirm("Deactivate this user?");
+    if (!ok) return;
+
+    setLoading(true);
+    setError("");
+    try {
+      await deactivateSubUser(id);
+      showSuccess("User deactivated");
+      await fetchSubUsers();
+    } catch (e) {
+      const msg = e.message || "Failed to deactivate user";
       setError(msg);
       showError(msg);
     } finally {
@@ -165,8 +212,10 @@ export default function CreateUser() {
             onClick={() => {
               resetForm();
               setEditingUser(null);
+              setValidationError("");
               setShowAddModal(true);
             }}
+            disabled={loading || !hasTenantId}
           >
             <Plus size={18} /> Add User
           </button>
@@ -179,7 +228,7 @@ export default function CreateUser() {
           <Search size={20} />
           <input
             type="text"
-            placeholder="Search by username, mobile, or designation..."
+            placeholder="Search by email, mobile, designation..."
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -217,20 +266,21 @@ export default function CreateUser() {
             <thead>
               <tr>
                 <th>S.No</th>
-                <th>Username</th>
+                <th>Email</th>
                 <th>Mobile</th>
                 <th>Designation</th>
                 <th>Active</th>
                 <th>Actions</th>
               </tr>
             </thead>
+
             <tbody>
               {paginatedUsers.map((u, i) => (
                 <tr key={u.id}>
                   <td>{(page - 1) * limit + i + 1}</td>
-                  <td>{u.username}</td>
+                  <td>{u.email}</td>
                   <td>{u.mobileNumber}</td>
-                  <td>{u.designation}</td>
+                  <td>{u.designation || "-"}</td>
                   <td>
                     <span
                       style={{
@@ -246,6 +296,7 @@ export default function CreateUser() {
                       {u.isActive ? "Active" : "Inactive"}
                     </span>
                   </td>
+
                   <td>
                     <div
                       style={{
@@ -270,17 +321,29 @@ export default function CreateUser() {
                         title="Edit"
                         style={{ color: "#22c55e" }}
                         onClick={() => {
-                          setShowAddModal(true);
                           setEditingUser(u);
+                          setValidationError("");
                           setFormData({
-                            username: u.username || "",
+                            email: u.email || "",
+                            password: "", // not used on edit
                             mobileNumber: u.mobileNumber || "",
                             designation: u.designation || "",
-                            isActive: !!u.isActive,
                           });
+                          setShowAddModal(true);
                         }}
+                        disabled={loading}
                       >
                         <Edit2 size={16} />
+                      </button>
+
+                      <button
+                        className="btn-icon"
+                        title="Deactivate"
+                        style={{ color: "#ef4444" }}
+                        onClick={() => handleDeactivate(u.id)}
+                        disabled={loading || !u.isActive}
+                      >
+                        <X size={16} />
                       </button>
                     </div>
                   </td>
@@ -314,7 +377,7 @@ export default function CreateUser() {
         </div>
       )}
 
-      {/* View User Modal */}
+      {/* View Modal */}
       {viewUser && (
         <div className="modal-overlay" onClick={() => setViewUser(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -324,38 +387,23 @@ export default function CreateUser() {
                 <X size={20} />
               </button>
             </div>
+
             <div style={{ padding: "16px" }}>
               <p>
-                <strong>Username:</strong> {viewUser.username}
+                <strong>Email:</strong> {viewUser.email}
               </p>
               <p>
                 <strong>Mobile:</strong> {viewUser.mobileNumber}
               </p>
               <p>
-                <strong>Designation:</strong> {viewUser.designation}
+                <strong>Designation:</strong> {viewUser.designation || "-"}
               </p>
               <p>
-                <strong>Status:</strong>{" "}
-                {viewUser.isActive ? "Active" : "Inactive"}
+                <strong>Status:</strong> {viewUser.isActive ? "Active" : "Inactive"}
               </p>
             </div>
+
             <div className="modal-actions">
-              <button
-                className="btn-primary"
-                onClick={() => {
-                  setEditingUser(viewUser);
-                  setFormData({
-                    username: viewUser.username || "",
-                    mobileNumber: viewUser.mobileNumber || "",
-                    designation: viewUser.designation || "",
-                    isActive: !!viewUser.isActive,
-                  });
-                  setViewUser(null);
-                  setShowAddModal(true);
-                }}
-              >
-                Edit
-              </button>
               <button className="btn-secondary" onClick={() => setViewUser(null)}>
                 Close
               </button>
@@ -364,13 +412,25 @@ export default function CreateUser() {
         </div>
       )}
 
-      {/* Add / Edit User Modal */}
+      {/* Add/Edit Modal */}
       {showAddModal && (
-        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            setShowAddModal(false);
+            setEditingUser(null);
+          }}
+        >
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{editingUser ? "Edit User" : "Add New User"}</h3>
-              <button className="close-btn" onClick={() => setShowAddModal(false)}>
+              <button
+                className="close-btn"
+                onClick={() => {
+                  setShowAddModal(false);
+                  setEditingUser(null);
+                }}
+              >
                 <X size={20} />
               </button>
             </div>
@@ -384,17 +444,31 @@ export default function CreateUser() {
 
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label>Username *</label>
+                <label>Email *</label>
                 <input
-                  type="text"
-                  value={formData.username}
-                  onChange={(e) =>
-                    setFormData({ ...formData, username: e.target.value })
-                  }
-                  placeholder="Enter username"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="Enter email"
                   required
                 />
               </div>
+
+              {/* Password only for CREATE */}
+              {!editingUser && (
+                <div className="form-group">
+                  <label>Password *</label>
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
+                    placeholder="Enter password"
+                    required
+                  />
+                </div>
+              )}
 
               <div className="form-group">
                 <label>Mobile Number *</label>
@@ -403,9 +477,7 @@ export default function CreateUser() {
                   value={formData.mobileNumber}
                   onChange={(e) => {
                     const v = e.target.value.replace(/[^0-9]/g, "");
-                    if (v.length <= 10) {
-                      setFormData({ ...formData, mobileNumber: v });
-                    }
+                    if (v.length <= 10) setFormData({ ...formData, mobileNumber: v });
                   }}
                   placeholder="10 digits only"
                   maxLength={10}
@@ -414,33 +486,15 @@ export default function CreateUser() {
               </div>
 
               <div className="form-group">
-                <label>Designation *</label>
+                <label>Designation</label>
                 <input
                   type="text"
                   value={formData.designation}
                   onChange={(e) =>
                     setFormData({ ...formData, designation: e.target.value })
                   }
-                  placeholder="e.g., Manager, Staff"
-                  required
+                  placeholder="e.g., Sales Executive"
                 />
-              </div>
-
-              <div className="form-group">
-                <label>Status</label>
-                <div
-                  className="toggle-label"
-                  onClick={() =>
-                    setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))
-                  }
-                >
-                  <div
-                    className={`toggle-switch ${formData.isActive ? "active" : ""}`}
-                  >
-                    <div className="toggle-thumb" />
-                  </div>
-                  <span>{formData.isActive ? "Active" : "Inactive"}</span>
-                </div>
               </div>
 
               <div className="modal-actions">
@@ -449,8 +503,9 @@ export default function CreateUser() {
                   className="btn-secondary"
                   onClick={() => {
                     setShowAddModal(false);
-                    resetForm();
                     setEditingUser(null);
+                    resetForm();
+                    setValidationError("");
                   }}
                   disabled={loading}
                 >

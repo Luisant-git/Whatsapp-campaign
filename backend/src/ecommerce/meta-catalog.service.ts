@@ -18,43 +18,112 @@ export class MetaCatalogService {
     private razorpayService: RazorpayService
   ) {}
 
-  async syncProductToCatalog(product: any) {
+  async syncProductToCatalog(product: any, meta?: any) {
     try {
-      const imageUrl = product.imageUrl?.startsWith('http') 
-        ? product.imageUrl 
+      const imageUrl = product.imageUrl?.startsWith('http')
+        ? product.imageUrl
         : `${process.env.UPLOAD_URL}${product.imageUrl}`;
-
-      const productData = {
-        retailer_id: `product_${product.id}`,
-        name: product.name,
-        description: product.description || product.name,
-        price: Math.round(product.price * 100),
+  
+      const toCents = (val: any) => {
+        const n = typeof val === 'string' ? parseFloat(val) : val;
+        if (n === undefined || n === null || Number.isNaN(n)) return undefined;
+        return Math.round(n * 100);
+      };
+  
+      const metaAvailability = (isActive: boolean, availability: boolean) => {
+        if (!isActive) return 'out of stock';
+        return availability ? 'in stock' : 'out of stock';
+      };
+  
+      const baseRetailerId = (meta?.contentId && String(meta.contentId).trim())
+        ? String(meta.contentId).trim()
+        : `product_${product.id}`;
+  
+      // ✅ If variants exist, upload each variant as separate item grouped by item_group_id
+      if (Array.isArray(meta?.variants) && meta.variants.length > 0) {
+        const results: any[] = [];
+  
+        for (let i = 0; i < meta.variants.length; i++) {
+          const v = meta.variants[i];
+  
+          const variantRetailerId = (v?.contentId && String(v.contentId).trim())
+            ? String(v.contentId).trim()
+            : `${baseRetailerId}_v${i + 1}`;
+  
+          const payload: any = {
+            retailer_id: variantRetailerId,
+            item_group_id: baseRetailerId,
+  
+            name: v?.name || meta?.name || product.name,
+            description: v?.description || meta?.description || product.description || product.name,
+  
+            price: toCents(v?.price ?? meta?.price ?? product.price),
+            sale_price: toCents(v?.salePrice ?? meta?.salePrice),
+  
+            currency: 'INR',
+            availability: metaAvailability(
+              v?.isActive ?? meta?.isActive ?? true,
+              v?.availability ?? meta?.availability ?? true,
+            ),
+  
+            condition: 'new',
+            brand: 'Store',
+            image_url: imageUrl,
+            url: v?.link || meta?.link || product.link || imageUrl,
+          };
+  
+          const resp = await axios.post(
+            `${this.apiUrl}/${this.catalogId}/products`,
+            payload,
+            {
+              headers: {
+                Authorization: `Bearer ${this.accessToken}`,
+                'Content-Type': 'application/json',
+              },
+            },
+          );
+  
+          results.push({ retailer_id: variantRetailerId, metaId: resp.data?.id });
+        }
+  
+        return { success: true, type: 'variants', metaProductId: results[0]?.metaId, results };
+      }
+  
+      // ✅ No variants: upload single product
+      const payload: any = {
+        retailer_id: baseRetailerId,
+        name: meta?.name || product.name,
+        description: meta?.description || product.description || product.name,
+  
+        price: toCents(meta?.price ?? product.price),
+        sale_price: toCents(meta?.salePrice),
+  
         currency: 'INR',
-        availability: 'in stock',
+        availability: metaAvailability(meta?.isActive ?? true, meta?.availability ?? true),
+  
         condition: 'new',
         brand: 'Store',
         image_url: imageUrl,
-        url: product.link || imageUrl,
+        url: meta?.link || product.link || imageUrl,
       };
-
+  
       const response = await axios.post(
         `${this.apiUrl}/${this.catalogId}/products`,
-        productData,
+        payload,
         {
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
+            Authorization: `Bearer ${this.accessToken}`,
             'Content-Type': 'application/json',
           },
-        }
+        },
       );
-
+  
       return { success: true, data: response.data, metaProductId: response.data.id };
     } catch (error) {
       console.error('Meta Catalog sync error:', error.response?.data || error.message);
       throw new Error(error.response?.data?.error?.message || 'Failed to sync to Meta Catalog');
     }
   }
-
   async fetchProductsFromMeta() {
     try {
       const response = await axios.get(

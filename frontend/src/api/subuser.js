@@ -2,8 +2,9 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010';
 
+
 /**
- * Parse backend error response safely
+ * Parse backend error safely
  */
 const parseError = async (res, fallback) => {
   try {
@@ -19,7 +20,7 @@ const parseError = async (res, fallback) => {
  */
 const request = async (endpoint, options = {}, fallbackError) => {
   const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-    credentials: 'include',
+    credentials: 'include', // send cookies/session
     headers: {
       Accept: 'application/json',
       ...(options.body && { 'Content-Type': 'application/json' }),
@@ -34,85 +35,51 @@ const request = async (endpoint, options = {}, fallbackError) => {
   return res.json();
 };
 
-
-
-
-
-/* ===========================
-   SUB USER APIs
-=========================== */
-
+/* ========================= SUB USER APIs ========================= */
 
 /**
- * GET /subuser
- * Fetch all sub users
- */
-export const getSubUsers = async () => {
-  return request(
-    '/subuser',
-    { method: 'GET' },
-    'Failed to fetch sub users'
-  );
-};
-
-
-/**
- * GET /subuser/:id
- * Fetch single sub user
- */
-export const getSubUserById = async (id) => {
-  return request(
-    `/subuser/${Number(id)}`,
-    { method: 'GET' },
-    'Failed to fetch sub user'
-  );
-};
-
-
-/**
- * POST /subuser
- * Create sub user
- * payload: { username, mobileNumber, designation?, isActive? }
+ * Register a new sub-user
+ * POST /admin/subusers/register
  */
 export const createSubUser = async (payload) => {
   return request(
-    '/subuser',
-    {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    },
-    'Failed to create sub user'
+    '/admin/subusers/register',
+    { method: 'POST', body: JSON.stringify(payload) },
+    'Failed to create sub-user'
   );
 };
 
-
 /**
- * PATCH /subuser/:id
- * Update sub user
- * payload can be partial
+ * Get all active sub-users of a tenant
+ * GET /admin/tenants/:tenantId/subusers
  */
+export const getTenantSubUsers = async (tenantId) => {
+  const data = await request(
+    `/admin/tenants/${tenantId}/subusers`,
+    { method: "GET" },
+    "Failed to fetch sub-users"
+  );
+
+  // normalize to array for the UI
+  return Array.isArray(data?.subUsers) ? data.subUsers : [];
+};
+
+
 export const updateSubUser = async (id, payload) => {
   return request(
-    `/subuser/${Number(id)}`,
-    {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
-    },
-    'Failed to update sub user'
+    `/admin/subusers/${id}`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    "Failed to update sub-user"
   );
 };
-
-
 /**
- * DELETE /subuser/:id
- * Remove sub user
+ * Deactivate a sub-user (soft delete)
+ * PATCH /admin/subusers/:id/deactivate
  */
-export const deleteSubUser = async (id) => {
+export const deactivateSubUser = async (id) => {
   return request(
-    `/subuser/${Number(id)}`,
-    {
-      method: 'DELETE',
-    },
-    'Failed to delete sub user'
+    `/admin/subusers/${id}/deactivate`,
+    { method: 'PATCH' },
+    'Failed to deactivate sub-user'
   );
 };

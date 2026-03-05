@@ -1,21 +1,19 @@
 import { API_BASE_URL } from './config';
 
-export const loginUser = async (email, password) => {
+export const loginUser = async (email, password, role = 'tenant') => {
   const response = await fetch(`${API_BASE_URL}/user/login`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, role }),
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    
-    throw new Error(error.message || 'Login failed');
+    const error = new Error(data.message || "Login failed");
+    error.status = response.status;   // ✅ attach status
+    error.data = data;                // ✅ attach full backend data
+    throw error;
   }
-
   return await response.json();
 };
 
@@ -24,6 +22,13 @@ export const logoutUser = async () => {
     method: 'POST',
     credentials: 'include',
   });
+
+  // Clear all stored data on logout
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('userRole');
+  localStorage.removeItem('userType');
+  localStorage.removeItem('menuPermission');
 
   if (!response.ok) {
     throw new Error('Logout failed');
@@ -34,21 +39,42 @@ export const logoutUser = async () => {
 
 export const getProfile = async () => {
   const response = await fetch(`${API_BASE_URL}/user/me`, {
-    credentials: 'include',
+    credentials: "include",
   });
 
-  if (!response.ok) {
-    throw new Error('Failed to fetch profile');
+  if (!response.ok) throw new Error("Failed to fetch profile");
+
+  const data = await response.json();
+
+  if (data.user) localStorage.setItem("user", JSON.stringify(data.user));
+  if (data.userType) localStorage.setItem("userType", data.userType);
+  if (data.role) localStorage.setItem("userRole", data.role);
+  if (data.menuPermission) {
+    localStorage.setItem("menuPermission", JSON.stringify(data.menuPermission));
   }
 
-  return await response.json();
-};
+  // ✅ tenantId from session-based profile response
+  let tenantId = null;
 
+  if (data.userType === "tenant") {
+    // tenant login => tenantId is tenant's own id
+    tenantId = data?.user?.id;
+  } else if (data.userType === "subuser") {
+    // subuser login => tenantId is foreign key
+    tenantId = data?.user?.tenantId;
+  }
+
+  if (tenantId) localStorage.setItem("tenantId", String(tenantId));
+  else localStorage.removeItem("tenantId");
+
+  return data;
+};
+// ... rest of your exports remain the same
 export const getAnalytics = async (settingsName = null) => {
-  const url = settingsName 
+  const url = settingsName
     ? `${API_BASE_URL}/analytics?settingsName=${settingsName}`
     : `${API_BASE_URL}/analytics`;
-    
+
   const response = await fetch(url, {
     credentials: 'include',
   });
@@ -99,9 +125,7 @@ export const getSettingsById = async (id) => {
 export const createSettings = async (settings) => {
   const response = await fetch(`${API_BASE_URL}/settings`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify(settings),
   });
@@ -117,9 +141,7 @@ export const createSettings = async (settings) => {
 export const updateSettings = async (id, settings) => {
   const response = await fetch(`${API_BASE_URL}/settings/${id}`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify(settings),
   });
@@ -176,9 +198,7 @@ export const uploadHeaderImage = async (file) => {
 export const updateUserPreference = async (preference) => {
   const response = await fetch(`${API_BASE_URL}/user/preference`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify(preference),
   });

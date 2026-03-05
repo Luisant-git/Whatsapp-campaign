@@ -138,26 +138,34 @@ function App() {
   const refreshMenuPermissions = async () => {
     try {
       const data = await getCurrentPlan();
-      
-      if (!data.isActive) {
-        // No active subscription - logout user
+      console.log("current plan response:", data);
+  
+      // ✅ only logout if explicitly inactive
+      if (data?.isActive === false) {
         handleLogout();
         return;
       }
-      
-      if (data.subscription?.menuPermissions) {
+  
+      // menuPermissions may be in different shapes depending on backend
+      const permsArray =
+        data?.subscription?.menuPermissions ??
+        data?.menuPermissions ??
+        [];
+  
+      if (Array.isArray(permsArray)) {
         const permissions = {};
-        data.subscription.menuPermissions.forEach(key => {
-          permissions[key] = true;
-        });
+        permsArray.forEach((key) => (permissions[key] = true));
         setMenuPerms(permissions);
       } else {
         setMenuPerms({});
       }
     } catch (err) {
       console.error("Failed to load subscription:", err);
-      // If subscription check fails, logout
-      handleLogout();
+  
+      // Optional: don't logout immediately on API error
+      // (otherwise you bounce back to Login even if login is OK)
+      // handleLogout();
+      setMenuPerms(null);
     }
   };
 

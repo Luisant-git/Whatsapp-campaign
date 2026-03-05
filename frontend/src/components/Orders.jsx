@@ -217,7 +217,20 @@ export default function Orders() {
                   </div>
                 </td>
                 <td>{order.customerPhone}</td>
-                <td>{order.items?.[0]?.product?.name || 'N/A'}</td>
+                <td>
+                  {order.items?.length > 1 ? (
+                    <div>
+                      <div style={{ fontWeight: 500 }}>
+                        {order.items[0]?.product?.name}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#9ca3af' }}>
+                        +{order.items.length - 1} more items
+                      </div>
+                    </div>
+                  ) : (
+                    order.items?.[0]?.product?.name || 'N/A'
+                  )}
+                </td>
                 <td style={{ fontWeight: 600 }}>₹{order.totalAmount}</td>
                 <td style={{ fontSize: '13px' }}>
                   {new Date(order.createdAt).toLocaleDateString()}

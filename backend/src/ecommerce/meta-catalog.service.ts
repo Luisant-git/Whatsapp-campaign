@@ -415,7 +415,8 @@ export class MetaCatalogService {
                   phone,
                   phoneNumberId,
                   product.price,
-                  order.id
+                  order.id,
+                  product.name
                 );
               } catch (error) {
                 console.error('Payment link error:', error);

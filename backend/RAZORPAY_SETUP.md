@@ -1,64 +1,49 @@
-# Razorpay Payment Integration Setup
+# Meta Razorpay Payment Integration - Setup Steps
 
-## Overview
-This integration adds Razorpay payment support to your WhatsApp e-commerce flow.
-
-## Flow
-1. Customer selects product from catalog
-2. Provides name, address, city, pincode
-3. Chooses payment method (Razorpay or COD)
-4. If Razorpay: Receives payment link via WhatsApp
-5. After successful payment: Receives order confirmation
-
-## Setup Steps
-
-### 1. Update Environment Variables
-Add to your `.env` file:
+## 1. Environment Variables (.env)
 ```
-RAZORPAY_KEY_ID=your_razorpay_key_id
-RAZORPAY_KEY_SECRET=your_razorpay_key_secret
-RAZORPAY_MERCHANT_ID=acc_JBz4Xiep4JPFoH
-PHONE_NUMBER_ID=24366060823054981
-BACKEND_URL=http://localhost:3010
+META_ACCESS_TOKEN=your_meta_access_token
+META_CATALOG_ID=your_catalog_id
+PHONE_NUMBER_ID=your_phone_number_id
 ```
 
-### 2. Run Database Migration
-```bash
-cd backend
-npx prisma migrate dev --schema=./prisma/schema-tenant.prisma
+## 2. Meta Manager Configuration (Already Done ✓)
+- Payment Configuration Name: Payment_Razorpay
+- WABA ID: 24366060823054981
+- MID: acc_JBz4Xiep4JPFoH
+- MCC: 5734
+- Purpose Code: 02
+
+## 3. Test Payment Flow
+
+### Send Payment Request:
+When customer selects "Pay Online", the system automatically sends UPI payment request via WhatsApp.
+
+### Customer Flow:
+1. Customer browses catalog → Selects product
+2. Provides delivery details
+3. Chooses "Pay Online"
+4. Receives WhatsApp payment message with "Pay Now" button
+5. Taps button → Selects UPI app (WhatsApp/GPay/PhonePe/etc)
+6. Completes payment
+7. Receives order confirmation
+
+## 4. Webhook Setup (For Production)
+
+Configure Razorpay webhook URL:
+```
+https://yourdomain.com/webhooks/razorpay
 ```
 
-Or manually run the SQL:
-```sql
-ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "paymentMethod" TEXT;
-ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "paymentId" TEXT;
-ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "paymentLink" TEXT;
-ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "paymentStatus" TEXT DEFAULT 'pending';
-ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "isAbandoned" BOOLEAN DEFAULT false;
-```
+Events to subscribe:
+- payment.captured
+- order.paid
 
-### 3. Restart Server
-```bash
-npm run start:dev
-```
+## 5. Testing
 
-## New Order Fields
-- `paymentMethod`: "razorpay" or "cod"
-- `paymentId`: Razorpay payment ID
-- `paymentLink`: Payment link sent to customer
-- `paymentStatus`: "pending", "paid", or "cod"
-- `isAbandoned`: Track abandoned carts
-
-## Payment Callback URL
-Configure in Razorpay dashboard:
-```
-http://your-domain.com/api/ecommerce/payment-callback
-```
-
-## Testing
-1. Send catalog message to customer
-2. Customer selects product
-3. Provide details when prompted
-4. Choose "Razorpay" when asked for payment method
-5. Click payment link and complete payment
-6. Verify order confirmation message
+Test with your WhatsApp number:
+1. Send "SHOP" to your WhatsApp Business number
+2. Select a product from catalog
+3. Complete order flow
+4. Choose "Pay Online"
+5. You'll receive payment request in WhatsApp

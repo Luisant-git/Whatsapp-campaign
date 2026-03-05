@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Put, Param, Delete, UseGuards, Session } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete, UseGuards, Session, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { SubscriptionService } from './subscription.service';
 import { SessionGuard } from '../auth/session.guard';
 
@@ -22,15 +22,19 @@ export class SubscriptionController {
   }
 
   @Get('current')
+  @UseGuards(SessionGuard)
   getCurrentPlan(@Session() session: any) {
-    const userId = session.userId || session.user?.id;
-    return this.subscriptionService.getCurrentPlan(userId);
+    const tenantId = Number(session.tenantId);
+    if (!tenantId) throw new UnauthorizedException('Tenant context not found');
+    return this.subscriptionService.getCurrentPlan(tenantId);
   }
 
   @Get('my-orders')
+  @UseGuards(SessionGuard)
   getUserOrders(@Session() session: any) {
-    const userId = session.userId || session.user?.id;
-    return this.subscriptionService.getUserOrders(userId);
+    const tenantId = Number(session.tenantId);
+    if (!tenantId) throw new UnauthorizedException('Tenant context not found');
+    return this.subscriptionService.getUserOrders(tenantId);
   }
 
   @Get('users')
@@ -49,17 +53,25 @@ export class SubscriptionController {
   }
 
   @Put('set-current/:orderId')
-  setCurrentPlan(@Session() session: any, @Param('orderId') orderId: string) {
-    const userId = session.userId || session.user?.id;
-    return this.subscriptionService.setCurrentPlan(userId, +orderId);
+@UseGuards(SessionGuard)
+setCurrentPlan(@Session() session: any, @Param('orderId') orderId: string) {
+  if (session.userType === 'subuser') {
+    throw new ForbiddenException('Sub-user cannot change subscription');
   }
-
-  @Post('subscribe/:planId')
-  subscribe(@Session() session: any, @Param('planId') planId: string) {
-    const userId = session.userId || session.user?.id;
-    return this.subscriptionService.subscribe(userId, +planId);
+  const tenantId = Number(session.tenantId);
+  if (!tenantId) throw new UnauthorizedException('Tenant context not found');
+  return this.subscriptionService.setCurrentPlan(tenantId, +orderId);
+}
+@Post('subscribe/:planId')
+@UseGuards(SessionGuard)
+subscribe(@Session() session: any, @Param('planId') planId: string) {
+  if (session.userType === 'subuser') {
+    throw new ForbiddenException('Sub-user cannot subscribe');
   }
-
+  const tenantId = Number(session.tenantId);
+  if (!tenantId) throw new UnauthorizedException('Tenant context not found');
+  return this.subscriptionService.subscribe(tenantId, +planId);
+}
 
   @Get(':id')
   findOne(@Param('id') id: string) {

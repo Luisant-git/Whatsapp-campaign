@@ -31,7 +31,8 @@ export const ecommerceApi = {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
   deleteProduct: (id) => api.delete(`/ecommerce/products/${id}`),
-  syncProductToMeta: (id) => api.post(`/ecommerce/products/${id}/sync-meta`),
+  syncProductToMeta: (id, payload = {}) =>
+    api.post(`/ecommerce/products/${id}/sync-meta`, payload),
   syncFromMeta: () => api.post('/ecommerce/sync-from-meta'),
 
   // Orders

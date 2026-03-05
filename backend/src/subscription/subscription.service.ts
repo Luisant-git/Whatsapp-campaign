@@ -83,49 +83,50 @@ export class SubscriptionService {
     return { message: 'Subscription request submitted. Waiting for admin approval.' };
   }
 
-  async getCurrentPlan(userId: number) {
-    // Get the most recent active order based on creation date
+  async getCurrentPlan(tenantId: number) {
+    const now = new Date();
+  
     const latestOrder = await this.prisma.subscriptionOrder.findFirst({
-      where: { tenantId: userId, status: 'active' },
+      where: {
+        tenantId,
+        status: 'active',
+        endDate: { gte: now }, // ✅ important
+      },
       orderBy: { createdAt: 'desc' },
-      include: { plan: true }
+      include: { plan: true },
     });
-
+  
     if (!latestOrder) {
       return { subscription: null, isActive: false };
     }
-
+  
     // Auto-set as current plan if not already
     if (!latestOrder.isCurrentPlan) {
-      // Unset all other current plans
       await this.prisma.subscriptionOrder.updateMany({
-        where: { tenantId: userId, isCurrentPlan: true },
-        data: { isCurrentPlan: false }
+        where: { tenantId, isCurrentPlan: true },
+        data: { isCurrentPlan: false },
       });
-      
-      // Set latest as current
+  
       await this.prisma.subscriptionOrder.update({
         where: { id: latestOrder.id },
-        data: { isCurrentPlan: true }
+        data: { isCurrentPlan: true },
       });
-
-      // Update tenant subscription
+  
       await this.prisma.tenant.update({
-        where: { id: userId },
+        where: { id: tenantId },
         data: {
           subscriptionId: latestOrder.planId,
           subscriptionStartDate: latestOrder.startDate,
-          subscriptionEndDate: latestOrder.endDate
-        }
+          subscriptionEndDate: latestOrder.endDate,
+        },
       });
     }
-
-    const isActive = new Date(latestOrder.endDate) > new Date();
+  
     return {
       subscription: latestOrder.plan,
       startDate: latestOrder.startDate,
       endDate: latestOrder.endDate,
-      isActive
+      isActive: true,
     };
   }
 

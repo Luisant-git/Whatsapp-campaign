@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { LoginAdminDto } from './dto/login-admin.dto';
@@ -6,21 +6,22 @@ import { CentralPrismaService } from '../central-prisma.service';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from 'src/user/dto/create-user.dto';
 import { UpdateUserDto } from 'src/user/dto/update-user.dto';
- 
+import { CreateSubUserDto } from './dto/create-subuser.dto';
+
 @Injectable()
 export class AdminService {
-    constructor(private prisma: CentralPrismaService) {}
- 
+  constructor(private prisma: CentralPrismaService) { }
+
   async register(createAdminDto: CreateAdminDto) {
     const { email, name, password } = createAdminDto;
-   
+
     const existingAdmin = await this.prisma.admin.findUnique({ where: { email } });
     if (existingAdmin) {
       throw new ConflictException('Admin with this email already exists');
     }
-   
+
     const hashedPassword = await bcrypt.hash(password, 10);
-   
+
     const admin = await this.prisma.admin.create({
       data: {
         email,
@@ -34,30 +35,30 @@ export class AdminService {
         createdAt: true,
       },
     });
-   
+
     return { message: 'Admin registered successfully', admin };
   }
- 
+
   async login(loginAdminDto: LoginAdminDto) {
     const { email, password } = loginAdminDto;
-   
+
     const admin = await this.prisma.admin.findUnique({ where: { email } });
     if (!admin) {
       throw new UnauthorizedException('Invalid credentials');
     }
-   
+
     const isPasswordValid = await bcrypt.compare(password, admin.password);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
-   
+
     return {
       id: admin.id,
       email: admin.email,
       name: admin.name,
     };
   }
- 
+
   async findAll() {
     return await this.prisma.admin.findMany({
       select: {
@@ -69,19 +70,19 @@ export class AdminService {
       },
     });
   }
- 
+
   findOne(id: number) {
     return `This action returns a #${id} admin`;
   }
- 
+
   update(id: number, updateAdminDto: UpdateAdminDto) {
     return `This action updates a #${id} admin`;
   }
- 
+
   remove(id: number) {
     return `This action removes a #${id} admin`;
   }
- 
+
   async getAllUsers() {
     const tenants = await this.prisma.tenant.findMany({
       select: {
@@ -120,9 +121,9 @@ export class AdminService {
         createdAt: 'desc',
       },
     });
-  
+
     const { PrismaClient } = require('@prisma/client-tenant');
-  
+
     const usersWithConfig = await Promise.all(
       tenants.map(async (tenant) => {
         try {
@@ -130,11 +131,11 @@ export class AdminService {
           const tenantPrisma = new PrismaClient({
             datasources: { db: { url: dbUrl } },
           });
-  
+
           await tenantPrisma.$connect();
           const config = await tenantPrisma.tenantConfig.findFirst();
           await tenantPrisma.$disconnect();
-  
+
           return {
             // keep all tenant fields
             id: tenant.id,
@@ -154,7 +155,7 @@ export class AdminService {
             subscription: tenant.subscription,
             isActive: tenant.isActive,
             createdAt: tenant.createdAt,
-  
+
             // add config-based fields
             aiChatbotEnabled: config?.aiChatbotEnabled || false,
             useQuickReply: config?.useQuickReply !== false,
@@ -185,7 +186,7 @@ export class AdminService {
         }
       }),
     );
-  
+
     return usersWithConfig;
   }
   async registerUser(createUserDto: CreateUserDto) {
@@ -210,7 +211,7 @@ export class AdminService {
         dbPort: 5432,
         dbUser: 'postgres',
         dbPassword: 'root',
-    
+
         companyName: createUserDto.companyName || null,
         contactPersonName: createUserDto.contactPersonName || null,
         phoneNumber: createUserDto.phoneNumber || null,
@@ -220,10 +221,10 @@ export class AdminService {
         state: createUserDto.state || null,
         country: createUserDto.country || null,
 
-        
-      
-      subscriptionId: createUserDto.subscriptionId ?? null,
-     
+
+
+        subscriptionId: createUserDto.subscriptionId ?? null,
+
       },
       select: {
         id: true,
@@ -240,14 +241,14 @@ export class AdminService {
         state: true,
         country: true,
         subscriptionId: true,
-       
+
       },
     });
 
     // Create tenant database
     try {
       await this.prisma.$executeRawUnsafe(`CREATE DATABASE ${dbName}`);
-      
+
       // Push schema to tenant database
       const tenantDbUrl = `postgresql://postgres:root@localhost:5432/${dbName}?schema=public`;
       const { execSync } = require('child_process');
@@ -263,7 +264,7 @@ export class AdminService {
 
     return { message: 'User registered successfully', user };
   }
- 
+
   async toggleUserChatbot(userId: number) {
     // Get tenant info
     const tenant = await this.prisma.tenant.findUnique({ where: { id: userId } });
@@ -278,10 +279,10 @@ export class AdminService {
 
     try {
       await tenantPrisma.$connect();
-      
+
       // Get or create tenant config
       const config = await tenantPrisma.tenantConfig.findFirst();
-      
+
       if (config) {
         await tenantPrisma.tenantConfig.update({
           where: { id: config.id },
@@ -292,7 +293,7 @@ export class AdminService {
           data: { aiChatbotEnabled: true },
         });
       }
-      
+
       return { message: 'AI Chatbot toggled successfully' };
     } finally {
       await tenantPrisma.$disconnect();
@@ -313,10 +314,10 @@ export class AdminService {
 
     try {
       await tenantPrisma.$connect();
-      
+
       // Get or create tenant config
       const config = await tenantPrisma.tenantConfig.findFirst();
-      
+
       if (config) {
         await tenantPrisma.tenantConfig.update({
           where: { id: config.id },
@@ -327,13 +328,13 @@ export class AdminService {
           data: { useQuickReply: true },
         });
       }
-      
+
       return { message: 'Quick Reply toggled successfully' };
     } finally {
       await tenantPrisma.$disconnect();
     }
   }
- 
+
 
 
   async updateUser(id: number, updateUserDto: UpdateUserDto) {
@@ -410,4 +411,211 @@ export class AdminService {
 
     return { message: 'Subscription created successfully', order };
   }
+
+
+
+  async registerSubUser(createSubUserDto: CreateSubUserDto) {
+    const { email, password, mobileNumber, designation, role, tenantId } = createSubUserDto;
+  
+    // 1) Check tenant existence
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+  
+    // 2) ✅ Get active subscription + plan to read userLimit
+    const activeSubscription = await this.prisma.subscriptionOrder.findFirst({
+      where: {
+        tenantId,
+        status: 'active',
+        endDate: { gte: new Date() },
+        // if you have isCurrentPlan in your schema, add:
+        // isCurrentPlan: true,
+      },
+      include: { plan: true },
+    });
+  
+    if (!activeSubscription?.plan) {
+      throw new UnauthorizedException('No active subscription found');
+    }
+  
+    const userLimit = activeSubscription.plan.userLimit; // Int? (nullable)
+  
+    // 3) ✅ Enforce limit (SUB-USERS ONLY)
+    // Count only ACTIVE subusers (recommended)
+    if (typeof userLimit === 'number') {
+      const activeSubUsersCount = await this.prisma.subUser.count({
+        where: { tenantId, isActive: true },
+      });
+  
+      if (activeSubUsersCount >= userLimit) {
+        throw new ForbiddenException(
+          `Sub-user limit reached. Your plan allows only ${userLimit} sub-user(s).`
+        );
+      }
+    }
+  
+    // 4) Check uniqueness
+    const existingSubUser = await this.prisma.subUser.findFirst({
+      where: { OR: [{ email }, { mobileNumber }] },
+    });
+    if (existingSubUser) {
+      throw new ConflictException('Sub-user with this email or mobile number already exists');
+    }
+  
+    // 5) Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+  
+    // 6) Create sub-user
+    const subUser = await this.prisma.subUser.create({
+      data: {
+        email,
+        password: hashedPassword,
+        mobileNumber,
+        designation: designation || null,
+        role: role || 'staff',
+        tenantId,
+      },
+      select: {
+        id: true,
+        email: true,
+        mobileNumber: true,
+        designation: true,
+        role: true,
+        isActive: true,
+        tenantId: true,
+        createdAt: true,
+      },
+    });
+  
+    return { message: 'Sub-user registered successfully', subUser };
+  }
+  async getTenantSubUsers(tenantId: number) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    const subUsers = await this.prisma.subUser.findMany({
+      where: { tenantId },
+      select: {
+        id: true,
+        email: true,
+        mobileNumber: true,
+        designation: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return { tenantId, tenantEmail: tenant.email, subUsers };
+  }
+
+
+  async updateSubUser(
+    id: number,
+    data: Partial<CreateSubUserDto>,
+    tenantId?: number,
+  ) {
+    const subUser = await this.prisma.subUser.findUnique({ where: { id } });
+    if (!subUser) throw new NotFoundException('Sub-user not found');
+  
+    // if tenant is calling, enforce ownership
+    if (tenantId && subUser.tenantId !== tenantId) {
+      throw new ForbiddenException('Cannot update sub-user of another tenant');
+    }
+  
+    // uniqueness checks if changing email/mobile
+    if (data.email || data.mobileNumber) {
+      const existing = await this.prisma.subUser.findFirst({
+        where: {
+          id: { not: id },
+          OR: [
+            data.email ? { email: data.email } : undefined,
+            data.mobileNumber ? { mobileNumber: data.mobileNumber } : undefined,
+          ].filter(Boolean) as any,
+        },
+      });
+      if (existing) {
+        throw new ConflictException('Sub-user with this email or mobile number already exists');
+      }
+    }
+  
+    // hash password if provided
+    const updateData: any = {
+      ...(data.email && { email: data.email }),
+      ...(data.mobileNumber && { mobileNumber: data.mobileNumber }),
+      ...(data.designation !== undefined && { designation: data.designation || null }),
+      ...(data.role && { role: data.role }),
+   
+    };
+  
+    if (data.password && data.password.trim()) {
+      updateData.password = await bcrypt.hash(data.password, 10);
+    }
+  
+    const updated = await this.prisma.subUser.update({
+      where: { id },
+      data: updateData,
+      select: {
+        id: true,
+        email: true,
+        mobileNumber: true,
+        designation: true,
+        role: true,
+        isActive: true,
+        tenantId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  
+    return { message: 'Sub-user updated successfully', subUser: updated };
+  }
+  // src/subuser/subuser.service.ts
+async getSubUserById(id: number) {
+  const subUser = await this.prisma.subUser.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      email: true,
+      mobileNumber: true,
+      designation: true,
+      role: true,
+      isActive: true,
+      tenantId: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+  if (!subUser) throw new NotFoundException('Sub-user not found');
+  return subUser;
+}
+
+
+
+
+async deactivateSubUser(id: number, tenantId?: number) {
+  const subUser = await this.prisma.subUser.findUnique({ where: { id } });
+  if (!subUser) throw new NotFoundException('Sub-user not found');
+
+  // If tenantId provided => enforce ownership
+  if (tenantId && subUser.tenantId !== tenantId) {
+    throw new ForbiddenException('Cannot deactivate sub-user of another tenant');
+  }
+
+  return this.prisma.subUser.update({
+    where: { id },
+    data: { isActive: false },
+    select: {
+      id: true,
+      email: true,
+      mobileNumber: true,
+      designation: true,
+      role: true,
+      isActive: true,
+      tenantId: true,
+      updatedAt: true,
+    },
+  });
+}
 }

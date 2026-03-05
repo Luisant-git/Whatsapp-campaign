@@ -9,7 +9,7 @@ import { SessionGuard } from '../auth/session.guard';
 @ApiTags('Users')
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
@@ -19,14 +19,18 @@ export class UserController {
     return this.userService.register(createUserDto);
   }
 
+
+
   @Post('login')
   @ApiOperation({ summary: 'Login user' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  login(@Body() loginUserDto: LoginUserDto, @Session() session: Record<string, any>) {
+  login(
+    @Body() loginUserDto: LoginUserDto,
+    @Session() session: Record<string, any>,
+  ) {
     return this.userService.login(loginUserDto, session);
   }
-
   @Post('logout')
   @ApiOperation({ summary: 'Logout user' })
   @ApiResponse({ status: 200, description: 'Logout successful' })
@@ -39,7 +43,8 @@ export class UserController {
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, description: 'User profile retrieved' })
   @ApiResponse({ status: 401, description: 'Not authenticated' })
-  getCurrentUser(@Session() session: Record<string, any>) {
+  async getCurrentUser(@Session() session: Record<string, any>) {
+    // Pass the session object to the service
     return this.userService.getCurrentUser(session);
   }
 

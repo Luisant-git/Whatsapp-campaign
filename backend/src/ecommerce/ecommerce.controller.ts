@@ -160,12 +160,17 @@ export class EcommerceController {
   }
 
   @Post('products/:id/sync-meta')
-  async syncProductToMeta(@Param('id') id: string) {
-    const product = await this.ecommerceService.getProduct(+id);
-    const result = await this.metaCatalogService.syncProductToCatalog(product);
-    await this.ecommerceService.updateProduct(+id, { metaProductId: result.metaProductId, source: 'uploaded' });
-    return result;
-  }
+async syncProductToMeta(@Param('id') id: string, @Body() body: any) {
+  const product = await this.ecommerceService.getProduct(+id);
+  const result = await this.metaCatalogService.syncProductToCatalog(product, body);
+
+  await this.ecommerceService.updateProduct(+id, {
+    metaProductId: result.metaProductId,
+    source: 'uploaded',
+  });
+
+  return result;
+}
 
   @Post('sync-from-meta')
   async syncFromMeta(@Request() req) {

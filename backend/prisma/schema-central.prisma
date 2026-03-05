@@ -34,6 +34,7 @@ model Tenant {
   isActive    Boolean  @default(true)
   dbName      String   @unique
   dbHost      String   @default("localhost")
+  role        String  @default("company")
   dbPort      Int      @default(5432)
   dbUser      String
   dbPassword  String
@@ -47,8 +48,29 @@ model Tenant {
   subscription SubscriptionPlan? @relation(fields: [subscriptionId], references: [id])
   subscriptionOrders SubscriptionOrder[]
   phoneNumbers PhoneNumberMapping[]
+
   menuPermission MenuPermission?
+   subUsers    SubUser[]  
 }
+
+model SubUser {
+  id           Int      @id @default(autoincrement())
+  tenantId     Int      // <-- foreign key to Tenant
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  email        String   @unique
+  password     String
+  mobileNumber String   @unique
+  designation  String?
+  role         String   @default("staff")
+  isActive     Boolean  @default(true)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([role])
+  @@index([tenantId])
+}
+
 
 model PhoneNumberMapping {
   id            Int      @id @default(autoincrement())

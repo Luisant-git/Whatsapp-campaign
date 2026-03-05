@@ -187,49 +187,53 @@ export class WhatsappEcommerceService {
     
     if (step === 'awaiting_name') {
       const existingName = await this.sessionService.getCustomerName(phone, userId);
-      if (existingName === trimmedMsg) return false; // Duplicate
+      if (existingName === trimmedMsg) return false;
       await this.sessionService.setCustomerName(phone, trimmedMsg, userId);
       return 'awaiting_address';
     }
     
     if (step === 'awaiting_address') {
       const existingAddress = await this.sessionService.getCustomerAddress(phone, userId);
-      if (existingAddress === trimmedMsg) return false; // Duplicate
+      if (existingAddress === trimmedMsg) return false;
       await this.sessionService.setCustomerAddress(phone, trimmedMsg, userId);
       return 'awaiting_city';
     }
     
     if (step === 'awaiting_city') {
       const existingCity = await this.sessionService.getCustomerCity(phone, userId);
-      if (existingCity === trimmedMsg) return false; // Duplicate
+      if (existingCity === trimmedMsg) return false;
       await this.sessionService.setCustomerCity(phone, trimmedMsg, userId);
       return 'awaiting_pincode';
     }
     
     if (step === 'awaiting_pincode') {
       const existingPincode = await this.sessionService.getCustomerPincode(phone, userId);
-      if (existingPincode === trimmedMsg) return false; // Duplicate
+      if (existingPincode === trimmedMsg) return false;
       await this.sessionService.setCustomerPincode(phone, trimmedMsg, userId);
       
-      const productId = await this.sessionService.getProductForPurchase(phone, userId);
+      const cart = await this.sessionService.getCartProducts(phone, userId) || [];
       const customerName = await this.sessionService.getCustomerName(phone, userId);
       const customerAddress = await this.sessionService.getCustomerAddress(phone, userId);
       const customerCity = await this.sessionService.getCustomerCity(phone, userId);
       
-      if (!productId || !customerName || !customerAddress || !customerCity) return false;
-      
-      const product = await this.ecommerceService.getProduct(productId, userId);
-      if (!product) return false;
+      if (cart.length === 0 || !customerName || !customerAddress || !customerCity) return false;
       
       const fullAddress = `${customerAddress}, ${customerCity}, ${trimmedMsg}`;
       
-      await this.ecommerceService.createOrder({
+      // Create single order with all products
+      let totalAmount = 0;
+      for (const item of cart) {
+        const product = await this.ecommerceService.getProduct(item.productId, userId);
+        if (product) totalAmount += product.price * item.quantity;
+      }
+      
+      const order = await this.ecommerceService.createOrder({
         customerName,
         customerPhone: phone,
         customerAddress: fullAddress,
-        productId,
-        quantity: 1,
-        totalAmount: product.price,
+        productId: cart[0].productId,
+        quantity: cart.reduce((sum, item) => sum + item.quantity, 0),
+        totalAmount,
       }, userId);
       
       await this.sessionService.clearSession(phone, userId);

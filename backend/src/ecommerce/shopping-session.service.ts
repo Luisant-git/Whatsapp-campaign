@@ -157,12 +157,15 @@ export class ShoppingSessionService {
   }
 
   async setProductForPurchase(phone: string, productId: number, tenantId?: number) {
-    await this.setSession(phone, { currentProductId: productId, step: 'buying' }, tenantId);
+    const session = await this.getSession(phone, tenantId);
+    const cart = session?.cartProducts || [];
+    cart.push({ productId, quantity: 1 });
+    await this.setSession(phone, { cartProducts: cart, step: 'buying' }, tenantId);
   }
 
-  async getProductForPurchase(phone: string, tenantId?: number): Promise<number | undefined> {
+  async getCartProducts(phone: string, tenantId?: number): Promise<any[] | undefined> {
     const session = await this.getSession(phone, tenantId);
-    return session?.currentProductId;
+    return session?.cartProducts;
   }
 
   async setPaymentMethod(phone: string, method: string, tenantId?: number) {

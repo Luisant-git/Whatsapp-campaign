@@ -174,6 +174,51 @@ export class WhatsappController {
               if (statuses) {
                 for (const status of statuses) {
                   try {
+                    // Check if it's a payment status
+                    if (status.type === 'payment' && status.status === 'captured') {
+                      console.log('💳 Payment captured:', status);
+                      const referenceId = status.payment?.reference_id;
+                      const orderId = referenceId ? parseInt(referenceId.split('_')[1]) : null;
+                      
+                      if (orderId) {
+                        console.log(`Processing payment for order #${orderId}`);
+                        const { EcommerceService } = require('../ecommerce/ecommerce.service');
+                        const { RazorpayService } = require('../ecommerce/razorpay.service');
+                        const ecommerceService = new EcommerceService(null, null, null);
+                        const razorpayService = new RazorpayService();
+                        
+                        try {
+                          await ecommerceService.updateOrderStatus(orderId, 'confirmed', 1);
+                          const order = await ecommerceService.getOrder(orderId, 1);
+                          
+                          if (order) {
+                            const productList = `${order.product.name} (x${order.quantity})`;
+                            const message = `✅ *Payment Successful!*\n\n${productList}\nAmount: ₹${order.totalAmount}\n\nDelivery Details:\nName: ${order.customerName}\nAddress: ${order.customerAddress}\n\n📦 Your order is confirmed. We'll deliver within 3-5 business days.\n\nThank you! 🙂`;
+                            
+                            const axios = require('axios');
+                            await axios.post(
+                              `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+                              {
+                                messaging_product: 'whatsapp',
+                                to: order.customerPhone,
+                                type: 'text',
+                                text: { body: message }
+                              },
+                              {
+                                headers: {
+                                  'Authorization': `Bearer ${process.env.META_ACCESS_TOKEN}`,
+                                  'Content-Type': 'application/json',
+                                },
+                              }
+                            );
+                            console.log('✅ Payment confirmation sent to customer');
+                          }
+                        } catch (paymentError) {
+                          console.error('Payment processing error:', paymentError);
+                        }
+                      }
+                    }
+                    
                     await this.whatsappService.updateMessageStatus(status.id, status.status);
                   } catch (statusError) {
                     console.error('Error updating status:', statusError);
@@ -248,6 +293,49 @@ export class WhatsappController {
               if (statuses) {
                 for (const status of statuses) {
                   try {
+                    // Check if it's a payment status
+                    if (status.type === 'payment' && status.status === 'captured') {
+                      console.log('💳 Payment captured:', status);
+                      const referenceId = status.payment?.reference_id;
+                      const orderId = referenceId ? parseInt(referenceId.split('_')[1]) : null;
+                      
+                      if (orderId) {
+                        console.log(`Processing payment for order #${orderId}`);
+                        const { EcommerceService } = require('../ecommerce/ecommerce.service');
+                        const ecommerceService = new EcommerceService(null, null, null);
+                        
+                        try {
+                          await ecommerceService.updateOrderStatus(orderId, 'confirmed', 1);
+                          const order = await ecommerceService.getOrder(orderId, 1);
+                          
+                          if (order) {
+                            const productList = `${order.product.name} (x${order.quantity})`;
+                            const message = `✅ *Payment Successful!*\n\n${productList}\nAmount: ₹${order.totalAmount}\n\nDelivery Details:\nName: ${order.customerName}\nAddress: ${order.customerAddress}\n\n📦 Your order is confirmed. We'll deliver within 3-5 business days.\n\nThank you! 🙂`;
+                            
+                            const axios = require('axios');
+                            await axios.post(
+                              `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+                              {
+                                messaging_product: 'whatsapp',
+                                to: order.customerPhone,
+                                type: 'text',
+                                text: { body: message }
+                              },
+                              {
+                                headers: {
+                                  'Authorization': `Bearer ${process.env.META_ACCESS_TOKEN}`,
+                                  'Content-Type': 'application/json',
+                                },
+                              }
+                            );
+                            console.log('✅ Payment confirmation sent to customer');
+                          }
+                        } catch (paymentError) {
+                          console.error('Payment processing error:', paymentError);
+                        }
+                      }
+                    }
+                    
                     await this.whatsappService.updateMessageStatusWithoutContext(status.id, status.status, change.value.metadata?.phone_number_id);
                   } catch (statusError) {
                     console.error('Error updating status:', statusError);

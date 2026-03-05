@@ -159,7 +159,8 @@ export class WhatsappEcommerceService {
   }
 
   async handleCODPayment(phone: string, accessToken: string, phoneNumberId: string, userId: number) {
-    const productId = await this.sessionService.getProductForPurchase(phone, userId);
+    const cart = await this.sessionService.getCartProducts(phone, userId) || [];
+    const productId = cart.length > 0 ? cart[0].productId : null;
     if (!productId) {
       return this.sendWhatsAppMessage(phone, {
         type: 'text',

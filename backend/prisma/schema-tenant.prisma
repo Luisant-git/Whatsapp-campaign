@@ -232,7 +232,7 @@ model Product {
   subCategoryId Int
   isActive      Boolean     @default(true)
   subCategory   SubCategory @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
-  orders        Order[]
+  orderItems    OrderItem[]
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 }
@@ -242,8 +242,6 @@ model Order {
   customerName    String
   customerPhone   String
   customerAddress String?  @db.Text
-  productId       Int
-  quantity        Int      @default(1)
   totalAmount     Float
   status          String   @default("placed")
   paymentMethod   String?
@@ -251,9 +249,24 @@ model Order {
   paymentLink     String?
   paymentStatus   String   @default("pending")
   isAbandoned     Boolean  @default(false)
-  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  items           OrderItem[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model OrderItem {
+  id        Int      @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Int      @default(1)
+  price     Float
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([orderId])
+  @@index([productId])
 }
 
 model ShoppingSession {

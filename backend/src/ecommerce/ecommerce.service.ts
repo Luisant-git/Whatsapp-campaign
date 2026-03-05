@@ -111,8 +111,15 @@ export class EcommerceService {
   // Orders
   async createOrder(data: any, userId?: number) {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
+    const { items, ...orderData } = data;
+    
     return client.order.create({
-      data,
+      data: {
+        ...orderData,
+        items: {
+          create: items || []
+        }
+      },
       include: { product: true },
     });
   }

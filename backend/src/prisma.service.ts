@@ -18,7 +18,7 @@ export class PrismaService {
 
   private initializeClient() {
     const tenantContext = this.request.tenantContext;
-    
+
     if (tenantContext) {
       // Use tenant-specific database from middleware
       this.client = this.tenantPrisma.getTenantClient(
@@ -156,6 +156,13 @@ export class PrismaService {
       throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
     }
     return this.client.product;
+  }
+
+  get productVariant() {
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.productVariant;
   }
 
   get order() {

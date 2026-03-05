@@ -92,14 +92,22 @@ export class EcommerceController {
       }),
     }),
   )
-  async createProduct(@UploadedFile() file: Express.Multer.File, @Body() body: any) {
+  async createProduct(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: any,
+  ) {
     const data = {
       name: body.name,
-      description: body.description,
+      description: body.description || '',
       price: parseFloat(body.price),
+      salePrice: body.salePrice ? parseFloat(body.salePrice) : null,
       imageUrl: file ? `${process.env.UPLOAD_URL}/${file.filename}` : null,
       subCategoryId: +body.subCategoryId,
       link: body.link || null,
+      contentId: body.contentId || null,
+      availability:
+        body.availability === 'true' || body.availability === true,
+      isActive: body.isActive !== 'false' && body.isActive !== false,
     };
     return this.ecommerceService.createProduct(data);
   }
@@ -115,34 +123,123 @@ export class EcommerceController {
   }
 
   @Put('products/:id')
-  @UseInterceptors(
-    FileInterceptor('image', {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (req, file, cb) => {
-          const name = `product-${Date.now()}${extname(file.originalname)}`;
-          cb(null, name);
-        },
-      }),
+@UseInterceptors(
+  FileInterceptor('image', {
+    storage: diskStorage({
+      destination: './uploads',
+      filename: (req, file, cb) => {
+        const name = `product-${Date.now()}${extname(file.originalname)}`;
+        cb(null, name);
+      },
     }),
-  )
-  async updateProduct(@Param('id') id: string, @UploadedFile() file: Express.Multer.File, @Body() body: any) {
-    const data: any = {
-      name: body.name,
-      description: body.description,
-      price: parseFloat(body.price),
-      subCategoryId: +body.subCategoryId,
-    };
-    if (file) {
-      data.imageUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
-    }
-    return this.ecommerceService.updateProduct(+id, data);
+  }),
+)
+async updateProduct(
+  @Param('id') id: string,
+  @UploadedFile() file: Express.Multer.File,
+  @Body() body: any,
+) {
+  const data: any = {
+    name: body.name,
+    description: body.description || '',
+    price: parseFloat(body.price),
+    salePrice: body.salePrice ? parseFloat(body.salePrice) : null,
+    subCategoryId: +body.subCategoryId,
+    link: body.link || null,
+    contentId: body.contentId || null,
+    availability:
+      body.availability === 'true' || body.availability === true,
+    isActive: body.isActive === 'true' || body.isActive === true,
+  };
+  if (file) {
+    data.imageUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
   }
+  return this.ecommerceService.updateProduct(+id, data);
+}
 
   @Delete('products/:id')
   deleteProduct(@Param('id') id: string) {
     return this.ecommerceService.deleteProduct(+id);
   }
+
+  // Add these to ecommerce.controller.ts
+
+// ==================== VARIANT ENDPOINTS ====================
+
+@Post('products/:productId/variants')
+@UseInterceptors(
+  FileInterceptor('image', {
+    storage: diskStorage({
+      destination: './uploads',
+      filename: (req, file, cb) => {
+        const name = `variant-${Date.now()}${extname(file.originalname)}`;
+        cb(null, name);
+      },
+    }),
+  }),
+)
+async createVariant(
+  @Param('productId') productId: string,
+  @UploadedFile() file: Express.Multer.File,
+  @Body() body: any,
+) {
+  const data = {
+    productId: +productId,
+    name: body.name,
+    description: body.description || null,
+    price: parseFloat(body.price),
+    salePrice: body.salePrice ? parseFloat(body.salePrice) : null,
+    imageUrl: file ? `${process.env.UPLOAD_URL}/${file.filename}` : null,
+    link: body.link || null,
+    contentId: body.contentId || null,
+    availability: body.availability === 'true' || body.availability === true,
+    isActive: body.isActive !== 'false' && body.isActive !== false,
+  };
+  return this.ecommerceService.createVariant(data);
+}
+
+@Get('products/:productId/variants')
+getVariants(@Param('productId') productId: string) {
+  return this.ecommerceService.getVariants(+productId);
+}
+
+@Put('variants/:id')
+@UseInterceptors(
+  FileInterceptor('image', {
+    storage: diskStorage({
+      destination: './uploads',
+      filename: (req, file, cb) => {
+        const name = `variant-${Date.now()}${extname(file.originalname)}`;
+        cb(null, name);
+      },
+    }),
+  }),
+)
+async updateVariant(
+  @Param('id') id: string,
+  @UploadedFile() file: Express.Multer.File,
+  @Body() body: any,
+) {
+  const data: any = {
+    name: body.name,
+    description: body.description || null,
+    price: parseFloat(body.price),
+    salePrice: body.salePrice ? parseFloat(body.salePrice) : null,
+    link: body.link || null,
+    contentId: body.contentId || null,
+    availability: body.availability === 'true' || body.availability === true,
+    isActive: body.isActive !== 'false' && body.isActive !== false,
+  };
+  if (file) {
+    data.imageUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
+  }
+  return this.ecommerceService.updateVariant(+id, data);
+}
+
+@Delete('variants/:id')
+deleteVariant(@Param('id') id: string) {
+  return this.ecommerceService.deleteVariant(+id);
+}
 
   @Post('orders')
   createOrder(@Body() body: any, @Request() req) {

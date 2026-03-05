@@ -69,14 +69,41 @@ export class EcommerceService {
 
   // Products
   async createProduct(data: any) {
-    return this.prisma.product.create({ data });
+    const product = await this.prisma.product.create({ 
+      data,
+      include: {
+        subCategory: { include: { category: true } },
+        variants: true,
+      },
+    });
+  
+    // Auto-generate contentId if not provided
+    if (!product.contentId) {
+      return this.prisma.product.update({
+        where: { id: product.id },
+        data: { contentId: `product_${product.id}` },
+        include: {
+          subCategory: { include: { category: true } },
+          variants: true,
+        },
+      });
+    }
+  
+    return product;
   }
 
   async getProducts(subCategoryId?: number, userId?: number) {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
     return client.product.findMany({
       where: { isActive: true, ...(subCategoryId && { subCategoryId }) },
-      include: { subCategory: { include: { category: true } } },
+      include: { 
+        subCategory: { include: { category: true } },
+        variants: {
+          where: { isActive: true },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -84,14 +111,55 @@ export class EcommerceService {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
     return client.product.findUnique({
       where: { id },
-      include: { subCategory: { include: { category: true } } },
+      include: { 
+        subCategory: { include: { category: true } },
+        variants: {
+          where: { isActive: true },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
     });
   }
 
   async updateProduct(id: number, data: any) {
-    return this.prisma.product.update({ where: { id }, data });
+    // Parse booleans - FormData sends "false" as string which is truthy
+    const parseBoolean = (value: any): boolean => {
+      if (typeof value === 'boolean') return value;
+      if (typeof value === 'string') return value.toLowerCase() === 'true';
+      if (typeof value === 'number') return value === 1;
+      return Boolean(value);
+    };
+  
+    const cleanedData: any = {};
+  
+    // String fields
+    if (data.name !== undefined) cleanedData.name = data.name;
+    if (data.description !== undefined) cleanedData.description = data.description || '';
+    if (data.link !== undefined) cleanedData.link = data.link || null;
+    if (data.contentId !== undefined) cleanedData.contentId = data.contentId || null;
+    if (data.imageUrl !== undefined) cleanedData.imageUrl = data.imageUrl;
+  
+    // Number fields
+    if (data.price !== undefined) cleanedData.price = parseFloat(data.price);
+    if (data.salePrice !== undefined) cleanedData.salePrice = data.salePrice ? parseFloat(data.salePrice) : null;
+    if (data.subCategoryId !== undefined) cleanedData.subCategoryId = parseInt(data.subCategoryId);
+  
+    // Boolean fields - THIS IS THE FIX
+    if (data.availability !== undefined) cleanedData.availability = parseBoolean(data.availability);
+    if (data.isActive !== undefined) cleanedData.isActive = parseBoolean(data.isActive);
+  
+    return this.prisma.product.update({
+      where: { id },
+      data: cleanedData,
+      include: {
+        subCategory: { include: { category: true } },
+        variants: {
+          where: { isActive: true },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
   }
-
   async deleteProduct(id: number) {
     return this.prisma.product.update({
       where: { id },
@@ -108,6 +176,64 @@ export class EcommerceService {
     return order;
   }
 
+
+  // varient
+
+ // ecommerce.service.ts - ADD/REPLACE these variant functions
+
+async createVariant(data: any) {
+  const variant = await this.prisma.productVariant.create({
+    data: {
+      productId: data.productId,
+      name: data.name,
+      description: data.description,
+      price: data.price,
+      salePrice: data.salePrice,
+      imageUrl: data.imageUrl,
+      link: data.link,
+      contentId: data.contentId || null,
+      availability: data.availability ?? true,
+      isActive: data.isActive ?? true,
+    },
+  });
+
+  // Auto-generate contentId if not provided
+  if (!variant.contentId) {
+    return this.prisma.productVariant.update({
+      where: { id: variant.id },
+      data: { contentId: `variant_${variant.id}` },
+    });
+  }
+
+  return variant;
+}
+
+async getVariants(productId: number) {
+  return this.prisma.productVariant.findMany({
+    where: { productId, isActive: true },
+    orderBy: { createdAt: 'asc' },
+  });
+}
+
+async getVariant(id: number) {
+  return this.prisma.productVariant.findUnique({
+    where: { id },
+  });
+}
+
+async updateVariant(id: number, data: any) {
+  return this.prisma.productVariant.update({
+    where: { id },
+    data,
+  });
+}
+
+async deleteVariant(id: number) {
+  return this.prisma.productVariant.update({
+    where: { id },
+    data: { isActive: false },
+  });
+}
   // Orders
   async createOrder(data: any, userId?: number) {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;

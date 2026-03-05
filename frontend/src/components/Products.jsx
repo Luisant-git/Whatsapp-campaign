@@ -1,47 +1,45 @@
+// Products.jsx
 import { useState, useEffect } from 'react';
 import { ecommerceApi } from '../api/ecommerce';
-import { Pencil, Trash2, Upload, Search } from 'lucide-react';
+import { Pencil, Trash2, Upload, Search, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import '../styles/Ecommerce.css';
 
 export default function Products() {
   const [subCategories, setSubCategories] = useState([]);
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [showMetaModal, setShowMetaModal] = useState(false);
-  const [productPreviewUrl, setProductPreviewUrl] = useState(null);
-
-  // Variant modal
   const [showVariantModal, setShowVariantModal] = useState(false);
-  const [editingVariantIndex, setEditingVariantIndex] = useState(null);
 
   const [editingProduct, setEditingProduct] = useState(null);
+  const [editingVariantIndex, setEditingVariantIndex] = useState(null);
+  const [variantModalSource, setVariantModalSource] = useState('product'); // 'product' or 'meta'
+
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
 
-  const openAddProductModal = () => {
-    setEditingProduct(null);
-    setForm(emptyProductForm);
-    setShowModal(true);
-  };
-  
-  const closeProductModal = () => {
-    setShowModal(false);
-    setEditingProduct(null);
-    setForm(emptyProductForm);
-  };
-  // Normal product form (DB product)
+  // Expanded rows for showing variants in table
+  const [expandedRows, setExpandedRows] = useState(new Set());
+
+  // Product form (with all Meta fields)
   const emptyProductForm = {
     name: '',
     description: '',
     price: '',
+    salePrice: '',
     subCategoryId: '',
     image: null,
     link: '',
+    contentId: '',
+    availability: true,
+    isActive: true,
+    variants: [],
   };
   const [form, setForm] = useState(emptyProductForm);
 
-  // Meta form (meta-only fields + variants)
+  // Meta form
   const emptyMetaForm = {
     name: '',
     description: '',
@@ -50,16 +48,16 @@ export default function Products() {
     subCategoryId: '',
     link: '',
     image: null,
-
-    availability: true, // in stock toggle (boolean)
-    isActive: true,     // active/inactive toggle (boolean)
-    contentId: '',      // retailer_id override / group id
-
+    availability: true,
+    isActive: true,
+    contentId: '',
     variants: [],
   };
   const [metaForm, setMetaForm] = useState(emptyMetaForm);
 
+  // Variant form
   const emptyVariantForm = {
+    id: null,
     name: '',
     description: '',
     price: '',
@@ -68,7 +66,7 @@ export default function Products() {
     contentId: '',
     availability: true,
     isActive: true,
-    image: null,        
+    image: null,
     imageUrl: null,
   };
   const [variantForm, setVariantForm] = useState(emptyVariantForm);
@@ -78,15 +76,102 @@ export default function Products() {
   }, []);
 
   const loadData = async () => {
-    const [subs, prods] = await Promise.all([
-      ecommerceApi.getSubCategories(),
-      ecommerceApi.getProducts(),
-    ]);
-    setSubCategories(subs.data);
-    setProducts(prods.data);
+    setLoading(true);
+    try {
+      const [subs, prods] = await Promise.all([
+        ecommerceApi.getSubCategories(),
+        ecommerceApi.getProducts(),
+      ]);
+      setSubCategories(subs.data);
+      setProducts(prods.data);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+    }
+    setLoading(false);
   };
 
-  // ---------------- NORMAL PRODUCT CRUD ----------------
+  // Helper function for image URLs
+  const getImageUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `http://localhost:3010${url}`;
+  };
+
+  // Toggle expanded row
+  const toggleRowExpanded = (productId) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(productId)) {
+        next.delete(productId);
+      } else {
+        next.add(productId);
+      }
+      return next;
+    });
+  };
+
+  // ==================== PRODUCT MODAL ====================
+  const openAddProductModal = () => {
+    setEditingProduct(null);
+    setForm(emptyProductForm);
+    setShowModal(true);
+  };
+
+  const closeProductModal = () => {
+    setShowModal(false);
+    setEditingProduct(null);
+    setForm(emptyProductForm);
+  };
+
+  // Products.jsx - REPLACE this function
+
+  const handleEdit = async (prod) => {
+    try {
+      setLoading(true);
+
+      const response = await ecommerceApi.getProduct(prod.id);
+      const productWithVariants = response.data;
+
+      console.log('Loaded product:', productWithVariants);
+
+      setEditingProduct(productWithVariants);
+      setForm({
+        name: productWithVariants.name || '',
+        description: productWithVariants.description || '',
+        price: productWithVariants.price || '',
+        salePrice: productWithVariants.salePrice || '',
+        subCategoryId: productWithVariants.subCategoryId || '',
+        image: null,
+        link: productWithVariants.link || '',
+        contentId: productWithVariants.contentId || '',
+        // ✅ FIX: Force actual boolean (handles 1/0, "true"/"false", true/false)
+        availability: Boolean(productWithVariants.availability),
+        isActive: Boolean(productWithVariants.isActive),
+        variants: (productWithVariants.variants || []).map((v) => ({
+          id: v.id,
+          name: v.name || '',
+          description: v.description || '',
+          price: v.price || '',
+          salePrice: v.salePrice || '',
+          link: v.link || '',
+          contentId: v.contentId || '',
+          // ✅ FIX: Force actual boolean for variants
+          availability: Boolean(v.availability),
+          isActive: Boolean(v.isActive),
+          image: null,
+          imageUrl: v.imageUrl || null,
+        })),
+      });
+
+      setShowModal(true);
+    } catch (error) {
+      console.error('Failed to load product:', error);
+      alert('❌ Failed to load product details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -94,110 +179,212 @@ export default function Products() {
     formData.append('name', form.name);
     formData.append('description', form.description || '');
     formData.append('price', form.price);
+    formData.append('salePrice', form.salePrice || '');
     formData.append('subCategoryId', form.subCategoryId);
     formData.append('link', form.link || '');
+    formData.append('contentId', form.contentId || '');
+    // ✅ FIX: Explicitly convert to "true"/"false" string
+    formData.append('availability', form.availability === true ? 'true' : 'false');
+    formData.append('isActive', form.isActive === true ? 'true' : 'false');
     if (form.image) formData.append('image', form.image);
 
-    if (editingProduct) {
-      await ecommerceApi.updateProduct(editingProduct.id, formData);
+    try {
+      setLoading(true);
+      let productId;
+
+      if (editingProduct) {
+        await ecommerceApi.updateProduct(editingProduct.id, formData);
+        productId = editingProduct.id;
+
+        const existingVariantIds = (editingProduct.variants || []).map((v) => v.id);
+        const currentVariantIds = form.variants.filter((v) => v.id).map((v) => v.id);
+
+        for (const existingId of existingVariantIds) {
+          if (!currentVariantIds.includes(existingId)) {
+            try {
+              await ecommerceApi.deleteVariant(existingId);
+            } catch (err) {
+              console.error('Failed to delete variant:', err);
+            }
+          }
+        }
+      } else {
+        const created = await ecommerceApi.createProduct(formData);
+        productId = created.data.id;
+      }
+
+      // Save/Update variants
+      if (form.variants && form.variants.length > 0) {
+        for (let i = 0; i < form.variants.length; i++) {
+          const v = form.variants[i];
+          const variantFormData = new FormData();
+          variantFormData.append('name', v.name);
+          variantFormData.append('description', v.description || '');
+          variantFormData.append('price', v.price);
+          variantFormData.append('salePrice', v.salePrice || '');
+          variantFormData.append('link', v.link || '');
+          variantFormData.append(
+            'contentId',
+            v.contentId || `${form.contentId || `product_${productId}`}_v${i + 1}`
+          );
+          // ✅ FIX: Variant booleans too
+          variantFormData.append('availability', v.availability === true ? 'true' : 'false');
+          variantFormData.append('isActive', v.isActive === true ? 'true' : 'false');
+          if (v.image) variantFormData.append('image', v.image);
+
+          if (v.id) {
+            await ecommerceApi.updateVariant(v.id, variantFormData);
+          } else {
+            await ecommerceApi.createVariant(productId, variantFormData);
+          }
+        }
+      }
+
+      setForm(emptyProductForm);
       setEditingProduct(null);
-    } else {
-      await ecommerceApi.createProduct(formData);
+      setShowModal(false);
+      loadData();
+      alert('✅ Product saved successfully!');
+    } catch (error) {
+      alert('❌ Failed: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
     }
-
-    setForm(emptyProductForm);
-    setShowModal(false);
-    loadData();
-  };
-
-  const handleEdit = (prod) => {
-    setEditingProduct(prod);
-    setForm({
-      name: prod.name,
-      description: prod.description || '',
-      price: prod.price,
-      subCategoryId: prod.subCategoryId,
-      image: null,
-      link: prod.link || '',
-    });
-    setShowModal(true);
   };
 
   const handleDelete = async (id) => {
-    if (confirm('Delete this product?')) {
-      await ecommerceApi.deleteProduct(id);
-      loadData();
+    if (confirm('Delete this product and all its variants?')) {
+      try {
+        await ecommerceApi.deleteProduct(id);
+        loadData();
+      } catch (error) {
+        alert('❌ Failed to delete product');
+      }
     }
   };
 
-  // ---------------- META / VARIANTS ----------------
+  // ==================== VARIANT FUNCTIONS (FOR PRODUCT MODAL) ====================
+  const openAddVariantForProduct = () => {
+    setVariantModalSource('product');
+    setEditingVariantIndex(null);
+
+    // Pre-fill with product data
+    setVariantForm({
+      id: null,
+      name: form.name ? `${form.name} - Variant` : '',  // Add suffix to differentiate
+      description: form.description || '',
+      price: form.price || '',
+      salePrice: form.salePrice || '',
+      link: form.link || '',
+      contentId: '',  // Leave empty for auto-generation
+      availability: form.availability ?? true,
+      isActive: form.isActive ?? true,
+      image: null,
+      imageUrl: null,
+    });
+
+    setShowVariantModal(true);
+  };
+
+  const openEditVariantForProduct = (idx) => {
+    setVariantModalSource('product');
+    setEditingVariantIndex(idx);
+    const v = form.variants[idx];
+    setVariantForm({
+      id: v.id,
+      name: v.name,
+      description: v.description || '',
+      price: v.price,
+      salePrice: v.salePrice || '',
+      link: v.link || '',
+      contentId: v.contentId || '',
+      availability: v.availability ?? true,
+      isActive: v.isActive ?? true,
+      image: null,
+      imageUrl: v.imageUrl || null,
+    });
+    setShowVariantModal(true);
+  };
+
+  const removeVariantFromProduct = async (idx) => {
+    const variant = form.variants[idx];
+
+    if (variant.id) {
+      if (confirm(`Delete variant "${variant.name}"? This cannot be undone.`)) {
+        try {
+          await ecommerceApi.deleteVariant(variant.id);
+          setForm((prev) => ({
+            ...prev,
+            variants: prev.variants.filter((_, i) => i !== idx),
+          }));
+        } catch (error) {
+          alert('❌ Failed to delete variant');
+        }
+      }
+    } else {
+      setForm((prev) => ({
+        ...prev,
+        variants: prev.variants.filter((_, i) => i !== idx),
+      }));
+    }
+  };
+
+  // ==================== META MODAL ====================
   const openMetaModal = () => {
     setMetaForm(emptyMetaForm);
     setShowMetaModal(true);
   };
 
-  const openAddVariant = () => {
+  const closeMetaModal = () => {
+    setShowMetaModal(false);
+    setMetaForm(emptyMetaForm);
+  };
+
+  // Products.jsx - REPLACE this function
+
+  const openAddVariantForMeta = () => {
+    setVariantModalSource('meta');
     setEditingVariantIndex(null);
 
-    // Prefill variant with current Meta form values (so same fields are there)
+    // Pre-fill with meta product data
     setVariantForm({
-      name: metaForm.name,
-      description: metaForm.description,
-      price: metaForm.price,
-      salePrice: metaForm.salePrice,
-      link: metaForm.link,
+      id: null,
+      name: metaForm.name ? `${metaForm.name} - Variant` : '',
+      description: metaForm.description || '',
+      price: metaForm.price || '',
+      salePrice: metaForm.salePrice || '',
+      link: metaForm.link || '',
       contentId: '',
-      availability: metaForm.availability,
-      isActive: metaForm.isActive,
+      availability: metaForm.availability ?? true,
+      isActive: metaForm.isActive ?? true,
+      image: null,
+      imageUrl: null,
     });
 
     setShowVariantModal(true);
   };
 
-  const openEditVariant = (idx) => {
+  const openEditVariantForMeta = (idx) => {
+    setVariantModalSource('meta');
     setEditingVariantIndex(idx);
-    setVariantForm(metaForm.variants[idx]);
+    const v = metaForm.variants[idx];
+    setVariantForm({
+      ...v,
+      image: null,
+    });
     setShowVariantModal(true);
   };
 
-  const removeVariant = (idx) => {
+  const removeVariantFromMeta = (idx) => {
     setMetaForm((prev) => ({
       ...prev,
       variants: prev.variants.filter((_, i) => i !== idx),
     }));
   };
 
-  const saveVariant = (e) => {
-    e.preventDefault();
-
-    // Basic validation
-    if (!variantForm.name?.trim()) {
-      alert('❌ Variant name is required');
-      return;
-    }
-    if (!variantForm.price) {
-      alert('❌ Variant price is required');
-      return;
-    }
-
-    setMetaForm((prev) => {
-      const next = [...prev.variants];
-
-      if (editingVariantIndex !== null) next[editingVariantIndex] = variantForm;
-      else next.push(variantForm);
-
-      return { ...prev, variants: next };
-    });
-
-    setShowVariantModal(false);
-    setVariantForm(emptyVariantForm);
-    setEditingVariantIndex(null);
-  };
-
   const handleMetaSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate image dimensions (Meta requires min 500x500)
     if (!metaForm.image) {
       alert('❌ Image is required for Meta Catalog');
       return;
@@ -212,9 +399,9 @@ export default function Products() {
       if (img.width < 500 || img.height < 500) {
         alert(
           '❌ Image must be at least 500×500 pixels. Current size: ' +
-            img.width +
-            '×' +
-            img.height,
+          img.width +
+          '×' +
+          img.height
         );
         return;
       }
@@ -231,18 +418,44 @@ export default function Products() {
   };
 
   const submitMetaProduct = async () => {
-    // 1) Create DB product (ONLY normal fields)
     const productFormData = new FormData();
     productFormData.append('name', metaForm.name);
     productFormData.append('description', metaForm.description || '');
     productFormData.append('price', metaForm.price);
+    productFormData.append('salePrice', metaForm.salePrice || '');
     productFormData.append('subCategoryId', metaForm.subCategoryId);
     productFormData.append('link', metaForm.link || '');
+    productFormData.append('contentId', metaForm.contentId || '');
+    // ✅ FIX
+    productFormData.append('availability', metaForm.availability === true ? 'true' : 'false');
+    productFormData.append('isActive', metaForm.isActive === true ? 'true' : 'false');
     if (metaForm.image) productFormData.append('image', metaForm.image);
 
     try {
+      setLoading(true);
       const created = await ecommerceApi.createProduct(productFormData);
       const productId = created.data.id;
+
+      // Create variants in DB
+      for (let i = 0; i < metaForm.variants.length; i++) {
+        const v = metaForm.variants[i];
+        const variantFormData = new FormData();
+        variantFormData.append('name', v.name);
+        variantFormData.append('description', v.description || '');
+        variantFormData.append('price', v.price);
+        variantFormData.append('salePrice', v.salePrice || '');
+        variantFormData.append('link', v.link || '');
+        variantFormData.append(
+          'contentId',
+          v.contentId || `${metaForm.contentId || `product_${productId}`}_v${i + 1}`
+        );
+        // ✅ FIX
+        variantFormData.append('availability', v.availability === true ? 'true' : 'false');
+        variantFormData.append('isActive', v.isActive === true ? 'true' : 'false');
+        if (v.image) variantFormData.append('image', v.image);
+
+        await ecommerceApi.createVariant(productId, variantFormData);
+      }
 
       const baseRetailerId = metaForm.contentId?.trim() || `product_${productId}`;
 
@@ -251,15 +464,11 @@ export default function Products() {
         description: metaForm.description,
         price: metaForm.price ? Number(metaForm.price) : undefined,
         link: metaForm.link || undefined,
-      
         salePrice: metaForm.salePrice ? Number(metaForm.salePrice) : undefined,
-        availability: !!metaForm.availability,
-        isActive: !!metaForm.isActive,
-      
-        // ✅ if user typed contentId use it, else product_{id}
+        // ✅ FIX
+        availability: metaForm.availability === true,
+        isActive: metaForm.isActive === true,
         contentId: baseRetailerId,
-      
-        // ✅ if variant contentId missing, auto-generate product_{id}_v1...
         variants: (metaForm.variants || []).map((v, idx) => ({
           name: v.name,
           description: v.description || undefined,
@@ -267,11 +476,12 @@ export default function Products() {
           salePrice: v.salePrice ? Number(v.salePrice) : undefined,
           link: v.link || undefined,
           contentId: v.contentId?.trim() || `${baseRetailerId}_v${idx + 1}`,
-          availability: !!v.availability,
-          isActive: !!v.isActive,
+          // ✅ FIX
+          availability: v.availability === true,
+          isActive: v.isActive === true,
         })),
       };
-      
+
       await ecommerceApi.syncProductToMeta(productId, metaPayload);
 
       alert('✅ Product created and synced to Meta Catalog!');
@@ -280,12 +490,73 @@ export default function Products() {
       loadData();
     } catch (error) {
       alert('❌ Failed: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
     }
   };
 
+  // ==================== VARIANT MODAL (SHARED) ====================
+  const closeVariantModal = () => {
+    setShowVariantModal(false);
+    setVariantForm(emptyVariantForm);
+    setEditingVariantIndex(null);
+  };
+
+  const saveVariant = (e) => {
+    e.preventDefault();
+
+    if (!variantForm.name?.trim()) {
+      alert('❌ Variant name is required');
+      return;
+    }
+    if (!variantForm.price) {
+      alert('❌ Variant price is required');
+      return;
+    }
+
+    const variantData = {
+      ...variantForm,
+      // ✅ FIX: Ensure booleans are actual booleans
+      availability: Boolean(variantForm.availability),
+      isActive: Boolean(variantForm.isActive),
+      id:
+        editingVariantIndex !== null
+          ? variantModalSource === 'product'
+            ? form.variants[editingVariantIndex]?.id
+            : metaForm.variants[editingVariantIndex]?.id
+          : null,
+    };
+
+    if (variantModalSource === 'meta') {
+      setMetaForm((prev) => {
+        const next = [...prev.variants];
+        if (editingVariantIndex !== null) {
+          next[editingVariantIndex] = variantData;
+        } else {
+          next.push(variantData);
+        }
+        return { ...prev, variants: next };
+      });
+    } else {
+      setForm((prev) => {
+        const next = [...prev.variants];
+        if (editingVariantIndex !== null) {
+          next[editingVariantIndex] = variantData;
+        } else {
+          next.push(variantData);
+        }
+        return { ...prev, variants: next };
+      });
+    }
+
+    setShowVariantModal(false);
+    setVariantForm(emptyVariantForm);
+    setEditingVariantIndex(null);
+  };
+
+  // ==================== SYNC FUNCTIONS ====================
   const handleSyncToMeta = async (prod) => {
     try {
-      // This sync uses existing product details only
       await ecommerceApi.syncProductToMeta(prod.id);
       alert(`✅ ${prod.name} synced to Meta Catalog successfully!`);
       loadData();
@@ -304,7 +575,7 @@ export default function Products() {
     }
   };
 
-  // ---------------- FILTERS ----------------
+  // ==================== FILTERS ====================
   const filteredProducts = products.filter((p) => {
     const matchesSearch =
       p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -314,23 +585,46 @@ export default function Products() {
     if (filterType === 'normal') return matchesSearch && !p.metaProductId;
     if (filterType === 'uploaded') return matchesSearch && p.metaProductId && p.source !== 'meta';
     if (filterType === 'synced') return matchesSearch && p.source === 'meta';
+    if (filterType === 'with-variants') return matchesSearch && p.variants?.length > 0;
     return matchesSearch;
   });
 
   const normalCount = products.filter((p) => !p.metaProductId).length;
   const uploadedCount = products.filter((p) => p.metaProductId && p.source !== 'meta').length;
   const syncedCount = products.filter((p) => p.source === 'meta').length;
+  const withVariantsCount = products.filter((p) => p.variants?.length > 0).length;
 
   return (
     <div className="ecommerce-container">
+      {/* Loading Overlay */}
+      {loading && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(255,255,255,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <div style={{ fontSize: 18, color: '#374151' }}>Loading...</div>
+        </div>
+      )}
+
+      {/* Header */}
       <div className="ecommerce-header">
         <div className="header-left">
           <h2>Products</h2>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-        <button onClick={openAddProductModal} className="btn-primary">
-  + Add Product
-</button>
+          <button onClick={openAddProductModal} className="btn-primary">
+            <Plus size={18} /> Add Product
+          </button>
           <button
             onClick={openMetaModal}
             style={{
@@ -349,7 +643,6 @@ export default function Products() {
           >
             <Upload size={18} /> Add to Meta Catalog
           </button>
-
           <button
             onClick={handleSyncFromMeta}
             style={{
@@ -371,8 +664,9 @@ export default function Products() {
         </div>
       </div>
 
+      {/* Filters */}
       <div className="filters-section">
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div
             style={{
               display: 'flex',
@@ -382,76 +676,31 @@ export default function Products() {
               borderRadius: '8px',
             }}
           >
-            <button
-              onClick={() => setFilterType('all')}
-              style={{
-                padding: '8px 16px',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontWeight: '500',
-                fontSize: '14px',
-                background: filterType === 'all' ? '#fff' : 'transparent',
-                color: filterType === 'all' ? '#1f2937' : '#6b7280',
-                boxShadow: filterType === 'all' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              }}
-            >
-              All ({products.length})
-            </button>
-
-            <button
-              onClick={() => setFilterType('normal')}
-              style={{
-                padding: '8px 16px',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontWeight: '500',
-                fontSize: '14px',
-                background: filterType === 'normal' ? '#fff' : 'transparent',
-                color: filterType === 'normal' ? '#1f2937' : '#6b7280',
-                boxShadow:
-                  filterType === 'normal' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              }}
-            >
-              Normal ({normalCount})
-            </button>
-
-            <button
-              onClick={() => setFilterType('uploaded')}
-              style={{
-                padding: '8px 16px',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontWeight: '500',
-                fontSize: '14px',
-                background: filterType === 'uploaded' ? '#fff' : 'transparent',
-                color: filterType === 'uploaded' ? '#25d366' : '#6b7280',
-                boxShadow:
-                  filterType === 'uploaded' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              }}
-            >
-              Uploaded to Meta ({uploadedCount})
-            </button>
-
-            <button
-              onClick={() => setFilterType('synced')}
-              style={{
-                padding: '8px 16px',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontWeight: '500',
-                fontSize: '14px',
-                background: filterType === 'synced' ? '#fff' : 'transparent',
-                color: filterType === 'synced' ? '#0084ff' : '#6b7280',
-                boxShadow:
-                  filterType === 'synced' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              }}
-            >
-              Synced from Meta ({syncedCount})
-            </button>
+            {[
+              { key: 'all', label: `All (${products.length})`, color: '#1f2937' },
+              { key: 'normal', label: `Normal (${normalCount})`, color: '#1f2937' },
+              { key: 'uploaded', label: `Uploaded (${uploadedCount})`, color: '#25d366' },
+              { key: 'synced', label: `Synced (${syncedCount})`, color: '#0084ff' },
+              { key: 'with-variants', label: `With Variants (${withVariantsCount})`, color: '#8b5cf6' },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setFilterType(tab.key)}
+                style={{
+                  padding: '8px 16px',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  fontSize: '14px',
+                  background: filterType === tab.key ? '#fff' : 'transparent',
+                  color: filterType === tab.key ? tab.color : '#6b7280',
+                  boxShadow: filterType === tab.key ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
           <div style={{ position: 'relative', width: '300px' }}>
@@ -479,113 +728,338 @@ export default function Products() {
         <div className="total-count">Showing: {filteredProducts.length}</div>
       </div>
 
+      {/* Products Table */}
       <div className="table-container">
         <table className="contacts-table">
           <thead>
             <tr>
+              <th style={{ width: '40px' }}></th>
               <th>Image</th>
               <th>Name</th>
               <th>Price</th>
               <th>Category</th>
+              <th>Status</th>
+              <th>Variants</th>
               <th>Actions</th>
             </tr>
           </thead>
 
           <tbody>
             {filteredProducts.map((prod) => (
-              <tr key={prod.id}>
-                <td>
-                  {prod.imageUrl && (
-                    <img
-                      src={
-                        prod.imageUrl.startsWith('http')
-                          ? prod.imageUrl
-                          : `http://localhost:3010${prod.imageUrl}`
-                      }
-                      alt={prod.name}
-                      className="product-image"
-                    />
-                  )}
-                </td>
+              <>
+                <tr key={prod.id}>
+                  {/* Expand Button */}
+                  <td>
+                    {prod.variants?.length > 0 && (
+                      <button
+                        onClick={() => toggleRowExpanded(prod.id)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                        title={expandedRows.has(prod.id) ? 'Collapse' : 'Expand'}
+                      >
+                        {expandedRows.has(prod.id) ? (
+                          <ChevronUp size={18} color="#6b7280" />
+                        ) : (
+                          <ChevronDown size={18} color="#6b7280" />
+                        )}
+                      </button>
+                    )}
+                  </td>
 
-                <td>
-                  <div style={{ fontWeight: 500 }}>{prod.name}</div>
-                  <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>
-                    {prod.description?.substring(0, 50)}
-                  </div>
-                </td>
+                  {/* Image */}
+                  <td>
+                    {prod.imageUrl ? (
+                      <img
+                        src={getImageUrl(prod.imageUrl)}
+                        alt={prod.name}
+                        className="product-image"
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: 50,
+                          height: 50,
+                          background: '#f3f4f6',
+                          borderRadius: 6,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#9ca3af',
+                          fontSize: 10,
+                        }}
+                      >
+                        No img
+                      </div>
+                    )}
+                  </td>
 
-                <td style={{ fontWeight: 600 }}>₹{prod.price}</td>
-                <td>{prod.subCategory?.name}</td>
+                  {/* Name */}
+                  <td>
+                    <div style={{ fontWeight: 500 }}>{prod.name}</div>
+                    <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>
+                      {prod.description?.substring(0, 50)}
+                    </div>
+                    {prod.contentId && (
+                      <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>
+                        ID: {prod.contentId}
+                      </div>
+                    )}
+                  </td>
 
-                <td>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      onClick={() => handleEdit(prod)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                      }}
-                      title="Edit"
+                  {/* Price */}
+                  <td>
+                    <div style={{ fontWeight: 600 }}>₹{prod.price}</div>
+                    {prod.salePrice && (
+                      <div style={{ fontSize: '12px', color: '#25d366' }}>
+                        Sale: ₹{prod.salePrice}
+                      </div>
+                    )}
+                  </td>
+
+                  {/* Category */}
+                  <td>{prod.subCategory?.name}</td>
+
+                  {/* Status */}
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          background: prod.availability ? '#dcfce7' : '#fee2e2',
+                          color: prod.availability ? '#166534' : '#991b1b',
+                        }}
+                      >
+                        {prod.availability ? 'In Stock' : 'Out of Stock'}
+                      </span>
+                      {prod.metaProductId && (
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            background: prod.source === 'meta' ? '#dbeafe' : '#d1fae5',
+                            color: prod.source === 'meta' ? '#1e40af' : '#065f46',
+                          }}
+                        >
+                          {prod.source === 'meta' ? 'From Meta' : 'On Meta'}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Variants */}
+
+
+                  {/* In the tbody, update the Variants column */}
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span
+                        style={{
+                          background: prod.variants?.length > 0 ? '#ede9fe' : '#f3f4f6',
+                          color: prod.variants?.length > 0 ? '#7c3aed' : '#6b7280',
+                          padding: '4px 10px',
+                          borderRadius: '12px',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          minWidth: '30px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        {prod.variants?.length || 0}
+                      </span>
+                      {prod.variants?.length > 0 && (
+                        <button
+                          onClick={() => toggleRowExpanded(prod.id)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: '2px',
+                            color: '#6b7280',
+                            fontSize: '11px',
+                          }}
+                        >
+                          {expandedRows.has(prod.id) ? 'Hide' : 'Show'}
+                        </button>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Actions */}
+                  <td>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => handleEdit(prod)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                        }}
+                        title="Edit"
+                      >
+                        <Pencil size={16} />
+                      </button>
+
+                      <button
+                        onClick={() => handleDelete(prod.id)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          color: '#ef4444',
+                        }}
+                        title="Delete"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+
+
+                    </div>
+                  </td>
+                </tr>
+
+                {/* Expanded Variants Row */}
+                {expandedRows.has(prod.id) && prod.variants?.length > 0 && (
+                  <tr>
+                    <td
+                      colSpan={8}
+                      style={{ background: '#f9fafb', padding: '16px 24px' }}
                     >
-                      <Pencil size={16} />
-                    </button>
+                      <div style={{ marginBottom: '12px', fontWeight: 600, color: '#374151' }}>
+                        Variants ({prod.variants.length})
+                      </div>
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                          gap: '12px',
+                        }}
+                      >
+                        {prod.variants.map((variant) => (
+                          <div
+                            key={variant.id}
+                            style={{
+                              background: 'white',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '8px',
+                              padding: '12px',
+                              display: 'flex',
+                              gap: '12px',
+                            }}
+                          >
+                            {/* Variant Image */}
+                            <div style={{ width: '60px', height: '60px', flexShrink: 0 }}>
+                              {variant.imageUrl ? (
+                                <img
+                                  src={getImageUrl(variant.imageUrl)}
+                                  alt={variant.name}
+                                  style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'cover',
+                                    borderRadius: '6px',
+                                  }}
+                                />
+                              ) : (
+                                <div
+                                  style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    background: '#f3f4f6',
+                                    borderRadius: '6px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#9ca3af',
+                                    fontSize: 10,
+                                  }}
+                                >
+                                  No img
+                                </div>
+                              )}
+                            </div>
 
-                    <button
-                      onClick={() => handleDelete(prod.id)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        color: '#ef4444',
-                      }}
-                      title="Delete"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-
-                    <button
-                      onClick={() => handleSyncToMeta(prod)}
-                      style={{
-                        background: 'none',
-                        border: '1px solid #e5e7eb',
-                        cursor: 'pointer',
-                        padding: '4px 10px',
-                        borderRadius: '8px',
-                        color: '#25d366',
-                        fontWeight: 700,
-                        fontSize: 12,
-                      }}
-                      title="Sync to Meta"
-                    >
-                      Sync
-                    </button>
-                  </div>
-                </td>
-              </tr>
+                            {/* Variant Info */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 500, marginBottom: '4px' }}>
+                                {variant.name}
+                              </div>
+                              <div style={{ fontSize: '13px', color: '#374151' }}>
+                                ₹{variant.price}
+                                {variant.salePrice && (
+                                  <span style={{ color: '#25d366', marginLeft: '8px' }}>
+                                    Sale: ₹{variant.salePrice}
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>
+                                ID: {variant.contentId || 'Not set'}
+                              </div>
+                              <div style={{ fontSize: '11px', marginTop: '2px' }}>
+                                <span
+                                  style={{
+                                    color: variant.availability ? '#22c55e' : '#ef4444',
+                                  }}
+                                >
+                                  {variant.availability ? '● In Stock' : '● Out of Stock'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </>
             ))}
           </tbody>
         </table>
+
+        {filteredProducts.length === 0 && (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '60px 20px',
+              color: '#6b7280',
+            }}
+          >
+            No products found
+          </div>
+        )}
       </div>
 
-      {/* ---------------- NORMAL ADD/EDIT PRODUCT MODAL ---------------- */}
+      {/* ==================== PRODUCT MODAL ==================== */}
       {showModal && (
-  <div className="modal-overlay" onClick={closeProductModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={closeProductModal}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '600px', maxHeight: '90vh', overflow: 'auto' }}
+          >
             <div className="modal-header">
               <h3>{editingProduct ? 'Edit' : 'Add New'} Product</h3>
-              <button className="modal-close" onClick={closeProductModal}>×</button>
-              
+              <button className="modal-close" onClick={closeProductModal}>
+                ×
+              </button>
             </div>
 
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label>Product Name</label>
+                <label>Product Name *</label>
                 <input
                   className="form-input"
                   placeholder="e.g., iPhone 15 Pro"
@@ -602,24 +1076,39 @@ export default function Products() {
                   placeholder="Product description..."
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={3}
                 />
               </div>
 
-              <div className="form-group">
-                <label>Price (₹)</label>
-                <input
-                  className="form-input"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={form.price}
-                  onChange={(e) => setForm({ ...form, price: e.target.value })}
-                  required
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label>Price (₹) *</label>
+                  <input
+                    className="form-input"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={form.price}
+                    onChange={(e) => setForm({ ...form, price: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Sale Price (₹)</label>
+                  <input
+                    className="form-input"
+                    type="number"
+                    step="0.01"
+                    placeholder="Optional"
+                    value={form.salePrice}
+                    onChange={(e) => setForm({ ...form, salePrice: e.target.value })}
+                  />
+                </div>
               </div>
 
               <div className="form-group">
-                <label>SubCategory</label>
+                <label>SubCategory *</label>
                 <select
                   className="form-select"
                   value={form.subCategoryId}
@@ -636,93 +1125,297 @@ export default function Products() {
               </div>
 
               <div className="form-group">
-  <label>Product Image</label>
-  <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px' }}>
-    Supported formats: JPEG, PNG (Max 5MB)
-  </p>
+                <label>Product Link</label>
+                <input
+                  className="form-input"
+                  type="url"
+                  placeholder="https://example.com/product"
+                  value={form.link}
+                  onChange={(e) => setForm({ ...form, link: e.target.value })}
+                />
+              </div>
 
-  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-    <label className="btn-secondary" style={{ cursor: 'pointer', margin: 0 }}>
-      {form.image ? 'Change Image' : 'Upload Image'}
-      <input
-        type="file"
-        accept="image/jpeg,image/jpg,image/png"
-        onChange={(e) => setForm({ ...form, image: e.target.files[0] })}
-        style={{ display: 'none' }}
-      />
-    </label>
-    {form.image && (
-      <span style={{ fontSize: '12px', color: '#25d366' }}>
-        ✓ {form.image.name}
-      </span>
-    )}
-  </div>
+              <div className="form-group">
+                <label>Content ID (Retailer ID)</label>
+                <input
+                  className="form-input"
+                  placeholder="Optional (auto-generated if empty)"
+                  value={form.contentId}
+                  onChange={(e) => setForm({ ...form, contentId: e.target.value })}
+                />
+                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 6 }}>
+                  Used as Meta <b>retailer_id</b> when syncing.
+                </div>
+              </div>
 
-  {(form.image || editingProduct?.imageUrl) && (
-    <div
-      style={{
-        marginTop: '10px',
-        position: 'relative',
-        display: 'inline-block',
-        width: '200px',
-      }}
-    >
-      <img
-        src={
-          form.image
-            ? URL.createObjectURL(form.image)
-            : editingProduct.imageUrl?.startsWith('http')
-            ? editingProduct.imageUrl
-            : `http://localhost:3010${editingProduct.imageUrl}`
-        }
-        alt="Preview"
-        style={{
-          width: '100%',
-          height: '150px',
-          borderRadius: '4px',
-          border: '2px solid #e2e8f0',
-          objectFit: 'cover',
-          display: 'block',
-        }}
-      />
-      <button
-        type="button"
-        style={{
-          position: 'absolute',
-          top: '8px',
-          right: '8px',
-          width: '28px',
-          height: '28px',
-          padding: '0',
-          border: 'none',
-          borderRadius: '50%',
-          background: 'rgba(239, 68, 68, 0.9)',
-          color: 'white',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '18px',
-          fontWeight: 'bold',
-          lineHeight: '1',
-        }}
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setForm({ ...form, image: null });
-          setEditingProduct((prev) =>
-            prev ? { ...prev, imageUrl: null } : null
-          );
-        }}
-        title="Remove image"
-      >
-        ×
-      </button>
-    </div>
-  )}
-</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label>Availability</label>
+                  <div className="toggle-row">
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
+                      {form.availability ? 'In stock' : 'Out of stock'}
+                    </span>
+                    <label className="switch">
+                      <input
+                        type="checkbox"
+                        checked={form.availability}
+                        onChange={(e) => setForm({ ...form, availability: e.target.checked })}
+                      />
+                      <span className="slider" />
+                    </label>
+                  </div>
+                </div>
 
-              <button type="submit" className="btn-primary">
+                <div className="form-group">
+                  <label>Status</label>
+                  <div className="toggle-row">
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
+                      {form.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                    <label className="switch">
+                      <input
+                        type="checkbox"
+                        checked={form.isActive}
+                        onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+                      />
+                      <span className="slider" />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Variants Section */}
+              <div className="form-group">
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '8px',
+                  }}
+                >
+                  <label style={{ margin: 0 }}>Variants ({form.variants.length})</label>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={openAddVariantForProduct}
+                    style={{ padding: '6px 12px', fontSize: '13px' }}
+                  >
+                    + Add Variant
+                  </button>
+                </div>
+
+                {form.variants.length === 0 ? (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: '#6b7280',
+                      padding: '16px',
+                      background: '#f9fafb',
+                      borderRadius: '8px',
+                      textAlign: 'center',
+                    }}
+                  >
+                    No variants added. Click "Add Variant" to add product variants.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {form.variants.map((v, idx) => (
+                      <div
+                        key={v.id || idx}
+                        style={{
+                          display: 'flex',
+                          gap: '10px',
+                          alignItems: 'center',
+                          padding: '10px',
+                          background: '#f9fafb',
+                          borderRadius: '8px',
+                          border: '1px solid #e5e7eb',
+                        }}
+                      >
+                        {/* Variant Image Thumbnail */}
+                        {v.image || v.imageUrl ? (
+                          <img
+                            src={
+                              v.image
+                                ? URL.createObjectURL(v.image)
+                                : getImageUrl(v.imageUrl)
+                            }
+                            alt={v.name}
+                            style={{
+                              width: 50,
+                              height: 50,
+                              borderRadius: 6,
+                              objectFit: 'cover',
+                              border: '1px solid #e5e7eb',
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: 50,
+                              height: 50,
+                              borderRadius: 6,
+                              background: '#e5e7eb',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#9ca3af',
+                              fontSize: 10,
+                            }}
+                          >
+                            No img
+                          </div>
+                        )}
+
+                        {/* Variant Info */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 500, fontSize: '14px' }}>{v.name}</div>
+                          <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                            ₹{v.price}
+                            {v.salePrice ? ` (Sale ₹${v.salePrice})` : ''} •{' '}
+                            {v.availability ? 'In stock' : 'Out of stock'}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#9ca3af' }}>
+                            ID: {v.contentId || 'Auto'}
+                            {v.id && (
+                              <span
+                                style={{
+                                  marginLeft: 8,
+                                  color: '#22c55e',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                ✓ Saved
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Variant Actions */}
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={() => openEditVariantForProduct(idx)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              padding: '6px',
+                              borderRadius: '4px',
+                            }}
+                            title="Edit"
+                          >
+                            <Pencil size={16} color="#6b7280" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeVariantFromProduct(idx)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              padding: '6px',
+                              borderRadius: '4px',
+                            }}
+                            title="Delete"
+                          >
+                            <Trash2 size={16} color="#ef4444" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Product Image */}
+              <div className="form-group">
+                <label>Product Image</label>
+                <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px' }}>
+                  Supported formats: JPEG, PNG (Max 5MB)
+                </p>
+
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <label className="btn-secondary" style={{ cursor: 'pointer', margin: 0 }}>
+                    {form.image ? 'Change Image' : 'Upload Image'}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png"
+                      onChange={(e) => setForm({ ...form, image: e.target.files[0] })}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                  {form.image && (
+                    <span style={{ fontSize: '12px', color: '#25d366' }}>
+                      ✓ {form.image.name}
+                    </span>
+                  )}
+                </div>
+
+                {(form.image || editingProduct?.imageUrl) && (
+                  <div
+                    style={{
+                      marginTop: '10px',
+                      position: 'relative',
+                      display: 'inline-block',
+                      width: '200px',
+                    }}
+                  >
+                    <img
+                      src={
+                        form.image
+                          ? URL.createObjectURL(form.image)
+                          : getImageUrl(editingProduct.imageUrl)
+                      }
+                      alt="Preview"
+                      style={{
+                        width: '100%',
+                        height: '150px',
+                        borderRadius: '4px',
+                        border: '2px solid #e2e8f0',
+                        objectFit: 'cover',
+                        display: 'block',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      style={{
+                        position: 'absolute',
+                        top: '8px',
+                        right: '8px',
+                        width: '28px',
+                        height: '28px',
+                        padding: '0',
+                        border: 'none',
+                        borderRadius: '50%',
+                        background: 'rgba(239, 68, 68, 0.9)',
+                        color: 'white',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '18px',
+                        fontWeight: 'bold',
+                        lineHeight: '1',
+                      }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setForm({ ...form, image: null });
+                        if (editingProduct) {
+                          setEditingProduct({ ...editingProduct, imageUrl: null });
+                        }
+                      }}
+                      title="Remove image"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <button type="submit" className="btn-primary" style={{ width: '100%' }}>
                 {editingProduct ? 'Update' : 'Add'} Product
               </button>
             </form>
@@ -730,25 +1423,29 @@ export default function Products() {
         </div>
       )}
 
-      {/* ---------------- META MODAL ---------------- */}
+      {/* ==================== META MODAL ==================== */}
       {showMetaModal && (
-        <div className="modal-overlay" onClick={() => setShowMetaModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={closeMetaModal}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '600px', maxHeight: '90vh', overflow: 'auto' }}
+          >
             <div className="modal-header">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Upload size={20} color="#25d366" /> Add to Meta Catalog
               </h3>
-              <button className="modal-close" onClick={() => setShowMetaModal(false)}>
+              <button className="modal-close" onClick={closeMetaModal}>
                 ×
               </button>
             </div>
 
             <form onSubmit={handleMetaSubmit}>
               <div className="form-group">
-                <label>Product Name</label>
+                <label>Product Name *</label>
                 <input
                   className="form-input"
-                   placeholder="e.g., iPhone 15 Pro"
+                  placeholder="e.g., iPhone 15 Pro"
                   value={metaForm.name}
                   onChange={(e) => setMetaForm({ ...metaForm, name: e.target.value })}
                   required
@@ -759,39 +1456,42 @@ export default function Products() {
                 <label>Description</label>
                 <textarea
                   className="form-textarea"
-                   placeholder="Product description..."
+                  placeholder="Product description..."
                   value={metaForm.description}
                   onChange={(e) => setMetaForm({ ...metaForm, description: e.target.value })}
+                  rows={3}
                 />
               </div>
 
-              <div className="form-group">
-                <label>Price (₹)</label>
-                <input
-                  className="form-input"
-                  type="number"
-                   placeholder="0.00"
-                  step="0.01"
-                  value={metaForm.price}
-                  onChange={(e) => setMetaForm({ ...metaForm, price: e.target.value })}
-                  required
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label>Price (₹) *</label>
+                  <input
+                    className="form-input"
+                    type="number"
+                    placeholder="0.00"
+                    step="0.01"
+                    value={metaForm.price}
+                    onChange={(e) => setMetaForm({ ...metaForm, price: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Sale Price (₹)</label>
+                  <input
+                    className="form-input"
+                    type="number"
+                    step="0.01"
+                    value={metaForm.salePrice}
+                    onChange={(e) => setMetaForm({ ...metaForm, salePrice: e.target.value })}
+                    placeholder="Optional"
+                  />
+                </div>
               </div>
 
               <div className="form-group">
-                <label>Sale Price (₹)</label>
-                <input
-                  className="form-input"
-                  type="number"
-                  step="0.01"
-                  value={metaForm.salePrice}
-                  onChange={(e) => setMetaForm({ ...metaForm, salePrice: e.target.value })}
-                  placeholder="Optional"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>SubCategory</label>
+                <label>SubCategory *</label>
                 <select
                   className="form-select"
                   value={metaForm.subCategoryId}
@@ -831,76 +1531,168 @@ export default function Products() {
                 </div>
               </div>
 
-              <div className="form-group">
-                <label>Availability</label>
-                <div className="toggle-row">
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
-                    {metaForm.availability ? 'In stock' : 'Out of stock'}
-                  </span>
-                  <label className="switch">
-                    <input
-                      type="checkbox"
-                      checked={metaForm.availability}
-                      onChange={(e) => setMetaForm({ ...metaForm, availability: e.target.checked })}
-                    />
-                    <span className="slider" />
-                  </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label>Availability</label>
+                  <div className="toggle-row">
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
+                      {metaForm.availability ? 'In stock' : 'Out of stock'}
+                    </span>
+                    <label className="switch">
+                      <input
+                        type="checkbox"
+                        checked={metaForm.availability}
+                        onChange={(e) =>
+                          setMetaForm({ ...metaForm, availability: e.target.checked })
+                        }
+                      />
+                      <span className="slider" />
+                    </label>
+                  </div>
                 </div>
-              </div>
 
-              <div className="form-group">
-                <label>Status</label>
-                <div className="toggle-row">
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
-                    {metaForm.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                  <label className="switch">
-                    <input
-                      type="checkbox"
-                      checked={metaForm.isActive}
-                      onChange={(e) => setMetaForm({ ...metaForm, isActive: e.target.checked })}
-                    />
-                    <span className="slider" />
-                  </label>
+                <div className="form-group">
+                  <label>Status</label>
+                  <div className="toggle-row">
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
+                      {metaForm.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                    <label className="switch">
+                      <input
+                        type="checkbox"
+                        checked={metaForm.isActive}
+                        onChange={(e) => setMetaForm({ ...metaForm, isActive: e.target.checked })}
+                      />
+                      <span className="slider" />
+                    </label>
+                  </div>
                 </div>
               </div>
 
               {/* Variants */}
               <div className="form-group">
-                <div className="variant-header">
-                  <label style={{ margin: 0 }}>Variants</label>
-                  <button type="button" className="btn-secondary" onClick={openAddVariant}>
-                    + Add New Variant
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '8px',
+                  }}
+                >
+                  <label style={{ margin: 0 }}>Variants ({metaForm.variants.length})</label>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={openAddVariantForMeta}
+                    style={{ padding: '6px 12px', fontSize: '13px' }}
+                  >
+                    + Add Variant
                   </button>
                 </div>
 
                 {metaForm.variants.length === 0 ? (
-                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: '#6b7280',
+                      padding: '16px',
+                      background: '#f9fafb',
+                      borderRadius: '8px',
+                      textAlign: 'center',
+                    }}
+                  >
                     No variants added.
                   </div>
                 ) : (
-                  <div className="variant-list">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {metaForm.variants.map((v, idx) => (
-                      <div className="variant-card" key={idx}>
-                        <div style={{ minWidth: 0 }}>
-                          <div className="variant-title">{v.name}</div>
-                          <div className="variant-meta">
+                      <div
+                        key={idx}
+                        style={{
+                          display: 'flex',
+                          gap: '10px',
+                          alignItems: 'center',
+                          padding: '10px',
+                          background: '#f9fafb',
+                          borderRadius: '8px',
+                          border: '1px solid #e5e7eb',
+                        }}
+                      >
+                        {/* Variant Image Thumbnail */}
+                        {v.image || v.imageUrl ? (
+                          <img
+                            src={
+                              v.image
+                                ? URL.createObjectURL(v.image)
+                                : getImageUrl(v.imageUrl)
+                            }
+                            alt={v.name}
+                            style={{
+                              width: 50,
+                              height: 50,
+                              borderRadius: 6,
+                              objectFit: 'cover',
+                              border: '1px solid #e5e7eb',
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: 50,
+                              height: 50,
+                              borderRadius: 6,
+                              background: '#e5e7eb',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#9ca3af',
+                              fontSize: 10,
+                            }}
+                          >
+                            No img
+                          </div>
+                        )}
+
+                        {/* Variant Info */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 500, fontSize: '14px' }}>{v.name}</div>
+                          <div style={{ fontSize: '12px', color: '#6b7280' }}>
                             ₹{v.price}
                             {v.salePrice ? ` (Sale ₹${v.salePrice})` : ''} •{' '}
-                            {v.availability ? 'In stock' : 'Out of stock'} •{' '}
-                            {v.isActive ? 'Active' : 'Inactive'}
+                            {v.availability ? 'In stock' : 'Out of stock'}
                           </div>
-                          <div className="variant-meta">
-                            Content ID: <b>{v.contentId || '-'}</b>
+                          <div style={{ fontSize: '11px', color: '#9ca3af' }}>
+                            ID: {v.contentId || 'Auto'}
                           </div>
                         </div>
 
-                        <div className="variant-actions">
-                          <button type="button" onClick={() => openEditVariant(idx)} title="Edit">
-                            <Pencil size={16} />
+                        {/* Variant Actions */}
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={() => openEditVariantForMeta(idx)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              padding: '6px',
+                            }}
+                            title="Edit"
+                          >
+                            <Pencil size={16} color="#6b7280" />
                           </button>
-                          <button type="button" onClick={() => removeVariant(idx)} title="Delete">
-                            <Trash2 size={16} />
+                          <button
+                            type="button"
+                            onClick={() => removeVariantFromMeta(idx)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              padding: '6px',
+                            }}
+                            title="Delete"
+                          >
+                            <Trash2 size={16} color="#ef4444" />
                           </button>
                         </div>
                       </div>
@@ -909,11 +1701,19 @@ export default function Products() {
                 )}
               </div>
 
+              {/* Product Image */}
               <div className="form-group">
                 <label>
                   Product Image <span style={{ color: '#ef4444' }}>*</span>
                 </label>
-                <p style={{ fontSize: '12px', color: '#ef4444', marginBottom: '8px', fontWeight: '500' }}>
+                <p
+                  style={{
+                    fontSize: '12px',
+                    color: '#ef4444',
+                    marginBottom: '8px',
+                    fontWeight: '500',
+                  }}
+                >
                   Required: Minimum 500×500 pixels | JPEG, PNG (Max 5MB)
                 </p>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -927,12 +1727,21 @@ export default function Products() {
                     />
                   </label>
                   {metaForm.image && (
-                    <span style={{ fontSize: '12px', color: '#25d366' }}>✓ {metaForm.image.name}</span>
+                    <span style={{ fontSize: '12px', color: '#25d366' }}>
+                      ✓ {metaForm.image.name}
+                    </span>
                   )}
                 </div>
 
                 {metaForm.image && (
-                  <div style={{ marginTop: '10px', position: 'relative', display: 'inline-block', width: '200px' }}>
+                  <div
+                    style={{
+                      marginTop: '10px',
+                      position: 'relative',
+                      display: 'inline-block',
+                      width: '200px',
+                    }}
+                  >
                     <img
                       src={URL.createObjectURL(metaForm.image)}
                       alt="Preview"
@@ -1000,23 +1809,27 @@ export default function Products() {
         </div>
       )}
 
-      {/* ---------------- VARIANT MODAL ---------------- */}
+      {/* ==================== VARIANT MODAL (SHARED) ==================== */}
       {showVariantModal && (
-        <div className="modal-overlay variant" onClick={() => setShowVariantModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={closeVariantModal}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '500px', maxHeight: '90vh', overflow: 'auto' }}
+          >
             <div className="modal-header">
               <h3>{editingVariantIndex !== null ? 'Edit Variant' : 'Add Variant'}</h3>
-              <button className="modal-close" onClick={() => setShowVariantModal(false)}>
+              <button className="modal-close" onClick={closeVariantModal}>
                 ×
               </button>
             </div>
 
             <form onSubmit={saveVariant}>
               <div className="form-group">
-                <label>Name</label>
+                <label>Variant Name *</label>
                 <input
                   className="form-input"
-                   placeholder="e.g., iPhone"
+                  placeholder="e.g., 128GB Black"
                   value={variantForm.name}
                   onChange={(e) => setVariantForm({ ...variantForm, name: e.target.value })}
                   required
@@ -1027,42 +1840,49 @@ export default function Products() {
                 <label>Description</label>
                 <textarea
                   className="form-textarea"
-                   placeholder="Varient description..."
+                  placeholder="Variant description..."
                   value={variantForm.description}
-                  onChange={(e) => setVariantForm({ ...variantForm, description: e.target.value })}
+                  onChange={(e) =>
+                    setVariantForm({ ...variantForm, description: e.target.value })
+                  }
+                  rows={2}
                 />
               </div>
 
-              <div className="form-group">
-                <label>Price (₹)</label>
-                <input
-                  className="form-input"
-                  type="number"
-                   placeholder="0.00"
-                  step="0.01"
-                  value={variantForm.price}
-                  onChange={(e) => setVariantForm({ ...variantForm, price: e.target.value })}
-                  required
-                />
-              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label>Price (₹) *</label>
+                  <input
+                    className="form-input"
+                    type="number"
+                    placeholder="0.00"
+                    step="0.01"
+                    value={variantForm.price}
+                    onChange={(e) => setVariantForm({ ...variantForm, price: e.target.value })}
+                    required
+                  />
+                </div>
 
-              <div className="form-group">
-                <label>Sale Price (₹)</label>
-                <input
-                  className="form-input"
-                  type="number"
-                   placeholder="0.00"
-                  step="0.01"
-                  value={variantForm.salePrice}
-                  onChange={(e) => setVariantForm({ ...variantForm, salePrice: e.target.value })}
-                />
+                <div className="form-group">
+                  <label>Sale Price (₹)</label>
+                  <input
+                    className="form-input"
+                    type="number"
+                    placeholder="0.00"
+                    step="0.01"
+                    value={variantForm.salePrice}
+                    onChange={(e) =>
+                      setVariantForm({ ...variantForm, salePrice: e.target.value })
+                    }
+                  />
+                </div>
               </div>
 
               <div className="form-group">
                 <label>Link</label>
                 <input
                   className="form-input"
-                   placeholder="https://example.com/product"
+                  placeholder="https://example.com/product/variant"
                   type="url"
                   value={variantForm.link}
                   onChange={(e) => setVariantForm({ ...variantForm, link: e.target.value })}
@@ -1073,159 +1893,158 @@ export default function Products() {
                 <label>Content ID (Retailer ID)</label>
                 <input
                   className="form-input"
-                  placeholder="Recommended unique value (optional)"
+                  placeholder="Unique ID for this variant (optional)"
                   value={variantForm.contentId}
-                  onChange={(e) => setVariantForm({ ...variantForm, contentId: e.target.value })}
+                  onChange={(e) =>
+                    setVariantForm({ ...variantForm, contentId: e.target.value })
+                  }
                 />
-              </div>
-
-              <div className="form-group">
-                <label>Availability</label>
-                <div className="toggle-row">
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
-                    {variantForm.availability ? 'In stock' : 'Out of stock'}
-                  </span>
-                  <label className="switch">
-                    <input
-                      type="checkbox"
-                      checked={variantForm.availability}
-                      onChange={(e) => setVariantForm({ ...variantForm, availability: e.target.checked })}
-                    />
-                    <span className="slider" />
-                  </label>
+                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>
+                  Auto-generated if empty. Must be unique across all products/variants.
                 </div>
               </div>
 
-              <div className="form-group">
-                <label>Status</label>
-                <div className="toggle-row">
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
-                    {variantForm.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                  <label className="switch">
-                    <input
-                      type="checkbox"
-                      checked={variantForm.isActive}
-                      onChange={(e) => setVariantForm({ ...variantForm, isActive: e.target.checked })}
-                    />
-                    <span className="slider" />
-                  </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label>Availability</label>
+                  <div className="toggle-row">
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
+                      {variantForm.availability ? 'In stock' : 'Out of stock'}
+                    </span>
+                    <label className="switch">
+                      <input
+                        type="checkbox"
+                        checked={variantForm.availability}
+                        onChange={(e) =>
+                          setVariantForm({ ...variantForm, availability: e.target.checked })
+                        }
+                      />
+                      <span className="slider" />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Status</label>
+                  <div className="toggle-row">
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
+                      {variantForm.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                    <label className="switch">
+                      <input
+                        type="checkbox"
+                        checked={variantForm.isActive}
+                        onChange={(e) =>
+                          setVariantForm({ ...variantForm, isActive: e.target.checked })
+                        }
+                      />
+                      <span className="slider" />
+                    </label>
+                  </div>
                 </div>
               </div>
 
-              {/* Image upload for variant */}
-<div className="form-group">
-  <label>Variant Image</label>
-  <p
-    style={{
-      fontSize: '12px',
-      color: '#6b7280',
-      marginBottom: '8px',
-    }}
-  >
-    Optional. Supported: JPEG, PNG (Max 5MB)
-  </p>
+              {/* Variant Image */}
+              <div className="form-group">
+                <label>Variant Image</label>
+                <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px' }}>
+                  Optional. Supported: JPEG, PNG (Max 5MB)
+                </p>
 
-  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-    <label className="btn-secondary" style={{ cursor: 'pointer', margin: 0 }}>
-      {variantForm.image ? 'Change Image' : 'Upload Image'}
-      <input
-        type="file"
-        accept="image/jpeg,image/jpg,image/png"
-        onChange={(e) => {
-          const file = e.target.files[0];
-          if (!file) return;
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <label className="btn-secondary" style={{ cursor: 'pointer', margin: 0 }}>
+                    {variantForm.image ? 'Change Image' : 'Upload Image'}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
 
-          // you can add simple 5MB validation if needed
-          if (file.size > 5 * 1024 * 1024) {
-            alert('❌ Max file size is 5MB');
-            return;
-          }
+                        if (file.size > 5 * 1024 * 1024) {
+                          alert('❌ Max file size is 5MB');
+                          return;
+                        }
 
-          setVariantForm((prev) => ({
-            ...prev,
-            image: file,
-            imageUrl: null, // reset URL if you use both
-          }));
-        }}
-        style={{ display: 'none' }}
-      />
-    </label>
+                        setVariantForm((prev) => ({
+                          ...prev,
+                          image: file,
+                          imageUrl: null,
+                        }));
+                      }}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
 
-    {variantForm.image && (
-      <span style={{ fontSize: '12px', color: '#25d366' }}>
-        ✓ {variantForm.image.name}
-      </span>
-    )}
-  </div>
+                  {variantForm.image && (
+                    <span style={{ fontSize: '12px', color: '#25d366' }}>
+                      ✓ {variantForm.image.name}
+                    </span>
+                  )}
+                </div>
 
-  {/* Preview for newly selected file OR existing URL */}
-  {(variantForm.image || variantForm.imageUrl) && (
-    <div
-      style={{
-        marginTop: '10px',
-        position: 'relative',
-        display: 'inline-block',
-        width: '160px',
-      }}
-    >
-      <img
-        src={
-          variantForm.image
-            ? URL.createObjectURL(variantForm.image)
-            : variantForm.imageUrl.startsWith('http')
-            ? variantForm.imageUrl
-            : `http://localhost:3010${variantForm.imageUrl}`
-        }
-        alt="Variant preview"
-        style={{
-          width: '100%',
-          height: '120px',
-          borderRadius: '4px',
-          border: '2px solid #e2e8f0',
-          objectFit: 'cover',
-          display: 'block',
-        }}
-      />
-
-      {/* Remove image button */}
-      <button
-        type="button"
-        style={{
-          position: 'absolute',
-          top: '6px',
-          right: '6px',
-          width: '24px',
-          height: '24px',
-          padding: 0,
-          border: 'none',
-          borderRadius: '50%',
-          background: 'rgba(239, 68, 68, 0.9)',
-          color: 'white',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '16px',
-          fontWeight: 'bold',
-          lineHeight: 1,
-        }}
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setVariantForm((prev) => ({
-            ...prev,
-            image: null,
-            imageUrl: null,
-          }));
-        }}
-        title="Remove image"
-      >
-        ×
-      </button>
-    </div>
-  )}
-</div>
+                {(variantForm.image || variantForm.imageUrl) && (
+                  <div
+                    style={{
+                      marginTop: '10px',
+                      position: 'relative',
+                      display: 'inline-block',
+                      width: '160px',
+                    }}
+                  >
+                    <img
+                      src={
+                        variantForm.image
+                          ? URL.createObjectURL(variantForm.image)
+                          : getImageUrl(variantForm.imageUrl)
+                      }
+                      alt="Variant preview"
+                      style={{
+                        width: '100%',
+                        height: '120px',
+                        borderRadius: '4px',
+                        border: '2px solid #e2e8f0',
+                        objectFit: 'cover',
+                        display: 'block',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      style={{
+                        position: 'absolute',
+                        top: '6px',
+                        right: '6px',
+                        width: '24px',
+                        height: '24px',
+                        padding: 0,
+                        border: 'none',
+                        borderRadius: '50%',
+                        background: 'rgba(239, 68, 68, 0.9)',
+                        color: 'white',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '16px',
+                        fontWeight: 'bold',
+                        lineHeight: 1,
+                      }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setVariantForm((prev) => ({
+                          ...prev,
+                          image: null,
+                          imageUrl: null,
+                        }));
+                      }}
+                      title="Remove image"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+              </div>
 
               <button type="submit" className="btn-primary" style={{ width: '100%' }}>
                 {editingVariantIndex !== null ? 'Update Variant' : 'Add Variant'}

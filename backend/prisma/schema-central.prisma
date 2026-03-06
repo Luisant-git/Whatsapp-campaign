@@ -61,6 +61,7 @@ model SubUser {
   password     String
   mobileNumber String   @unique
   designation  String?
+  menuPermission SubUserMenuPermission? 
   role         String   @default("staff")
   isActive     Boolean  @default(true)
 
@@ -69,6 +70,15 @@ model SubUser {
 
   @@index([role])
   @@index([tenantId])
+}
+
+model SubUserMenuPermission {
+  id          Int      @id @default(autoincrement())
+  subUserId   Int      @unique
+  subUser     SubUser  @relation(fields: [subUserId], references: [id], onDelete: Cascade)
+  permission  Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 

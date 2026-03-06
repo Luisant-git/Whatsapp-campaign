@@ -1,5 +1,5 @@
 import { useState } from "react";
-
+import { useNavigate } from "react-router-dom";
 import { loginUser, getProfile } from "../api/auth";
 import { useToast } from "../contexts/ToastContext";
 import "../styles/Login.css";
@@ -16,7 +16,7 @@ function Login({ onLogin }) {
   const [errorMessage, setErrorMessage] = useState("");
 
 
- 
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();

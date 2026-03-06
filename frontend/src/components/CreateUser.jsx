@@ -10,6 +10,7 @@ import {
   Loader2,
   AlertCircle,
   Edit2,
+  Shield, // for Menu Permission button
 } from "lucide-react";
 
 import "../styles/CreateUser.css";
@@ -20,6 +21,27 @@ import {
   updateSubUser,
   deactivateSubUser,
 } from "../api/subuser";
+
+import {
+  getSubUserMenuPermission,
+  saveSubUserMenuPermission,
+} from "../api/subuserMenuPermission";
+
+import { getCurrentMenuPermission } from "../api/menu";
+
+function toBoolMap(obj) {
+  if (!obj || typeof obj !== "object") return {};
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) out[k] = v === true;
+  return out;
+}
+
+function formatMenuKey(key = "") {
+  // "contacts.blacklist" -> "Contacts Blacklist"
+  return key
+    .replace(/[._-]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 export default function CreateUser({ tenantId: tenantIdProp }) {
   const tenantIdStr = tenantIdProp ?? localStorage.getItem("tenantId");
@@ -44,12 +66,20 @@ export default function CreateUser({ tenantId: tenantIdProp }) {
   const [editingUser, setEditingUser] = useState(null);
   const [viewUser, setViewUser] = useState(null);
 
+  // ---------- menu permission modal state ----------
+  const [showMenuModal, setShowMenuModal] = useState(false);
+  const [menuUser, setMenuUser] = useState(null); // user for which modal is opened
+  const [menuLoading, setMenuLoading] = useState(false);
+  const [menuSaving, setMenuSaving] = useState(false);
+  const [tenantMenu, setTenantMenu] = useState({}); // allowed menus map {key:true}
+  const [menuForm, setMenuForm] = useState({}); // subuser permission map {key:boolean}
+
   const { showSuccess, showError } = useToast();
 
-  // ---------- form data (role removed) ----------
+  // ---------- form data ----------
   const [formData, setFormData] = useState({
     email: "",
-    password: "", // only used for CREATE
+    password: "",
     mobileNumber: "",
     designation: "",
   });
@@ -62,7 +92,7 @@ export default function CreateUser({ tenantId: tenantIdProp }) {
       designation: "",
     });
 
-  // ---------- Fetch ----------
+  // ---------- Fetch users ----------
   const fetchSubUsers = async () => {
     setError("");
 
@@ -74,7 +104,7 @@ export default function CreateUser({ tenantId: tenantIdProp }) {
 
     setLoading(true);
     try {
-      const list = await getTenantSubUsers(tenantId); // normalized array
+      const list = await getTenantSubUsers(tenantId);
       setUsers(Array.isArray(list) ? list : []);
     } catch (e) {
       setError(e.message || "Failed to load users");
@@ -112,28 +142,18 @@ export default function CreateUser({ tenantId: tenantIdProp }) {
 
   const paginatedUsers = filteredUsers.slice((page - 1) * limit, page * limit);
 
-  // ---------- Submit (Create / Update) ----------
+  // ---------- Create/Update user (ONLY user details) ----------
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const phone = (formData.mobileNumber || "").replace(/[^0-9]/g, "");
 
-    if (!hasTenantId) {
-      setValidationError("Missing tenantId.");
-      return;
-    }
-    if (!formData.email.trim()) {
-      setValidationError("Please enter email.");
-      return;
-    }
-    if (!editingUser && !formData.password.trim()) {
-      setValidationError("Please enter password.");
-      return;
-    }
-    if (phone.length !== 10) {
-      setValidationError("Please enter a valid 10‑digit mobile number.");
-      return;
-    }
+    if (!hasTenantId) return setValidationError("Missing tenantId.");
+    if (!formData.email.trim()) return setValidationError("Please enter email.");
+    if (!editingUser && !formData.password.trim())
+      return setValidationError("Please enter password.");
+    if (phone.length !== 10)
+      return setValidationError("Please enter a valid 10‑digit mobile number.");
 
     setValidationError("");
     setError("");
@@ -141,7 +161,6 @@ export default function CreateUser({ tenantId: tenantIdProp }) {
 
     try {
       if (editingUser) {
-        // UPDATE (no password, no role)
         const payload = {
           email: formData.email.trim(),
           mobileNumber: phone,
@@ -151,7 +170,6 @@ export default function CreateUser({ tenantId: tenantIdProp }) {
         const res = await updateSubUser(editingUser.id, payload);
         showSuccess(res?.message || "Sub-user updated successfully");
       } else {
-        // CREATE (password required; role omitted -> backend default staff)
         const payload = {
           tenantId,
           email: formData.email.trim(),
@@ -197,10 +215,69 @@ export default function CreateUser({ tenantId: tenantIdProp }) {
     }
   };
 
+  // ---------- Open Menu Permission Modal ----------
+  const openMenuPermissionModal = async (user) => {
+    setMenuUser(user);
+    setShowMenuModal(true);
+    setMenuLoading(true);
+    setError("");
+
+    try {
+      // tenant allowed menus (from subscription/current)
+      const tenantRes = await getCurrentMenuPermission(); // { permission: {...} }
+      const tMenu = toBoolMap(tenantRes?.permission);
+      setTenantMenu(tMenu);
+
+      // subuser saved permission
+      const subRes = await getSubUserMenuPermission(user.id);
+      const subPerm = toBoolMap(subRes?.permission);
+
+      // init: only allowed tenant keys
+      const init = {};
+      for (const k of Object.keys(tMenu)) init[k] = subPerm[k] === true;
+      setMenuForm(init);
+    } catch (e) {
+      const msg = e.message || "Failed to load menu permissions";
+      setError(msg);
+      showError(msg);
+    } finally {
+      setMenuLoading(false);
+    }
+  };
+
+  const closeMenuPermissionModal = () => {
+    setShowMenuModal(false);
+    setMenuUser(null);
+    setTenantMenu({});
+    setMenuForm({});
+    setMenuLoading(false);
+    setMenuSaving(false);
+  };
+
+  const saveMenuPermissions = async () => {
+    if (!menuUser?.id) return;
+
+    setMenuSaving(true);
+    try {
+      // only allow keys from tenantMenu
+      const payload = {};
+      for (const [k, allowed] of Object.entries(tenantMenu)) {
+        payload[k] = allowed === true ? menuForm[k] === true : false;
+      }
+
+      await saveSubUserMenuPermission(menuUser.id, payload);
+      showSuccess("Menu permissions saved");
+      closeMenuPermissionModal();
+    } catch (e) {
+      showError(e.message || "Failed to save menu permissions");
+    } finally {
+      setMenuSaving(false);
+    }
+  };
+
   // ---------- render ----------
   return (
     <div className="user-container">
-      {/* Header */}
       <div className="user-header">
         <div className="header-left">
           <Users size={24} />
@@ -222,7 +299,6 @@ export default function CreateUser({ tenantId: tenantIdProp }) {
         </div>
       </div>
 
-      {/* Search + Count */}
       <div className="filters-section">
         <div className="search-bar">
           <Search size={20} />
@@ -241,7 +317,6 @@ export default function CreateUser({ tenantId: tenantIdProp }) {
         </div>
       </div>
 
-      {/* Error banner */}
       {error && (
         <div className="error-banner">
           <AlertCircle size={20} color="#d00" />
@@ -249,7 +324,6 @@ export default function CreateUser({ tenantId: tenantIdProp }) {
         </div>
       )}
 
-      {/* Table */}
       {loading && users.length === 0 ? (
         <div className="empty-state">
           <Loader2 size={48} className="spin" />
@@ -325,7 +399,7 @@ export default function CreateUser({ tenantId: tenantIdProp }) {
                           setValidationError("");
                           setFormData({
                             email: u.email || "",
-                            password: "", // not used on edit
+                            password: "",
                             mobileNumber: u.mobileNumber || "",
                             designation: u.designation || "",
                           });
@@ -334,6 +408,17 @@ export default function CreateUser({ tenantId: tenantIdProp }) {
                         disabled={loading}
                       >
                         <Edit2 size={16} />
+                      </button>
+
+                      {/* MENU PERMISSION BUTTON */}
+                      <button
+                        className="btn-icon"
+                        title="Menu Permission"
+                        style={{ color: "#7c3aed" }}
+                        onClick={() => openMenuPermissionModal(u)}
+                        disabled={loading}
+                      >
+                        <Shield size={16} />
                       </button>
 
                       <button
@@ -354,7 +439,6 @@ export default function CreateUser({ tenantId: tenantIdProp }) {
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="pagination">
           <button
@@ -399,7 +483,8 @@ export default function CreateUser({ tenantId: tenantIdProp }) {
                 <strong>Designation:</strong> {viewUser.designation || "-"}
               </p>
               <p>
-                <strong>Status:</strong> {viewUser.isActive ? "Active" : "Inactive"}
+                <strong>Status:</strong>{" "}
+                {viewUser.isActive ? "Active" : "Inactive"}
               </p>
             </div>
 
@@ -412,7 +497,7 @@ export default function CreateUser({ tenantId: tenantIdProp }) {
         </div>
       )}
 
-      {/* Add/Edit Modal */}
+      {/* Add/Edit Modal (no menu permissions here) */}
       {showAddModal && (
         <div
           className="modal-overlay"
@@ -436,7 +521,10 @@ export default function CreateUser({ tenantId: tenantIdProp }) {
             </div>
 
             {validationError && (
-              <div className="validation-error" style={{ margin: "0.75rem 24px 0" }}>
+              <div
+                className="validation-error"
+                style={{ margin: "0.75rem 24px 0" }}
+              >
                 <AlertCircle size={18} color="#dc2626" />
                 <span>{validationError}</span>
               </div>
@@ -448,13 +536,14 @@ export default function CreateUser({ tenantId: tenantIdProp }) {
                 <input
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
                   placeholder="Enter email"
                   required
                 />
               </div>
 
-              {/* Password only for CREATE */}
               {!editingUser && (
                 <div className="form-group">
                   <label>Password *</label>
@@ -477,7 +566,8 @@ export default function CreateUser({ tenantId: tenantIdProp }) {
                   value={formData.mobileNumber}
                   onChange={(e) => {
                     const v = e.target.value.replace(/[^0-9]/g, "");
-                    if (v.length <= 10) setFormData({ ...formData, mobileNumber: v });
+                    if (v.length <= 10)
+                      setFormData({ ...formData, mobileNumber: v });
                   }}
                   placeholder="10 digits only"
                   maxLength={10}
@@ -524,6 +614,96 @@ export default function CreateUser({ tenantId: tenantIdProp }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MENU PERMISSION MODAL */}
+      {showMenuModal && (
+        <div className="modal-overlay" onClick={closeMenuPermissionModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Menu Permissions</h3>
+              <button className="close-btn" onClick={closeMenuPermissionModal}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: 16 }}>
+              <div style={{ marginBottom: 10, fontSize: 13, opacity: 0.8 }}>
+                {menuUser?.email ? (
+                  <>
+                    <strong>User:</strong> {menuUser.email}
+                  </>
+                ) : null}
+              </div>
+
+              {menuLoading ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Loader2 size={16} className="spin" />
+                  <span>Loading menu permissions…</span>
+                </div>
+              ) : Object.keys(tenantMenu).length === 0 ? (
+                <div style={{ color: "#991b1b", fontSize: 13 }}>
+                  No menus found in current subscription.
+                </div>
+              ) : (
+                <div
+                  style={{
+                    maxHeight: 420,
+                    overflowY: "auto",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 10,
+                    padding: 10,
+                  }}
+                >
+                  {Object.keys(tenantMenu).map((key) => (
+                    <label
+                      key={key}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "6px 8px",
+                        borderBottom: "1px solid #f1f5f9",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={menuForm[key] === true}
+                        onChange={(e) =>
+                          setMenuForm((prev) => ({
+                            ...prev,
+                            [key]: e.target.checked,
+                          }))
+                        }
+                      />
+                      <span>{formatMenuKey(key)}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="modal-actions">
+              <button
+                className="btn-secondary"
+                type="button"
+                onClick={closeMenuPermissionModal}
+                disabled={menuSaving}
+              >
+                Close
+              </button>
+
+              <button
+                className="btn-primary"
+                type="button"
+                onClick={saveMenuPermissions}
+                disabled={menuLoading || menuSaving}
+              >
+                {menuSaving ? "Saving…" : "Save"}
+              </button>
+            </div>
           </div>
         </div>
       )}

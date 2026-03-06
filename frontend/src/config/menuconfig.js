@@ -72,7 +72,7 @@ export const MENU_CONFIG = [
         { key: "settings.master-config", label: "WhatsApp Setup", icon: "sliders" },
         { key: "settings.templates", label: "Templates", icon: "layoutTemplate" },
         { key: "settings.labels", label: "Labels", icon: "tag" },
-        { key: "settings.createuser", label: "Create User", icon: "user" },
+        { key: "settings.createuser", label: "User", icon: "user" },
       ],
     },
     {

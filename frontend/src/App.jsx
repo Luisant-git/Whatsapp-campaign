@@ -181,7 +181,7 @@ function App() {
         if (sessionData.user?.aiChatbotEnabled !== aiChatbotEnabled) {
           setAiChatbotEnabled(sessionData.user.aiChatbotEnabled);
           if (activeView === "chatbot" && !sessionData.user.aiChatbotEnabled) {
-            setActiveView("chats");
+            setActiveView("analytics");
           }
         }
 
@@ -191,7 +191,7 @@ function App() {
             activeView === "quick-reply" &&
             sessionData.user.useQuickReply === false
           ) {
-            setActiveView("chats");
+            setActiveView("analytics");
           }
         }
       } catch (error) {
@@ -224,32 +224,57 @@ function App() {
     try {
       const { getProfile } = await import("./api/auth");
       const profileData = await getProfile();
-      setUser(profileData.user);
-      setAiChatbotEnabled(profileData.user?.aiChatbotEnabled || false);
-      setUseQuickReply(profileData.user?.useQuickReply !== false);
+      const user = profileData.user;
+  
+      setUser(user);
+      setAiChatbotEnabled(user?.aiChatbotEnabled || false);
+      setUseQuickReply(user?.useQuickReply !== false);
+  
+      const userType = profileData.userType || "tenant";
+      const permissionMap = profileData.menuPermission?.permission || null;
+  
+      if (userType === "subuser" && permissionMap) {
+        // Subuser logged in
+        setMenuPerms(permissionMap);
+      } else {
+        // Tenant/admin
+        refreshMenuPermissions();
+      }
     } catch (error) {
       console.error("Failed to fetch user profile:", error);
     }
   };
+  
 
-  // After login, load menu permission from subscription
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    refreshMenuPermissions();
-  }, [isLoggedIn]);
-
-  const handleLogin = (userData) => {
-    setUser(userData);
-    setAiChatbotEnabled(userData?.aiChatbotEnabled || false);
-    setUseQuickReply(userData?.useQuickReply !== false);
+  const handleLogin = (user, role, profile) => {
+    setUser(user);
+    setAiChatbotEnabled(user?.aiChatbotEnabled || false);
+    setUseQuickReply(user?.useQuickReply !== false);
     setIsLoggedIn(true);
+  
+    // NEW: reset to a default view on each login
+    setActiveView("analytics");
+  
+    const userType = profile.userType || "tenant";
+    const permissionMap = profile.menuPermission?.permission || null;
+  
+    if (userType === "subuser" && permissionMap) {
+      setMenuPerms(permissionMap);
+    } else {
+      refreshMenuPermissions();
+    }
   };
+  
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     setIsLoggedIn(false);
     setUser(null);
     setShowProfileMenu(false);
+  
+    // Reset state so next user starts clean
+    setActiveView("analytics");     // or whatever default you want
+    setMenuPerms(null);         // optional, to clear old permissions
   };
 
   const handleMenuClick = (view) => {

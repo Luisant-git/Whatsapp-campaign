@@ -217,40 +217,51 @@ function App() {
     const checkAuth = async () => {
       try {
         const profileData = await getProfile();
-        setUser(profileData.user);
-        setAiChatbotEnabled(profileData.user?.aiChatbotEnabled || false);
-        setUseQuickReply(profileData.user?.useQuickReply !== false);
+        const user = profileData.user;
+  
+        setUser(user);
+        setAiChatbotEnabled(user?.aiChatbotEnabled || false);
+        setUseQuickReply(user?.useQuickReply !== false);
         setIsLoggedIn(true);
+  
+        const userType = profileData.userType || "tenant";
+        const permissionMap = profileData.menuPermission?.permission || null;
+  
+        if (userType === "subuser" && permissionMap) {
+          // Subuser: set menuPerms from /user/me
+          setMenuPerms(permissionMap);
+        } else {
+          // Tenant/admin: load from subscription
+          await refreshMenuPermissions();
+        }
       } catch (error) {
-        console.log('Not logged in');
+        console.log("Not logged in");
         setIsLoggedIn(false);
+        setUser(null);
+        setMenuPerms(null);
       }
     };
-    
+  
     checkAuth();
   }, []);
 
-  // After login, load menu permission from subscription
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    refreshMenuPermissions();
-  }, [isLoggedIn]);
-
-  const handleLogin = (userData) => {
-    setUser(userData);
-    setAiChatbotEnabled(userData?.aiChatbotEnabled || false);
-    setUseQuickReply(userData?.useQuickReply !== false);
+  const handleLogin = (user, role, profile) => {
+    setUser(user);
+    setAiChatbotEnabled(user?.aiChatbotEnabled || false);
+    setUseQuickReply(user?.useQuickReply !== false);
     setIsLoggedIn(true);
   
-    // NEW: reset to a default view on each login
+    // reset default view on each login
     setActiveView("analytics");
   
     const userType = profile.userType || "tenant";
     const permissionMap = profile.menuPermission?.permission || null;
   
     if (userType === "subuser" && permissionMap) {
+      // Subuser: use menuPermission from /user/me
       setMenuPerms(permissionMap);
     } else {
+      // Tenant/owner: use subscription-based permissions
       refreshMenuPermissions();
     }
   };
@@ -266,9 +277,8 @@ function App() {
     setUser(null);
     setShowProfileMenu(false);
   
-    // Reset state so next user starts clean
-    setActiveView("analytics");     // or whatever default you want
-    setMenuPerms(null);         // optional, to clear old permissions
+    setActiveView("analytics");
+    setMenuPerms(null);
   };
 
   const handleMenuClick = (view) => {

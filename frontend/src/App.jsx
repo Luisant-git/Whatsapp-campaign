@@ -55,6 +55,7 @@ import "./styles/Analytics.css";
 import "./styles/Settings.css";
 import "./styles/Profile.css";
 import { getCurrentPlan } from "./api/subscription";
+import { logoutUser, getProfile } from "./api/auth";
 
 // Icon map for MENU_CONFIG.icon
 const ICON_MAP = {
@@ -211,45 +212,34 @@ function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // On mount check token and load profile
+  // On mount check session and load profile
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      setIsLoggedIn(true);
-      fetchUserProfile();
-    }
+    const checkAuth = async () => {
+      try {
+        const profileData = await getProfile();
+        setUser(profileData.user);
+        setAiChatbotEnabled(profileData.user?.aiChatbotEnabled || false);
+        setUseQuickReply(profileData.user?.useQuickReply !== false);
+        setIsLoggedIn(true);
+      } catch (error) {
+        console.log('Not logged in');
+        setIsLoggedIn(false);
+      }
+    };
+    
+    checkAuth();
   }, []);
 
-  const fetchUserProfile = async () => {
-    try {
-      const { getProfile } = await import("./api/auth");
-      const profileData = await getProfile();
-      const user = profileData.user;
-  
-      setUser(user);
-      setAiChatbotEnabled(user?.aiChatbotEnabled || false);
-      setUseQuickReply(user?.useQuickReply !== false);
-  
-      const userType = profileData.userType || "tenant";
-      const permissionMap = profileData.menuPermission?.permission || null;
-  
-      if (userType === "subuser" && permissionMap) {
-        // Subuser logged in
-        setMenuPerms(permissionMap);
-      } else {
-        // Tenant/admin
-        refreshMenuPermissions();
-      }
-    } catch (error) {
-      console.error("Failed to fetch user profile:", error);
-    }
-  };
-  
+  // After login, load menu permission from subscription
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    refreshMenuPermissions();
+  }, [isLoggedIn]);
 
-  const handleLogin = (user, role, profile) => {
-    setUser(user);
-    setAiChatbotEnabled(user?.aiChatbotEnabled || false);
-    setUseQuickReply(user?.useQuickReply !== false);
+  const handleLogin = (userData) => {
+    setUser(userData);
+    setAiChatbotEnabled(userData?.aiChatbotEnabled || false);
+    setUseQuickReply(userData?.useQuickReply !== false);
     setIsLoggedIn(true);
   
     // NEW: reset to a default view on each login
@@ -266,8 +256,12 @@ function App() {
   };
   
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
     setIsLoggedIn(false);
     setUser(null);
     setShowProfileMenu(false);

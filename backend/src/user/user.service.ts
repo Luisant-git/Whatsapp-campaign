@@ -146,7 +146,6 @@ export class UserService {
       throw new UnauthorizedException('Not authenticated');
     }
   
-    // ✅ ALWAYS use tenantId to find tenant (not userId)
     const tenant = await this.centralPrisma.tenant.findUnique({
       where: { id: tenantId },
     });
@@ -154,7 +153,6 @@ export class UserService {
       throw new UnauthorizedException('Tenant not found');
     }
   
-    // If subuser, fetch their details
     let subUserDetails: any = null;
     if (userType === 'subuser') {
       subUserDetails = await this.centralPrisma.subUser.findUnique({
@@ -187,12 +185,20 @@ export class UserService {
       console.error('Error fetching tenant config:', err);
     }
   
-    // ✅ Fetch menu permissions
+    // ✅ Fetch menu permissions differently for tenant vs subuser
     let menuPermission: any = null;
     try {
-      menuPermission = await this.centralPrisma.menuPermission.findUnique({
-        where: { tenantId: tenant.id },
-      });
+      if (userType === 'subuser') {
+        // IMPORTANT: subuser-specific permission
+        menuPermission = await this.centralPrisma.subUserMenuPermission.findUnique({
+          where: { subUserId: userId },
+        });
+      } else {
+        // Tenant/owner permission (what you already had)
+        menuPermission = await this.centralPrisma.menuPermission.findUnique({
+          where: { tenantId: tenant.id },
+        });
+      }
     } catch (err) {
       console.error('Error fetching menu permissions:', err);
     }
@@ -219,7 +225,7 @@ export class UserService {
       },
       role: userType === 'subuser' ? subUserDetails.role : 'owner',
       userType,
-      menuPermission,  // ← Frontend uses this to show/hide menus
+      menuPermission,  // now tenant or subuser specific
     };
   }
 

@@ -182,7 +182,7 @@ function App() {
         if (sessionData.user?.aiChatbotEnabled !== aiChatbotEnabled) {
           setAiChatbotEnabled(sessionData.user.aiChatbotEnabled);
           if (activeView === "chatbot" && !sessionData.user.aiChatbotEnabled) {
-            setActiveView("chats");
+            setActiveView("analytics");
           }
         }
 
@@ -192,7 +192,7 @@ function App() {
             activeView === "quick-reply" &&
             sessionData.user.useQuickReply === false
           ) {
-            setActiveView("chats");
+            setActiveView("analytics");
           }
         }
       } catch (error) {
@@ -241,7 +241,20 @@ function App() {
     setAiChatbotEnabled(userData?.aiChatbotEnabled || false);
     setUseQuickReply(userData?.useQuickReply !== false);
     setIsLoggedIn(true);
+  
+    // NEW: reset to a default view on each login
+    setActiveView("analytics");
+  
+    const userType = profile.userType || "tenant";
+    const permissionMap = profile.menuPermission?.permission || null;
+  
+    if (userType === "subuser" && permissionMap) {
+      setMenuPerms(permissionMap);
+    } else {
+      refreshMenuPermissions();
+    }
   };
+  
 
   const handleLogout = async () => {
     try {
@@ -252,6 +265,10 @@ function App() {
     setIsLoggedIn(false);
     setUser(null);
     setShowProfileMenu(false);
+  
+    // Reset state so next user starts clean
+    setActiveView("analytics");     // or whatever default you want
+    setMenuPerms(null);         // optional, to clear old permissions
   };
 
   const handleMenuClick = (view) => {

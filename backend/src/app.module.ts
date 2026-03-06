@@ -24,6 +24,7 @@ import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
 import { MetaFlowModule } from './meta-flow/meta-flow.module';
 import { FlowMessageModule } from './flow-message/flow-message.module';
 import { FlowAppointmentModule } from './flow-appointment/flow-appointment.module';
+import { SubuserMenuPermissionModule } from './subuser-menu-permission/subuser-menu-permission.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { FlowAppointmentModule } from './flow-appointment/flow-appointment.modul
     MetaFlowModule,
     FlowMessageModule,
     FlowAppointmentModule,
+    SubuserMenuPermissionModule,
   ],
   controllers: [AppController, TestController],
   providers: [AppService],

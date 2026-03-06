@@ -24,6 +24,8 @@ export const ecommerceApi = {
   // Products
   getProducts: (subCategoryId) => 
     api.get(`/ecommerce/products${subCategoryId ? `?subCategoryId=${subCategoryId}` : ''}`),
+
+  getProduct: (id) => api.get(`/ecommerce/products/${id}`),  
   createProduct: (formData) => api.post('/ecommerce/products', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
@@ -35,6 +37,18 @@ export const ecommerceApi = {
     api.post(`/ecommerce/products/${id}/sync-meta`, payload),
   syncFromMeta: () => api.post('/ecommerce/sync-from-meta'),
 
+
+   // Variants - ✅ ALL NEW
+   getVariants: (productId) => api.get(`/ecommerce/products/${productId}/variants`),
+   createVariant: (productId, formData) =>
+     api.post(`/ecommerce/products/${productId}/variants`, formData, {
+       headers: { 'Content-Type': 'multipart/form-data' },
+     }),
+   updateVariant: (id, formData) =>
+     api.put(`/ecommerce/variants/${id}`, formData, {
+       headers: { 'Content-Type': 'multipart/form-data' },
+     }),
+   deleteVariant: (id) => api.delete(`/ecommerce/variants/${id}`),
   // Orders
   getOrders: () => api.get('/ecommerce/orders'),
   updateOrderStatus: (id, status) => api.put(`/ecommerce/orders/${id}/status`, { status }),

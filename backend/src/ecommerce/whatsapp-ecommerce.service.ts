@@ -20,10 +20,18 @@ export class WhatsappEcommerceService {
       include: { subscription: true }
     });
     
+    console.log(`[checkMetaCatalogPermission] userId: ${userId}`);
+    console.log(`[checkMetaCatalogPermission] tenant found: ${!!tenant}`);
+    console.log(`[checkMetaCatalogPermission] subscription found: ${!!tenant?.subscription}`);
+    console.log(`[checkMetaCatalogPermission] menuPermissions:`, tenant?.subscription?.menuPermissions);
+    
     if (!tenant?.subscription) return false;
     
     const menuPermissions = tenant.subscription.menuPermissions || [];
-    return menuPermissions.includes('ecommerce.meta-catalog');
+    const hasPermission = menuPermissions.includes('ecommerce.meta-catalog');
+    
+    console.log(`[checkMetaCatalogPermission] hasPermission: ${hasPermission}`);
+    return hasPermission;
   }
 
   async handleIncomingMessage(phone: string, message: string, accessToken: string, phoneNumberId: string, userId: number) {
@@ -115,7 +123,11 @@ export class WhatsappEcommerceService {
 
   async sendProductList(phone: string, subCategoryId: number, accessToken: string, phoneNumberId: string, userId: number) {
     const hasMetaCatalog = await this.checkMetaCatalogPermission(userId);
+    console.log(`[sendProductList] userId: ${userId}, hasMetaCatalog: ${hasMetaCatalog}, excludeMetaProducts: ${!hasMetaCatalog}`);
+    
     const products = await this.ecommerceService.getProducts(subCategoryId, userId, !hasMetaCatalog);
+    console.log(`[sendProductList] Found ${products.length} products`);
+    products.forEach(p => console.log(`  - Product: ${p.name}, metaProductId: ${p.metaProductId}`));
 
     const rows = products.map((prod) => ({
       id: `prod:${prod.id}`,

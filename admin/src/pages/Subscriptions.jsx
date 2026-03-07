@@ -227,19 +227,40 @@ const Subscriptions = () => {
 
             {children.length > 0 && (
               <div className="subs-perm-group-children">
-                {children.map((child) => (
-                  <label key={child.key} className="subs-perm-child-row">
-                    <input
-                      type="checkbox"
-                      checked={hasMenuPerm(child.key)}
-                      onChange={() =>
-                        toggleMenuPermChild(menu.key, child.key)
-                      }
-                      disabled={!parentChecked}
-                    />
-                    <span>{child.label}</span>
-                  </label>
-                ))}
+                {children.map((child) => {
+                  const childChecked = hasMenuPerm(child.key);
+                  const nestedChildren = child.children || [];
+                  
+                  return (
+                    <div key={child.key}>
+                      <label className="subs-perm-child-row">
+                        <input
+                          type="checkbox"
+                          checked={childChecked}
+                          onChange={() => toggleMenuPermChild(menu.key, child.key)}
+                          disabled={!parentChecked}
+                        />
+                        <span>{child.label}</span>
+                      </label>
+                      
+                      {nestedChildren.length > 0 && (
+                        <div className="subs-perm-nested-children">
+                          {nestedChildren.map((nested) => (
+                            <label key={nested.key} className="subs-perm-nested-row">
+                              <input
+                                type="checkbox"
+                                checked={hasMenuPerm(nested.key)}
+                                onChange={() => toggleMenuPermChild(child.key, nested.key)}
+                                disabled={!childChecked}
+                              />
+                              <span>{nested.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

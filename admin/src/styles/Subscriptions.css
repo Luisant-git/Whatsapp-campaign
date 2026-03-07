@@ -679,3 +679,20 @@
   outline: none;
   box-shadow: 0 0 0 4px rgba(3,68,233,0.18);
 }
+
+
+.subs-perm-nested-children {
+  margin-left: 20px;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.subs-perm-nested-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #666;
+}

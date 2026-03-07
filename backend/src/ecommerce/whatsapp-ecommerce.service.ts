@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { EcommerceService } from './ecommerce.service';
 import { ShoppingSessionService } from './shopping-session.service';
 import { MetaCatalogService } from './meta-catalog.service';
+import { CentralPrismaService } from '../central-prisma.service';
 import axios from 'axios';
 
 @Injectable()
@@ -10,7 +11,20 @@ export class WhatsappEcommerceService {
     private ecommerceService: EcommerceService,
     private sessionService: ShoppingSessionService,
     public metaCatalogService: MetaCatalogService,
+    private prisma: CentralPrismaService,
   ) {}
+
+  private async checkMetaCatalogPermission(userId: number): Promise<boolean> {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: userId },
+      include: { subscription: true }
+    });
+    
+    if (!tenant?.subscription) return false;
+    
+    const menuPermissions = tenant.subscription.menuPermissions || [];
+    return menuPermissions.includes('ecommerce.meta-catalog');
+  }
 
   async handleIncomingMessage(phone: string, message: string, accessToken: string, phoneNumberId: string, userId: number) {
     const msg = message.toLowerCase().trim();
@@ -18,7 +32,14 @@ export class WhatsappEcommerceService {
     if (msg === 'shop' || msg === 'catalog' || msg === 'products') {
       try {
         console.log(`[Ecommerce] Handling '${msg}' keyword for ${phone}`);
-        await this.metaCatalogService.sendCatalogMessage(phone, phoneNumberId, userId);
+        
+        const hasMetaCatalog = await this.checkMetaCatalogPermission(userId);
+        
+        if (hasMetaCatalog) {
+          await this.metaCatalogService.sendCatalogMessage(phone, phoneNumberId, userId);
+        } else {
+          await this.sendCategoryList(phone, accessToken, phoneNumberId, userId);
+        }
         return true;
       } catch (error) {
         console.error('[Ecommerce] Error sending catalog:', error);

@@ -458,11 +458,12 @@ export class MetaCatalogService {
           
           const orders: any[] = [];
           console.log(`[Meta Catalog] Creating single order for ${cartProducts.length} products`);
+          console.log(`[Meta Catalog] Cart products data:`, cartProducts.map(p => ({ id: p.id, productId: p.productId, price: p.price, qty: p.quantity })));
           
           // Create order items for all products
           const orderItems = cartProducts.map(cartItem => ({
-            productId: cartItem.id,
-            quantity: cartItem.quantity,
+            productId: cartItem.productId || cartItem.id,
+            quantity: cartItem.quantity || 1,
             price: cartItem.price
           }));
           

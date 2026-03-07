@@ -221,29 +221,21 @@ export class WhatsappEcommerceService {
     const trimmedMsg = message.trim();
     
     if (step === 'awaiting_name') {
-      const existingName = await this.sessionService.getCustomerName(phone, userId);
-      if (existingName === trimmedMsg) return false;
       await this.sessionService.setCustomerName(phone, trimmedMsg, userId);
       return 'awaiting_address';
     }
     
     if (step === 'awaiting_address') {
-      const existingAddress = await this.sessionService.getCustomerAddress(phone, userId);
-      if (existingAddress === trimmedMsg) return false;
       await this.sessionService.setCustomerAddress(phone, trimmedMsg, userId);
       return 'awaiting_city';
     }
     
     if (step === 'awaiting_city') {
-      const existingCity = await this.sessionService.getCustomerCity(phone, userId);
-      if (existingCity === trimmedMsg) return false;
       await this.sessionService.setCustomerCity(phone, trimmedMsg, userId);
       return 'awaiting_pincode';
     }
     
     if (step === 'awaiting_pincode') {
-      const existingPincode = await this.sessionService.getCustomerPincode(phone, userId);
-      if (existingPincode === trimmedMsg) return false;
       await this.sessionService.setCustomerPincode(phone, trimmedMsg, userId);
       
       const cart = await this.sessionService.getCartProducts(phone, userId) || [];
@@ -255,14 +247,13 @@ export class WhatsappEcommerceService {
       
       const fullAddress = `${customerAddress}, ${customerCity}, ${trimmedMsg}`;
       
-      // Create single order with all products
       let totalAmount = 0;
       for (const item of cart) {
         const product = await this.ecommerceService.getProduct(item.productId, userId);
         if (product) totalAmount += product.price * item.quantity;
       }
       
-      const order = await this.ecommerceService.createOrder({
+      await this.ecommerceService.createOrder({
         customerName,
         customerPhone: phone,
         customerAddress: fullAddress,

@@ -176,6 +176,7 @@ export class WhatsappEcommerceService {
     if (!product) return;
 
     await this.sessionService.setProductForPurchase(phone, productId, userId);
+    await this.sessionService.setSession(phone, { step: 'awaiting_payment_method' }, userId);
 
     return this.sendWhatsAppMessage(phone, {
       type: 'interactive',
@@ -193,8 +194,18 @@ export class WhatsappEcommerceService {
   }
 
   async handleCODPayment(phone: string, accessToken: string, phoneNumberId: string, userId: number) {
+    const step = await this.sessionService.getStep(phone, userId);
+    
+    if (step !== 'awaiting_payment_method') {
+      return this.sendWhatsAppMessage(phone, {
+        type: 'text',
+        text: { body: 'Please select a product first. Send "shop" to browse products.' },
+      }, accessToken, phoneNumberId);
+    }
+
     const cart = await this.sessionService.getCartProducts(phone, userId) || [];
     const productId = cart.length > 0 ? cart[0].productId : null;
+    
     if (!productId) {
       return this.sendWhatsAppMessage(phone, {
         type: 'text',

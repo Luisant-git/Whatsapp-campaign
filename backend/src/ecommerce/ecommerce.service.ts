@@ -92,10 +92,15 @@ export class EcommerceService {
     return product;
   }
 
-  async getProducts(subCategoryId?: number, userId?: number) {
+  async getProducts(subCategoryId?: number, userId?: number, excludeMetaProducts?: boolean) {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
+    
+    const whereClause: any = { isActive: true };
+    if (subCategoryId) whereClause.subCategoryId = subCategoryId;
+    if (excludeMetaProducts) whereClause.metaProductId = null;
+    
     return client.product.findMany({
-      where: { isActive: true, ...(subCategoryId && { subCategoryId }) },
+      where: whereClause,
       include: { 
         subCategory: { include: { category: true } },
         variants: {

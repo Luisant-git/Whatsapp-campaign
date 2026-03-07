@@ -114,7 +114,8 @@ export class WhatsappEcommerceService {
   }
 
   async sendProductList(phone: string, subCategoryId: number, accessToken: string, phoneNumberId: string, userId: number) {
-    const products = await this.ecommerceService.getProducts(subCategoryId, userId);
+    const hasMetaCatalog = await this.checkMetaCatalogPermission(userId);
+    const products = await this.ecommerceService.getProducts(subCategoryId, userId, !hasMetaCatalog);
 
     const rows = products.map((prod) => ({
       id: `prod:${prod.id}`,

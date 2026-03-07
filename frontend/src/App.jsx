@@ -122,8 +122,6 @@ function App() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
-  const [aiChatbotEnabled, setAiChatbotEnabled] = useState(false);
-  const [useQuickReply, setUseQuickReply] = useState(true);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [contactsOpen, setContactsOpen] = useState(false);
@@ -170,39 +168,6 @@ function App() {
     }
   };
 
-  // Session-based feature flags (AI Chatbot, Quick Reply)
-  useEffect(() => {
-    if (!isLoggedIn) return;
-
-    const checkSession = async () => {
-      try {
-        const { checkSessionStatus } = await import("./api/session");
-        const sessionData = await checkSessionStatus();
-
-        if (sessionData.user?.aiChatbotEnabled !== aiChatbotEnabled) {
-          setAiChatbotEnabled(sessionData.user.aiChatbotEnabled);
-          if (activeView === "chatbot" && !sessionData.user.aiChatbotEnabled) {
-            setActiveView("analytics");
-          }
-        }
-
-        if (sessionData.user?.useQuickReply !== useQuickReply) {
-          setUseQuickReply(sessionData.user.useQuickReply !== false);
-          if (
-            activeView === "quick-reply" &&
-            sessionData.user.useQuickReply === false
-          ) {
-            setActiveView("analytics");
-          }
-        }
-      } catch (error) {
-        console.error("Session check failed:", error);
-      }
-    };
-
-    checkSession();
-  }, [isLoggedIn, activeView, aiChatbotEnabled, useQuickReply]);
-
   // Responsive sidebar
   useEffect(() => {
     const handleResize = () => {
@@ -220,8 +185,6 @@ function App() {
         const user = profileData.user;
   
         setUser(user);
-        setAiChatbotEnabled(user?.aiChatbotEnabled || false);
-        setUseQuickReply(user?.useQuickReply !== false);
         setIsLoggedIn(true);
   
         const userType = profileData.userType || "tenant";
@@ -247,8 +210,6 @@ function App() {
 
   const handleLogin = (user, role, profile) => {
     setUser(user);
-    setAiChatbotEnabled(user?.aiChatbotEnabled || false);
-    setUseQuickReply(user?.useQuickReply !== false);
     setIsLoggedIn(true);
   
     // reset default view on each login
@@ -290,14 +251,12 @@ function App() {
 
   // Permission check: subscription menuPerms + feature flags
   const isAllowed = (key) => {
-    // 1. Feature flags (always check these first)
-    if (key === "chatbot" && !aiChatbotEnabled) return false;
-    if (key === "quick-reply" && useQuickReply === false) return false;
+    // 1. If menuPerms is null or empty object → no subscription restrictions, show all
+    if (!menuPerms || Object.keys(menuPerms).length === 0) {
+      return true;
+    }
 
-    // 2. If menuPerms is null or empty object → no subscription restrictions, show all
-    if (!menuPerms || Object.keys(menuPerms).length === 0) return true;
-
-    // 3. If menuPerms exists, only show what's explicitly allowed
+    // 2. If menuPerms exists, only show what's explicitly allowed
     return menuPerms[key] === true;
   };
 
@@ -481,8 +440,8 @@ function App() {
             {activeView === "orders" && <Orders />}
             {activeView === "customers" && <Customers />}
             {activeView === "auto-reply" && <AutoReply />}
-            {activeView === "quick-reply" && useQuickReply && <QuickReply />}
-            {activeView === "chatbot" && aiChatbotEnabled && <Chatbot />}
+            {activeView === "quick-reply" && <QuickReply />}
+            {activeView === "chatbot" && <Chatbot />}
             {activeView === "flow-manager" && <FlowManager />}
             {activeView === "flow-appointments" && <FlowAppointments />}
             {activeView === "analytics" && <Analytics />}

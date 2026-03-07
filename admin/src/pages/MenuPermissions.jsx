@@ -28,32 +28,39 @@ export default function MenuPermissions() {
     }
   };
 
-  const handlePermissionToggle = async (userId, hasPermission) => {
-    setUpdating(prev => ({ ...prev, [userId]: true }));
+  const handlePermissionToggle = async (userId, permissionKey, currentValue) => {
+    setUpdating(prev => ({ ...prev, [`${userId}-${permissionKey}`]: true }));
     try {
+      const user = users.find(u => u.id === userId);
+      const currentPermissions = user.menuPermission?.permission || {};
+      
       const response = await fetch(`/api/menu-permissions/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          permission: { flowAppointments: !hasPermission }
+          permission: { ...currentPermissions, [permissionKey]: !currentValue }
         })
       });
 
       if (!response.ok) throw new Error('Failed to update permission');
 
-      setUsers(prev => prev.map(user => 
-        user.id === userId 
-          ? { ...user, menuPermission: { ...user.menuPermission, permission: { flowAppointments: !hasPermission } } }
-          : user
+      setUsers(prev => prev.map(u => 
+        u.id === userId 
+          ? { ...u, menuPermission: { ...u.menuPermission, permission: { ...currentPermissions, [permissionKey]: !currentValue } } }
+          : u
       ));
 
-      showToast(`Flow Appointments ${!hasPermission ? 'enabled' : 'disabled'}`, 'success');
+      const permissionNames = {
+        flowAppointments: 'Flow Appointments',
+        'ecommerce.meta-catalog': 'Meta Catalog'
+      };
+      showToast(`${permissionNames[permissionKey]} ${!currentValue ? 'enabled' : 'disabled'}`, 'success');
     } catch (err) {
       console.error('Error updating permission:', err);
       showToast('Error updating permission', 'error');
     } finally {
-      setUpdating(prev => ({ ...prev, [userId]: false }));
+      setUpdating(prev => ({ ...prev, [`${userId}-${permissionKey}`]: false }));
     }
   };
 
@@ -65,7 +72,7 @@ export default function MenuPermissions() {
     <div className="users-page">
       <div className="users-header">
         <h1>Menu Permissions</h1>
-        <p>Manage Flow Appointments access for Standard plan users</p>
+        <p>Manage additional features for Standard plan users</p>
       </div>
 
       <div className="users-table-container">
@@ -77,11 +84,14 @@ export default function MenuPermissions() {
               <th>Email</th>
               <th>Plan</th>
               <th>Flow Appointments</th>
+              <th>Meta Catalog</th>
             </tr>
           </thead>
           <tbody>
             {users.map((user, idx) => {
-              const hasPermission = user.menuPermission?.permission?.flowAppointments || false;
+              const permissions = user.menuPermission?.permission || {};
+              const hasFlowAppointments = permissions.flowAppointments || false;
+              const hasMetaCatalog = permissions['ecommerce.meta-catalog'] || false;
               return (
                 <tr key={user.id}>
                   <td>{idx + 1}</td>
@@ -95,11 +105,20 @@ export default function MenuPermissions() {
                   <td>
                     <input
                       type="checkbox"
-                      checked={hasPermission}
-                      onChange={() => handlePermissionToggle(user.id, hasPermission)}
-                      disabled={updating[user.id]}
+                      checked={hasFlowAppointments}
+                      onChange={() => handlePermissionToggle(user.id, 'flowAppointments', hasFlowAppointments)}
+                      disabled={updating[`${user.id}-flowAppointments`]}
                     />
-                    {updating[user.id] && <span style={{marginLeft: '8px', fontSize: '12px', color: '#666'}}>Updating...</span>}
+                    {updating[`${user.id}-flowAppointments`] && <span style={{marginLeft: '8px', fontSize: '12px', color: '#666'}}>Updating...</span>}
+                  </td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={hasMetaCatalog}
+                      onChange={() => handlePermissionToggle(user.id, 'ecommerce.meta-catalog', hasMetaCatalog)}
+                      disabled={updating[`${user.id}-ecommerce.meta-catalog`]}
+                    />
+                    {updating[`${user.id}-ecommerce.meta-catalog`] && <span style={{marginLeft: '8px', fontSize: '12px', color: '#666'}}>Updating...</span>}
                   </td>
                 </tr>
               );

@@ -374,13 +374,13 @@ export class MetaCatalogService {
       if (step === 'confirm_details') {
         const response = message.toLowerCase();
         
-        if (response === 'confirm' || response === 'use my details') {
+        if (response === 'confirm' || response === 'use my details' || message === 'Use My Details') {
           await this.sendPaymentMethodSelection(phone, phoneNumberId, userId);
           return true;
-        } else if (response === 'update' || response === 'update details') {
+        } else if (response === 'update' || response === 'update details' || message === 'Update Details') {
           await this.sendUpdateFieldSelection(phone, phoneNumberId, userId);
           return true;
-        } else if (response === 'someone_else' || response === 'order for someone') {
+        } else if (response === 'someone_else' || response === 'order for someone' || message === 'Order for Someone') {
           await this.sessionService.setSession(phone, { 
             customerName: undefined,
             customerAddress: undefined,
@@ -397,11 +397,11 @@ export class MetaCatalogService {
       if (step === 'select_update_field') {
         const field = message.toLowerCase();
         
-        if (field === 'name' || field === 'update name') {
+        if (field === 'name' || field === 'update name' || message === 'Update Name') {
           await this.sessionService.setSession(phone, { step: 'awaiting_name' }, userId);
           await this.sendTextMessage(phone, phoneNumberId, 'Please provide your full name:');
           return true;
-        } else if (field === 'address' || field === 'update address') {
+        } else if (field === 'address' || field === 'update address' || message === 'Update Address') {
           await this.sessionService.setSession(phone, { step: 'awaiting_address' }, userId);
           await this.sendTextMessage(phone, phoneNumberId, 'Please provide your complete delivery address:');
           return true;
@@ -435,12 +435,12 @@ export class MetaCatalogService {
       
       if (step === 'awaiting_payment_method') {
         const method = message.toLowerCase();
-        if (method !== 'razorpay' && method !== 'cod' && method !== 'pay online' && method !== 'cash on delivery') {
+        if (method !== 'razorpay' && method !== 'cod' && method !== 'pay online' && method !== 'cash on delivery' && message !== 'Pay Online' && message !== 'Cash on Delivery') {
           await this.sendTextMessage(phone, phoneNumberId, '❌ Invalid option. Please choose a payment method.');
           return true;
         }
         
-        const paymentMethod = (method === 'razorpay' || method === 'pay online') ? 'razorpay' : 'cod';
+        const paymentMethod = (method === 'razorpay' || method === 'pay online' || message === 'Pay Online') ? 'razorpay' : 'cod';
         await this.sessionService.setPaymentMethod(phone, paymentMethod, userId);
         const session = await this.sessionService.getSession(phone, userId);
         const cartProducts = session?.cartProducts || [];

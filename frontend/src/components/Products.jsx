@@ -1,4 +1,3 @@
-// Products.jsx
 import { useState, useEffect } from 'react';
 import { ecommerceApi } from '../api/ecommerce';
 import { Pencil, Trash2, Upload, Search, Plus, ChevronDown, ChevronUp } from 'lucide-react';
@@ -8,6 +7,7 @@ export default function Products() {
   const [subCategories, setSubCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [permissions, setPermissions] = useState({});
 
   const [showModal, setShowModal] = useState(false);
   const [showMetaModal, setShowMetaModal] = useState(false);
@@ -73,7 +73,20 @@ export default function Products() {
 
   useEffect(() => {
     loadData();
+    loadPermissions();
   }, []);
+
+  const loadPermissions = async () => {
+    try {
+      const response = await fetch('/api/menu-permission/current', {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      setPermissions(data.permission || {});
+    } catch (error) {
+      console.error('Failed to load permissions:', error);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -576,11 +589,18 @@ export default function Products() {
   };
 
   // ==================== FILTERS ====================
+  const hasMetaCatalogPermission = permissions['ecommerce.products.metacatalog'] !== false;
+  
   const filteredProducts = products.filter((p) => {
     const matchesSearch =
       p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.subCategory?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    // Filter based on Meta Catalog permission
+    if (!hasMetaCatalogPermission && p.metaProductId) {
+      return false; // Hide meta catalog products if permission is disabled
+    }
 
     if (filterType === 'normal') return matchesSearch && !p.metaProductId;
     if (filterType === 'uploaded') return matchesSearch && p.metaProductId && p.source !== 'meta';
@@ -625,42 +645,46 @@ export default function Products() {
           <button onClick={openAddProductModal} className="btn-primary">
             <Plus size={18} /> Add Product
           </button>
-          <button
-            onClick={openMetaModal}
-            style={{
-              background: '#25d366',
-              color: 'white',
-              border: 'none',
-              padding: '10px 20px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: '500',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontSize: '14px',
-            }}
-          >
-            <Upload size={18} /> Add to Meta Catalog
-          </button>
-          <button
-            onClick={handleSyncFromMeta}
-            style={{
-              background: '#0084ff',
-              color: 'white',
-              border: 'none',
-              padding: '10px 20px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: '500',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontSize: '14px',
-            }}
-          >
-            <Upload size={18} style={{ transform: 'rotate(180deg)' }} /> Sync from Meta
-          </button>
+          {hasMetaCatalogPermission && (
+            <>
+              <button
+                onClick={openMetaModal}
+                style={{
+                  background: '#25d366',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '14px',
+                }}
+              >
+                <Upload size={18} /> Add to Meta Catalog
+              </button>
+              <button
+                onClick={handleSyncFromMeta}
+                style={{
+                  background: '#0084ff',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '14px',
+                }}
+              >
+                <Upload size={18} style={{ transform: 'rotate(180deg)' }} /> Sync from Meta
+              </button>
+            </>
+          )}
         </div>
       </div>
 

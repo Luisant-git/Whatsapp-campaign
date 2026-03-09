@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ecommerceApi } from '../api/ecommerce';
+import { getProfile } from '../api/auth';
+import { API_BASE_URL } from '../api/config';
 import { Pencil, Trash2, Upload, Search, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import '../styles/Ecommerce.css';
 
@@ -7,7 +9,7 @@ export default function Products() {
   const [subCategories, setSubCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [permissions, setPermissions] = useState({});
+  const [hasMetaCatalogPermission, setHasMetaCatalogPermission] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [showMetaModal, setShowMetaModal] = useState(false);
@@ -73,18 +75,18 @@ export default function Products() {
 
   useEffect(() => {
     loadData();
-    loadPermissions();
+    checkMetaCatalogPermission();
   }, []);
 
-  const loadPermissions = async () => {
+  const checkMetaCatalogPermission = async () => {
     try {
-      const response = await fetch('/api/menu-permission/current', {
-        credentials: 'include'
-      });
-      const data = await response.json();
-      setPermissions(data.permission || {});
+      const data = await getProfile();
+      const permissions = data.menuPermission || {};
+      const hasPermission = permissions['ecommerce.products.metacatalog'] === true;
+      setHasMetaCatalogPermission(hasPermission);
     } catch (error) {
-      console.error('Failed to load permissions:', error);
+      console.error('Error checking Meta Catalog permission:', error);
+      setHasMetaCatalogPermission(false);
     }
   };
 
@@ -107,7 +109,7 @@ export default function Products() {
   const getImageUrl = (url) => {
     if (!url) return null;
     if (url.startsWith('http')) return url;
-    return `http://localhost:3010${url}`;
+    return `${API_BASE_URL}${url}`;
   };
 
   // Toggle expanded row
@@ -589,8 +591,6 @@ export default function Products() {
   };
 
   // ==================== FILTERS ====================
-  const hasMetaCatalogPermission = permissions['ecommerce.products.metacatalog'] === true;
-  
   const filteredProducts = products.filter((p) => {
     const matchesSearch =
       p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||

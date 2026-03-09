@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Session, HttpCode, HttpStatus, UnauthorizedException, ParseIntPipe, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Patch, Param, Delete, Session, HttpCode, HttpStatus, UnauthorizedException, ParseIntPipe, ForbiddenException } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { LoginAdminDto } from './dto/login-admin.dto';
@@ -212,6 +212,19 @@ async updateSubUser(
     const result = await this.adminService.toggleUserQuickReply(+id);
     await this.adminService.updateUserSession(+id, session.store);
     return result;
+  }
+
+  @Put('menu-permissions/:tenantId')
+  @ApiOperation({ summary: 'Update menu permissions for tenant' })
+  async updateMenuPermissions(
+    @Param('tenantId', ParseIntPipe) tenantId: number,
+    @Body() body: { permission: Record<string, any> },
+    @Session() session: Record<string, any>
+  ) {
+    if (!session?.adminId) {
+      throw new UnauthorizedException('Admin authentication required');
+    }
+    return this.adminService.updateMenuPermissions(tenantId, body.permission);
   }
 
   @Post('users/:id/subscription')

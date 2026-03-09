@@ -88,8 +88,8 @@ export class PhoneRouterService {
 
       this.logger.log(`📋 Menu permission record for tenant ${tenantId}:`, JSON.stringify(menuPermission, null, 2));
 
-      // Check if chatbot is explicitly enabled
-      const isEnabled = menuPermission.permission?.['chatbot'] === true;
+      // Check if chatbot is explicitly disabled (default is enabled)
+      const isEnabled = menuPermission.permission?.['chatbot'] !== false;
       this.logger.log(`🤖 Chatbot permission result: ${isEnabled}`);
       return isEnabled;
     } catch (error) {

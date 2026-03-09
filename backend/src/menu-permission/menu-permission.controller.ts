@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Patch,
   Body,
   Param,
@@ -70,6 +71,21 @@ export class MenuPermissionController {
   @Post(':tenantId')
   @ApiOperation({ summary: 'Admin: Create or update menu permission' })
   async save(
+    @Param('tenantId', ParseIntPipe) tenantId: number,
+    @Session() session: any,
+    @Body() dto: UpdateMenuPermissionDto,
+  ) {
+    if (!session?.adminId) {
+      throw new UnauthorizedException('Admin authentication required');
+    }
+
+    return this.service.createOrUpdate(tenantId, dto.permission);
+  }
+
+  // ===== Admin: Update (PUT) by tenantId =====
+  @Put(':tenantId')
+  @ApiOperation({ summary: 'Admin: Update menu permission via PUT' })
+  async updatePut(
     @Param('tenantId', ParseIntPipe) tenantId: number,
     @Session() session: any,
     @Body() dto: UpdateMenuPermissionDto,

@@ -594,7 +594,18 @@ async getSubUserById(id: number) {
 
 
 
-async deactivateSubUser(id: number, tenantId?: number) {
+  async updateMenuPermissions(tenantId: number, permission: Record<string, any>) {
+    return this.prisma.menuPermission.upsert({
+      where: { tenantId },
+      update: { permission },
+      create: {
+        tenantId,
+        permission,
+      },
+    });
+  }
+
+  async deactivateSubUser(id: number, tenantId?: number) {
   const subUser = await this.prisma.subUser.findUnique({ where: { id } });
   if (!subUser) throw new NotFoundException('Sub-user not found');
 

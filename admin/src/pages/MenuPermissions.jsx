@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import '../styles/Users.css';
 import { useToast } from '../contexts/ToastContext';
+import { MENU_CONFIG } from '../config/menuConfig';
 
 export default function MenuPermissions() {
   const [users, setUsers] = useState([]);
@@ -28,8 +29,8 @@ export default function MenuPermissions() {
     }
   };
 
-  const handlePermissionToggle = async (userId, permissionType, hasPermission) => {
-    setUpdating(prev => ({ ...prev, [`${userId}-${permissionType}`]: true }));
+  const handlePermissionToggle = async (userId, permissionKey, hasPermission) => {
+    setUpdating(prev => ({ ...prev, [`${userId}-${permissionKey}`]: true }));
     try {
       // Get current permissions
       const currentUser = users.find(u => u.id === userId);
@@ -38,10 +39,10 @@ export default function MenuPermissions() {
       // Update the specific permission
       const updatedPermissions = {
         ...currentPermissions,
-        [permissionType]: !hasPermission
+        [permissionKey]: !hasPermission
       };
 
-      const response = await fetch(`/api/menu-permissions/${userId}`, {
+      const response = await fetch(`/api/admin/menu-permissions/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -58,13 +59,14 @@ export default function MenuPermissions() {
           : user
       ));
 
-      const permissionName = permissionType === 'flowAppointments' ? 'Flow Appointments' : 'AI Chatbot';
+      const menuItem = MENU_CONFIG.find(item => item.key === permissionKey);
+      const permissionName = menuItem ? menuItem.label : permissionKey;
       showToast(`${permissionName} ${!hasPermission ? 'enabled' : 'disabled'}`, 'success');
     } catch (err) {
       console.error('Error updating permission:', err);
       showToast('Error updating permission', 'error');
     } finally {
-      setUpdating(prev => ({ ...prev, [`${userId}-${permissionType}`]: false }));
+      setUpdating(prev => ({ ...prev, [`${userId}-${permissionKey}`]: false }));
     }
   };
 
@@ -76,7 +78,7 @@ export default function MenuPermissions() {
     <div className="users-page">
       <div className="users-header">
         <h1>Menu Permissions</h1>
-        <p>Manage feature access for Standard plan users</p>
+        <p>Fine-tune access control for Standard plan users</p>
       </div>
 
       <div className="users-table-container">
@@ -87,14 +89,13 @@ export default function MenuPermissions() {
               <th>Company Name</th>
               <th>Email</th>
               <th>Plan</th>
-              <th>AI Chatbot</th>
-              <th>Flow Appointments</th>
+              {MENU_CONFIG.map(menuItem => (
+                <th key={menuItem.key}>{menuItem.label}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {users.map((user, idx) => {
-              const flowPermission = user.menuPermission?.permission?.flowAppointments || false;
-              const chatbotPermission = user.menuPermission?.permission?.chatbot !== false; // Default to true
               return (
                 <tr key={user.id}>
                   <td>{idx + 1}</td>
@@ -105,27 +106,25 @@ export default function MenuPermissions() {
                       {user.subscription?.name || 'Standard'}
                     </span>
                   </td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={chatbotPermission}
-                      onChange={() => handlePermissionToggle(user.id, 'chatbot', chatbotPermission)}
-                      disabled={updating[`${user.id}-chatbot`]}
-                    />
-                    {updating[`${user.id}-chatbot`] && <span style={{marginLeft: '8px', fontSize: '12px', color: '#666'}}>Updating...</span>}
-                  </td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={flowPermission}
-                      onChange={() => handlePermissionToggle(user.id, 'flowAppointments', flowPermission)}
-                      disabled={updating[`${user.id}-flowAppointments`]}
-                    />
-                    {updating[`${user.id}-flowAppointments`] && <span style={{marginLeft: '8px', fontSize: '12px', color: '#666'}}>Updating...</span>}
-                  </td>
+                  {MENU_CONFIG.map(menuItem => {
+                    const hasPermission = user.menuPermission?.permission?.[menuItem.key] !== false;
+                    return (
+                      <td key={menuItem.key}>
+                        <input
+                          type="checkbox"
+                          checked={hasPermission}
+                          onChange={() => handlePermissionToggle(user.id, menuItem.key, hasPermission)}
+                          disabled={updating[`${user.id}-${menuItem.key}`]}
+                        />
+                        {updating[`${user.id}-${menuItem.key}`] && (
+                          <span style={{marginLeft: '8px', fontSize: '12px', color: '#666'}}>Updating...</span>
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
               );
-            })}}
+            })}
           </tbody>
         </table>
       </div>

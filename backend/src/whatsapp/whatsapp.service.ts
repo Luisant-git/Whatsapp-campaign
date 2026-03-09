@@ -859,7 +859,23 @@ export class WhatsappService {
       
       // 🔥 QUICK REPLY NUMBER: Route to session service
       if (routing.route === 'quick-reply') {
-        // Check if user is in Meta Catalog order flow first
+        // Check current session to determine which flow
+        const currentStep = await this.ecommerceService['sessionService'].getStep(from, tenantId);
+        const session = await this.ecommerceService['sessionService'].getSession(from, tenantId);
+        const paymentMethod = session?.paymentMethod;
+        
+        // If user is in confirm_details step AND payment method is already COD, use regular ecommerce
+        if (currentStep === 'confirm_details' && paymentMethod === 'COD') {
+          const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, tenantId, whatsappSettings.accessToken, whatsappSettings.phoneNumberId);
+          if (orderResult === 'order_placed' || orderResult === 'awaiting_name' || orderResult === 'awaiting_address') {
+            if (orderResult === 'awaiting_address') {
+              await this.sendMessageDirect(from, 'Thank you! Now please provide your complete delivery address:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+            }
+            return;
+          }
+        }
+        
+        // Check if user is in Meta Catalog order flow
         const metaCatalogService = this.ecommerceService['metaCatalogService'];
         if (metaCatalogService) {
           const handled = await metaCatalogService.handleCustomerResponse(from, whatsappSettings.phoneNumberId, text, tenantId);

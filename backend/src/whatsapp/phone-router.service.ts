@@ -68,7 +68,9 @@ export class PhoneRouterService {
         where: { tenantId },
       });
 
-      this.logger.log(`📋 Menu permissions for tenant ${tenantId}:`, menuPermission?.permission);
+      this.logger.log(`📋 Raw menu permission record for tenant ${tenantId}:`, JSON.stringify(menuPermission, null, 2));
+      this.logger.log(`📋 Permission field value:`, menuPermission?.permission);
+      this.logger.log(`📋 Permission field type:`, typeof menuPermission?.permission);
 
       // If no menu permissions set, allow chatbot (default behavior)
       if (!menuPermission || !menuPermission.permission) {
@@ -78,6 +80,7 @@ export class PhoneRouterService {
 
       // Check if chatbot is explicitly enabled
       const isEnabled = menuPermission.permission['chatbot'] === true;
+      this.logger.log(`🤖 Chatbot permission in object:`, menuPermission.permission['chatbot']);
       this.logger.log(`🤖 Chatbot permission result: ${isEnabled}`);
       return isEnabled;
     } catch (error) {

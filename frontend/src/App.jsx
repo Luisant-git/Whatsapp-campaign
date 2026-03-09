@@ -179,21 +179,18 @@ function App() {
         const { checkSessionStatus } = await import("./api/session");
         const sessionData = await checkSessionStatus();
 
-        if (sessionData.user?.aiChatbotEnabled !== aiChatbotEnabled) {
-          setAiChatbotEnabled(sessionData.user.aiChatbotEnabled);
-          if (activeView === "chatbot" && !sessionData.user.aiChatbotEnabled) {
-            setActiveView("analytics");
-          }
+        // Check if chatbot access should be revoked based on menu permissions
+        if (activeView === "chatbot" && !isAllowed("chatbot")) {
+          setActiveView("analytics");
+        }
+
+        // Check if quick-reply access should be revoked based on menu permissions
+        if (activeView === "quick-reply" && !isAllowed("quick-reply")) {
+          setActiveView("analytics");
         }
 
         if (sessionData.user?.useQuickReply !== useQuickReply) {
           setUseQuickReply(sessionData.user.useQuickReply !== false);
-          if (
-            activeView === "quick-reply" &&
-            sessionData.user.useQuickReply === false
-          ) {
-            setActiveView("analytics");
-          }
         }
       } catch (error) {
         console.error("Session check failed:", error);
@@ -201,7 +198,7 @@ function App() {
     };
 
     checkSession();
-  }, [isLoggedIn, activeView, aiChatbotEnabled, useQuickReply]);
+  }, [isLoggedIn, activeView, menuPerms, useQuickReply]);
 
   // Responsive sidebar
   useEffect(() => {
@@ -290,15 +287,16 @@ function App() {
 
   // Permission check: subscription menuPerms + feature flags
   const isAllowed = (key) => {
-    // 1. Feature flags (always check these first)
-    if (key === "chatbot" && !aiChatbotEnabled) return false;
+    // 1. If menuPerms exists, check admin permissions first
+    if (menuPerms && Object.keys(menuPerms).length > 0) {
+      if (menuPerms[key] !== true) return false;
+    }
+
+    // 2. Then check feature flags for quick-reply only
     if (key === "quick-reply" && useQuickReply === false) return false;
 
-    // 2. If menuPerms is null or empty object → no subscription restrictions, show all
-    if (!menuPerms || Object.keys(menuPerms).length === 0) return true;
-
-    // 3. If menuPerms exists, only show what's explicitly allowed
-    return menuPerms[key] === true;
+    // 3. If no menuPerms restrictions, allow by default
+    return true;
   };
 
   const renderSidebar = () => (
@@ -482,7 +480,7 @@ function App() {
             {activeView === "customers" && <Customers />}
             {activeView === "auto-reply" && <AutoReply />}
             {activeView === "quick-reply" && useQuickReply && <QuickReply />}
-            {activeView === "chatbot" && aiChatbotEnabled && <Chatbot />}
+            {activeView === "chatbot" && <Chatbot />}
             {activeView === "flow-manager" && <FlowManager />}
             {activeView === "flow-appointments" && <FlowAppointments />}
             {activeView === "analytics" && <Analytics />}

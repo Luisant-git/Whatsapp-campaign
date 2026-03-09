@@ -589,7 +589,7 @@ export default function Products() {
   };
 
   // ==================== FILTERS ====================
-  const hasMetaCatalogPermission = permissions['ecommerce.products.metacatalog'] !== false;
+  const hasMetaCatalogPermission = permissions['ecommerce.products.metacatalog'] === true;
   
   const filteredProducts = products.filter((p) => {
     const matchesSearch =

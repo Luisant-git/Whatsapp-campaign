@@ -258,7 +258,23 @@ export class WhatsappService {
       try {
         const settings = await this.getSettings(userId);
         
-        // Try regular ecommerce order flow first
+        // Check current session step to determine which flow
+        const currentStep = await this.ecommerceService['sessionService'].getStep(from, userId);
+        const session = await this.ecommerceService['sessionService'].getSession(from, userId);
+        const paymentMethod = session?.paymentMethod;
+        
+        // If user is in confirm_details step AND payment method is already COD, use regular ecommerce
+        if (currentStep === 'confirm_details' && paymentMethod === 'COD') {
+          const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, userId, settings.accessToken, settings.phoneNumberId);
+          if (orderResult === 'order_placed' || orderResult === 'awaiting_name' || orderResult === 'awaiting_address') {
+            if (orderResult === 'awaiting_address') {
+              await this.sendMessage(from, 'Thank you! Now please provide your complete delivery address:', userId);
+            }
+            return;
+          }
+        }
+        
+        // Try regular ecommerce order flow for other steps
         const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, userId, settings.accessToken, settings.phoneNumberId);
         if (orderResult === 'awaiting_address') {
           await this.sendMessage(from, 'Thank you! Now please provide your complete delivery address:', userId);

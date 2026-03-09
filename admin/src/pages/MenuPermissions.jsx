@@ -28,15 +28,25 @@ export default function MenuPermissions() {
     }
   };
 
-  const handlePermissionToggle = async (userId, hasPermission) => {
-    setUpdating(prev => ({ ...prev, [userId]: true }));
+  const handlePermissionToggle = async (userId, permissionType, hasPermission) => {
+    setUpdating(prev => ({ ...prev, [`${userId}-${permissionType}`]: true }));
     try {
+      // Get current permissions
+      const currentUser = users.find(u => u.id === userId);
+      const currentPermissions = currentUser?.menuPermission?.permission || {};
+      
+      // Update the specific permission
+      const updatedPermissions = {
+        ...currentPermissions,
+        [permissionType]: !hasPermission
+      };
+
       const response = await fetch(`/api/menu-permissions/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          permission: { flowAppointments: !hasPermission }
+          permission: updatedPermissions
         })
       });
 
@@ -44,16 +54,17 @@ export default function MenuPermissions() {
 
       setUsers(prev => prev.map(user => 
         user.id === userId 
-          ? { ...user, menuPermission: { ...user.menuPermission, permission: { flowAppointments: !hasPermission } } }
+          ? { ...user, menuPermission: { ...user.menuPermission, permission: updatedPermissions } }
           : user
       ));
 
-      showToast(`Flow Appointments ${!hasPermission ? 'enabled' : 'disabled'}`, 'success');
+      const permissionName = permissionType === 'flowAppointments' ? 'Flow Appointments' : 'AI Chatbot';
+      showToast(`${permissionName} ${!hasPermission ? 'enabled' : 'disabled'}`, 'success');
     } catch (err) {
       console.error('Error updating permission:', err);
       showToast('Error updating permission', 'error');
     } finally {
-      setUpdating(prev => ({ ...prev, [userId]: false }));
+      setUpdating(prev => ({ ...prev, [`${userId}-${permissionType}`]: false }));
     }
   };
 
@@ -65,7 +76,7 @@ export default function MenuPermissions() {
     <div className="users-page">
       <div className="users-header">
         <h1>Menu Permissions</h1>
-        <p>Manage Flow Appointments access for Standard plan users</p>
+        <p>Manage feature access for Standard plan users</p>
       </div>
 
       <div className="users-table-container">
@@ -76,12 +87,14 @@ export default function MenuPermissions() {
               <th>Company Name</th>
               <th>Email</th>
               <th>Plan</th>
+              <th>AI Chatbot</th>
               <th>Flow Appointments</th>
             </tr>
           </thead>
           <tbody>
             {users.map((user, idx) => {
-              const hasPermission = user.menuPermission?.permission?.flowAppointments || false;
+              const flowPermission = user.menuPermission?.permission?.flowAppointments || false;
+              const chatbotPermission = user.menuPermission?.permission?.chatbot !== false; // Default to true
               return (
                 <tr key={user.id}>
                   <td>{idx + 1}</td>
@@ -95,15 +108,24 @@ export default function MenuPermissions() {
                   <td>
                     <input
                       type="checkbox"
-                      checked={hasPermission}
-                      onChange={() => handlePermissionToggle(user.id, hasPermission)}
-                      disabled={updating[user.id]}
+                      checked={chatbotPermission}
+                      onChange={() => handlePermissionToggle(user.id, 'chatbot', chatbotPermission)}
+                      disabled={updating[`${user.id}-chatbot`]}
                     />
-                    {updating[user.id] && <span style={{marginLeft: '8px', fontSize: '12px', color: '#666'}}>Updating...</span>}
+                    {updating[`${user.id}-chatbot`] && <span style={{marginLeft: '8px', fontSize: '12px', color: '#666'}}>Updating...</span>}
+                  </td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={flowPermission}
+                      onChange={() => handlePermissionToggle(user.id, 'flowAppointments', flowPermission)}
+                      disabled={updating[`${user.id}-flowAppointments`]}
+                    />
+                    {updating[`${user.id}-flowAppointments`] && <span style={{marginLeft: '8px', fontSize: '12px', color: '#666'}}>Updating...</span>}
                   </td>
                 </tr>
               );
-            })}
+            })}}
           </tbody>
         </table>
       </div>

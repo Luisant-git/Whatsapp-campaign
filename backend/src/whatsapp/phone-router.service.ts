@@ -63,6 +63,12 @@ export class PhoneRouterService {
 
       this.logger.log(`🔍 Checking chatbot permission for tenant ${tenantId}`);
 
+      // TEMPORARY: Force disable chatbot for tenant 1 for testing
+      if (tenantId === 1) {
+        this.logger.log('🚫 TEMPORARY: Forcing chatbot disabled for tenant 1');
+        return false;
+      }
+
       // Check Menu Permissions
       const menuPermission = await this.centralPrisma.menuPermission.findUnique({
         where: { tenantId },

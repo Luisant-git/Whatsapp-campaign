@@ -245,13 +245,21 @@ export class WhatsappEcommerceService {
   }
 
   private async sendWhatsAppMessage(phone: string, message: any, accessToken: string, phoneNumberId: string) {
-    const url = `https://graph.facebook.com/v17.0/${phoneNumberId}/messages`;
-    return axios.post(url, {
-      messaging_product: 'whatsapp',
-      to: phone,
-      ...message,
-    }, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    try {
+      console.log(`[Ecommerce] Sending message to ${phone}`);
+      const url = `https://graph.facebook.com/v17.0/${phoneNumberId}/messages`;
+      const response = await axios.post(url, {
+        messaging_product: 'whatsapp',
+        to: phone,
+        ...message,
+      }, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      console.log(`[Ecommerce] Message sent successfully to ${phone}`);
+      return response;
+    } catch (error) {
+      console.error('[Ecommerce] WhatsApp API Error:', error.response?.data || error.message);
+      throw error;
+    }
   }
 }

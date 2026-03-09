@@ -840,6 +840,18 @@ export class WhatsappService {
         return;
       }
       
+      // Check for ecommerce keywords first (before routing to AI bot)
+      if (['shop', 'catalog', 'products', 'buy'].includes(lowerText) || 
+          lowerText.startsWith('cat:') || 
+          lowerText.startsWith('sub:') || 
+          lowerText.startsWith('prod:') ||
+          lowerText.startsWith('buy:') ||
+          lowerText === 'cod') {
+        await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantId);
+        this.logger.log(`✅ Ecommerce keyword handled`);
+        return;
+      }
+      
       // 🔥 AI BOT NUMBER: Route to chatbot
       if (routing.route === 'ai-bot') {
         const chatResponse = await this.chatbotService.processMessage(tenantId, { message: text, phone: from });

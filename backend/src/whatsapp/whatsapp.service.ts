@@ -257,13 +257,8 @@ export class WhatsappService {
       // Check if user is in order flow (awaiting name, address, city, or pincode)
       try {
         const settings = await this.getSettings(userId);
-        const metaCatalogService = this.ecommerceService['metaCatalogService'];
         
-        if (metaCatalogService) {
-          const handled = await metaCatalogService.handleCustomerResponse(from, settings.phoneNumberId, text, userId);
-          if (handled) return;
-        }
-        
+        // Try regular ecommerce order flow first
         const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, userId, settings.accessToken, settings.phoneNumberId);
         if (orderResult === 'awaiting_address') {
           await this.sendMessage(from, 'Thank you! Now please provide your complete delivery address:', userId);
@@ -276,6 +271,13 @@ export class WhatsappService {
           return;
         } else if (orderResult === 'order_placed') {
           return;
+        }
+        
+        // If not handled by regular ecommerce, try Meta Catalog
+        const metaCatalogService = this.ecommerceService['metaCatalogService'];
+        if (metaCatalogService) {
+          const handled = await metaCatalogService.handleCustomerResponse(from, settings.phoneNumberId, text, userId);
+          if (handled) return;
         }
       } catch (error) {
         this.logger.error('Order creation error:', error);

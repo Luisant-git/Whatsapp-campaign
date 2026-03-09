@@ -151,6 +151,30 @@ export class WhatsappEcommerceService {
 
     const message = `*${product.name}*\n\n${product.description}\n\n💰 Price: ₹${product.price}`;
 
+    // If product has image, send image with caption and button
+    if (product.imageUrl) {
+      return this.sendWhatsAppMessage(phone, {
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          header: {
+            type: 'image',
+            image: {
+              link: product.imageUrl.startsWith('http') ? product.imageUrl : `${process.env.BASE_URL || 'http://localhost:3010'}${product.imageUrl}`
+            }
+          },
+          body: { text: message },
+          action: {
+            buttons: [{
+              type: 'reply',
+              reply: { id: `buy:${productId}`, title: '🛒 Buy Now' }
+            }]
+          }
+        }
+      }, accessToken, phoneNumberId);
+    }
+
+    // Fallback without image
     return this.sendWhatsAppMessage(phone, {
       type: 'interactive',
       interactive: {

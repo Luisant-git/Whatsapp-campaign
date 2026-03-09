@@ -842,6 +842,16 @@ export class WhatsappService {
       
       // 🔥 QUICK REPLY NUMBER: Route to session service
       if (routing.route === 'quick-reply') {
+        // Check if user is in Meta Catalog order flow first
+        const metaCatalogService = this.ecommerceService['metaCatalogService'];
+        if (metaCatalogService) {
+          const handled = await metaCatalogService.handleCustomerResponse(from, whatsappSettings.phoneNumberId, text, tenantId);
+          if (handled) {
+            this.logger.log('✅ Meta Catalog order flow handled in quick-reply');
+            return;
+          }
+        }
+        
         await this.sessionService.handleInteractiveMenu(from, text, settingsId, 
           async (to, msg, imageUrl) => {
             if (imageUrl) {

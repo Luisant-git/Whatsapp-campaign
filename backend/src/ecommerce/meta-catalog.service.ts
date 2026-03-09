@@ -435,12 +435,12 @@ export class MetaCatalogService {
       
       if (step === 'awaiting_payment_method') {
         const method = message.toLowerCase();
-        if (method !== 'razorpay' && method !== 'cod' && method !== 'pay online' && method !== 'cash on delivery' && message !== 'Pay Online' && message !== 'Cash on Delivery') {
+        if (method !== 'payment_razorpay' && method !== 'payment_cod' && method !== 'pay online' && method !== 'cash on delivery' && message !== 'Pay Online' && message !== 'Cash on Delivery') {
           await this.sendTextMessage(phone, phoneNumberId, '❌ Invalid option. Please choose a payment method.');
           return true;
         }
         
-        const paymentMethod = (method === 'razorpay' || method === 'pay online' || message === 'Pay Online') ? 'razorpay' : 'cod';
+        const paymentMethod = (method === 'payment_razorpay' || method === 'pay online' || message === 'Pay Online') ? 'razorpay' : 'cod';
         await this.sessionService.setPaymentMethod(phone, paymentMethod, userId);
         const session = await this.sessionService.getSession(phone, userId);
         const cartProducts = session?.cartProducts || [];
@@ -563,14 +563,14 @@ export class MetaCatalogService {
                 {
                   type: 'reply',
                   reply: {
-                    id: 'razorpay',
+                    id: 'payment_razorpay',
                     title: 'Pay Online'
                   }
                 },
                 {
                   type: 'reply',
                   reply: {
-                    id: 'cod',
+                    id: 'payment_cod',
                     title: 'Cash on Delivery'
                   }
                 }

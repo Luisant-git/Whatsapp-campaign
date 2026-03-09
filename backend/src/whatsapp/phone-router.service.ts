@@ -63,24 +63,38 @@ export class PhoneRouterService {
 
       this.logger.log(`🔍 Checking chatbot permission for tenant ${tenantId}`);
 
-      // Check subscription Menu Permissions (same as frontend uses)
-      const tenant = await this.centralPrisma.tenant.findUnique({
-        where: { id: tenantId },
-        include: { subscription: true }
+      // Check Menu Permissions
+      let menuPermission = await this.centralPrisma.menuPermission.findUnique({
+        where: { tenantId },
       });
 
-      if (tenant?.subscription?.menuPermissions) {
-        const hasAiChatbot = tenant.subscription.menuPermissions.includes('aiChatbot');
-        this.logger.log(`🤖 Subscription includes aiChatbot: ${hasAiChatbot}`);
-        return hasAiChatbot;
+      // If no menu permissions exist, create default with chatbot enabled
+      if (!menuPermission) {
+        this.logger.log(`🆕 Creating default menu permissions for tenant ${tenantId}`);
+        menuPermission = await this.centralPrisma.menuPermission.create({
+          data: {
+            tenantId,
+            permission: {
+              dashboard: true,
+              contacts: true,
+              campaigns: true,
+              chatbot: true,  // Default enabled
+              quickReply: true,
+              whatsappChat: true
+            }
+          }
+        });
       }
 
-      // If no subscription or menuPermissions, default to enabled
-      this.logger.log('✅ No subscription menu permissions - allowing chatbot (default)');
-      return true;
+      this.logger.log(`📋 Menu permission record for tenant ${tenantId}:`, JSON.stringify(menuPermission, null, 2));
+
+      // Check if chatbot is explicitly enabled
+      const isEnabled = menuPermission.permission?.['chatbot'] === true;
+      this.logger.log(`🤖 Chatbot permission result: ${isEnabled}`);
+      return isEnabled;
     } catch (error) {
       this.logger.error('Error checking chatbot permission:', error);
-      return false;
+      return false; // Default to disabled on error
     }
   }
 }

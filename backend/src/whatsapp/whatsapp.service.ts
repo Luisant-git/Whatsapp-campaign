@@ -737,7 +737,7 @@ export class WhatsappService {
     let text = message.text?.body;
     
     // 🔥 ROUTE BASED ON PHONE NUMBER ID
-    const routing = await this.phoneRouter.routeMessage(phoneNumberId, message, settingsId, tenantClient);
+    const routing = await this.phoneRouter.routeMessage(phoneNumberId, message, settingsId, tenantClient, tenantId);
     this.logger.log(`📍 Routing: ${routing.route} for phone ${phoneNumberId}`);
     
     // Handle Meta Catalog order messages

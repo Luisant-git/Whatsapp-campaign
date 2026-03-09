@@ -282,11 +282,6 @@ export class WhatsappService {
         this.logger.error('Order creation error:', error);
       }
 
-      // Get tenant config to check if AI chatbot is enabled
-      const tenantConfig = await this.prisma.tenantConfig.findFirst({
-        select: { aiChatbotEnabled: true }
-      });
-
       // Try session service first (auto-reply, quick-reply)
       const sessionHandled = await this.sessionService.handleInteractiveMenu(from, text, userId, 
         async (to, msg, imageUrl) => {
@@ -299,22 +294,6 @@ export class WhatsappService {
           return this.sendButtonsMessage(to, msg, buttons, userId);
         }
       );
-
-      // Only try chatbot if session service didn't handle it AND AI chatbot is enabled
-      if (!sessionHandled && tenantConfig?.aiChatbotEnabled) {
-        try {
-          const chatResponse = await this.chatbotService.processMessage(userId, {
-            message: text,
-            phone: from
-          });
-          
-          if (chatResponse.response) {
-            await this.sendMessage(from, chatResponse.response, userId);
-          }
-        } catch (error) {
-          this.logger.error('Chatbot error:', error);
-        }
-      }
     }
 
     this.logger.log(`Message from ${from}: ${text || mediaType}`);
@@ -927,17 +906,6 @@ export class WhatsappService {
           return this.sendButtonsMessageDirect(to, msg, buttons, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
         }
       ).catch(e => { this.logger.error('Session error:', e); return false; });
-      
-      // Try AI chatbot if session didn't handle it
-      if (!sessionHandled) {
-        const tenantConfig = await tenantClient.tenantConfig.findFirst({ select: { aiChatbotEnabled: true } });
-        if (tenantConfig?.aiChatbotEnabled) {
-          const chatResponse = await this.chatbotService.processMessage(tenantId, { message: text, phone: from });
-          if (chatResponse.response) {
-            await this.sendMessageDirect(from, chatResponse.response, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
-          }
-        }
-      }
     }
   }
 

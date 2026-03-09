@@ -122,7 +122,6 @@ function App() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
-  const [aiChatbotEnabled, setAiChatbotEnabled] = useState(false);
   const [useQuickReply, setUseQuickReply] = useState(true);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -170,7 +169,7 @@ function App() {
     }
   };
 
-  // Session-based feature flags (AI Chatbot, Quick Reply)
+  // Session-based feature flags (Quick Reply)
   useEffect(() => {
     if (!isLoggedIn) return;
 
@@ -217,7 +216,6 @@ function App() {
         const user = profileData.user;
   
         setUser(user);
-        setAiChatbotEnabled(user?.aiChatbotEnabled || false);
         setUseQuickReply(user?.useQuickReply !== false);
         setIsLoggedIn(true);
   
@@ -244,7 +242,6 @@ function App() {
 
   const handleLogin = (user, role, profile) => {
     setUser(user);
-    setAiChatbotEnabled(user?.aiChatbotEnabled || false);
     setUseQuickReply(user?.useQuickReply !== false);
     setIsLoggedIn(true);
   

@@ -206,14 +206,6 @@ async updateSubUser(
     return this.adminService.updateUser(+id, updateUserDto);
   }
 
-  @Patch('users/:id/toggle-chatbot')
-  @ApiOperation({ summary: 'Toggle AI chatbot for user' })
-  async toggleUserChatbot(@Param('id') id: number, @Session() session: Record<string, any>) {
-    const result = await this.adminService.toggleUserChatbot(+id);
-    await this.adminService.updateUserSession(+id, session.store);
-    return result;
-  }
-
   @Patch('users/:id/toggle-quickreply')
   @ApiOperation({ summary: 'Toggle Quick Reply for user' })
   async toggleUserQuickReply(@Param('id') id: number, @Session() session: Record<string, any>) {

@@ -67,8 +67,7 @@ export class PhoneRouterService {
       const tenant = await this.centralPrisma.tenant.findUnique({
         where: { id: tenantId },
         include: {
-          subscription: true,
-          menuPermission: true
+          subscription: true
         }
       });
 
@@ -77,15 +76,7 @@ export class PhoneRouterService {
         return false;
       }
 
-      // Check individual menu permissions first
-      if (tenant.menuPermission) {
-        this.logger.log(`📋 Individual menu permission found:`, JSON.stringify(tenant.menuPermission, null, 2));
-        const isEnabled = tenant.menuPermission.permission?.['chatbot'] !== false;
-        this.logger.log(`🤖 Individual permission result: ${isEnabled}`);
-        return isEnabled;
-      }
-
-      // Check subscription plan permissions
+      // Check subscription plan permissions FIRST (Plan Menu Permission)
       if (tenant.subscription?.menuPermissions) {
         this.logger.log(`📋 Subscription plan permissions:`, tenant.subscription.menuPermissions);
         const isEnabled = tenant.subscription.menuPermissions.includes('chatbot');
@@ -93,9 +84,9 @@ export class PhoneRouterService {
         return isEnabled;
       }
 
-      // Default: enabled if no restrictions found
-      this.logger.log(`🤖 No permissions found, defaulting to enabled`);
-      return true;
+      // Default: disabled if no plan permissions found
+      this.logger.log(`🤖 No plan permissions found, defaulting to disabled`);
+      return false;
     } catch (error) {
       this.logger.error('Error checking chatbot permission:', error);
       return false; // Default to disabled on error

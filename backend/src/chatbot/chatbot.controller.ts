@@ -28,7 +28,8 @@ export class ChatbotController {
 
   private async checkChatbotPermission(tenantId: number) {
     const menuPermission = await this.menuPermissionService.findByTenant(tenantId);
-    if (menuPermission?.permission?.chatbot !== true) {
+    const permissions = menuPermission?.permission as any;
+    if (permissions?.chatbot !== true) {
       throw new ForbiddenException('Chatbot feature is not enabled for your plan');
     }
   }

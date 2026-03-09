@@ -27,11 +27,14 @@ export class PhoneRouterService {
         return { route: 'ecommerce', phoneNumberId, settingsId };
       }
       if (assignments.aiChatbot === phoneNumberId) {
+        this.logger.log(`📞 Phone ${phoneNumberId} is assigned to AI Chatbot`);
         // Check if chatbot is enabled in Menu Permissions
         const isChatbotEnabled = await this.checkChatbotPermission(tenantId);
         if (isChatbotEnabled) {
+          this.logger.log('✅ Chatbot enabled - routing to ai-bot');
           return { route: 'ai-bot', phoneNumberId, settingsId };
         } else {
+          this.logger.log('❌ Chatbot disabled - falling back to quick-reply');
           // If chatbot disabled, fall back to quick-reply
           return { route: 'quick-reply', phoneNumberId, settingsId };
         }
@@ -53,20 +56,30 @@ export class PhoneRouterService {
 
   private async checkChatbotPermission(tenantId?: number): Promise<boolean> {
     try {
-      if (!tenantId) return false;
+      if (!tenantId) {
+        this.logger.log('❌ No tenantId provided for chatbot permission check');
+        return false;
+      }
+
+      this.logger.log(`🔍 Checking chatbot permission for tenant ${tenantId}`);
 
       // Check Menu Permissions
       const menuPermission = await this.centralPrisma.menuPermission.findUnique({
         where: { tenantId },
       });
 
+      this.logger.log(`📋 Menu permissions for tenant ${tenantId}:`, menuPermission?.permission);
+
       // If no menu permissions set, allow chatbot (default behavior)
       if (!menuPermission || !menuPermission.permission) {
+        this.logger.log('✅ No menu permissions set - allowing chatbot (default)');
         return true;
       }
 
       // Check if chatbot is explicitly enabled
-      return menuPermission.permission['chatbot'] === true;
+      const isEnabled = menuPermission.permission['chatbot'] === true;
+      this.logger.log(`🤖 Chatbot permission result: ${isEnabled}`);
+      return isEnabled;
     } catch (error) {
       this.logger.error('Error checking chatbot permission:', error);
       return false; // Default to disabled on error

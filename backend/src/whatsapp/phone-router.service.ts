@@ -63,30 +63,33 @@ export class PhoneRouterService {
 
       this.logger.log(`🔍 Checking chatbot permission for tenant ${tenantId}`);
 
-      // TEMPORARY: Force disable chatbot for tenant 1 for testing
-      if (tenantId === 1) {
-        this.logger.log('🚫 TEMPORARY: Forcing chatbot disabled for tenant 1');
-        return false;
-      }
-
       // Check Menu Permissions
-      const menuPermission = await this.centralPrisma.menuPermission.findUnique({
+      let menuPermission = await this.centralPrisma.menuPermission.findUnique({
         where: { tenantId },
       });
 
-      this.logger.log(`📋 Raw menu permission record for tenant ${tenantId}:`, JSON.stringify(menuPermission, null, 2));
-      this.logger.log(`📋 Permission field value:`, menuPermission?.permission);
-      this.logger.log(`📋 Permission field type:`, typeof menuPermission?.permission);
-
-      // If no menu permissions set, allow chatbot (default behavior)
-      if (!menuPermission || !menuPermission.permission) {
-        this.logger.log('✅ No menu permissions set - allowing chatbot (default)');
-        return true;
+      // If no menu permissions exist, create default with chatbot enabled
+      if (!menuPermission) {
+        this.logger.log(`🆕 Creating default menu permissions for tenant ${tenantId}`);
+        menuPermission = await this.centralPrisma.menuPermission.create({
+          data: {
+            tenantId,
+            permission: {
+              dashboard: true,
+              contacts: true,
+              campaigns: true,
+              chatbot: true,  // Default enabled
+              quickReply: true,
+              whatsappChat: true
+            }
+          }
+        });
       }
+
+      this.logger.log(`📋 Menu permission record for tenant ${tenantId}:`, JSON.stringify(menuPermission, null, 2));
 
       // Check if chatbot is explicitly enabled
       const isEnabled = menuPermission.permission['chatbot'] === true;
-      this.logger.log(`🤖 Chatbot permission in object:`, menuPermission.permission['chatbot']);
       this.logger.log(`🤖 Chatbot permission result: ${isEnabled}`);
       return isEnabled;
     } catch (error) {

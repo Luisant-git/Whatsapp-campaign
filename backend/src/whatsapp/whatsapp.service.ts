@@ -244,9 +244,9 @@ export class WhatsappService {
       // Check if user is providing order details (NAME and ADDRESS)
       if (lowerText.includes('name:') && lowerText.includes('address:')) {
         try {
-          const orderCreated = await this.ecommerceService.createOrderFromMessage(from, text, userId);
-          if (orderCreated) {
-            await this.sendMessage(from, '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!', userId);
+          const settings = await this.getSettings(userId);
+          const orderCreated = await this.ecommerceService.createOrderFromMessage(from, text, userId, settings.accessToken, settings.phoneNumberId);
+          if (orderCreated === 'order_placed') {
             return;
           }
         } catch (error) {
@@ -264,7 +264,7 @@ export class WhatsappService {
           if (handled) return;
         }
         
-        const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, userId);
+        const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, userId, settings.accessToken, settings.phoneNumberId);
         if (orderResult === 'awaiting_address') {
           await this.sendMessage(from, 'Thank you! Now please provide your complete delivery address:', userId);
           return;
@@ -274,8 +274,7 @@ export class WhatsappService {
         } else if (orderResult === 'awaiting_pincode') {
           await this.sendMessage(from, 'Thank you! Finally, please provide your pincode:', userId);
           return;
-        } else if (orderResult === true) {
-          await this.sendMessage(from, '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!', userId);
+        } else if (orderResult === 'order_placed') {
           return;
         }
       } catch (error) {
@@ -889,7 +888,7 @@ export class WhatsappService {
       }
       
       // Check if user is in order flow
-      const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, tenantId);
+      const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, tenantId, whatsappSettings.accessToken, whatsappSettings.phoneNumberId);
       if (orderResult === 'awaiting_address') {
         await this.sendMessageDirect(from, 'Thank you! Now please provide your complete delivery address:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
         return;
@@ -899,8 +898,7 @@ export class WhatsappService {
       } else if (orderResult === 'awaiting_pincode') {
         await this.sendMessageDirect(from, 'Thank you! Finally, please provide your pincode:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
         return;
-      } else if (orderResult === true) {
-        await this.sendMessageDirect(from, '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+      } else if (orderResult === 'order_placed') {
         return;
       }
       

@@ -225,76 +225,164 @@ export class WhatsappEcommerceService {
     if (!product) return;
 
     await this.sessionService.setPaymentMethod(phone, 'COD', userId);
-    await this.sessionService.setSession(phone, { step: 'awaiting_name' }, userId);
-
-    return this.sendWhatsAppMessage(phone, {
-      type: 'text',
-      text: {
-        body: `📦 *Order Details*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\nPayment: Cash on Delivery\n\nPlease provide your full name:`,
-      },
-    }, accessToken, phoneNumberId);
+    
+    // Check if customer has saved details
+    const existingCustomer = await this.ecommerceService.getCustomerByPhone(phone, userId);
+    
+    if (existingCustomer) {
+      await this.sessionService.setSession(phone, { 
+        cartProducts: cart,
+        totalAmount: product.price,
+        customerName: existingCustomer.customerName,
+        customerAddress: existingCustomer.customerAddress || undefined,
+        step: 'confirm_details'
+      }, userId);
+      
+      return this.sendCustomerDetailsConfirmation(phone, accessToken, phoneNumberId, existingCustomer);
+    } else {
+      await this.sessionService.setSession(phone, { step: 'awaiting_name' }, userId);
+      return this.sendWhatsAppMessage(phone, {
+        type: 'text',
+        text: {
+          body: `📦 *Order Details*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\nPayment: Cash on Delivery\n\nPlease provide your full name:`,
+        },
+      }, accessToken, phoneNumberId);
+    }
   }
 
-  async createOrderFromMessage(phone: string, message: string, userId: number) {
+  async createOrderFromMessage(phone: string, message: string, userId: number, accessToken: string, phoneNumberId: string) {
     const step = await this.sessionService.getStep(phone, userId);
     const trimmedMsg = message.trim();
     
+    if (step === 'confirm_details') {
+      if (trimmedMsg === 'Use My Details') {
+        const session = await this.sessionService.getSession(phone, userId);
+        const cart = session?.cartProducts || [];
+        
+        if (cart.length > 0 && session) {
+          const product = await this.ecommerceService.getProduct(cart[0].productId, userId);
+          if (!product) return false;
+          
+          const fullAddress = session.customerAddress || '';
+          
+          await this.ecommerceService.createOrder({
+            customerName: session.customerName,
+            customerPhone: phone,
+            customerAddress: fullAddress,
+            totalAmount: product.price,
+            paymentMethod: 'cod',
+            paymentStatus: 'cod',
+            status: 'placed',
+            items: [{ productId: product.id, quantity: 1, price: product.price }]
+          }, userId);
+          
+          await this.sendWhatsAppMessage(phone, {
+            type: 'text',
+            text: { body: `✅ *Order Confirmed*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\nPayment: Cash on Delivery\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂` }
+          }, accessToken, phoneNumberId);
+          
+          await this.sessionService.clearSession(phone, userId);
+          return 'order_placed';
+        }
+      } else if (trimmedMsg === 'Update Details') {
+        await this.sessionService.setSession(phone, { step: 'awaiting_name' }, userId);
+        return 'awaiting_name';
+      } else if (trimmedMsg === 'Order for Someone') {
+        await this.sessionService.setSession(phone, { 
+          customerName: undefined,
+          customerAddress: undefined,
+          step: 'awaiting_name' 
+        }, userId);
+        return 'awaiting_name';
+      }
+      return false;
+    }
+    
     if (step === 'awaiting_name') {
-      const existingName = await this.sessionService.getCustomerName(phone, userId);
-      if (existingName === trimmedMsg) return false;
       await this.sessionService.setCustomerName(phone, trimmedMsg, userId);
+      await this.sessionService.setSession(phone, { step: 'awaiting_address' }, userId);
       return 'awaiting_address';
     }
     
     if (step === 'awaiting_address') {
-      const existingAddress = await this.sessionService.getCustomerAddress(phone, userId);
-      if (existingAddress === trimmedMsg) return false;
       await this.sessionService.setCustomerAddress(phone, trimmedMsg, userId);
+      await this.sessionService.setSession(phone, { step: 'awaiting_city' }, userId);
       return 'awaiting_city';
     }
     
     if (step === 'awaiting_city') {
-      const existingCity = await this.sessionService.getCustomerCity(phone, userId);
-      if (existingCity === trimmedMsg) return false;
       await this.sessionService.setCustomerCity(phone, trimmedMsg, userId);
+      await this.sessionService.setSession(phone, { step: 'awaiting_pincode' }, userId);
       return 'awaiting_pincode';
     }
     
     if (step === 'awaiting_pincode') {
-      const existingPincode = await this.sessionService.getCustomerPincode(phone, userId);
-      if (existingPincode === trimmedMsg) return false;
       await this.sessionService.setCustomerPincode(phone, trimmedMsg, userId);
       
-      const cart = await this.sessionService.getCartProducts(phone, userId) || [];
-      const customerName = await this.sessionService.getCustomerName(phone, userId);
-      const customerAddress = await this.sessionService.getCustomerAddress(phone, userId);
-      const customerCity = await this.sessionService.getCustomerCity(phone, userId);
+      const session = await this.sessionService.getSession(phone, userId);
+      const cart = session?.cartProducts || [];
+      const customerName = session?.customerName;
+      const customerAddress = session?.customerAddress;
+      const customerCity = session?.customerCity;
       
       if (cart.length === 0 || !customerName || !customerAddress || !customerCity) return false;
       
       const fullAddress = `${customerAddress}, ${customerCity}, ${trimmedMsg}`;
+      const product = await this.ecommerceService.getProduct(cart[0].productId, userId);
+      if (!product) return false;
       
-      // Create single order with all products
-      let totalAmount = 0;
-      for (const item of cart) {
-        const product = await this.ecommerceService.getProduct(item.productId, userId);
-        if (product) totalAmount += product.price * item.quantity;
-      }
-      
-      const order = await this.ecommerceService.createOrder({
+      await this.ecommerceService.createOrder({
         customerName,
         customerPhone: phone,
         customerAddress: fullAddress,
-        productId: cart[0].productId,
-        quantity: cart.reduce((sum, item) => sum + item.quantity, 0),
-        totalAmount,
+        totalAmount: product.price,
+        paymentMethod: 'cod',
+        paymentStatus: 'cod',
+        status: 'placed',
+        items: [{ productId: product.id, quantity: 1, price: product.price }]
       }, userId);
       
+      await this.sendWhatsAppMessage(phone, {
+        type: 'text',
+        text: { body: `✅ *Order Confirmed*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\nPayment: Cash on Delivery\n\nName: ${customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂` }
+      }, accessToken, phoneNumberId);
+      
       await this.sessionService.clearSession(phone, userId);
-      return true;
+      return 'order_placed';
     }
     
     return false;
+  }
+
+  private async sendCustomerDetailsConfirmation(phone: string, accessToken: string, phoneNumberId: string, customer: any) {
+    const name = customer.customerName || 'Not provided';
+    const address = customer.customerAddress || 'Not provided';
+    
+    return this.sendWhatsAppMessage(phone, {
+      type: 'interactive',
+      interactive: {
+        type: 'button',
+        body: {
+          text: `👤 *Your Saved Details*\n\nName: ${name}\nAddress: ${address}`
+        },
+        action: {
+          buttons: [
+            {
+              type: 'reply',
+              reply: { id: 'confirm', title: 'Use My Details' }
+            },
+            {
+              type: 'reply',
+              reply: { id: 'update', title: 'Update Details' }
+            },
+            {
+              type: 'reply',
+              reply: { id: 'someone_else', title: 'Order for Someone' }
+            }
+          ]
+        }
+      }
+    }, accessToken, phoneNumberId);
   }
 
   private async sendWhatsAppMessage(phone: string, message: any, accessToken: string, phoneNumberId: string) {

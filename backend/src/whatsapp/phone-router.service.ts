@@ -63,35 +63,39 @@ export class PhoneRouterService {
 
       this.logger.log(`🔍 Checking chatbot permission for tenant ${tenantId}`);
 
-      // Check Menu Permissions
-      let menuPermission = await this.centralPrisma.menuPermission.findUnique({
-        where: { tenantId },
+      // Get tenant with subscription info
+      const tenant = await this.centralPrisma.tenant.findUnique({
+        where: { id: tenantId },
+        include: {
+          subscription: true,
+          menuPermission: true
+        }
       });
 
-      // If no menu permissions exist, create default with chatbot enabled
-      if (!menuPermission) {
-        this.logger.log(`🆕 Creating default menu permissions for tenant ${tenantId}`);
-        menuPermission = await this.centralPrisma.menuPermission.create({
-          data: {
-            tenantId,
-            permission: {
-              dashboard: true,
-              contacts: true,
-              campaigns: true,
-              chatbot: true,  // Default enabled
-              quickReply: true,
-              whatsappChat: true
-            }
-          }
-        });
+      if (!tenant) {
+        this.logger.log(`❌ Tenant ${tenantId} not found`);
+        return false;
       }
 
-      this.logger.log(`📋 Menu permission record for tenant ${tenantId}:`, JSON.stringify(menuPermission, null, 2));
+      // Check individual menu permissions first
+      if (tenant.menuPermission) {
+        this.logger.log(`📋 Individual menu permission found:`, JSON.stringify(tenant.menuPermission, null, 2));
+        const isEnabled = tenant.menuPermission.permission?.['chatbot'] !== false;
+        this.logger.log(`🤖 Individual permission result: ${isEnabled}`);
+        return isEnabled;
+      }
 
-      // Check if chatbot is explicitly disabled (default is enabled)
-      const isEnabled = menuPermission.permission?.['chatbot'] !== false;
-      this.logger.log(`🤖 Chatbot permission result: ${isEnabled}`);
-      return isEnabled;
+      // Check subscription plan permissions
+      if (tenant.subscription?.menuPermissions) {
+        this.logger.log(`📋 Subscription plan permissions:`, tenant.subscription.menuPermissions);
+        const isEnabled = tenant.subscription.menuPermissions.includes('chatbot');
+        this.logger.log(`🤖 Plan permission result: ${isEnabled}`);
+        return isEnabled;
+      }
+
+      // Default: enabled if no restrictions found
+      this.logger.log(`🤖 No permissions found, defaulting to enabled`);
+      return true;
     } catch (error) {
       this.logger.error('Error checking chatbot permission:', error);
       return false; // Default to disabled on error

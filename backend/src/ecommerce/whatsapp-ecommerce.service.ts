@@ -255,7 +255,8 @@ export class WhatsappEcommerceService {
     const trimmedMsg = message.trim();
     
     if (step === 'confirm_details') {
-      if (trimmedMsg === 'Use My Details') {
+      // Handle both button ID and button title
+      if (trimmedMsg === 'Use My Details' || trimmedMsg === 'confirm') {
         const session = await this.sessionService.getSession(phone, userId);
         const cart = session?.cartProducts || [];
         
@@ -284,10 +285,10 @@ export class WhatsappEcommerceService {
           await this.sessionService.clearSession(phone, userId);
           return 'order_placed';
         }
-      } else if (trimmedMsg === 'Update Details') {
+      } else if (trimmedMsg === 'Update Details' || trimmedMsg === 'update') {
         await this.sessionService.setSession(phone, { step: 'awaiting_name' }, userId);
         return 'awaiting_name';
-      } else if (trimmedMsg === 'Order for Someone') {
+      } else if (trimmedMsg === 'Order for Someone' || trimmedMsg === 'someone_else') {
         await this.sessionService.setSession(phone, { 
           customerName: undefined,
           customerAddress: undefined,

@@ -54,16 +54,9 @@ export class TemplateService {
           
           // Handle media headers (IMAGE, VIDEO, DOCUMENT)
           if (component.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(component.format)) {
-            // If example already exists, keep it; otherwise add default
-            if (!component.example) {
-              return {
-                ...component,
-                example: {
-                  header_handle: [`https://example.com/sample.${component.format.toLowerCase()}`]
-                }
-              };
-            }
-            return component;
+            // Remove any example to avoid invalid media handle errors
+            const { example, ...componentWithoutExample } = component;
+            return componentWithoutExample;
           }
         }
         
@@ -632,9 +625,12 @@ export class TemplateService {
       return tenant;
     }
 
-    // Otherwise, try to get from master config (fallback)
-    // This would require tenant context which we don't have here
-    // For now, require direct tenant credentials
-    throw new BadRequestException('WhatsApp Business API credentials not configured');
+    throw new BadRequestException('WhatsApp Business API credentials not configured. Please add WABA ID and Access Token to your tenant configuration.');
+  }
+
+  async syncCredentialsFromMasterConfig(userId: number, masterConfigId: number) {
+    // This would need tenant context to access master config
+    // For now, credentials must be set directly on tenant
+    throw new BadRequestException('Please configure credentials directly on tenant record');
   }
 }

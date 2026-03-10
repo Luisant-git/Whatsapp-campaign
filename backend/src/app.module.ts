@@ -25,6 +25,7 @@ import { MetaFlowModule } from './meta-flow/meta-flow.module';
 import { FlowMessageModule } from './flow-message/flow-message.module';
 import { FlowAppointmentModule } from './flow-appointment/flow-appointment.module';
 import { SubuserMenuPermissionModule } from './subuser-menu-permission/subuser-menu-permission.module';
+import { TemplateModule } from './template/template.module';
 
 @Module({
   imports: [
@@ -44,16 +45,13 @@ import { SubuserMenuPermissionModule } from './subuser-menu-permission/subuser-m
     GroupModule,
     TestModule,
     EcommerceModule,
-   
-   
-   
     MenuPermissionModule,
-   
     AdminAnalyticsModule,
     MetaFlowModule,
     FlowMessageModule,
     FlowAppointmentModule,
     SubuserMenuPermissionModule,
+    TemplateModule,
   ],
   controllers: [AppController, TestController],
   providers: [AppService],

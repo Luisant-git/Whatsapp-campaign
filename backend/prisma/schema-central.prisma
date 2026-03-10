@@ -42,6 +42,11 @@ model Tenant {
   subscriptionStartDate DateTime?
   subscriptionEndDate DateTime?
   
+  // WhatsApp Business API credentials
+  accessToken String?
+  wabaId      String?
+  phoneNumberId String?
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
@@ -131,4 +136,26 @@ model MenuPermission {
   permission  Json
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model MessageTemplate {
+  id                 Int      @id @default(autoincrement())
+  tenantId           Int
+  templateId         String   @unique
+  name               String
+  category           String
+  language           String
+  status             String   @default("PENDING")
+  components         String
+  reviewRequested    Boolean  @default(false)
+  reviewRequestedAt  DateTime?
+  reviewReason       String?
+  rejectionReason    String?
+  previousCategory   String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  @@index([tenantId])
+  @@index([status])
+  @@index([category])
 }

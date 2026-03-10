@@ -643,12 +643,28 @@ export class TemplateService {
       throw new BadRequestException('Tenant not found');
     }
 
-    // If tenant has direct credentials, use them
+    // First try direct tenant credentials
     if (tenant.accessToken && tenant.wabaId && tenant.phoneNumberId) {
       return tenant;
     }
 
-    throw new BadRequestException('WhatsApp Business API credentials not configured. Please add WABA ID, Phone Number ID, and Access Token to your tenant configuration.');
+    // If no direct credentials, try to get from Master Config
+    // For now, get the first available master config
+    const masterConfig = await this.centralPrisma.$queryRaw`
+      SELECT * FROM "MasterConfig" LIMIT 1
+    `;
+
+    if (masterConfig && masterConfig[0]) {
+      const config = masterConfig[0];
+      return {
+        ...tenant,
+        accessToken: config.accessToken,
+        wabaId: config.wabaId,
+        phoneNumberId: config.phoneNumberId
+      };
+    }
+
+    throw new BadRequestException('WhatsApp Business API credentials not configured. Please add credentials in Master Config.');
   }
 
   async syncCredentialsFromMasterConfig(userId: number, masterConfigId: number) {

@@ -38,7 +38,7 @@ export class TemplateService {
       const validName = baseName;
       
       // Process components to ensure proper format and add examples
-      const processedComponents = createTemplateDto.components.map(component => {
+      let processedComponents = createTemplateDto.components.map(component => {
         console.log('Processing component:', JSON.stringify(component, null, 2));
         
         if (component.type === 'HEADER') {
@@ -121,6 +121,16 @@ export class TemplateService {
         
         return component;
       });
+
+      // Reorder components: HEADER, BODY, FOOTER, BUTTONS (Meta requires this order)
+      const componentOrder = { HEADER: 0, BODY: 1, FOOTER: 2, BUTTONS: 3 };
+      processedComponents = processedComponents.sort((a, b) => 
+        (componentOrder[a.type] || 99) - (componentOrder[b.type] || 99)
+      );
+
+      console.log('Final processed components:', JSON.stringify(processedComponents, null, 2));
+
+      console.log('Final processed components:', JSON.stringify(processedComponents, null, 2));
 
       console.log('Creating template with data:', {
         name: validName,

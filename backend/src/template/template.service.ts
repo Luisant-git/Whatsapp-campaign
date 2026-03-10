@@ -644,11 +644,11 @@ export class TemplateService {
     }
 
     // If tenant has direct credentials, use them
-    if (tenant.accessToken && tenant.wabaId) {
+    if (tenant.accessToken && tenant.wabaId && tenant.phoneNumberId) {
       return tenant;
     }
 
-    throw new BadRequestException('WhatsApp Business API credentials not configured. Please add WABA ID and Access Token to your tenant configuration.');
+    throw new BadRequestException('WhatsApp Business API credentials not configured. Please add WABA ID, Phone Number ID, and Access Token to your tenant configuration.');
   }
 
   async syncCredentialsFromMasterConfig(userId: number, masterConfigId: number) {
@@ -663,15 +663,23 @@ export class TemplateService {
     const path = require('path');
 
     try {
+      console.log('Uploading media to Meta, localPath:', localPath);
+      
       // Convert local path to full file path
       const fullPath = localPath.startsWith('/uploads/') 
         ? path.join(process.cwd(), 'uploads', path.basename(localPath))
         : localPath;
 
+      console.log('Full file path:', fullPath);
+
       // Check if file exists
       if (!fs.existsSync(fullPath)) {
+        console.error('File not found:', fullPath);
         throw new BadRequestException(`Media file not found: ${fullPath}`);
       }
+
+      const fileStats = fs.statSync(fullPath);
+      console.log('File size:', fileStats.size, 'bytes');
 
       // Create form data for media upload
       const formData = new FormData();
@@ -679,9 +687,13 @@ export class TemplateService {
       formData.append('type', this.getMimeType(fullPath));
       formData.append('messaging_product', 'whatsapp');
 
+      console.log('Uploading to Meta API...');
+      console.log('Phone Number ID:', tenant.phoneNumberId);
+      console.log('File type:', this.getMimeType(fullPath));
+
       // Upload media to Meta
       const uploadResponse = await axios.post(
-        `https://graph.facebook.com/v18.0/${tenant.wabaId}/media`,
+        `https://graph.facebook.com/v18.0/${tenant.phoneNumberId}/media`,
         formData,
         {
           headers: {
@@ -692,23 +704,17 @@ export class TemplateService {
       );
 
       const mediaId = uploadResponse.data.id;
-      console.log('Media uploaded to Meta, ID:', mediaId);
-
-      // Get media handle
-      const mediaResponse = await axios.get(
-        `https://graph.facebook.com/v18.0/${mediaId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${tenant.accessToken}`,
-          },
-        }
-      );
-
-      // Return the media handle (this is what Meta uses internally)
-      return mediaId; // Meta uses the media ID as the handle
+      console.log('Media uploaded successfully, ID:', mediaId);
+      return mediaId;
+      
     } catch (error) {
-      console.error('Media upload error:', error.response?.data || error.message);
-      throw new BadRequestException('Failed to upload media to Meta API');
+      console.error('Media upload error details:');
+      console.error('Error message:', error.message);
+      console.error('Response data:', error.response?.data);
+      console.error('Response status:', error.response?.status);
+      
+      // Return a fallback - skip media header for now
+      throw new BadRequestException(`Media upload failed: ${error.response?.data?.error?.message || error.message}`);
     }
   }
 

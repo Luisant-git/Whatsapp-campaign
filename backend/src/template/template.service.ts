@@ -1,14 +1,18 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { CentralPrismaService } from '../central-prisma.service';
+import { TenantPrismaService } from '../tenant-prisma.service';
 import { CreateTemplateDto, UpdateTemplateDto, TemplatePreviewDto, RequestReviewDto, TemplateCategory, TemplateStatus } from './dto/template.dto';
 import axios from 'axios';
 
 @Injectable()
 export class TemplateService {
-  constructor(private centralPrisma: CentralPrismaService) { }
+  constructor(
+    private centralPrisma: CentralPrismaService,
+    private tenantPrisma: TenantPrismaService
+  ) { }
 
   async createTemplate(userId: number, createTemplateDto: CreateTemplateDto) {
-    const tenant = await this.getTenantWithCredentials(userId);
+    const { tenant, tenantClient, masterConfig } = await this.getTenantWithCredentials(userId);
 
     try {
       console.log('Received template data:', JSON.stringify(createTemplateDto, null, 2));
@@ -23,9 +27,8 @@ export class TemplateService {
       const baseName = createTemplateDto.name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
       
       // Check for existing template with same name and language
-      const existingTemplate = await this.centralPrisma.messageTemplate.findFirst({
+      const existingTemplate = await tenantClient.messageTemplate.findFirst({
         where: {
-          tenantId: tenant.id,
           name: baseName,
           language: createTemplateDto.language
         }
@@ -62,7 +65,7 @@ export class TemplateService {
               const localPath = (component.example as any).header_handle[0];
               
               // Upload media to Meta API and get media handle
-              const mediaHandle = await this.uploadMediaToMeta(tenant, localPath);
+              const mediaHandle = await this.uploadMediaToMeta(masterConfig, localPath);
               
               return {
                 type: 'HEADER',
@@ -137,20 +140,19 @@ export class TemplateService {
 
       // Create template via Meta API using correct format
       const response = await axios.post(
-        `https://graph.facebook.com/v18.0/${tenant.wabaId}/message_templates`,
+        `https://graph.facebook.com/v18.0/${masterConfig.wabaId}/message_templates`,
         metaPayload,
         {
           headers: {
-            Authorization: `Bearer ${tenant.accessToken}`,
+            Authorization: `Bearer ${masterConfig.accessToken}`,
             'Content-Type': 'application/json',
           },
         }
       );
 
       // Store template in database
-      const template = await this.centralPrisma.messageTemplate.create({
+      const template = await tenantClient.messageTemplate.create({
         data: {
-          tenantId: tenant.id,
           templateId: response.data.id,
           name: validName,
           category: createTemplateDto.category,
@@ -176,21 +178,21 @@ export class TemplateService {
   }
 
   async getTemplates(userId: number, status?: TemplateStatus, category?: TemplateCategory) {
-    const tenant = await this.getTenantWithCredentials(userId);
-    const where: any = { tenantId: tenant.id };
+    const { tenantClient } = await this.getTenantWithCredentials(userId);
+    const where: any = {};
     if (status) where.status = status;
     if (category) where.category = category;
 
-    return this.centralPrisma.messageTemplate.findMany({
+    return tenantClient.messageTemplate.findMany({
       where,
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async getTemplate(userId: number, templateId: string) {
-    const tenant = await this.getTenantWithCredentials(userId);
-    const template = await this.centralPrisma.messageTemplate.findFirst({
-      where: { tenantId: tenant.id, templateId },
+    const { tenantClient } = await this.getTenantWithCredentials(userId);
+    const template = await tenantClient.messageTemplate.findFirst({
+      where: { templateId },
     });
 
     if (!template) {
@@ -201,17 +203,17 @@ export class TemplateService {
   }
 
   async updateTemplate(userId: number, templateId: string, updateTemplateDto: UpdateTemplateDto) {
-    const tenant = await this.getTenantWithCredentials(userId);
+    const { tenantClient, masterConfig } = await this.getTenantWithCredentials(userId);
     
     // Try to find template by templateId first, then by database id
-    let template = await this.centralPrisma.messageTemplate.findFirst({
-      where: { tenantId: tenant.id, templateId },
+    let template = await tenantClient.messageTemplate.findFirst({
+      where: { templateId },
     });
     
     if (!template && !isNaN(Number(templateId))) {
       // Try finding by database id only if templateId is a valid number
-      template = await this.centralPrisma.messageTemplate.findFirst({
-        where: { tenantId: tenant.id, id: Number(templateId) },
+      template = await tenantClient.messageTemplate.findFirst({
+        where: { id: Number(templateId) },
       });
     }
 
@@ -226,14 +228,14 @@ export class TemplateService {
         updateTemplateDto,
         {
           headers: {
-            Authorization: `Bearer ${tenant.accessToken}`,
+            Authorization: `Bearer ${masterConfig.accessToken}`,
             'Content-Type': 'application/json',
           },
         }
       );
 
       // Update in database
-      const updatedTemplate = await this.centralPrisma.messageTemplate.update({
+      const updatedTemplate = await tenantClient.messageTemplate.update({
         where: { id: template.id },
         data: {
           category: updateTemplateDto.category || template.category,
@@ -643,11 +645,18 @@ export class TemplateService {
       throw new BadRequestException('Tenant not found');
     }
 
-    if (tenant.accessToken && tenant.wabaId && tenant.phoneNumberId) {
-      return tenant;
+    // Get tenant database connection
+    const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+    const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+
+    // Get Master Config from tenant database
+    const masterConfig = await tenantClient.masterConfig.findFirst();
+
+    if (!masterConfig) {
+      throw new BadRequestException('Master Config not found. Please configure WhatsApp API credentials.');
     }
 
-    throw new BadRequestException('WhatsApp Business API credentials not configured. Please add WABA ID, Phone Number ID, and Access Token in central tenant table.');
+    return { tenant, tenantClient, masterConfig };
   }
 
   async syncCredentialsFromMasterConfig(userId: number, masterConfigId: number) {

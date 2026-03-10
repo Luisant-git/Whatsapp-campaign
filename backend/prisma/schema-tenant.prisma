@@ -410,3 +410,23 @@ model FlowTimeSlot {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model MessageTemplate {
+  id                 Int      @id @default(autoincrement())
+  templateId         String   @unique
+  name               String
+  category           String
+  language           String
+  status             String   @default("PENDING")
+  components         String
+  reviewRequested    Boolean  @default(false)
+  reviewRequestedAt  DateTime?
+  reviewReason       String?
+  rejectionReason    String?
+  previousCategory   String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  @@index([status])
+  @@index([category])
+}

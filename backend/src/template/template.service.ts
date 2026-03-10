@@ -56,35 +56,29 @@ export class TemplateService {
           
           // Handle media headers (IMAGE, VIDEO, DOCUMENT)
           if (component.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(component.format)) {
-            console.log('Processing media header:', JSON.stringify(component, null, 2));
             // If example exists, convert local path to full URL
             if (component.example && (component.example as any).header_handle) {
               const headerHandle = (component.example as any).header_handle[0];
-              console.log('Original header handle:', headerHandle);
               const fullUrl = headerHandle.startsWith('/uploads/') 
                 ? `${process.env.BASE_URL || 'https://whatsapp.api.luisant.cloud'}${headerHandle}`
                 : headerHandle;
-              console.log('Converted to full URL:', fullUrl);
               
-              const result = {
-                ...component,
+              return {
+                type: 'HEADER',
+                format: component.format,
                 example: {
                   header_handle: [fullUrl]
                 }
               };
-              console.log('Returning processed component:', JSON.stringify(result, null, 2));
-              return result;
             }
             // If no example, add a valid placeholder URL
-            console.log('No example found, adding placeholder');
-            const result = {
-              ...component,
+            return {
+              type: 'HEADER',
+              format: component.format,
               example: {
                 header_handle: ['https://via.placeholder.com/400x300.png']
               }
             };
-            console.log('Returning placeholder component:', JSON.stringify(result, null, 2));
-            return result;
           }
         }
         

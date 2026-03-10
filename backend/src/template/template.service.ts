@@ -56,29 +56,10 @@ export class TemplateService {
           
           // Handle media headers (IMAGE, VIDEO, DOCUMENT)
           if (component.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(component.format)) {
-            // If example exists, convert local path to full URL
-            if (component.example && (component.example as any).header_handle) {
-              const headerHandle = (component.example as any).header_handle[0];
-              const fullUrl = headerHandle.startsWith('/uploads/') 
-                ? `${process.env.BASE_URL || 'https://whatsapp.api.luisant.cloud'}${headerHandle}`
-                : headerHandle;
-              
-              return {
-                type: 'HEADER',
-                format: component.format,
-                example: {
-                  header_handle: [fullUrl]
-                }
-              };
-            }
-            // If no example, add a valid placeholder URL
-            return {
-              type: 'HEADER',
-              format: component.format,
-              example: {
-                header_handle: ['https://via.placeholder.com/400x300.png']
-              }
-            };
+            // TODO: Implement proper media upload to Meta API
+            // For now, skip media headers as they require media_id from Meta upload
+            console.log('Skipping media header - requires Meta media upload implementation');
+            return null; // Skip this component
           }
         }
         
@@ -120,7 +101,7 @@ export class TemplateService {
         }
         
         return component;
-      });
+      }).filter(component => component !== null); // Remove null components
 
       // Reorder components: HEADER, BODY, FOOTER, BUTTONS (Meta requires this order)
       const order = ['HEADER', 'BODY', 'FOOTER', 'BUTTONS'];

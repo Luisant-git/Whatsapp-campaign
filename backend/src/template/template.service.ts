@@ -39,6 +39,8 @@ export class TemplateService {
       
       // Process components to ensure proper format and add examples
       const processedComponents = createTemplateDto.components.map(component => {
+        console.log('Processing component:', JSON.stringify(component, null, 2));
+        
         if (component.type === 'HEADER') {
           if (component.text && !component.format) {
             const processedComponent = { ...component, format: 'TEXT' };
@@ -64,21 +66,25 @@ export class TemplateService {
                 : headerHandle;
               console.log('Converted to full URL:', fullUrl);
               
-              return {
+              const result = {
                 ...component,
                 example: {
                   header_handle: [fullUrl]
                 }
               };
+              console.log('Returning processed component:', JSON.stringify(result, null, 2));
+              return result;
             }
             // If no example, add a valid placeholder URL
             console.log('No example found, adding placeholder');
-            return {
+            const result = {
               ...component,
               example: {
                 header_handle: ['https://via.placeholder.com/400x300.png']
               }
             };
+            console.log('Returning placeholder component:', JSON.stringify(result, null, 2));
+            return result;
           }
         }
         

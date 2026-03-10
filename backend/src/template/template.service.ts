@@ -38,7 +38,8 @@ export class TemplateService {
       const validName = baseName;
       
       // Process components to ensure proper format and add examples
-      let processedComponents = createTemplateDto.components.map(component => {
+      const processedComponents = await Promise.all(
+        createTemplateDto.components.map(async (component) => {
         console.log('Processing component:', JSON.stringify(component, null, 2));
         
         if (component.type === 'HEADER') {
@@ -56,10 +57,23 @@ export class TemplateService {
           
           // Handle media headers (IMAGE, VIDEO, DOCUMENT)
           if (component.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(component.format)) {
-            // TODO: Implement proper media upload to Meta API
-            // For now, skip media headers as they require media_id from Meta upload
-            console.log('Skipping media header - requires Meta media upload implementation');
-            return null; // Skip this component
+            // If example exists, upload to Meta and get media handle
+            if (component.example && (component.example as any).header_handle) {
+              const localPath = (component.example as any).header_handle[0];
+              
+              // Upload media to Meta API and get media handle
+              const mediaHandle = await this.uploadMediaToMeta(tenant, localPath);
+              
+              return {
+                type: 'HEADER',
+                format: component.format,
+                example: {
+                  header_handle: [mediaHandle]
+                }
+              };
+            }
+            // If no example, this is invalid for Meta
+            throw new BadRequestException('Media headers require a valid media file');
           }
         }
         
@@ -101,21 +115,22 @@ export class TemplateService {
         }
         
         return component;
-      }).filter(component => component !== null); // Remove null components
+      })
+      );
 
       // Reorder components: HEADER, BODY, FOOTER, BUTTONS (Meta requires this order)
       const order = ['HEADER', 'BODY', 'FOOTER', 'BUTTONS'];
-      processedComponents = processedComponents.sort(
+      const sortedComponents = processedComponents.sort(
         (a, b) => order.indexOf(a.type) - order.indexOf(b.type)
       );
 
-      console.log('Final processed components:', JSON.stringify(processedComponents, null, 2));
+      console.log('Final processed components:', JSON.stringify(sortedComponents, null, 2));
 
       const metaPayload = {
         name: validName,
         category: createTemplateDto.category.toLowerCase(),
         language: createTemplateDto.language,
-        components: processedComponents
+        components: sortedComponents
       };
 
       console.log('Sending to Meta API:', JSON.stringify(metaPayload, null, 2));
@@ -640,5 +655,73 @@ export class TemplateService {
     // This would need tenant context to access master config
     // For now, credentials must be set directly on tenant
     throw new BadRequestException('Please configure credentials directly on tenant record');
+  }
+
+  private async uploadMediaToMeta(tenant: any, localPath: string): Promise<string> {
+    const fs = require('fs');
+    const FormData = require('form-data');
+    const path = require('path');
+
+    try {
+      // Convert local path to full file path
+      const fullPath = localPath.startsWith('/uploads/') 
+        ? path.join(process.cwd(), 'uploads', path.basename(localPath))
+        : localPath;
+
+      // Check if file exists
+      if (!fs.existsSync(fullPath)) {
+        throw new BadRequestException(`Media file not found: ${fullPath}`);
+      }
+
+      // Create form data for media upload
+      const formData = new FormData();
+      formData.append('file', fs.createReadStream(fullPath));
+      formData.append('type', this.getMimeType(fullPath));
+      formData.append('messaging_product', 'whatsapp');
+
+      // Upload media to Meta
+      const uploadResponse = await axios.post(
+        `https://graph.facebook.com/v18.0/${tenant.wabaId}/media`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${tenant.accessToken}`,
+            ...formData.getHeaders(),
+          },
+        }
+      );
+
+      const mediaId = uploadResponse.data.id;
+      console.log('Media uploaded to Meta, ID:', mediaId);
+
+      // Get media handle
+      const mediaResponse = await axios.get(
+        `https://graph.facebook.com/v18.0/${mediaId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${tenant.accessToken}`,
+          },
+        }
+      );
+
+      // Return the media handle (this is what Meta uses internally)
+      return mediaId; // Meta uses the media ID as the handle
+    } catch (error) {
+      console.error('Media upload error:', error.response?.data || error.message);
+      throw new BadRequestException('Failed to upload media to Meta API');
+    }
+  }
+
+  private getMimeType(filePath: string): string {
+    const ext = filePath.toLowerCase().split('.').pop();
+    const mimeTypes: { [key: string]: string } = {
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'gif': 'image/gif',
+      'mp4': 'video/mp4',
+      'pdf': 'application/pdf',
+    };
+    return mimeTypes[ext || ''] || 'application/octet-stream';
   }
 }

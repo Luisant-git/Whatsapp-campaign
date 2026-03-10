@@ -623,10 +623,18 @@ export class TemplateService {
       where: { id: userId },
     });
 
-    if (!tenant?.accessToken || !tenant?.wabaId) {
-      throw new BadRequestException('WhatsApp Business API credentials not configured');
+    if (!tenant) {
+      throw new BadRequestException('Tenant not found');
     }
 
-    return tenant;
+    // If tenant has direct credentials, use them
+    if (tenant.accessToken && tenant.wabaId) {
+      return tenant;
+    }
+
+    // Otherwise, try to get from master config (fallback)
+    // This would require tenant context which we don't have here
+    // For now, require direct tenant credentials
+    throw new BadRequestException('WhatsApp Business API credentials not configured');
   }
 }

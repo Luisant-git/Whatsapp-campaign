@@ -12,6 +12,11 @@ export class CreateMasterConfigDto {
   @IsNotEmpty()
   phoneNumberId: string;
 
+  @ApiProperty({ description: 'WhatsApp Business Account ID' })
+  @IsString()
+  @IsNotEmpty()
+  wabaId: string;
+
   @ApiProperty({ description: 'WhatsApp Access Token' })
   @IsString()
   @IsNotEmpty()
@@ -38,6 +43,11 @@ export class UpdateMasterConfigDto {
   @IsOptional()
   @IsString()
   phoneNumberId?: string;
+
+  @ApiProperty({ description: 'WhatsApp Business Account ID', required: false })
+  @IsOptional()
+  @IsString()
+  wabaId?: string;
 
   @ApiProperty({ description: 'WhatsApp Access Token', required: false })
   @IsOptional()

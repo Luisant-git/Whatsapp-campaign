@@ -16,6 +16,7 @@ const MasterConfig = () => {
   const [currentConfig, setCurrentConfig] = useState({
     name: "",
     phoneNumberId: "",
+    wabaId: "",
     accessToken: "",
     verifyToken: "",
   });
@@ -118,7 +119,7 @@ const MasterConfig = () => {
   };
 
   const resetForm = () => {
-    setCurrentConfig({ name: "", phoneNumberId: "", accessToken: "", verifyToken: "" });
+    setCurrentConfig({ name: "", phoneNumberId: "", wabaId: "", accessToken: "", verifyToken: "" });
     setEditingId(null);
     setShowForm(false);
   };
@@ -152,6 +153,7 @@ const MasterConfig = () => {
     setCurrentConfig({
       name: config.name,
       phoneNumberId: config.phoneNumberId,
+      wabaId: config.wabaId || "",
       accessToken: config.accessToken,
       verifyToken: config.verifyToken,
     });
@@ -411,6 +413,15 @@ const MasterConfig = () => {
                 />
               </div>
               <div className="form-group">
+                <label>WABA ID *</label>
+                <input
+                  type="text"
+                  placeholder="Enter WhatsApp Business Account ID"
+                  value={currentConfig.wabaId}
+                  onChange={(e) => setCurrentConfig({...currentConfig, wabaId: e.target.value})}
+                />
+              </div>
+              <div className="form-group">
                 <label>Access Token *</label>
                 <div className="input-with-icon">
                   <input
@@ -478,6 +489,12 @@ const MasterConfig = () => {
                 <label>Phone Number ID</label>
                 <p style={{padding: '12px', background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '4px', margin: '8px 0'}}>
                   {selectedConfig.phoneNumberId}
+                </p>
+              </div>
+              <div className="form-group">
+                <label>WABA ID</label>
+                <p style={{padding: '12px', background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '4px', margin: '8px 0'}}>
+                  {selectedConfig.wabaId || 'Not configured'}
                 </p>
               </div>
               <div className="form-group">

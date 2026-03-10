@@ -25,6 +25,7 @@ import { API_BASE_URL } from '../api/config';
 
 const TemplateManager = () => {
   const [templates, setTemplates] = useState([]);
+  const [templateLibrary, setTemplateLibrary] = useState(null);
   const [selectedTab, setSelectedTab] = useState(0);
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogType, setDialogType] = useState('create');
@@ -201,6 +202,18 @@ const TemplateManager = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUseLibraryTemplate = (libTemplate) => {
+    setDialogType('create');
+    setCurrentTemplate(null);
+    setFormData({
+      name: libTemplate.name,
+      category: 'AUTHENTICATION',
+      language: 'en',
+      components: libTemplate.components || [{ type: 'BODY', text: '' }]
+    });
+    setOpenDialog(true);
   };
 
   const handleFileUpload = async (file) => {

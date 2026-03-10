@@ -54,9 +54,27 @@ export class TemplateService {
           
           // Handle media headers (IMAGE, VIDEO, DOCUMENT)
           if (component.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(component.format)) {
-            // Remove any example to avoid invalid media handle errors
-            const { example, ...componentWithoutExample } = component;
-            return componentWithoutExample;
+            // If example exists, convert local path to full URL
+            if (component.example && (component.example as any).header_handle) {
+              const headerHandle = (component.example as any).header_handle[0];
+              const fullUrl = headerHandle.startsWith('/uploads/') 
+                ? `${process.env.BASE_URL || 'https://whatsapp.api.luisant.cloud'}${headerHandle}`
+                : headerHandle;
+              
+              return {
+                ...component,
+                example: {
+                  header_handle: [fullUrl]
+                }
+              };
+            }
+            // If no example, add a valid placeholder URL
+            return {
+              ...component,
+              example: {
+                header_handle: ['https://via.placeholder.com/400x300.png']
+              }
+            };
           }
         }
         

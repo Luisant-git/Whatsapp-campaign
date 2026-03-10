@@ -26,6 +26,7 @@ import { FlowMessageModule } from './flow-message/flow-message.module';
 import { FlowAppointmentModule } from './flow-appointment/flow-appointment.module';
 import { SubuserMenuPermissionModule } from './subuser-menu-permission/subuser-menu-permission.module';
 import { TemplateModule } from './template/template.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { TemplateModule } from './template/template.module';
     FlowAppointmentModule,
     SubuserMenuPermissionModule,
     TemplateModule,
+    UploadModule,
   ],
   controllers: [AppController, TestController],
   providers: [AppService],

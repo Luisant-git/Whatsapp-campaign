@@ -67,12 +67,12 @@ export const MENU_CONFIG = [
     {
       key: "templates",
       label: "Template Manager",
-      icon: "template",
+      icon: "layout",
       children: [
         { key: "templates.create", label: "Create Template", icon: "plus" },
-        { key: "templates.manage", label: "Manage Templates", icon: "list" },
-        { key: "templates.library", label: "Template Library", icon: "book" },
-        { key: "templates.review", label: "Review Requests", icon: "eye" },
+        // { key: "templates.manage", label: "Manage Templates", icon: "list" },
+        // { key: "templates.library", label: "Template Library", icon: "book" },
+        // { key: "templates.review", label: "Review Requests", icon: "eye" },
       ],
     },
     {

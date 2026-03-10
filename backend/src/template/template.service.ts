@@ -11,18 +11,117 @@ export class TemplateService {
     const tenant = await this.getTenantWithCredentials(userId);
 
     try {
+      console.log('Received template data:', JSON.stringify(createTemplateDto, null, 2));
+      
       // Validate template content based on category
       this.validateTemplateByCategory(createTemplateDto);
+      
+      // Validate template structure for Meta API requirements
+      this.validateTemplateStructure(createTemplateDto);
 
-      // Create template via Meta API
+      // Ensure template name is valid (lowercase, underscores only)
+      const baseName = createTemplateDto.name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      
+      // Check for existing template with same name and language
+      const existingTemplate = await this.centralPrisma.messageTemplate.findFirst({
+        where: {
+          tenantId: tenant.id,
+          name: baseName,
+          language: createTemplateDto.language
+        }
+      });
+      
+      if (existingTemplate) {
+        throw new BadRequestException(`Template with name '${baseName}' already exists in language '${createTemplateDto.language}'. Please use a different name.`);
+      }
+      
+      const validName = baseName;
+      
+      // Process components to ensure proper format and add examples
+      const processedComponents = createTemplateDto.components.map(component => {
+        if (component.type === 'HEADER') {
+          if (component.text && !component.format) {
+            const processedComponent = { ...component, format: 'TEXT' };
+            // Add example if header has variables
+            if (component.text.includes('{{')) {
+              const variableCount = (component.text.match(/{{\d+}}/g) || []).length;
+              (processedComponent as any).example = {
+                header_text: [Array(variableCount).fill(0).map((_, i) => `Sample ${i + 1}`)]
+              };
+            }
+            return processedComponent;
+          }
+          
+          // Handle media headers (IMAGE, VIDEO, DOCUMENT)
+          if (component.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(component.format)) {
+            // If example already exists, keep it; otherwise add default
+            if (!component.example) {
+              return {
+                ...component,
+                example: {
+                  header_handle: [`https://example.com/sample.${component.format.toLowerCase()}`]
+                }
+              };
+            }
+            return component;
+          }
+        }
+        
+        if (component.type === 'BODY' && component.text && component.text.includes('{{')) {
+          const variableCount = (component.text.match(/{{\d+}}/g) || []).length;
+          return {
+            ...component,
+            example: {
+              body_text: [[...Array(variableCount).fill(0).map((_, i) => `Sample ${i + 1}`)]]
+            }
+          };
+        }
+        
+        if (component.type === 'BUTTONS' && component.buttons) {
+          const processedButtons = component.buttons.map(button => {
+            if (button.type === 'URL') {
+              return {
+                type: 'URL',
+                text: button.text || 'Visit Website',
+                url: button.url || 'https://example.com'
+              };
+            }
+            if (button.type === 'PHONE_NUMBER') {
+              return {
+                type: 'PHONE_NUMBER',
+                text: button.text || 'Call Us',
+                phone_number: button.phone_number || '+1234567890'
+              };
+            }
+            return {
+              type: 'QUICK_REPLY',
+              text: button.text || 'Reply'
+            };
+          });
+          return {
+            ...component,
+            buttons: processedButtons
+          };
+        }
+        
+        return component;
+      });
+
+      console.log('Creating template with data:', {
+        name: validName,
+        category: createTemplateDto.category,
+        language: createTemplateDto.language,
+        components: processedComponents
+      });
+
+      // Create template via Meta API using correct format
       const response = await axios.post(
         `https://graph.facebook.com/v18.0/${tenant.wabaId}/message_templates`,
         {
-          name: createTemplateDto.name,
-          category: createTemplateDto.category,
+          name: validName,
+          category: createTemplateDto.category.toLowerCase(),
           language: createTemplateDto.language,
-          components: createTemplateDto.components,
-          allow_category_change: createTemplateDto.allowCategoryChange || true,
+          components: processedComponents
         },
         {
           headers: {
@@ -37,10 +136,10 @@ export class TemplateService {
         data: {
           tenantId: tenant.id,
           templateId: response.data.id,
-          name: createTemplateDto.name,
+          name: validName,
           category: createTemplateDto.category,
           language: createTemplateDto.language,
-          status: TemplateStatus.PENDING,
+          status: TemplateStatus.IN_REVIEW,
           components: JSON.stringify(createTemplateDto.components),
           createdAt: new Date(),
         },
@@ -53,8 +152,9 @@ export class TemplateService {
         template,
       };
     } catch (error) {
+      console.error('Template creation error:', error.response?.data || error.message);
       throw new BadRequestException(
-        error.response?.data?.error?.message || 'Failed to create template'
+        error.response?.data?.error?.message || error.message || 'Failed to create template'
       );
     }
   }
@@ -86,12 +186,27 @@ export class TemplateService {
 
   async updateTemplate(userId: number, templateId: string, updateTemplateDto: UpdateTemplateDto) {
     const tenant = await this.getTenantWithCredentials(userId);
-    const template = await this.getTemplate(userId, templateId);
+    
+    // Try to find template by templateId first, then by database id
+    let template = await this.centralPrisma.messageTemplate.findFirst({
+      where: { tenantId: tenant.id, templateId },
+    });
+    
+    if (!template && !isNaN(Number(templateId))) {
+      // Try finding by database id only if templateId is a valid number
+      template = await this.centralPrisma.messageTemplate.findFirst({
+        where: { tenantId: tenant.id, id: Number(templateId) },
+      });
+    }
+
+    if (!template) {
+      throw new NotFoundException('Template not found');
+    }
 
     try {
       // Update template via Meta API
       const response = await axios.post(
-        `https://graph.facebook.com/v18.0/${templateId}`,
+        `https://graph.facebook.com/v18.0/${template.templateId}`,
         updateTemplateDto,
         {
           headers: {
@@ -109,7 +224,7 @@ export class TemplateService {
           components: updateTemplateDto.components
             ? JSON.stringify(updateTemplateDto.components)
             : template.components,
-          status: TemplateStatus.PENDING,
+          status: TemplateStatus.IN_REVIEW,
           updatedAt: new Date(),
         },
       });
@@ -127,18 +242,35 @@ export class TemplateService {
 
   async deleteTemplate(userId: number, templateId: string) {
     const tenant = await this.getTenantWithCredentials(userId);
-    const template = await this.getTemplate(userId, templateId);
+    
+    // Try to find template by templateId first, then by database id
+    let template = await this.centralPrisma.messageTemplate.findFirst({
+      where: { tenantId: tenant.id, templateId },
+    });
+    
+    if (!template && !isNaN(Number(templateId))) {
+      // Try finding by database id only if templateId is a valid number
+      template = await this.centralPrisma.messageTemplate.findFirst({
+        where: { tenantId: tenant.id, id: Number(templateId) },
+      });
+    }
+
+    if (!template) {
+      throw new NotFoundException('Template not found');
+    }
 
     try {
-      // Delete template via Meta API
-      await axios.delete(
-        `https://graph.facebook.com/v18.0/${templateId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${tenant.accessToken}`,
-          },
-        }
-      );
+      // Delete from Meta API if it's a real template ID
+      if (template.templateId && !template.templateId.startsWith('template_')) {
+        await axios.delete(
+          `https://graph.facebook.com/v18.0/${template.templateId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${tenant.accessToken}`,
+            },
+          }
+        );
+      }
 
       // Delete from database
       await this.centralPrisma.messageTemplate.delete({
@@ -147,9 +279,15 @@ export class TemplateService {
 
       return { success: true };
     } catch (error) {
-      throw new BadRequestException(
-        error.response?.data?.error?.message || 'Failed to delete template'
-      );
+      // If Meta API fails, still delete from database
+      await this.centralPrisma.messageTemplate.delete({
+        where: { id: template.id },
+      });
+      
+      return { 
+        success: true, 
+        warning: 'Template deleted locally but may still exist on Meta servers'
+      };
     }
   }
 
@@ -218,14 +356,34 @@ export class TemplateService {
 
       // Update local database with latest status
       for (const metaTemplate of metaTemplates) {
+        // Map Meta status to our enum
+        let status = TemplateStatus.IN_REVIEW;
+        switch (metaTemplate.status) {
+          case 'APPROVED':
+            status = TemplateStatus.ACTIVE;
+            break;
+          case 'REJECTED':
+            status = TemplateStatus.REJECTED;
+            break;
+          case 'PENDING':
+          case 'IN_APPEAL':
+          default:
+            status = TemplateStatus.IN_REVIEW;
+            break;
+        }
+
         await this.centralPrisma.messageTemplate.updateMany({
           where: {
             tenantId: tenant.id,
-            templateId: metaTemplate.id,
+            OR: [
+              { templateId: metaTemplate.id },
+              { name: metaTemplate.name, language: metaTemplate.language }
+            ]
           },
           data: {
-            status: metaTemplate.status,
-            category: metaTemplate.category,
+            status,
+            templateId: metaTemplate.id,
+            category: metaTemplate.category?.toUpperCase(),
             updatedAt: new Date(),
           },
         });
@@ -266,6 +424,55 @@ export class TemplateService {
         },
       ],
     };
+  }
+
+  private validateTemplateStructure(template: CreateTemplateDto | TemplatePreviewDto) {
+    const bodyComponent = template.components.find(c => c.type === 'BODY');
+    
+    if (bodyComponent?.text) {
+      const text = bodyComponent.text.trim();
+      
+      // Check if variables are at start or end
+      if (text.match(/^\{\{\d+\}\}/) || text.match(/\{\{\d+\}\}$/)) {
+        throw new BadRequestException('Variables cannot be at the start or end of the message. Add some text before/after the variable.');
+      }
+      
+      // Check for consecutive variables
+      if (text.match(/\{\{\d+\}\}\s*\{\{\d+\}\}/)) {
+        throw new BadRequestException('Variables cannot be consecutive. Add text between variables.');
+      }
+      
+      // Check variable numbering (must be sequential starting from 1)
+      const variables = text.match(/\{\{(\d+)\}\}/g);
+      if (variables) {
+        const numbers = variables.map(v => {
+          const match = v.match(/\d+/);
+          return match ? parseInt(match[0]) : 0;
+        }).sort((a, b) => a - b);
+        for (let i = 0; i < numbers.length; i++) {
+          if (numbers[i] !== i + 1) {
+            throw new BadRequestException(`Variables must be numbered sequentially starting from {{1}}. Found {{${numbers[i]}}} but expected {{${i + 1}}}.`);
+          }
+        }
+      }
+    }
+    
+    // Validate header component
+    const headerComponent = template.components.find(c => c.type === 'HEADER');
+    if (headerComponent?.text && headerComponent.text.length > 60) {
+      throw new BadRequestException('Header text cannot exceed 60 characters.');
+    }
+    
+    // Validate footer component
+    const footerComponent = template.components.find(c => c.type === 'FOOTER');
+    if (footerComponent?.text && footerComponent.text.length > 60) {
+      throw new BadRequestException('Footer text cannot exceed 60 characters.');
+    }
+    
+    // Validate body length
+    if (bodyComponent?.text && bodyComponent.text.length > 1024) {
+      throw new BadRequestException('Body text cannot exceed 1024 characters.');
+    }
   }
 
   private validateTemplateByCategory(template: CreateTemplateDto | TemplatePreviewDto) {

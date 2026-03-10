@@ -21,6 +21,7 @@ import {
   Zap,
   Workflow,
   Calendar,
+  Layout,
 } from "lucide-react";
 
 import { MENU_CONFIG } from "./config/menuconfig.js"
@@ -70,6 +71,7 @@ const ICON_MAP = {
   zap: Zap,
   workflow: Workflow,
   calendar: Calendar,
+  layout: Layout,
 };
 
 // Map MENU_CONFIG keys to activeView values

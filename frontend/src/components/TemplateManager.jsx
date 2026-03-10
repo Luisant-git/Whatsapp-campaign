@@ -32,7 +32,8 @@ const TemplateManager = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('ALL');
-  const [templateLibrary, setTemplateLibrary] = useState(null);
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -64,7 +65,7 @@ const TemplateManager = () => {
 
   const fetchTemplates = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/templates`, {
+      const response = await fetch(`${API_BASE_URL}/templates`, {
         credentials: "include"
       });
       if (response.ok) {
@@ -78,7 +79,7 @@ const TemplateManager = () => {
 
   const fetchTemplateLibrary = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/templates/library`, {
+      const response = await fetch(`${API_BASE_URL}/templates/library`, {
         credentials: "include"
       });
       if (response.ok) {
@@ -105,11 +106,34 @@ const TemplateManager = () => {
   const handleEditTemplate = (template) => {
     setDialogType('edit');
     setCurrentTemplate(template);
+    
+    // Parse components if it's a JSON string
+    let components;
+    try {
+      components = typeof template.components === 'string' 
+        ? JSON.parse(template.components) 
+        : template.components || [{ type: 'BODY', text: '' }];
+    } catch (error) {
+      components = [{ type: 'BODY', text: '' }];
+    }
+    
+    // Determine header type
+    const headerComponent = components.find(c => c.type === 'HEADER');
+    let headerType = 'NONE';
+    if (headerComponent) {
+      if (headerComponent.format === 'TEXT' || headerComponent.text) {
+        headerType = 'TEXT';
+      } else if (headerComponent.format) {
+        headerType = headerComponent.format;
+      }
+    }
+    
     setFormData({
       name: template.name,
       category: template.category,
       language: template.language,
-      components: template.components || [{ type: 'BODY', text: '' }]
+      headerType,
+      components
     });
     setOpenDialog(true);
   };
@@ -119,8 +143,8 @@ const TemplateManager = () => {
     setLoading(true);
     try {
       const url = dialogType === 'create' 
-        ? `${API_BASE_URL}/api/templates` 
-        : `${API_BASE_URL}/api/templates/${currentTemplate.id || currentTemplate.templateId}`;
+        ? `${API_BASE_URL}/templates` 
+        : `${API_BASE_URL}/templates/${currentTemplate.id || currentTemplate.templateId}`;
       
       const method = dialogType === 'create' ? 'POST' : 'PUT';
       
@@ -148,7 +172,7 @@ const TemplateManager = () => {
   const handleDeleteTemplate = async (id) => {
     if (!window.confirm('Are you sure you want to delete this template?')) return;
     try {
-      const response = await fetch(`${API_BASE_URL}/api/templates/${id}`, { 
+      const response = await fetch(`${API_BASE_URL}/templates/${id}`, { 
         method: 'DELETE',
         credentials: "include"
       });
@@ -160,52 +184,110 @@ const TemplateManager = () => {
     }
   };
 
-  const handleUseLibraryTemplate = (template) => {
-    setDialogType('create');
-    setCurrentTemplate(null);
-    setFormData({
-      name: template.name.toLowerCase() + '_copy',
-      category: template.category || 'UTILITY',
-      language: template.language || 'en',
-      components: template.components || [{ type: 'BODY', text: '' }]
-    });
-    setOpenDialog(true);
+  const handleSyncStatus = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/templates/sync`, {
+        method: 'POST',
+        credentials: "include"
+      });
+      if (response.ok) {
+        fetchTemplates();
+        alert('Template statuses synced successfully!');
+      }
+    } catch (error) {
+      console.error('Error syncing templates:', error);
+      alert('Failed to sync template statuses');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (file) => {
+    if (!file) return;
+    
+    setUploading(true);
+    const uploadFormData = new FormData();
+    uploadFormData.append('file', file);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/upload`, {
+        method: 'POST',
+        credentials: 'include',
+        body: uploadFormData
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        setUploadedFile(result);
+        
+        // Update header component with uploaded file info
+        const components = Array.isArray(formData.components) ? formData.components : [];
+        const headerIndex = components.findIndex(c => c.type === 'HEADER');
+        if (headerIndex !== -1) {
+          updateComponent(headerIndex, 'example', { 
+            header_handle: [result.fileUrl || result.filename] 
+          });
+        }
+        
+        alert('File uploaded successfully!');
+      } else {
+        alert('Upload failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const addComponent = (type) => {
+    const components = Array.isArray(formData.components) ? formData.components : [];
     if (type === 'BUTTONS') {
-      const buttonsIndex = formData.components.findIndex(c => c.type === 'BUTTONS');
+      const buttonsIndex = components.findIndex(c => c.type === 'BUTTONS');
       if (buttonsIndex === -1) {
         setFormData({
           ...formData,
-          components: [...formData.components, { type, buttons: [{ type: 'QUICK_REPLY', text: 'Reply Now' }] }]
+          components: [...components, { type, buttons: [{ type: 'QUICK_REPLY', text: 'Reply Now' }] }]
         });
       }
-    } else if (!formData.components.find(c => c.type === type)) {
+    } else if (!components.find(c => c.type === type)) {
       setFormData({
         ...formData,
-        components: [...formData.components, { type, text: '' }]
+        components: [...components, { type, text: '' }]
       });
     }
   };
 
   const updateComponent = (index, field, value) => {
-    const updatedComponents = [...formData.components];
+    const components = Array.isArray(formData.components) ? formData.components : [];
+    const updatedComponents = [...components];
     updatedComponents[index][field] = value;
     setFormData({ ...formData, components: updatedComponents });
   };
 
   const removeComponent = (index) => {
-    const updatedComponents = formData.components.filter((_, i) => i !== index);
+    const components = Array.isArray(formData.components) ? formData.components : [];
+    const updatedComponents = components.filter((_, i) => i !== index);
     setFormData({ ...formData, components: updatedComponents });
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'APPROVED': return <Check size={14} />;
-      case 'PENDING': return <Clock size={14} />;
+      case 'ACTIVE': return <Check size={14} />;
+      case 'IN_REVIEW': return <Clock size={14} />;
       case 'REJECTED': return <AlertCircle size={14} />;
-      default: return null;
+      default: return <Clock size={14} />;
+    }
+  };
+
+  const getStatusClass = (status) => {
+    switch (status) {
+      case 'ACTIVE': return 'approved';
+      case 'IN_REVIEW': return 'pending';
+      case 'REJECTED': return 'rejected';
+      default: return 'pending';
     }
   };
 
@@ -220,7 +302,8 @@ const TemplateManager = () => {
   };
 
   const addVariable = (index) => {
-    const currentText = formData.components[index].text || '';
+    const components = Array.isArray(formData.components) ? formData.components : [];
+    const currentText = components[index]?.text || '';
     const nextVar = getVariableCount(currentText) + 1;
     updateComponent(index, 'text', currentText + ` {{${nextVar}}}`);
   };
@@ -236,10 +319,13 @@ const TemplateManager = () => {
 
   // Render WhatsApp Preview
   const renderPreview = () => {
-    const header = formData.components.find(c => c.type === 'HEADER');
-    const body = formData.components.find(c => c.type === 'BODY');
-    const footer = formData.components.find(c => c.type === 'FOOTER');
-    const buttons = formData.components.find(c => c.type === 'BUTTONS');
+    // Ensure components is an array
+    const components = Array.isArray(formData.components) ? formData.components : [];
+    
+    const header = components.find(c => c.type === 'HEADER');
+    const body = components.find(c => c.type === 'BODY');
+    const footer = components.find(c => c.type === 'FOOTER');
+    const buttons = components.find(c => c.type === 'BUTTONS');
 
     const formatBody = (text) => {
       if (!text) return '';
@@ -259,21 +345,64 @@ const TemplateManager = () => {
             <div className="wa-header">{header.text}</div>
           )}
           {formData.headerType === 'IMAGE' && (
-            <div className="wa-media-placeholder">
-              <ImageIcon size={48} color="#8d949e" strokeWidth={1} />
-            </div>
+            uploadedFile ? (
+              <img 
+                src={`${API_BASE_URL}${uploadedFile.fileUrl}`} 
+                alt="Header image" 
+                style={{
+                  width: '100%', 
+                  maxHeight: 180, 
+                  objectFit: 'cover', 
+                  borderRadius: '6px 6px 0 0',
+                  marginBottom: 8
+                }}
+              />
+            ) : (
+              <div className="wa-media-placeholder">
+                <ImageIcon size={48} color="#8d949e" strokeWidth={1} />
+              </div>
+            )
           )}
           {formData.headerType === 'VIDEO' && (
-            <div className="wa-media-placeholder">
-              <div className="play-icon-sim"><Plus size={16} fill="white" /></div>
-              <ImageIcon size={48} color="#8d949e" strokeWidth={1} />
-            </div>
+            uploadedFile ? (
+              <div style={{position: 'relative', width: '100%', maxHeight: 180, marginBottom: 8}}>
+                <video 
+                  src={`${API_BASE_URL}${uploadedFile.fileUrl}`} 
+                  style={{
+                    width: '100%', 
+                    maxHeight: 180, 
+                    objectFit: 'cover', 
+                    borderRadius: '6px 6px 0 0'
+                  }}
+                />
+                <div className="play-icon-sim" style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)'
+                }}>
+                  <Plus size={16} fill="white" />
+                </div>
+              </div>
+            ) : (
+              <div className="wa-media-placeholder">
+                <div className="play-icon-sim"><Plus size={16} fill="white" /></div>
+                <ImageIcon size={48} color="#8d949e" strokeWidth={1} />
+              </div>
+            )
           )}
           {formData.headerType === 'DOCUMENT' && (
-            <div className="wa-media-placeholder" style={{background: '#f0f2f5', height: 60, display: 'flex', alignItems: 'center', padding: '0 12px'}}>
-              <ImageIcon size={24} color="#8d949e" />
-              <div style={{marginLeft: 8, fontSize: 12, color: '#606770'}}>Document Name.pdf</div>
-            </div>
+            uploadedFile ? (
+              <div className="wa-media-placeholder" style={{background: '#f0f2f5', height: 60, display: 'flex', alignItems: 'center', padding: '0 12px'}}>
+                <ImageIcon size={24} color="#8d949e" />
+                <div style={{marginLeft: 8, fontSize: 12, color: '#606770'}}>{uploadedFile.originalName || 'Document'}</div>
+              </div>
+            ) : (
+              <div className="wa-media-placeholder" style={{background: '#f0f2f5', height: 60, display: 'flex', alignItems: 'center', padding: '0 12px'}}>
+                <ImageIcon size={24} color="#8d949e" />
+                <div style={{marginLeft: 8, fontSize: 12, color: '#606770'}}>Document Name.pdf</div>
+              </div>
+            )
           )}
 
           {body?.text && <div className="wa-body" dangerouslySetInnerHTML={{ __html: formatBody(body.text) }} />}
@@ -311,10 +440,16 @@ const TemplateManager = () => {
           </div>
           <h1>Message templates</h1>
         </div>
-        <button className="btn-primary btn-submit" onClick={handleCreateTemplate} style={{display: 'flex', alignItems: 'center', gap: 8}}>
-          <Plus size={18} />
-          Create template
-        </button>
+        <div style={{display: 'flex', gap: 12}}>
+          <button className="btn-primary btn-submit" onClick={handleCreateTemplate} style={{display: 'flex', alignItems: 'center', gap: 8}}>
+            <Plus size={18} />
+            Create template
+          </button>
+          <button className="btn-secondary" onClick={handleSyncStatus} style={{display: 'flex', alignItems: 'center', gap: 8}}>
+            <Clock size={18} />
+            Sync Status
+          </button>
+        </div>
       </div>
 
       <div className="template-controls">
@@ -390,9 +525,9 @@ const TemplateManager = () => {
                     </span>
                   </td>
                   <td>
-                    <span className={`status-badge ${template.status?.toLowerCase() || 'pending'}`}>
+                    <span className={`status-badge ${getStatusClass(template.status)}`}>
                       {getStatusIcon(template.status)}
-                      <span style={{marginLeft: 6}}>{template.status || 'PENDING'}</span>
+                      <span style={{marginLeft: 6}}>{template.status || 'IN_REVIEW'}</span>
                     </span>
                   </td>
                   <td>
@@ -415,7 +550,7 @@ const TemplateManager = () => {
                       <button 
                         className="icon-btn" 
                         title="Delete Template"
-                        onClick={() => handleDeleteTemplate(template.id || template.templateId)}
+                        onClick={() => handleDeleteTemplate(template.templateId || template.id)}
                         style={{background: 'none', border: 'none', color: '#fa3e3e', cursor: 'pointer'}}
                       >
                         <Trash2 size={18} />
@@ -547,9 +682,44 @@ const TemplateManager = () => {
                           key={type}
                           className={`header-type-btn ${formData.headerType === type ? 'active' : ''}`}
                           onClick={() => {
-                            setFormData({...formData, headerType: type});
-                            if (type === 'TEXT') addComponent('HEADER');
-                            else if (type === 'NONE') removeComponent(formData.components.findIndex(c => c.type === 'HEADER'));
+                            const components = Array.isArray(formData.components) ? formData.components : [];
+                            const headerIndex = components.findIndex(c => c.type === 'HEADER');
+                            
+                            if (type === 'NONE') {
+                              // Remove header component if exists
+                              if (headerIndex !== -1) {
+                                removeComponent(headerIndex);
+                              }
+                              setFormData({...formData, headerType: type});
+                            } else {
+                              // Add or update header component
+                              if (headerIndex === -1) {
+                                // Add new header component
+                                const newComponent = { 
+                                  type: 'HEADER', 
+                                  format: type === 'TEXT' ? 'TEXT' : type,
+                                  text: type === 'TEXT' ? '' : undefined
+                                };
+                                setFormData({
+                                  ...formData, 
+                                  headerType: type,
+                                  components: [...components, newComponent]
+                                });
+                              } else {
+                                // Update existing header component
+                                const updatedComponents = [...components];
+                                updatedComponents[headerIndex] = {
+                                  ...updatedComponents[headerIndex],
+                                  format: type === 'TEXT' ? 'TEXT' : type,
+                                  text: type === 'TEXT' ? (updatedComponents[headerIndex].text || '') : undefined
+                                };
+                                setFormData({
+                                  ...formData, 
+                                  headerType: type,
+                                  components: updatedComponents
+                                });
+                              }
+                            }
                           }}
                         >
                           {type.charAt(0) + type.slice(1).toLowerCase()}
@@ -562,15 +732,19 @@ const TemplateManager = () => {
                     <div className="field-group" style={{marginTop: 16}}>
                       <div style={{display: 'flex', justifyContent: 'space-between'}}>
                         <label>Header text</label>
-                        {getCharCount(formData.components.find(c => c.type === 'HEADER')?.text || '', 60)}
+                        {getCharCount((Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'HEADER')?.text || '', 60)}
                       </div>
                       <input 
                         type="text" 
                         className="input-field" 
                         placeholder="Add a header text..." 
                         maxLength={60}
-                        value={formData.components.find(c => c.type === 'HEADER')?.text || ''}
-                        onChange={(e) => updateComponent(formData.components.findIndex(c => c.type === 'HEADER'), 'text', e.target.value)}
+                        value={(Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'HEADER')?.text || ''}
+                        onChange={(e) => {
+                          const components = Array.isArray(formData.components) ? formData.components : [];
+                          const headerIndex = components.findIndex(c => c.type === 'HEADER');
+                          if (headerIndex !== -1) updateComponent(headerIndex, 'text', e.target.value);
+                        }}
                       />
                     </div>
                   )}
@@ -578,17 +752,60 @@ const TemplateManager = () => {
                   {(formData.headerType === 'IMAGE' || formData.headerType === 'VIDEO' || formData.headerType === 'DOCUMENT') && (
                     <div className="media-sample-container" style={{marginTop: 16}}>
                       <label style={{fontWeight: 700, display: 'block', marginBottom: 4}}>Media sample <span style={{color: '#8d949e', fontWeight: 400}}>• Optional</span></label>
-                      <div className="drag-drop-area" style={{
-                        border: '2px dashed #dddfe2',
-                        borderRadius: 8,
-                        padding: '32px',
-                        textAlign: 'center',
-                        background: '#f9fafb',
-                        cursor: 'pointer'
-                      }}>
-                        <div style={{color: '#008069', marginBottom: 8}}><Plus size={24} /></div>
-                        <div style={{fontSize: 14, fontWeight: 600}}>Drag and drop to upload</div>
-                        <div style={{fontSize: 12, color: '#8d949e'}}>Or choose files on your device</div>
+                      <input 
+                        type="file" 
+                        id="media-upload" 
+                        style={{display: 'none'}} 
+                        accept={formData.headerType === 'IMAGE' ? 'image/*' : formData.headerType === 'VIDEO' ? 'video/*' : '*'}
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            handleFileUpload(file);
+                          }
+                        }}
+                      />
+                      <div 
+                        className="drag-drop-area" 
+                        style={{
+                          border: '2px dashed #dddfe2',
+                          borderRadius: 8,
+                          padding: '32px',
+                          textAlign: 'center',
+                          background: '#f9fafb',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => document.getElementById('media-upload').click()}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.style.borderColor = '#008069';
+                        }}
+                        onDragLeave={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.style.borderColor = '#dddfe2';
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.style.borderColor = '#dddfe2';
+                          const files = e.dataTransfer.files;
+                          if (files.length > 0) {
+                            handleFileUpload(files[0]);
+                          }
+                        }}
+                      >
+                        {uploading ? (
+                          <div style={{color: '#008069', marginBottom: 8}}>Uploading...</div>
+                        ) : uploadedFile ? (
+                          <div>
+                            <div style={{color: '#008069', marginBottom: 8}}>✓ {uploadedFile.filename}</div>
+                            <div style={{fontSize: 12, color: '#8d949e'}}>Click to change file</div>
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{color: '#008069', marginBottom: 8}}><Plus size={24} /></div>
+                            <div style={{fontSize: 14, fontWeight: 600}}>Drag and drop to upload</div>
+                            <div style={{fontSize: 12, color: '#8d949e'}}>Or choose files on your device</div>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
@@ -598,19 +815,24 @@ const TemplateManager = () => {
                 <div className="component-box">
                   <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 8}}>
                     <label style={{fontWeight: 700}}>Body</label>
-                    {getCharCount(formData.components.find(c => c.type === 'BODY')?.text || '', 1024)}
+                    {getCharCount((Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'BODY')?.text || '', 1024)}
                   </div>
                   <textarea 
                     className="textarea-field" 
                     placeholder="Enter the body text for your message..."
                     maxLength={1024}
-                    value={formData.components.find(c => c.type === 'BODY')?.text || ''}
-                    onChange={(e) => updateComponent(formData.components.findIndex(c => c.type === 'BODY'), 'text', e.target.value)}
+                    value={(Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'BODY')?.text || ''}
+                    onChange={(e) => {
+                      const components = Array.isArray(formData.components) ? formData.components : [];
+                      const bodyIndex = components.findIndex(c => c.type === 'BODY');
+                      if (bodyIndex !== -1) updateComponent(bodyIndex, 'text', e.target.value);
+                    }}
                   />
                   <div style={{display: 'flex', gap: 8, marginTop: 8}}>
                     <button className="btn-secondary" style={{fontSize: 12, padding: '4px 8px'}} onClick={() => {
-                       const index = formData.components.findIndex(c => c.type === 'BODY');
-                       addVariable(index);
+                       const components = Array.isArray(formData.components) ? formData.components : [];
+                       const index = components.findIndex(c => c.type === 'BODY');
+                       if (index !== -1) addVariable(index);
                     }}>+ Add Variable</button>
                   </div>
                 </div>
@@ -620,15 +842,19 @@ const TemplateManager = () => {
                   <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 8}}>
                     <label style={{fontWeight: 700}}>Footer (Optional)</label>
                     <div style={{display: 'flex', gap: 8, alignItems: 'center'}}>
-                      {formData.components.find(c => c.type === 'FOOTER') && getCharCount(formData.components.find(c => c.type === 'FOOTER').text, 60)}
-                      {formData.components.find(c => c.type === 'FOOTER') && (
-                        <button onClick={() => removeComponent(formData.components.findIndex(c => c.type === 'FOOTER'))} className="btn-remove-component">
+                      {(Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'FOOTER') && getCharCount((Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'FOOTER').text, 60)}
+                      {(Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'FOOTER') && (
+                        <button onClick={() => {
+                          const components = Array.isArray(formData.components) ? formData.components : [];
+                          const footerIndex = components.findIndex(c => c.type === 'FOOTER');
+                          if (footerIndex !== -1) removeComponent(footerIndex);
+                        }} className="btn-remove-component">
                           <Trash2 size={16} />
                         </button>
                       )}
                     </div>
                   </div>
-                  {!formData.components.find(c => c.type === 'FOOTER') ? (
+                  {!(Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'FOOTER') ? (
                     <button className="btn-add-section" onClick={() => addComponent('FOOTER')}>
                       <Plus size={16} /> Add a footer
                     </button>
@@ -638,8 +864,12 @@ const TemplateManager = () => {
                       className="input-field" 
                       placeholder="Add a footer text..." 
                       maxLength={60}
-                      value={formData.components.find(c => c.type === 'FOOTER').text}
-                      onChange={(e) => updateComponent(formData.components.findIndex(c => c.type === 'FOOTER'), 'text', e.target.value)}
+                      value={(Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'FOOTER')?.text || ''}
+                      onChange={(e) => {
+                        const components = Array.isArray(formData.components) ? formData.components : [];
+                        const footerIndex = components.findIndex(c => c.type === 'FOOTER');
+                        if (footerIndex !== -1) updateComponent(footerIndex, 'text', e.target.value);
+                      }}
                     />
                   )}
                 </div>
@@ -648,29 +878,36 @@ const TemplateManager = () => {
                 <div className="component-box">
                   <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 8}}>
                     <label style={{fontWeight: 700}}>Buttons (Optional)</label>
-                    {formData.components.find(c => c.type === 'BUTTONS') && (
-                      <button onClick={() => removeComponent(formData.components.findIndex(c => c.type === 'BUTTONS'))} className="btn-remove-component">
+                    {(Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'BUTTONS') && (
+                      <button onClick={() => {
+                        const components = Array.isArray(formData.components) ? formData.components : [];
+                        const buttonsIndex = components.findIndex(c => c.type === 'BUTTONS');
+                        if (buttonsIndex !== -1) removeComponent(buttonsIndex);
+                      }} className="btn-remove-component">
                         <Trash2 size={16} />
                       </button>
                     )}
                   </div>
-                  {!formData.components.find(c => c.type === 'BUTTONS') ? (
+                  {!(Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'BUTTONS') ? (
                     <button className="btn-add-section" onClick={() => addComponent('BUTTONS')}>
                       <Plus size={16} /> Add interactive buttons
                     </button>
                   ) : (
                     <div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
-                      {formData.components.find(c => c.type === 'BUTTONS').buttons.map((btn, i) => (
+                      {(Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'BUTTONS')?.buttons?.map((btn, i) => (
                         <div key={i} style={{display: 'flex', gap: 8, alignItems: 'center'}}>
                           <select 
                             className="select-field" 
                             style={{width: 140, padding: 8}}
                             value={btn.type}
                             onChange={(e) => {
-                              const btnIdx = formData.components.findIndex(c => c.type === 'BUTTONS');
-                              const newButtons = [...formData.components[btnIdx].buttons];
-                              newButtons[i].type = e.target.value;
-                              updateComponent(btnIdx, 'buttons', newButtons);
+                              const components = Array.isArray(formData.components) ? formData.components : [];
+                              const btnIdx = components.findIndex(c => c.type === 'BUTTONS');
+                              if (btnIdx !== -1) {
+                                const newButtons = [...components[btnIdx].buttons];
+                                newButtons[i].type = e.target.value;
+                                updateComponent(btnIdx, 'buttons', newButtons);
+                              }
                             }}
                           >
                             <option value="QUICK_REPLY">Quick Reply</option>
@@ -684,18 +921,60 @@ const TemplateManager = () => {
                             placeholder="Button text..." 
                             value={btn.text}
                             onChange={(e) => {
-                              const btnIdx = formData.components.findIndex(c => c.type === 'BUTTONS');
-                              const newButtons = [...formData.components[btnIdx].buttons];
-                              newButtons[i].text = e.target.value;
-                              updateComponent(btnIdx, 'buttons', newButtons);
+                              const components = Array.isArray(formData.components) ? formData.components : [];
+                              const btnIdx = components.findIndex(c => c.type === 'BUTTONS');
+                              if (btnIdx !== -1) {
+                                const newButtons = [...components[btnIdx].buttons];
+                                newButtons[i].text = e.target.value;
+                                updateComponent(btnIdx, 'buttons', newButtons);
+                              }
                             }}
                           />
-                          {formData.components.find(c => c.type === 'BUTTONS').buttons.length > 1 && (
+                          {btn.type === 'URL' && (
+                            <input 
+                              type="url" 
+                              className="input-field" 
+                              style={{flex: 1, padding: 8, marginLeft: 8}}
+                              placeholder="https://example.com" 
+                              value={btn.url || ''}
+                              onChange={(e) => {
+                                const components = Array.isArray(formData.components) ? formData.components : [];
+                                const btnIdx = components.findIndex(c => c.type === 'BUTTONS');
+                                if (btnIdx !== -1) {
+                                  const newButtons = [...components[btnIdx].buttons];
+                                  newButtons[i].url = e.target.value;
+                                  updateComponent(btnIdx, 'buttons', newButtons);
+                                }
+                              }}
+                            />
+                          )}
+                          {btn.type === 'PHONE_NUMBER' && (
+                            <input 
+                              type="tel" 
+                              className="input-field" 
+                              style={{flex: 1, padding: 8, marginLeft: 8}}
+                              placeholder="+1234567890" 
+                              value={btn.phone_number || ''}
+                              onChange={(e) => {
+                                const components = Array.isArray(formData.components) ? formData.components : [];
+                                const btnIdx = components.findIndex(c => c.type === 'BUTTONS');
+                                if (btnIdx !== -1) {
+                                  const newButtons = [...components[btnIdx].buttons];
+                                  newButtons[i].phone_number = e.target.value;
+                                  updateComponent(btnIdx, 'buttons', newButtons);
+                                }
+                              }}
+                            />
+                          )}
+                          {(Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'BUTTONS')?.buttons?.length > 1 && (
                             <button 
                               onClick={() => {
-                                const btnIdx = formData.components.findIndex(c => c.type === 'BUTTONS');
-                                const newButtons = formData.components[btnIdx].buttons.filter((_, bIdx) => bIdx !== i);
-                                updateComponent(btnIdx, 'buttons', newButtons);
+                                const components = Array.isArray(formData.components) ? formData.components : [];
+                                const btnIdx = components.findIndex(c => c.type === 'BUTTONS');
+                                if (btnIdx !== -1) {
+                                  const newButtons = components[btnIdx].buttons.filter((_, bIdx) => bIdx !== i);
+                                  updateComponent(btnIdx, 'buttons', newButtons);
+                                }
                               }}
                               style={{background: 'none', border: 'none', color: '#fa3e3e', cursor: 'pointer'}}
                             >
@@ -704,14 +983,17 @@ const TemplateManager = () => {
                           )}
                         </div>
                       ))}
-                      {formData.components.find(c => c.type === 'BUTTONS').buttons.length < 3 && (
+                      {(Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'BUTTONS')?.buttons?.length < 3 && (
                         <button 
                           className="btn-add-section" 
                           style={{padding: 8, fontSize: 13}}
                           onClick={() => {
-                            const btnIdx = formData.components.findIndex(c => c.type === 'BUTTONS');
-                            const newButtons = [...formData.components[btnIdx].buttons, { type: 'QUICK_REPLY', text: '' }];
-                            updateComponent(btnIdx, 'buttons', newButtons);
+                            const components = Array.isArray(formData.components) ? formData.components : [];
+                            const btnIdx = components.findIndex(c => c.type === 'BUTTONS');
+                            if (btnIdx !== -1) {
+                              const newButtons = [...components[btnIdx].buttons, { type: 'QUICK_REPLY', text: '' }];
+                              updateComponent(btnIdx, 'buttons', newButtons);
+                            }
                           }}
                         >
                           <Plus size={14} /> Add another button

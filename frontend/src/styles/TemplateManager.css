@@ -156,7 +156,8 @@
   color: #008069;
 }
 
-.status-badge.pending {
+.status-badge.pending,
+.status-badge.in_review {
   background: #fff4e5;
   color: #b25e00;
 }

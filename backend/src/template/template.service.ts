@@ -130,24 +130,19 @@ export class TemplateService {
 
       console.log('Final processed components:', JSON.stringify(processedComponents, null, 2));
 
-      console.log('Final processed components:', JSON.stringify(processedComponents, null, 2));
-
-      console.log('Creating template with data:', {
+      const metaPayload = {
         name: validName,
-        category: createTemplateDto.category,
+        category: createTemplateDto.category.toLowerCase(),
         language: createTemplateDto.language,
         components: processedComponents
-      });
+      };
+
+      console.log('Sending to Meta API:', JSON.stringify(metaPayload, null, 2));
 
       // Create template via Meta API using correct format
       const response = await axios.post(
         `https://graph.facebook.com/v18.0/${tenant.wabaId}/message_templates`,
-        {
-          name: validName,
-          category: createTemplateDto.category.toLowerCase(),
-          language: createTemplateDto.language,
-          components: processedComponents
-        },
+        metaPayload,
         {
           headers: {
             Authorization: `Bearer ${tenant.accessToken}`,

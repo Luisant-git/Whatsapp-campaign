@@ -23,6 +23,7 @@ model MasterConfig {
   id            Int      @id @default(autoincrement())
   name          String   @unique
   phoneNumberId String
+  wabaId        String?
   accessToken   String
   verifyToken   String
   isActive      Boolean  @default(true)

@@ -105,10 +105,19 @@ export class TemplateService {
               };
             }
             if (button.type === 'PHONE_NUMBER') {
+              // Validate phone number format
+              if (!button.phone_number) {
+                throw new BadRequestException('Phone number is required for PHONE_NUMBER button type');
+              }
+              // Ensure phone number starts with + and country code
+              const phoneNumber = button.phone_number.startsWith('+') 
+                ? button.phone_number 
+                : `+${button.phone_number}`;
+              
               return {
                 type: 'PHONE_NUMBER',
                 text: button.text || 'Call Us',
-                phone_number: button.phone_number || '+1234567890'
+                phone_number: phoneNumber
               };
             }
             return {

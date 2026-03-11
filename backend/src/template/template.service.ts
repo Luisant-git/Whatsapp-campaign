@@ -698,11 +698,10 @@ export class TemplateService {
 
   private async uploadMediaForTemplate(masterConfig: any, localPath: string): Promise<string> {
     const fs = require('fs');
-    const FormData = require('form-data');
     const path = require('path');
 
     try {
-      console.log('Uploading media for template, localPath:', localPath);
+      console.log('Uploading media for template using resumable upload, localPath:', localPath);
       
       // Convert local path to full file path
       const fullPath = localPath.startsWith('/uploads/') 
@@ -718,31 +717,44 @@ export class TemplateService {
       }
 
       const fileStats = fs.statSync(fullPath);
+      const fileBuffer = fs.readFileSync(fullPath);
       console.log('File size:', fileStats.size, 'bytes');
 
-      // Create form data for media upload
-      const formData = new FormData();
-      formData.append('file', fs.createReadStream(fullPath));
-      formData.append('messaging_product', 'whatsapp');
-
-      console.log('Uploading to Meta API for template...');
-      console.log('Phone Number ID:', masterConfig.phoneNumberId);
-
-      // Upload media to Phone Number endpoint to get asset handle
-      const uploadResponse = await axios.post(
-        `https://graph.facebook.com/v18.0/${masterConfig.phoneNumberId}/media`,
-        formData,
+      // Step 1: Create upload session
+      console.log('Creating upload session...');
+      const sessionResponse = await axios.post(
+        `https://graph.facebook.com/v18.0/${masterConfig.wabaId}/uploads`,
+        {
+          file_length: fileStats.size,
+          file_type: this.getMimeType(fullPath),
+          file_name: path.basename(fullPath)
+        },
         {
           headers: {
             Authorization: `Bearer ${masterConfig.accessToken}`,
-            ...formData.getHeaders(),
+            'Content-Type': 'application/json',
           },
         }
       );
 
-      // The response contains 'h' field which is the asset handle for templates
-      const assetHandle = uploadResponse.data.h || uploadResponse.data.id;
-      console.log('Upload response:', uploadResponse.data);
+      const uploadSessionId = sessionResponse.data.id;
+      console.log('Upload session created:', uploadSessionId);
+
+      // Step 2: Upload file data
+      console.log('Uploading file data...');
+      const uploadResponse = await axios.post(
+        `https://graph.facebook.com/v18.0/${uploadSessionId}`,
+        fileBuffer,
+        {
+          headers: {
+            Authorization: `Bearer ${masterConfig.accessToken}`,
+            'Content-Type': 'application/octet-stream',
+            'file_offset': '0',
+          },
+        }
+      );
+
+      const assetHandle = uploadResponse.data.h;
       console.log('Asset handle retrieved:', assetHandle);
       return assetHandle;
       

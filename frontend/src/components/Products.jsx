@@ -1,6 +1,7 @@
-// Products.jsx
 import { useState, useEffect } from 'react';
 import { ecommerceApi } from '../api/ecommerce';
+import { getProfile } from '../api/auth';
+import { API_BASE_URL } from '../api/config';
 import { Pencil, Trash2, Upload, Search, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import '../styles/Ecommerce.css';
 
@@ -79,15 +80,12 @@ export default function Products() {
 
   const checkMetaCatalogPermission = async () => {
     try {
-      const { getCurrentPlan } = await import('../api/subscription');
-      const data = await getCurrentPlan();
-      const permsArray = data?.subscription?.menuPermissions ?? data?.menuPermissions ?? [];
-      
-      if (Array.isArray(permsArray)) {
-        setHasMetaCatalogPermission(permsArray.includes('ecommerce.meta-catalog'));
-      }
+      const data = await getProfile();
+      const permissions = data.menuPermission || {};
+      const hasPermission = permissions['ecommerce.products.metacatalog'] === true;
+      setHasMetaCatalogPermission(hasPermission);
     } catch (error) {
-      console.error('Failed to check Meta Catalog permission:', error);
+      console.error('Error checking Meta Catalog permission:', error);
       setHasMetaCatalogPermission(false);
     }
   };
@@ -111,7 +109,7 @@ export default function Products() {
   const getImageUrl = (url) => {
     if (!url) return null;
     if (url.startsWith('http')) return url;
-    return `http://localhost:3010${url}`;
+    return `${API_BASE_URL}${url}`;
   };
 
   // Toggle expanded row
@@ -598,6 +596,11 @@ export default function Products() {
       p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.subCategory?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    // Filter based on Meta Catalog permission
+    if (!hasMetaCatalogPermission && p.metaProductId) {
+      return false; // Hide meta catalog products if permission is disabled
+    }
 
     if (filterType === 'normal') return matchesSearch && !p.metaProductId;
     if (filterType === 'uploaded') return matchesSearch && p.metaProductId && p.source !== 'meta';

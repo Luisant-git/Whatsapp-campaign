@@ -244,9 +244,9 @@ export class WhatsappService {
       // Check if user is providing order details (NAME and ADDRESS)
       if (lowerText.includes('name:') && lowerText.includes('address:')) {
         try {
-          const orderCreated = await this.ecommerceService.createOrderFromMessage(from, text, userId);
-          if (orderCreated) {
-            await this.sendMessage(from, '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!', userId);
+          const settings = await this.getSettings(userId);
+          const orderCreated = await this.ecommerceService.createOrderFromMessage(from, text, userId, settings.accessToken, settings.phoneNumberId);
+          if (orderCreated === 'order_placed') {
             return;
           }
         } catch (error) {
@@ -257,14 +257,25 @@ export class WhatsappService {
       // Check if user is in order flow (awaiting name, address, city, or pincode)
       try {
         const settings = await this.getSettings(userId);
-        const metaCatalogService = this.ecommerceService['metaCatalogService'];
         
-        if (metaCatalogService) {
-          const handled = await metaCatalogService.handleCustomerResponse(from, settings.phoneNumberId, text, userId);
-          if (handled) return;
+        // Check current session step to determine which flow
+        const currentStep = await this.ecommerceService['sessionService'].getStep(from, userId);
+        const session = await this.ecommerceService['sessionService'].getSession(from, userId);
+        const paymentMethod = session?.paymentMethod;
+        
+        // If user is in confirm_details step AND payment method is already COD, use regular ecommerce
+        if (currentStep === 'confirm_details' && paymentMethod === 'COD') {
+          const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, userId, settings.accessToken, settings.phoneNumberId);
+          if (orderResult === 'order_placed' || orderResult === 'awaiting_name' || orderResult === 'awaiting_address') {
+            if (orderResult === 'awaiting_address') {
+              await this.sendMessage(from, 'Thank you! Now please provide your complete delivery address:', userId);
+            }
+            return;
+          }
         }
         
-        const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, userId);
+        // Try regular ecommerce order flow for other steps
+        const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, userId, settings.accessToken, settings.phoneNumberId);
         if (orderResult === 'awaiting_address') {
           await this.sendMessage(from, 'Thank you! Now please provide your complete delivery address:', userId);
           return;
@@ -274,18 +285,19 @@ export class WhatsappService {
         } else if (orderResult === 'awaiting_pincode') {
           await this.sendMessage(from, 'Thank you! Finally, please provide your pincode:', userId);
           return;
-        } else if (orderResult === true) {
-          await this.sendMessage(from, '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!', userId);
+        } else if (orderResult === 'order_placed') {
           return;
+        }
+        
+        // If not handled by regular ecommerce, try Meta Catalog
+        const metaCatalogService = this.ecommerceService['metaCatalogService'];
+        if (metaCatalogService) {
+          const handled = await metaCatalogService.handleCustomerResponse(from, settings.phoneNumberId, text, userId);
+          if (handled) return;
         }
       } catch (error) {
         this.logger.error('Order creation error:', error);
       }
-
-      // Get tenant config to check if AI chatbot is enabled
-      const tenantConfig = await this.prisma.tenantConfig.findFirst({
-        select: { aiChatbotEnabled: true }
-      });
 
       // Try session service first (auto-reply, quick-reply)
       const sessionHandled = await this.sessionService.handleInteractiveMenu(from, text, userId, 
@@ -299,22 +311,6 @@ export class WhatsappService {
           return this.sendButtonsMessage(to, msg, buttons, userId);
         }
       );
-
-      // Only try chatbot if session service didn't handle it AND AI chatbot is enabled
-      if (!sessionHandled && tenantConfig?.aiChatbotEnabled) {
-        try {
-          const chatResponse = await this.chatbotService.processMessage(userId, {
-            message: text,
-            phone: from
-          });
-          
-          if (chatResponse.response) {
-            await this.sendMessage(from, chatResponse.response, userId);
-          }
-        } catch (error) {
-          this.logger.error('Chatbot error:', error);
-        }
-      }
     }
 
     this.logger.log(`Message from ${from}: ${text || mediaType}`);
@@ -758,7 +754,7 @@ export class WhatsappService {
     let text = message.text?.body;
     
     // 🔥 ROUTE BASED ON PHONE NUMBER ID
-    const routing = await this.phoneRouter.routeMessage(phoneNumberId, message, settingsId, tenantClient);
+    const routing = await this.phoneRouter.routeMessage(phoneNumberId, message, settingsId, tenantClient, tenantId);
     this.logger.log(`📍 Routing: ${routing.route} for phone ${phoneNumberId}`);
     
     // Handle Meta Catalog order messages
@@ -840,6 +836,18 @@ export class WhatsappService {
         return;
       }
       
+      // Check for ecommerce keywords first (before routing to AI bot)
+      if (['shop', 'catalog', 'products', 'buy'].includes(lowerText) || 
+          lowerText.startsWith('cat:') || 
+          lowerText.startsWith('sub:') || 
+          lowerText.startsWith('prod:') ||
+          lowerText.startsWith('buy:') ||
+          lowerText === 'cod') {
+        await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantId);
+        this.logger.log(`✅ Ecommerce keyword handled`);
+        return;
+      }
+      
       // 🔥 AI BOT NUMBER: Route to chatbot
       if (routing.route === 'ai-bot') {
         const chatResponse = await this.chatbotService.processMessage(tenantId, { message: text, phone: from });
@@ -851,6 +859,32 @@ export class WhatsappService {
       
       // 🔥 QUICK REPLY NUMBER: Route to session service
       if (routing.route === 'quick-reply') {
+        // Check current session to determine which flow
+        const currentStep = await this.ecommerceService['sessionService'].getStep(from, tenantId);
+        const session = await this.ecommerceService['sessionService'].getSession(from, tenantId);
+        const paymentMethod = session?.paymentMethod;
+        
+        // If user is in confirm_details step AND payment method is already COD, use regular ecommerce
+        if (currentStep === 'confirm_details' && paymentMethod === 'COD') {
+          const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, tenantId, whatsappSettings.accessToken, whatsappSettings.phoneNumberId);
+          if (orderResult === 'order_placed' || orderResult === 'awaiting_name' || orderResult === 'awaiting_address') {
+            if (orderResult === 'awaiting_address') {
+              await this.sendMessageDirect(from, 'Thank you! Now please provide your complete delivery address:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+            }
+            return;
+          }
+        }
+        
+        // Check if user is in Meta Catalog order flow
+        const metaCatalogService = this.ecommerceService['metaCatalogService'];
+        if (metaCatalogService) {
+          const handled = await metaCatalogService.handleCustomerResponse(from, whatsappSettings.phoneNumberId, text, tenantId);
+          if (handled) {
+            this.logger.log('✅ Meta Catalog order flow handled in quick-reply');
+            return;
+          }
+        }
+        
         await this.sessionService.handleInteractiveMenu(from, text, settingsId, 
           async (to, msg, imageUrl) => {
             if (imageUrl) {
@@ -888,7 +922,7 @@ export class WhatsappService {
       }
       
       // Check if user is in order flow
-      const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, tenantId);
+      const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, tenantId, whatsappSettings.accessToken, whatsappSettings.phoneNumberId);
       if (orderResult === 'awaiting_address') {
         await this.sendMessageDirect(from, 'Thank you! Now please provide your complete delivery address:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
         return;
@@ -898,8 +932,7 @@ export class WhatsappService {
       } else if (orderResult === 'awaiting_pincode') {
         await this.sendMessageDirect(from, 'Thank you! Finally, please provide your pincode:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
         return;
-      } else if (orderResult === true) {
-        await this.sendMessageDirect(from, '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+      } else if (orderResult === 'order_placed') {
         return;
       }
       
@@ -915,17 +948,6 @@ export class WhatsappService {
           return this.sendButtonsMessageDirect(to, msg, buttons, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
         }
       ).catch(e => { this.logger.error('Session error:', e); return false; });
-      
-      // Try AI chatbot if session didn't handle it
-      if (!sessionHandled) {
-        const tenantConfig = await tenantClient.tenantConfig.findFirst({ select: { aiChatbotEnabled: true } });
-        if (tenantConfig?.aiChatbotEnabled) {
-          const chatResponse = await this.chatbotService.processMessage(tenantId, { message: text, phone: from });
-          if (chatResponse.response) {
-            await this.sendMessageDirect(from, chatResponse.response, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
-          }
-        }
-      }
     }
   }
 

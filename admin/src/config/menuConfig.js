@@ -55,13 +55,9 @@ export const MENU_CONFIG = [
       icon: "store",
       children: [
         { key: "ecommerce.categories", label: "Categories" },
-        { 
-          key: "ecommerce.products", 
-          label: "Products",
-          children: [
-            { key: "ecommerce.meta-catalog", label: "Meta Catalog" },
-          ]
-        },
+        { key: "ecommerce.products", label: "Products", children: [
+          { key: "ecommerce.products.metacatalog", label: "Meta Catalog" }
+        ]},
         { key: "ecommerce.orders", label: "Orders" },
         { key: "ecommerce.customers", label: "Customers" },
       ],

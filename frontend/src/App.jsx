@@ -122,6 +122,7 @@ function App() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
+  const [useQuickReply, setUseQuickReply] = useState(true);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [contactsOpen, setContactsOpen] = useState(false);
@@ -168,6 +169,36 @@ function App() {
     }
   };
 
+  // Session-based feature flags (Quick Reply)
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const checkSession = async () => {
+      try {
+        const { checkSessionStatus } = await import("./api/session");
+        const sessionData = await checkSessionStatus();
+
+        // Check if chatbot access should be revoked based on menu permissions
+        if (activeView === "chatbot" && !isAllowed("chatbot")) {
+          setActiveView("analytics");
+        }
+
+        // Check if quick-reply access should be revoked based on menu permissions
+        if (activeView === "quick-reply" && !isAllowed("quick-reply")) {
+          setActiveView("analytics");
+        }
+
+        if (sessionData.user?.useQuickReply !== useQuickReply) {
+          setUseQuickReply(sessionData.user.useQuickReply !== false);
+        }
+      } catch (error) {
+        console.error("Session check failed:", error);
+      }
+    };
+
+    checkSession();
+  }, [isLoggedIn, activeView, menuPerms, useQuickReply]);
+
   // Responsive sidebar
   useEffect(() => {
     const handleResize = () => {
@@ -185,6 +216,7 @@ function App() {
         const user = profileData.user;
   
         setUser(user);
+        setUseQuickReply(user?.useQuickReply !== false);
         setIsLoggedIn(true);
   
         const userType = profileData.userType || "tenant";
@@ -210,6 +242,7 @@ function App() {
 
   const handleLogin = (user, role, profile) => {
     setUser(user);
+    setUseQuickReply(user?.useQuickReply !== false);
     setIsLoggedIn(true);
   
     // reset default view on each login
@@ -251,13 +284,16 @@ function App() {
 
   // Permission check: subscription menuPerms + feature flags
   const isAllowed = (key) => {
-    // 1. If menuPerms is null or empty object → no subscription restrictions, show all
-    if (!menuPerms || Object.keys(menuPerms).length === 0) {
-      return true;
+    // 1. If menuPerms exists, check admin permissions first
+    if (menuPerms && Object.keys(menuPerms).length > 0) {
+      if (menuPerms[key] !== true) return false;
     }
 
-    // 2. If menuPerms exists, only show what's explicitly allowed
-    return menuPerms[key] === true;
+    // 2. Then check feature flags for quick-reply only
+    if (key === "quick-reply" && useQuickReply === false) return false;
+
+    // 3. If no menuPerms restrictions, allow by default
+    return true;
   };
 
   const renderSidebar = () => (
@@ -440,7 +476,7 @@ function App() {
             {activeView === "orders" && <Orders />}
             {activeView === "customers" && <Customers />}
             {activeView === "auto-reply" && <AutoReply />}
-            {activeView === "quick-reply" && <QuickReply />}
+            {activeView === "quick-reply" && useQuickReply && <QuickReply />}
             {activeView === "chatbot" && <Chatbot />}
             {activeView === "flow-manager" && <FlowManager />}
             {activeView === "flow-appointments" && <FlowAppointments />}

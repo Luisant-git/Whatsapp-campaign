@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import '../styles/Users.css';
 import { useToast } from '../contexts/ToastContext';
+import { MENU_CONFIG } from '../config/menuConfig';
 
 export default function MenuPermissions() {
   const [users, setUsers] = useState([]);
@@ -28,34 +29,39 @@ export default function MenuPermissions() {
     }
   };
 
-  const handlePermissionToggle = async (userId, permissionKey, currentValue) => {
+  const handlePermissionToggle = async (userId, permissionKey, hasPermission) => {
     setUpdating(prev => ({ ...prev, [`${userId}-${permissionKey}`]: true }));
     try {
-      const user = users.find(u => u.id === userId);
-      const currentPermissions = user.menuPermission?.permission || {};
+      // Get current permissions
+      const currentUser = users.find(u => u.id === userId);
+      const currentPermissions = currentUser?.menuPermission?.permission || {};
       
-      const response = await fetch(`/api/menu-permissions/${userId}`, {
+      // Update the specific permission
+      const updatedPermissions = {
+        ...currentPermissions,
+        [permissionKey]: !hasPermission
+      };
+
+      const response = await fetch(`/api/admin/menu-permissions/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          permission: { ...currentPermissions, [permissionKey]: !currentValue }
+          permission: updatedPermissions
         })
       });
 
       if (!response.ok) throw new Error('Failed to update permission');
 
-      setUsers(prev => prev.map(u => 
-        u.id === userId 
-          ? { ...u, menuPermission: { ...u.menuPermission, permission: { ...currentPermissions, [permissionKey]: !currentValue } } }
-          : u
+      setUsers(prev => prev.map(user => 
+        user.id === userId 
+          ? { ...user, menuPermission: { ...user.menuPermission, permission: updatedPermissions } }
+          : user
       ));
 
-      const permissionNames = {
-        flowAppointments: 'Flow Appointments',
-        'ecommerce.meta-catalog': 'Meta Catalog'
-      };
-      showToast(`${permissionNames[permissionKey]} ${!currentValue ? 'enabled' : 'disabled'}`, 'success');
+      const menuItem = MENU_CONFIG.find(item => item.key === permissionKey);
+      const permissionName = menuItem ? menuItem.label : permissionKey;
+      showToast(`${permissionName} ${!hasPermission ? 'enabled' : 'disabled'}`, 'success');
     } catch (err) {
       console.error('Error updating permission:', err);
       showToast('Error updating permission', 'error');
@@ -72,7 +78,7 @@ export default function MenuPermissions() {
     <div className="users-page">
       <div className="users-header">
         <h1>Menu Permissions</h1>
-        <p>Manage additional features for Standard plan users</p>
+        <p>Fine-tune access control for Standard plan users</p>
       </div>
 
       <div className="users-table-container">
@@ -83,15 +89,13 @@ export default function MenuPermissions() {
               <th>Company Name</th>
               <th>Email</th>
               <th>Plan</th>
-              <th>Flow Appointments</th>
-              <th>Meta Catalog</th>
+              {MENU_CONFIG.map(menuItem => (
+                <th key={menuItem.key}>{menuItem.label}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {users.map((user, idx) => {
-              const permissions = user.menuPermission?.permission || {};
-              const hasFlowAppointments = permissions.flowAppointments || false;
-              const hasMetaCatalog = permissions['ecommerce.meta-catalog'] || false;
               return (
                 <tr key={user.id}>
                   <td>{idx + 1}</td>
@@ -102,24 +106,22 @@ export default function MenuPermissions() {
                       {user.subscription?.name || 'Standard'}
                     </span>
                   </td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={hasFlowAppointments}
-                      onChange={() => handlePermissionToggle(user.id, 'flowAppointments', hasFlowAppointments)}
-                      disabled={updating[`${user.id}-flowAppointments`]}
-                    />
-                    {updating[`${user.id}-flowAppointments`] && <span style={{marginLeft: '8px', fontSize: '12px', color: '#666'}}>Updating...</span>}
-                  </td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={hasMetaCatalog}
-                      onChange={() => handlePermissionToggle(user.id, 'ecommerce.meta-catalog', hasMetaCatalog)}
-                      disabled={updating[`${user.id}-ecommerce.meta-catalog`]}
-                    />
-                    {updating[`${user.id}-ecommerce.meta-catalog`] && <span style={{marginLeft: '8px', fontSize: '12px', color: '#666'}}>Updating...</span>}
-                  </td>
+                  {MENU_CONFIG.map(menuItem => {
+                    const hasPermission = user.menuPermission?.permission?.[menuItem.key] !== false;
+                    return (
+                      <td key={menuItem.key}>
+                        <input
+                          type="checkbox"
+                          checked={hasPermission}
+                          onChange={() => handlePermissionToggle(user.id, menuItem.key, hasPermission)}
+                          disabled={updating[`${user.id}-${menuItem.key}`]}
+                        />
+                        {updating[`${user.id}-${menuItem.key}`] && (
+                          <span style={{marginLeft: '8px', fontSize: '12px', color: '#666'}}>Updating...</span>
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
               );
             })}

@@ -148,6 +148,9 @@ export class UserService {
   
     const tenant = await this.centralPrisma.tenant.findUnique({
       where: { id: tenantId },
+      include: {
+        subscription: true,  // Include subscription plan
+      },
     });
     if (!tenant) {
       throw new UnauthorizedException('Tenant not found');
@@ -185,22 +188,28 @@ export class UserService {
       console.error('Error fetching tenant config:', err);
     }
   
-    // ✅ Fetch menu permissions differently for tenant vs subuser
-    let menuPermission: any = null;
-    try {
-      if (userType === 'subuser') {
-        // IMPORTANT: subuser-specific permission
-        menuPermission = await this.centralPrisma.subUserMenuPermission.findUnique({
+    // ✅ Get menu permissions from subscription plan's menuPermissions array
+    let menuPermission: any = {};
+    if (tenant.subscription?.menuPermissions) {
+      // Convert array to object: ['key1', 'key2'] => {key1: true, key2: true}
+      menuPermission = tenant.subscription.menuPermissions.reduce((acc, key) => {
+        acc[key] = true;
+        return acc;
+      }, {});
+    }
+    
+    // For subusers, check their specific permissions
+    if (userType === 'subuser') {
+      try {
+        const subUserPerm = await this.centralPrisma.subUserMenuPermission.findUnique({
           where: { subUserId: userId },
         });
-      } else {
-        // Tenant/owner permission (what you already had)
-        menuPermission = await this.centralPrisma.menuPermission.findUnique({
-          where: { tenantId: tenant.id },
-        });
+        if (subUserPerm?.permission) {
+          menuPermission = subUserPerm.permission;
+        }
+      } catch (err) {
+        console.error('Error fetching subuser menu permissions:', err);
       }
-    } catch (err) {
-      console.error('Error fetching menu permissions:', err);
     }
   
     return {
@@ -225,7 +234,7 @@ export class UserService {
       },
       role: userType === 'subuser' ? subUserDetails.role : 'owner',
       userType,
-      menuPermission,  // now tenant or subuser specific
+      menuPermission,  // now from subscription plan's menuPermissions
     };
   }
 

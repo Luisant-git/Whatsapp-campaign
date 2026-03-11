@@ -9,9 +9,11 @@ import {
   Session,
   Query,
   Param,
+  ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ChatbotService } from './chatbot.service';
+import { MenuPermissionService } from '../menu-permission/menu-permission.service';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { ChatMessageDto } from './dto/chat-message.dto';
 const pdfParse = require('pdf-parse');
@@ -19,7 +21,21 @@ import * as mammoth from 'mammoth';
 
 @Controller('chatbot')
 export class ChatbotController {
-  constructor(private readonly chatbotService: ChatbotService) {}
+  constructor(
+    private readonly chatbotService: ChatbotService,
+    private readonly menuPermissionService: MenuPermissionService,
+  ) {}
+
+  private async checkChatbotPermission(tenantId: number) {
+    const menuPermission = await this.menuPermissionService.findByTenant(tenantId);
+    const permissions = menuPermission?.permission as any;
+    
+    // Check if chatbot permission exists and is explicitly set to false
+    // If no permission record exists, allow access (default behavior)
+    if (permissions && permissions.hasOwnProperty('chatbot') && permissions.chatbot === false) {
+      throw new ForbiddenException('Chatbot feature is not enabled for your plan');
+    }
+  }
 
   @Post('upload-document')
   @UseInterceptors(FileInterceptor('file'))
@@ -32,6 +48,8 @@ export class ChatbotController {
       if (!userId) {
         return { success: false, message: 'User not authenticated' };
       }
+
+      await this.checkChatbotPermission(userId);
 
       if (!file) {
         return { success: false, message: 'No file uploaded' };
@@ -88,6 +106,8 @@ export class ChatbotController {
       throw new Error('User not authenticated');
     }
 
+    await this.checkChatbotPermission(userId);
+
     return this.chatbotService.processMessage(userId, chatMessageDto);
   }
 
@@ -101,6 +121,8 @@ export class ChatbotController {
       throw new Error('User not authenticated');
     }
 
+    await this.checkChatbotPermission(userId);
+
     return this.chatbotService.getChatHistory(userId, phone);
   }
 
@@ -110,6 +132,8 @@ export class ChatbotController {
     if (!userId) {
       throw new Error('User not authenticated');
     }
+
+    await this.checkChatbotPermission(userId);
 
     return this.chatbotService.getUserDocuments(userId);
   }
@@ -123,6 +147,8 @@ export class ChatbotController {
     if (!userId) {
       throw new Error('User not authenticated');
     }
+
+    await this.checkChatbotPermission(userId);
 
     return this.chatbotService.deleteDocument(userId, parseInt(id));
   }

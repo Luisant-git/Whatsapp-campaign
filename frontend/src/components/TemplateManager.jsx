@@ -53,18 +53,117 @@ const TemplateManager = () => {
   ];
 
   const languages = [
-    { value: 'en', label: 'English' },
-    { value: 'es', label: 'Spanish' },
-    { value: 'fr', label: 'French' },
-    { value: 'de', label: 'German' },
-    { value: 'it', label: 'Italian' },
-    { value: 'pt', label: 'Portuguese' },
-    { value: 'hi', label: 'Hindi' },
+    { value: 'af', label: 'Afrikaans' },
+    { value: 'sq', label: 'Albanian' },
     { value: 'ar', label: 'Arabic' },
-    { value: 'zh', label: 'Chinese' },
+    { value: 'ar_EG', label: 'Arabic (Egypt)' },
+    { value: 'ar_AE', label: 'Arabic (UAE)' },
+    { value: 'ar_LB', label: 'Arabic (Lebanon)' },
+    { value: 'ar_MA', label: 'Arabic (Morocco)' },
+    { value: 'ar_QA', label: 'Arabic (Qatar)' },
+    { value: 'az', label: 'Azerbaijani' },
+    { value: 'be_BY', label: 'Belarusian' },
+    { value: 'bn', label: 'Bengali' },
+    { value: 'bn_IN', label: 'Bengali (India)' },
+    { value: 'bg', label: 'Bulgarian' },
+    { value: 'ca', label: 'Catalan' },
+    { value: 'zh_CN', label: 'Chinese (China)' },
+    { value: 'zh_HK', label: 'Chinese (Hong Kong)' },
+    { value: 'zh_TW', label: 'Chinese (Taiwan)' },
+    { value: 'hr', label: 'Croatian' },
+    { value: 'cs', label: 'Czech' },
+    { value: 'da', label: 'Danish' },
+    { value: 'prs_AF', label: 'Dari' },
+    { value: 'nl', label: 'Dutch' },
+    { value: 'nl_BE', label: 'Dutch (Belgium)' },
+    { value: 'en', label: 'English' },
+    { value: 'en_GB', label: 'English (UK)' },
+    { value: 'en_US', label: 'English (US)' },
+    { value: 'en_AE', label: 'English (UAE)' },
+    { value: 'en_AU', label: 'English (Australia)' },
+    { value: 'en_CA', label: 'English (Canada)' },
+    { value: 'en_GH', label: 'English (Ghana)' },
+    { value: 'en_IE', label: 'English (Ireland)' },
+    { value: 'en_IN', label: 'English (India)' },
+    { value: 'en_JM', label: 'English (Jamaica)' },
+    { value: 'en_MY', label: 'English (Malaysia)' },
+    { value: 'en_NZ', label: 'English (New Zealand)' },
+    { value: 'en_QA', label: 'English (Qatar)' },
+    { value: 'en_SG', label: 'English (Singapore)' },
+    { value: 'en_UG', label: 'English (Uganda)' },
+    { value: 'en_ZA', label: 'English (South Africa)' },
+    { value: 'et', label: 'Estonian' },
+    { value: 'fil', label: 'Filipino' },
+    { value: 'fi', label: 'Finnish' },
+    { value: 'fr', label: 'French' },
+    { value: 'fr_BE', label: 'French (Belgium)' },
+    { value: 'fr_CA', label: 'French (Canada)' },
+    { value: 'fr_CH', label: 'French (Switzerland)' },
+    { value: 'fr_CI', label: 'French (Ivory Coast)' },
+    { value: 'fr_MA', label: 'French (Morocco)' },
+    { value: 'ka', label: 'Georgian' },
+    { value: 'de', label: 'German' },
+    { value: 'de_AT', label: 'German (Austria)' },
+    { value: 'de_CH', label: 'German (Switzerland)' },
+    { value: 'el', label: 'Greek' },
+    { value: 'gu', label: 'Gujarati' },
+    { value: 'ha', label: 'Hausa' },
+    { value: 'he', label: 'Hebrew' },
+    { value: 'hi', label: 'Hindi' },
+    { value: 'hu', label: 'Hungarian' },
+    { value: 'id', label: 'Indonesian' },
+    { value: 'ga', label: 'Irish' },
+    { value: 'it', label: 'Italian' },
     { value: 'ja', label: 'Japanese' },
+    { value: 'kn', label: 'Kannada' },
+    { value: 'kk', label: 'Kazakh' },
+    { value: 'rw_RW', label: 'Kinyarwanda' },
     { value: 'ko', label: 'Korean' },
-    { value: 'ru', label: 'Russian' }
+    { value: 'ky_KG', label: 'Kyrgyz' },
+    { value: 'lo', label: 'Lao' },
+    { value: 'lv', label: 'Latvian' },
+    { value: 'lt', label: 'Lithuanian' },
+    { value: 'mk', label: 'Macedonian' },
+    { value: 'ms', label: 'Malay' },
+    { value: 'ml', label: 'Malayalam' },
+    { value: 'mr', label: 'Marathi' },
+    { value: 'nb', label: 'Norwegian' },
+    { value: 'ps_AF', label: 'Pashto' },
+    { value: 'fa', label: 'Persian' },
+    { value: 'pl', label: 'Polish' },
+    { value: 'pt_BR', label: 'Portuguese (Brazil)' },
+    { value: 'pt_PT', label: 'Portuguese (Portugal)' },
+    { value: 'pa', label: 'Punjabi' },
+    { value: 'ro', label: 'Romanian' },
+    { value: 'ru', label: 'Russian' },
+    { value: 'sr', label: 'Serbian' },
+    { value: 'si_LK', label: 'Sinhala' },
+    { value: 'sk', label: 'Slovak' },
+    { value: 'sl', label: 'Slovenian' },
+    { value: 'es', label: 'Spanish' },
+    { value: 'es_AR', label: 'Spanish (Argentina)' },
+    { value: 'es_CL', label: 'Spanish (Chile)' },
+    { value: 'es_CO', label: 'Spanish (Colombia)' },
+    { value: 'es_CR', label: 'Spanish (Costa Rica)' },
+    { value: 'es_DO', label: 'Spanish (Dominican Republic)' },
+    { value: 'es_EC', label: 'Spanish (Ecuador)' },
+    { value: 'es_HN', label: 'Spanish (Honduras)' },
+    { value: 'es_MX', label: 'Spanish (Mexico)' },
+    { value: 'es_PA', label: 'Spanish (Panama)' },
+    { value: 'es_PE', label: 'Spanish (Peru)' },
+    { value: 'es_ES', label: 'Spanish (Spain)' },
+    { value: 'es_UY', label: 'Spanish (Uruguay)' },
+    { value: 'sw', label: 'Swahili' },
+    { value: 'sv', label: 'Swedish' },
+    { value: 'ta', label: 'Tamil' },
+    { value: 'te', label: 'Telugu' },
+    { value: 'th', label: 'Thai' },
+    { value: 'tr', label: 'Turkish' },
+    { value: 'uk', label: 'Ukrainian' },
+    { value: 'ur', label: 'Urdu' },
+    { value: 'uz', label: 'Uzbek' },
+    { value: 'vi', label: 'Vietnamese' },
+    { value: 'zu', label: 'Zulu' }
   ];
 
   useEffect(() => {
@@ -338,6 +437,12 @@ const TemplateManager = () => {
     );
   };
 
+  const getLanguageLabel = (langCode) => {
+    if (!langCode) return 'Unknown';
+    const language = languages.find(lang => lang.value === langCode);
+    return language ? language.label : langCode;
+  };
+
   // Render WhatsApp Preview
   const renderPreview = () => {
     // Ensure components is an array
@@ -554,7 +659,7 @@ const TemplateManager = () => {
                   <td>
                     <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
                       <Globe size={14} color="#8d949e" />
-                      {template.language}
+                      {getLanguageLabel(template.language)}
                     </div>
                   </td>
                   <td>{template.lastUpdated || template.updatedAt || 'Recently'}</td>
@@ -642,7 +747,7 @@ const TemplateManager = () => {
                 >
                   <X size={20} color="#606770" />
                 </button>
-                <h2>Create a message template</h2>
+                <h2>{dialogType === 'create' ? 'Create a message template' : 'Edit message template'}</h2>
               </div>
               <div style={{display: 'flex', gap: 12}}>
                 <button className="btn-cancel" onClick={() => setOpenDialog(false)}>Cancel</button>

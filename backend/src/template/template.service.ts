@@ -146,7 +146,7 @@ export class TemplateService {
       const metaPayload = {
         name: validName,
         category: createTemplateDto.category.toUpperCase(), // Meta expects uppercase
-        language: this.formatLanguageCode(createTemplateDto.language),
+        language: createTemplateDto.language, // Use language code as-is from frontend
         components: sortedComponents
       };
 
@@ -894,30 +894,5 @@ export class TemplateService {
       'pdf': 'application/pdf',
     };
     return mimeTypes[ext || ''] || 'application/octet-stream';
-  }
-
-  private formatLanguageCode(language: string): string {
-    // If already has underscore (like en_US), return as is
-    if (language.includes('_')) {
-      return language;
-    }
-
-    // Map language codes to their proper locale format for Meta API
-    const languageMap: { [key: string]: string } = {
-      'en': 'en_US',
-      'es': 'es_ES',
-      'fr': 'fr_FR',
-      'de': 'de_DE',
-      'it': 'it_IT',
-      'pt': 'pt_BR',
-      'hi': 'hi_IN',
-      'ar': 'ar_AR',
-      'zh': 'zh_CN',
-      'ja': 'ja_JP',
-      'ko': 'ko_KR',
-      'ru': 'ru_RU'
-    };
-
-    return languageMap[language] || `${language}_US`;
   }
 }

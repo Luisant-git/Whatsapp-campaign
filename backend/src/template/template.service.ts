@@ -259,17 +259,17 @@ export class TemplateService {
   }
 
   async deleteTemplate(userId: number, templateId: string) {
-    const tenant = await this.getTenantWithCredentials(userId);
+    const { tenantClient, masterConfig } = await this.getTenantWithCredentials(userId);
     
     // Try to find template by templateId first, then by database id
-    let template = await this.centralPrisma.messageTemplate.findFirst({
-      where: { tenantId: tenant.id, templateId },
+    let template = await tenantClient.messageTemplate.findFirst({
+      where: { templateId },
     });
     
     if (!template && !isNaN(Number(templateId))) {
       // Try finding by database id only if templateId is a valid number
-      template = await this.centralPrisma.messageTemplate.findFirst({
-        where: { tenantId: tenant.id, id: Number(templateId) },
+      template = await tenantClient.messageTemplate.findFirst({
+        where: { id: Number(templateId) },
       });
     }
 
@@ -284,21 +284,21 @@ export class TemplateService {
           `https://graph.facebook.com/v18.0/${template.templateId}`,
           {
             headers: {
-              Authorization: `Bearer ${tenant.accessToken}`,
+              Authorization: `Bearer ${masterConfig.accessToken}`,
             },
           }
         );
       }
 
       // Delete from database
-      await this.centralPrisma.messageTemplate.delete({
+      await tenantClient.messageTemplate.delete({
         where: { id: template.id },
       });
 
       return { success: true };
     } catch (error) {
       // If Meta API fails, still delete from database
-      await this.centralPrisma.messageTemplate.delete({
+      await tenantClient.messageTemplate.delete({
         where: { id: template.id },
       });
       
@@ -324,7 +324,7 @@ export class TemplateService {
   }
 
   async requestReview(userId: number, requestReviewDto: RequestReviewDto) {
-    const tenant = await this.getTenantWithCredentials(userId);
+    const { tenant } = await this.getTenantWithCredentials(userId);
     const templates = await this.centralPrisma.messageTemplate.findMany({
       where: {
         tenantId: tenant.id,
@@ -357,15 +357,15 @@ export class TemplateService {
   }
 
   async syncTemplateStatus(userId: number) {
-    const tenant = await this.getTenantWithCredentials(userId);
+    const { tenant, masterConfig } = await this.getTenantWithCredentials(userId);
 
     try {
       // Fetch templates from Meta API
       const response = await axios.get(
-        `https://graph.facebook.com/v18.0/${tenant.wabaId}/message_templates`,
+        `https://graph.facebook.com/v18.0/${masterConfig.wabaId}/message_templates`,
         {
           headers: {
-            Authorization: `Bearer ${tenant.accessToken}`,
+            Authorization: `Bearer ${masterConfig.accessToken}`,
           },
         }
       );
@@ -665,7 +665,7 @@ export class TemplateService {
     throw new BadRequestException('Please configure credentials directly on tenant record');
   }
 
-  private async uploadMediaToMeta(tenant: any, localPath: string): Promise<string> {
+  private async uploadMediaToMeta(masterConfig: any, localPath: string): Promise<string> {
     const fs = require('fs');
     const FormData = require('form-data');
     const path = require('path');
@@ -696,16 +696,16 @@ export class TemplateService {
       formData.append('messaging_product', 'whatsapp');
 
       console.log('Uploading to Meta API...');
-      console.log('Phone Number ID:', tenant.phoneNumberId);
+      console.log('Phone Number ID:', masterConfig.phoneNumberId);
       console.log('File type:', this.getMimeType(fullPath));
 
       // Upload media to Meta
       const uploadResponse = await axios.post(
-        `https://graph.facebook.com/v18.0/${tenant.phoneNumberId}/media`,
+        `https://graph.facebook.com/v18.0/${masterConfig.phoneNumberId}/media`,
         formData,
         {
           headers: {
-            Authorization: `Bearer ${tenant.accessToken}`,
+            Authorization: `Bearer ${masterConfig.accessToken}`,
             ...formData.getHeaders(),
           },
         }

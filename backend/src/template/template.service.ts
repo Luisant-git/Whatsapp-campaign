@@ -17,6 +17,11 @@ export class TemplateService {
     try {
       console.log('Received template data:', JSON.stringify(createTemplateDto, null, 2));
       
+      // Validate that wabaId exists
+      if (!masterConfig.wabaId) {
+        throw new BadRequestException('WhatsApp Business Account ID (wabaId) is not configured. Please update your Master Config.');
+      }
+      
       // Validate template content based on category
       this.validateTemplateByCategory(createTemplateDto);
       
@@ -360,6 +365,11 @@ export class TemplateService {
     const { tenant, masterConfig } = await this.getTenantWithCredentials(userId);
 
     try {
+      // Validate that wabaId exists
+      if (!masterConfig.wabaId) {
+        throw new BadRequestException('WhatsApp Business Account ID (wabaId) is not configured. Please update your Master Config.');
+      }
+      
       // Fetch templates from Meta API
       const response = await axios.get(
         `https://graph.facebook.com/v18.0/${masterConfig.wabaId}/message_templates`,

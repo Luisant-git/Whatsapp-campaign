@@ -69,14 +69,14 @@ export class TemplateService {
             if (component.example && (component.example as any).header_handle) {
               const localPath = (component.example as any).header_handle[0];
               
-              // Upload media to Meta and get the media ID for template creation
-              const mediaId = await this.uploadMediaToMeta(masterConfig, localPath);
+              // Upload media to Meta and get the asset handle for template creation
+              const assetHandle = await this.uploadTemplateMedia(masterConfig, localPath);
               
               return {
                 type: 'HEADER',
                 format: component.format,
                 example: {
-                  header_handle: [mediaId]
+                  header_handle: [assetHandle]
                 }
               };
             }
@@ -698,13 +698,103 @@ export class TemplateService {
 
 
 
+  private async uploadTemplateMedia(masterConfig: any, localPath: string): Promise<string> {
+    const fs = require('fs');
+    const path = require('path');
+
+    try {
+      console.log('Uploading media for template creation, localPath:', localPath);
+      
+      // Convert local path to full file path
+      const fullPath = localPath.startsWith('/uploads/') 
+        ? path.join(process.cwd(), 'uploads', path.basename(localPath))
+        : localPath;
+
+      console.log('Full file path:', fullPath);
+
+      // Check if file exists
+      if (!fs.existsSync(fullPath)) {
+        console.error('File not found:', fullPath);
+        throw new BadRequestException(`Media file not found: ${fullPath}`);
+      }
+
+      const fileStats = fs.statSync(fullPath);
+      const fileBuffer = fs.readFileSync(fullPath);
+      const mimeType = this.getMimeType(fullPath);
+      console.log('File size:', fileStats.size, 'bytes');
+      console.log('MIME type:', mimeType);
+      console.log('WABA ID:', masterConfig.wabaId);
+
+      // Step 1: Create upload session using WABA ID
+      console.log('Step 1: Creating upload session...');
+      const sessionResponse = await axios.post(
+        `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/uploads`,
+        {
+          file_length: fileStats.size,
+          file_type: mimeType,
+          file_name: path.basename(fullPath)
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${masterConfig.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const uploadSessionId = sessionResponse.data.id;
+      console.log('Upload session created, ID:', uploadSessionId);
+
+      // Step 2: Upload file data to the session
+      console.log('Step 2: Uploading file data to session...');
+      const uploadResponse = await axios.post(
+        `https://graph.facebook.com/v21.0/${uploadSessionId}`,
+        fileBuffer,
+        {
+          headers: {
+            Authorization: `Bearer ${masterConfig.accessToken}`,
+            'Content-Type': 'application/octet-stream',
+            'file_offset': '0',
+          },
+        }
+      );
+
+      // Step 3: Extract the handle (h) from response
+      const assetHandle = uploadResponse.data.h;
+      
+      if (!assetHandle) {
+        console.error('No handle returned from upload. Response:', uploadResponse.data);
+        throw new BadRequestException('Upload succeeded but no asset handle was returned');
+      }
+      
+      console.log('Asset handle retrieved:', assetHandle);
+      return assetHandle;
+      
+    } catch (error) {
+      console.error('Template media upload error:');
+      console.error('Error message:', error.message);
+      console.error('Response data:', error.response?.data);
+      console.error('Response status:', error.response?.status);
+      console.error('Request URL:', error.config?.url);
+      
+      // Provide helpful error message
+      const errorMsg = error.response?.data?.error?.message || error.message;
+      const errorDetails = error.response?.data?.error?.error_user_title || '';
+      
+      throw new BadRequestException(
+        `Template media upload failed: ${errorMsg}${errorDetails ? ' - ' + errorDetails : ''}. ` +
+        `Make sure your access token has 'whatsapp_business_management' permission.`
+      );
+    }
+  }
+
   private async uploadMediaToMeta(masterConfig: any, localPath: string): Promise<string> {
     const fs = require('fs');
     const FormData = require('form-data');
     const path = require('path');
 
     try {
-      console.log('Uploading media to Meta, localPath:', localPath);
+      console.log('Uploading media for message sending, localPath:', localPath);
       
       // Convert local path to full file path
       const fullPath = localPath.startsWith('/uploads/') 
@@ -732,7 +822,7 @@ export class TemplateService {
       console.log('Phone Number ID:', masterConfig.phoneNumberId);
       console.log('File type:', this.getMimeType(fullPath));
 
-      // Upload media to Meta using phoneNumberId (not wabaId)
+      // Upload media to Meta using phoneNumberId (for sending messages)
       const uploadResponse = await axios.post(
         `https://graph.facebook.com/v21.0/${masterConfig.phoneNumberId}/media`,
         formData,

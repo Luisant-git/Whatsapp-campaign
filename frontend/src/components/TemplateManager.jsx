@@ -56,7 +56,15 @@ const TemplateManager = () => {
     { value: 'en', label: 'English' },
     { value: 'es', label: 'Spanish' },
     { value: 'fr', label: 'French' },
-    { value: 'hi', label: 'Hindi' }
+    { value: 'de', label: 'German' },
+    { value: 'it', label: 'Italian' },
+    { value: 'pt', label: 'Portuguese' },
+    { value: 'hi', label: 'Hindi' },
+    { value: 'ar', label: 'Arabic' },
+    { value: 'zh', label: 'Chinese' },
+    { value: 'ja', label: 'Japanese' },
+    { value: 'ko', label: 'Korean' },
+    { value: 'ru', label: 'Russian' }
   ];
 
   useEffect(() => {
@@ -661,6 +669,20 @@ const TemplateManager = () => {
                   >
                     {categories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
+                </div>
+
+                <div className="field-group">
+                  <label>Select language</label>
+                  <select 
+                    className="select-field"
+                    value={formData.language}
+                    onChange={(e) => setFormData({...formData, language: e.target.value})}
+                  >
+                    {languages.map(lang => <option key={lang.value} value={lang.value}>{lang.label}</option>)}
+                  </select>
+                  <div style={{fontSize: 12, color: '#8d949e', marginTop: 4}}>
+                    Choose the language for your template message.
+                  </div>
                 </div>
 
                 <div className="field-group">

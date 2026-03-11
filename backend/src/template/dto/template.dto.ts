@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsOptional, IsArray, ValidateNested, IsBoolean, MaxLength } from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsArray, ValidateNested, IsBoolean, MaxLength, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum TemplateCategory {
@@ -43,6 +43,7 @@ export class CreateTemplateDto {
   category: TemplateCategory;
 
   @IsString()
+  @IsIn(['en', 'es', 'fr', 'de', 'it', 'pt', 'hi', 'ar', 'zh', 'ja', 'ko', 'ru'])
   language: string;
 
   @IsArray()
@@ -75,6 +76,7 @@ export class TemplatePreviewDto {
   category: TemplateCategory;
 
   @IsString()
+  @IsIn(['en', 'es', 'fr', 'de', 'it', 'pt', 'hi', 'ar', 'zh', 'ja', 'ko', 'ru'])
   language: string;
 
   @IsArray()

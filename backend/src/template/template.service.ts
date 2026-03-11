@@ -71,11 +71,21 @@ export class TemplateService {
               
               // Generate public URL for the uploaded file
               const fileName = localPath.split('/').pop();
-              // Use the production URL or fallback to localhost
-              const backendUrl = process.env.BACKEND_URL || 'https://whatsapp-api.luisant.cloud';
+              // Use BASE_URL from environment
+              const backendUrl = process.env.BASE_URL || process.env.BACKEND_URL || 'https://whatsapp.api.luisant.cloud';
               const publicUrl = `${backendUrl}/uploads/${fileName}`;
               
               console.log('Using public URL for media:', publicUrl);
+              console.log('Verifying URL is accessible...');
+              
+              // Test if URL is accessible
+              try {
+                const testResponse = await axios.head(publicUrl, { timeout: 5000 });
+                console.log('URL is accessible, status:', testResponse.status);
+              } catch (error) {
+                console.error('URL is NOT accessible:', error.message);
+                throw new BadRequestException(`Media URL is not publicly accessible: ${publicUrl}. Please ensure your server allows public access to /uploads/ directory.`);
+              }
               
               return {
                 type: 'HEADER',

@@ -66,7 +66,7 @@ export class TemplateService {
           // Handle media headers (IMAGE, VIDEO, DOCUMENT)
           if (component.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(component.format)) {
             // For IMAGE/VIDEO/DOCUMENT headers, we need to provide an example
-            // Meta requires header_url (not header_handle) for template creation
+            // Meta requires header_url for template creation examples
             if (component.example && (component.example as any).header_handle) {
               const localPath = (component.example as any).header_handle[0];
               
@@ -80,7 +80,7 @@ export class TemplateService {
                 type: 'HEADER',
                 format: component.format,
                 example: {
-                  header_handle: [mediaUrl]
+                  header_url: [mediaUrl]  // Use header_url for template creation
                 }
               };
             }

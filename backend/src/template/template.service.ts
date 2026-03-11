@@ -69,14 +69,14 @@ export class TemplateService {
             if (component.example && (component.example as any).header_handle) {
               const localPath = (component.example as any).header_handle[0];
               
-              // Upload media to Meta and get the asset handle for template creation
-              const assetHandle = await this.uploadMediaForTemplate(masterConfig, localPath);
+              // Upload media to Meta and get the media ID for template creation
+              const mediaId = await this.uploadMediaToMeta(masterConfig, localPath);
               
               return {
                 type: 'HEADER',
                 format: component.format,
                 example: {
-                  header_handle: [assetHandle]
+                  header_handle: [mediaId]
                 }
               };
             }
@@ -154,7 +154,7 @@ export class TemplateService {
 
       // Create template via Meta API using correct format
       const response = await axios.post(
-        `https://graph.facebook.com/v18.0/${masterConfig.wabaId}/message_templates`,
+        `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
         metaPayload,
         {
           headers: {
@@ -238,7 +238,7 @@ export class TemplateService {
     try {
       // Update template via Meta API
       const response = await axios.post(
-        `https://graph.facebook.com/v18.0/${template.templateId}`,
+        `https://graph.facebook.com/v21.0/${template.templateId}`,
         updateTemplateDto,
         {
           headers: {
@@ -295,7 +295,7 @@ export class TemplateService {
       // Delete from Meta API if it's a real template ID
       if (template.templateId && !template.templateId.startsWith('template_')) {
         await axios.delete(
-          `https://graph.facebook.com/v18.0/${template.templateId}`,
+          `https://graph.facebook.com/v21.0/${template.templateId}`,
           {
             headers: {
               Authorization: `Bearer ${masterConfig.accessToken}`,
@@ -379,7 +379,7 @@ export class TemplateService {
       
       // Fetch templates from Meta API
       const response = await axios.get(
-        `https://graph.facebook.com/v18.0/${masterConfig.wabaId}/message_templates`,
+        `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
         {
           headers: {
             Authorization: `Bearer ${masterConfig.accessToken}`,
@@ -696,77 +696,7 @@ export class TemplateService {
     throw new BadRequestException('Please configure credentials directly on tenant record');
   }
 
-  private async uploadMediaForTemplate(masterConfig: any, localPath: string): Promise<string> {
-    const fs = require('fs');
-    const path = require('path');
 
-    try {
-      console.log('Uploading media for template using resumable upload, localPath:', localPath);
-      
-      // Convert local path to full file path
-      const fullPath = localPath.startsWith('/uploads/') 
-        ? path.join(process.cwd(), 'uploads', path.basename(localPath))
-        : localPath;
-
-      console.log('Full file path:', fullPath);
-
-      // Check if file exists
-      if (!fs.existsSync(fullPath)) {
-        console.error('File not found:', fullPath);
-        throw new BadRequestException(`Media file not found: ${fullPath}`);
-      }
-
-      const fileStats = fs.statSync(fullPath);
-      const fileBuffer = fs.readFileSync(fullPath);
-      console.log('File size:', fileStats.size, 'bytes');
-
-      // Step 1: Create upload session
-      console.log('Creating upload session...');
-      const sessionResponse = await axios.post(
-        `https://graph.facebook.com/v18.0/${masterConfig.wabaId}/uploads`,
-        {
-          file_length: fileStats.size,
-          file_type: this.getMimeType(fullPath),
-          file_name: path.basename(fullPath)
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${masterConfig.accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      const uploadSessionId = sessionResponse.data.id;
-      console.log('Upload session created:', uploadSessionId);
-
-      // Step 2: Upload file data
-      console.log('Uploading file data...');
-      const uploadResponse = await axios.post(
-        `https://graph.facebook.com/v18.0/${uploadSessionId}`,
-        fileBuffer,
-        {
-          headers: {
-            Authorization: `Bearer ${masterConfig.accessToken}`,
-            'Content-Type': 'application/octet-stream',
-            'file_offset': '0',
-          },
-        }
-      );
-
-      const assetHandle = uploadResponse.data.h;
-      console.log('Asset handle retrieved:', assetHandle);
-      return assetHandle;
-      
-    } catch (error) {
-      console.error('Media upload for template error:');
-      console.error('Error message:', error.message);
-      console.error('Response data:', error.response?.data);
-      console.error('Response status:', error.response?.status);
-      
-      throw new BadRequestException(`Media upload for template failed: ${error.response?.data?.error?.message || error.message}`);
-    }
-  }
 
   private async uploadMediaToMeta(masterConfig: any, localPath: string): Promise<string> {
     const fs = require('fs');
@@ -802,9 +732,9 @@ export class TemplateService {
       console.log('Phone Number ID:', masterConfig.phoneNumberId);
       console.log('File type:', this.getMimeType(fullPath));
 
-      // Upload media to Meta
+      // Upload media to Meta using phoneNumberId (not wabaId)
       const uploadResponse = await axios.post(
-        `https://graph.facebook.com/v18.0/${masterConfig.phoneNumberId}/media`,
+        `https://graph.facebook.com/v21.0/${masterConfig.phoneNumberId}/media`,
         formData,
         {
           headers: {
@@ -834,7 +764,7 @@ export class TemplateService {
       
       // Get media URL from Meta API
       const response = await axios.get(
-        `https://graph.facebook.com/v18.0/${mediaId}`,
+        `https://graph.facebook.com/v21.0/${mediaId}`,
         {
           headers: {
             Authorization: `Bearer ${masterConfig.accessToken}`,

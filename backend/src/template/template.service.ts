@@ -329,10 +329,9 @@ export class TemplateService {
   }
 
   async requestReview(userId: number, requestReviewDto: RequestReviewDto) {
-    const { tenant } = await this.getTenantWithCredentials(userId);
-    const templates = await this.centralPrisma.messageTemplate.findMany({
+    const { tenantClient } = await this.getTenantWithCredentials(userId);
+    const templates = await tenantClient.messageTemplate.findMany({
       where: {
-        tenantId: tenant.id,
         templateId: { in: requestReviewDto.templateIds },
       },
     });
@@ -342,9 +341,8 @@ export class TemplateService {
     }
 
     // Update templates to indicate review requested
-    await this.centralPrisma.messageTemplate.updateMany({
+    await tenantClient.messageTemplate.updateMany({
       where: {
-        tenantId: tenant.id,
         templateId: { in: requestReviewDto.templateIds },
       },
       data: {
@@ -362,7 +360,7 @@ export class TemplateService {
   }
 
   async syncTemplateStatus(userId: number) {
-    const { tenant, masterConfig } = await this.getTenantWithCredentials(userId);
+    const { tenantClient, masterConfig } = await this.getTenantWithCredentials(userId);
 
     try {
       // Validate that wabaId exists
@@ -400,9 +398,9 @@ export class TemplateService {
             break;
         }
 
-        await this.centralPrisma.messageTemplate.updateMany({
+        // Update in tenant database (not central)
+        await tenantClient.messageTemplate.updateMany({
           where: {
-            tenantId: tenant.id,
             OR: [
               { templateId: metaTemplate.id },
               { name: metaTemplate.name, language: metaTemplate.language }
@@ -422,7 +420,10 @@ export class TemplateService {
         syncedCount: metaTemplates.length,
       };
     } catch (error) {
-      throw new BadRequestException('Failed to sync template status');
+      console.error('Sync error:', error.response?.data || error.message);
+      throw new BadRequestException(
+        error.response?.data?.error?.message || 'Failed to sync template status'
+      );
     }
   }
 

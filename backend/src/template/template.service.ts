@@ -145,8 +145,10 @@ export class TemplateService {
 
       const metaPayload = {
         name: validName,
-        category: createTemplateDto.category.toLowerCase(),
-        language: createTemplateDto.language,
+        category: createTemplateDto.category.toUpperCase(), // Meta expects uppercase
+        language: createTemplateDto.language.includes('_') 
+          ? createTemplateDto.language 
+          : `${createTemplateDto.language}_US`, // Ensure format like en_US
         components: sortedComponents
       };
 
@@ -684,6 +686,7 @@ export class TemplateService {
       name: masterConfig.name,
       phoneNumberId: masterConfig.phoneNumberId,
       wabaId: masterConfig.wabaId,
+      appId: masterConfig.appId,
       hasAccessToken: !!masterConfig.accessToken
     });
 
@@ -705,6 +708,14 @@ export class TemplateService {
     try {
       console.log('Uploading media for template creation, localPath:', localPath);
       
+      // Validate that appId exists
+      if (!masterConfig.appId) {
+        throw new BadRequestException(
+          'Meta App ID is not configured. Please add appId to your Master Config. ' +
+          'You can find your App ID in Meta Developer Console.'
+        );
+      }
+      
       // Convert local path to full file path
       const fullPath = localPath.startsWith('/uploads/') 
         ? path.join(process.cwd(), 'uploads', path.basename(localPath))
@@ -723,12 +734,12 @@ export class TemplateService {
       const mimeType = this.getMimeType(fullPath);
       console.log('File size:', fileStats.size, 'bytes');
       console.log('MIME type:', mimeType);
-      console.log('WABA ID:', masterConfig.wabaId);
+      console.log('App ID:', masterConfig.appId);
 
-      // Step 1: Create upload session using WABA ID
-      console.log('Step 1: Creating upload session...');
+      // Step 1: Create upload session using APP ID (not WABA ID)
+      console.log('Step 1: Creating upload session with App ID...');
       const sessionResponse = await axios.post(
-        `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/uploads`,
+        `https://graph.facebook.com/v21.0/${masterConfig.appId}/uploads`,
         {
           file_length: fileStats.size,
           file_type: mimeType,
@@ -783,7 +794,9 @@ export class TemplateService {
       
       throw new BadRequestException(
         `Template media upload failed: ${errorMsg}${errorDetails ? ' - ' + errorDetails : ''}. ` +
-        `Make sure your access token has 'whatsapp_business_management' permission.`
+        `Make sure: 1) Your access token has 'whatsapp_business_management' permission, ` +
+        `2) Your App ID is correct (find it in Meta Developer Console), ` +
+        `3) The access token belongs to the same app as the App ID.`
       );
     }
   }

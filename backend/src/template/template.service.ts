@@ -65,12 +65,27 @@ export class TemplateService {
           
           // Handle media headers (IMAGE, VIDEO, DOCUMENT)
           if (component.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(component.format)) {
-            // For template creation, media headers don't need examples
-            // The example will be provided when the template is used to send messages
-            return {
-              type: 'HEADER',
-              format: component.format
-            };
+            // For IMAGE/VIDEO/DOCUMENT headers, we need to provide an example
+            // Meta requires header_url (not header_handle) for template creation
+            if (component.example && (component.example as any).header_handle) {
+              const localPath = (component.example as any).header_handle[0];
+              
+              // Upload media to Meta API and get media ID
+              const mediaId = await this.uploadMediaToMeta(masterConfig, localPath);
+              
+              // Get the media URL from Meta
+              const mediaUrl = await this.getMediaUrl(masterConfig, mediaId);
+              
+              return {
+                type: 'HEADER',
+                format: component.format,
+                example: {
+                  header_handle: [mediaUrl]
+                }
+              };
+            }
+            
+            throw new BadRequestException(`${component.format} header requires a sample media file`);
           }
         }
         
@@ -741,8 +756,31 @@ export class TemplateService {
       console.error('Response data:', error.response?.data);
       console.error('Response status:', error.response?.status);
       
-      // Return a fallback - skip media header for now
       throw new BadRequestException(`Media upload failed: ${error.response?.data?.error?.message || error.message}`);
+    }
+  }
+
+  private async getMediaUrl(masterConfig: any, mediaId: string): Promise<string> {
+    try {
+      console.log('Fetching media URL for ID:', mediaId);
+      
+      // Get media URL from Meta API
+      const response = await axios.get(
+        `https://graph.facebook.com/v18.0/${mediaId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${masterConfig.accessToken}`,
+          },
+        }
+      );
+
+      const mediaUrl = response.data.url;
+      console.log('Media URL retrieved:', mediaUrl);
+      return mediaUrl;
+      
+    } catch (error) {
+      console.error('Get media URL error:', error.response?.data || error.message);
+      throw new BadRequestException(`Failed to get media URL: ${error.response?.data?.error?.message || error.message}`);
     }
   }
 

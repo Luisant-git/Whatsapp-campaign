@@ -63,6 +63,17 @@ export const MENU_CONFIG = [
       ],
     },
     {
+      key: "templates",
+      label: "Template Manager",
+      icon: "template",
+      children: [
+        { key: "templates.create", label: "Create Template" },
+        { key: "templates.manage", label: "Manage Templates" },
+        { key: "templates.library", label: "Template Library" },
+        { key: "templates.review", label: "Review Requests" },
+      ],
+    },
+    {
       key: "settings",
       label: "Settings",
       icon: "settings",

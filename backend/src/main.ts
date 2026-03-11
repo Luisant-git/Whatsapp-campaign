@@ -66,7 +66,7 @@ async function bootstrap() {
     .addTag('WhatsApp')
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('docs', app, document);
 
   await app.listen(process.env.PORT ?? 3010);
   console.log(`Server running on http://localhost:${process.env.PORT ?? 3010}`);

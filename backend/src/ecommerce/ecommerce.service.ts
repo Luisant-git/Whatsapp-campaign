@@ -92,7 +92,7 @@ export class EcommerceService {
     return product;
   }
 
-  async getProducts(subCategoryId?: number, userId?: number) {
+  async getProducts(subCategoryId?: number, userId?: number, excludeMetaProducts?: boolean) {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
     
     // Check Meta Catalog permission

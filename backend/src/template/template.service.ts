@@ -726,11 +726,11 @@ export class TemplateService {
       formData.append('messaging_product', 'whatsapp');
 
       console.log('Uploading to Meta API for template...');
-      console.log('WABA ID:', masterConfig.wabaId);
+      console.log('Phone Number ID:', masterConfig.phoneNumberId);
 
-      // Upload media to WhatsApp Business Account to get asset handle
+      // Upload media to Phone Number endpoint to get asset handle
       const uploadResponse = await axios.post(
-        `https://graph.facebook.com/v18.0/${masterConfig.wabaId}/media`,
+        `https://graph.facebook.com/v18.0/${masterConfig.phoneNumberId}/media`,
         formData,
         {
           headers: {
@@ -740,7 +740,9 @@ export class TemplateService {
         }
       );
 
-      const assetHandle = uploadResponse.data.h;
+      // The response contains 'h' field which is the asset handle for templates
+      const assetHandle = uploadResponse.data.h || uploadResponse.data.id;
+      console.log('Upload response:', uploadResponse.data);
       console.log('Asset handle retrieved:', assetHandle);
       return assetHandle;
       

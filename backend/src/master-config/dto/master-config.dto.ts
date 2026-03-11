@@ -17,6 +17,11 @@ export class CreateMasterConfigDto {
   @IsNotEmpty()
   wabaId: string;
 
+  @ApiProperty({ description: 'Meta App ID (for template media uploads)' })
+  @IsString()
+  @IsOptional()
+  appId?: string;
+
   @ApiProperty({ description: 'WhatsApp Access Token' })
   @IsString()
   @IsNotEmpty()
@@ -48,6 +53,11 @@ export class UpdateMasterConfigDto {
   @IsOptional()
   @IsString()
   wabaId?: string;
+
+  @ApiProperty({ description: 'Meta App ID (for template media uploads)', required: false })
+  @IsOptional()
+  @IsString()
+  appId?: string;
 
   @ApiProperty({ description: 'WhatsApp Access Token', required: false })
   @IsOptional()

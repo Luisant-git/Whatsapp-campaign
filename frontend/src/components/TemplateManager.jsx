@@ -202,6 +202,7 @@ const TemplateManager = () => {
   const handleCreateTemplate = () => {
     setDialogType('create');
     setCurrentTemplate(null);
+    setUploadedFile(null);
     setFormData({
       name: '',
       category: 'MARKETING',
@@ -225,7 +226,7 @@ const TemplateManager = () => {
       components = [{ type: 'BODY', text: '' }];
     }
     
-    // Determine header type
+    // Determine header type and check for existing media
     const headerComponent = components.find(c => c.type === 'HEADER');
     let headerType = 'NONE';
     if (headerComponent) {
@@ -233,6 +234,13 @@ const TemplateManager = () => {
         headerType = 'TEXT';
       } else if (headerComponent.format) {
         headerType = headerComponent.format;
+        // Check if there's an existing media file
+        if (headerComponent.example?.header_handle?.[0]) {
+          setUploadedFile({
+            fileUrl: headerComponent.example.header_handle[0],
+            filename: 'Existing media file'
+          });
+        }
       }
     }
     
@@ -314,6 +322,7 @@ const TemplateManager = () => {
   const handleUseLibraryTemplate = (libTemplate) => {
     setDialogType('create');
     setCurrentTemplate(null);
+    setUploadedFile(null);
     setFormData({
       name: libTemplate.name,
       category: 'AUTHENTICATION',

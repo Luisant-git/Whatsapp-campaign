@@ -65,23 +65,12 @@ export class TemplateService {
           
           // Handle media headers (IMAGE, VIDEO, DOCUMENT)
           if (component.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(component.format)) {
-            // If example exists, upload to Meta and get media handle
-            if (component.example && (component.example as any).header_handle) {
-              const localPath = (component.example as any).header_handle[0];
-              
-              // Upload media to Meta API and get media handle
-              const mediaHandle = await this.uploadMediaToMeta(masterConfig, localPath);
-              
-              return {
-                type: 'HEADER',
-                format: component.format,
-                example: {
-                  header_handle: [mediaHandle]
-                }
-              };
-            }
-            // If no example, this is invalid for Meta
-            throw new BadRequestException('Media headers require a valid media file');
+            // For template creation, media headers don't need examples
+            // The example will be provided when the template is used to send messages
+            return {
+              type: 'HEADER',
+              format: component.format
+            };
           }
         }
         

@@ -65,13 +65,28 @@ export class TemplateService {
           
           // Handle media headers (IMAGE, VIDEO, DOCUMENT)  
           if (component.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(component.format)) {
-            // For media headers, just return format without example
-            // Examples are optional for MARKETING templates
-            // Media will be provided when actually sending the message
-            return {
-              type: 'HEADER',
-              format: component.format
-            };
+            // For media headers, we need to provide a publicly accessible URL
+            if (component.example && (component.example as any).header_handle) {
+              const localPath = (component.example as any).header_handle[0];
+              
+              // Generate public URL for the uploaded file
+              const fileName = localPath.split('/').pop();
+              // Use the production URL or fallback to localhost
+              const backendUrl = process.env.BACKEND_URL || 'https://whatsapp-api.luisant.cloud';
+              const publicUrl = `${backendUrl}/uploads/${fileName}`;
+              
+              console.log('Using public URL for media:', publicUrl);
+              
+              return {
+                type: 'HEADER',
+                format: component.format,
+                example: {
+                  header_url: [publicUrl]
+                }
+              };
+            }
+            
+            throw new BadRequestException(`${component.format} header requires a sample media file`);
           }
         }
         

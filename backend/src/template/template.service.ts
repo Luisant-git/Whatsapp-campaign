@@ -63,29 +63,15 @@ export class TemplateService {
             return processedComponent;
           }
           
-          // Handle media headers (IMAGE, VIDEO, DOCUMENT)
+          // Handle media headers (IMAGE, VIDEO, DOCUMENT)  
           if (component.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(component.format)) {
-            // For IMAGE/VIDEO/DOCUMENT headers, we need to provide an example
-            // Meta requires header_url for template creation examples
-            if (component.example && (component.example as any).header_handle) {
-              const localPath = (component.example as any).header_handle[0];
-              
-              // Upload media to Meta API and get media ID
-              const mediaId = await this.uploadMediaToMeta(masterConfig, localPath);
-              
-              // Get the media URL from Meta
-              const mediaUrl = await this.getMediaUrl(masterConfig, mediaId);
-              
-              return {
-                type: 'HEADER',
-                format: component.format,
-                example: {
-                  header_url: [mediaUrl]  // Use header_url for template creation
-                }
-              };
-            }
-            
-            throw new BadRequestException(`${component.format} header requires a sample media file`);
+            // For media headers, just return format without example
+            // Examples are optional for MARKETING templates
+            // Media will be provided when actually sending the message
+            return {
+              type: 'HEADER',
+              format: component.format
+            };
           }
         }
         

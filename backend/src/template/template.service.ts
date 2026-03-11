@@ -65,33 +65,18 @@ export class TemplateService {
           
           // Handle media headers (IMAGE, VIDEO, DOCUMENT)  
           if (component.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(component.format)) {
-            // For media headers, we need to provide a publicly accessible URL
+            // For media headers, we need to upload and get asset handle
             if (component.example && (component.example as any).header_handle) {
               const localPath = (component.example as any).header_handle[0];
               
-              // Generate public URL for the uploaded file
-              const fileName = localPath.split('/').pop();
-              // Use BASE_URL from environment
-              const backendUrl = process.env.BASE_URL || process.env.BACKEND_URL || 'https://whatsapp.api.luisant.cloud';
-              const publicUrl = `${backendUrl}/uploads/${fileName}`;
-              
-              console.log('Using public URL for media:', publicUrl);
-              console.log('Verifying URL is accessible...');
-              
-              // Test if URL is accessible
-              try {
-                const testResponse = await axios.head(publicUrl, { timeout: 5000 });
-                console.log('URL is accessible, status:', testResponse.status);
-              } catch (error) {
-                console.error('URL is NOT accessible:', error.message);
-                throw new BadRequestException(`Media URL is not publicly accessible: ${publicUrl}. Please ensure your server allows public access to /uploads/ directory.`);
-              }
+              // Upload media to Meta and get the asset handle for template creation
+              const assetHandle = await this.uploadMediaForTemplate(masterConfig, localPath);
               
               return {
                 type: 'HEADER',
                 format: component.format,
                 example: {
-                  header_url: [publicUrl]
+                  header_handle: [assetHandle]
                 }
               };
             }
@@ -709,6 +694,64 @@ export class TemplateService {
     // This would need tenant context to access master config
     // For now, credentials must be set directly on tenant
     throw new BadRequestException('Please configure credentials directly on tenant record');
+  }
+
+  private async uploadMediaForTemplate(masterConfig: any, localPath: string): Promise<string> {
+    const fs = require('fs');
+    const FormData = require('form-data');
+    const path = require('path');
+
+    try {
+      console.log('Uploading media for template, localPath:', localPath);
+      
+      // Convert local path to full file path
+      const fullPath = localPath.startsWith('/uploads/') 
+        ? path.join(process.cwd(), 'uploads', path.basename(localPath))
+        : localPath;
+
+      console.log('Full file path:', fullPath);
+
+      // Check if file exists
+      if (!fs.existsSync(fullPath)) {
+        console.error('File not found:', fullPath);
+        throw new BadRequestException(`Media file not found: ${fullPath}`);
+      }
+
+      const fileStats = fs.statSync(fullPath);
+      console.log('File size:', fileStats.size, 'bytes');
+
+      // Create form data for media upload
+      const formData = new FormData();
+      formData.append('file', fs.createReadStream(fullPath));
+      formData.append('messaging_product', 'whatsapp');
+
+      console.log('Uploading to Meta API for template...');
+      console.log('WABA ID:', masterConfig.wabaId);
+
+      // Upload media to WhatsApp Business Account to get asset handle
+      const uploadResponse = await axios.post(
+        `https://graph.facebook.com/v18.0/${masterConfig.wabaId}/media`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${masterConfig.accessToken}`,
+            ...formData.getHeaders(),
+          },
+        }
+      );
+
+      const assetHandle = uploadResponse.data.h;
+      console.log('Asset handle retrieved:', assetHandle);
+      return assetHandle;
+      
+    } catch (error) {
+      console.error('Media upload for template error:');
+      console.error('Error message:', error.message);
+      console.error('Response data:', error.response?.data);
+      console.error('Response status:', error.response?.status);
+      
+      throw new BadRequestException(`Media upload for template failed: ${error.response?.data?.error?.message || error.message}`);
+    }
   }
 
   private async uploadMediaToMeta(masterConfig: any, localPath: string): Promise<string> {

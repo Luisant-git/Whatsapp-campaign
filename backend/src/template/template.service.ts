@@ -249,12 +249,12 @@ export class TemplateService {
         });
       }
       
-      // For Meta templates, we need to delete and recreate with a new name to avoid conflicts
+      // For Meta templates, use delete-and-recreate method (Meta doesn't support direct updates)
       if (template.templateId && !template.templateId.startsWith('template_')) {
         console.log('Deleting old template from Meta:', template.templateId);
         
         try {
-          // Delete old template from Meta
+          // Step 1: Delete old template from Meta
           await axios.delete(
             `https://graph.facebook.com/v21.0/${template.templateId}`,
             {
@@ -269,7 +269,7 @@ export class TemplateService {
           // Continue anyway - we'll create the new template with a modified name
         }
         
-        // Create new template with updated data
+        // Step 2: Create new template with updated data
         // Use original name or updated name, but add timestamp to avoid conflicts
         const baseName = updateTemplateDto.name || template.name;
         const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
@@ -292,7 +292,7 @@ export class TemplateService {
               if (component.text && !component.format) {
                 const processedComponent = { ...component, format: 'TEXT' };
                 if (component.text.includes('{{')) {
-                  const variableCount = (component.text.match(/{{\d+}}/g) || []).length;
+                  const variableCount = (component.text.match(/{{[a-zA-Z0-9_]+}}/g) || []).length;
                   (processedComponent as any).example = {
                     header_text: [Array(variableCount).fill(0).map((_, i) => `Sample ${i + 1}`)]
                   };
@@ -318,7 +318,7 @@ export class TemplateService {
             }
             
             if (component.type === 'BODY' && component.text && component.text.includes('{{')) {
-              const variableCount = (component.text.match(/{{\d+}}/g) || []).length;
+              const variableCount = (component.text.match(/{{[a-zA-Z0-9_]+}}/g) || []).length;
               return {
                 ...component,
                 example: {
@@ -377,7 +377,7 @@ export class TemplateService {
         
         console.log('Sending to Meta API:', JSON.stringify(metaPayload, null, 2));
         
-        // Create new template on Meta
+        // Step 3: Create new template on Meta
         const response = await axios.post(
           `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
           metaPayload,
@@ -401,7 +401,7 @@ export class TemplateService {
             language: createTemplateData.language,
             components: JSON.stringify(createTemplateData.components),
             sampleValues: updateTemplateDto.sampleValues ? JSON.stringify(updateTemplateDto.sampleValues) : (template.sampleValues || null),
-            status: TemplateStatus.IN_REVIEW,
+            status: TemplateStatus.IN_REVIEW, // New template needs approval again
             updatedAt: new Date(),
           },
         });
@@ -409,9 +409,10 @@ export class TemplateService {
         return {
           success: true,
           template: updatedTemplate,
-          message: `Template updated successfully. New template name: ${newTemplateName}`,
+          message: `Template updated successfully. New template name: ${newTemplateName}. Status: PENDING (requires Meta approval)`,
           newTemplateId: response.data.id,
-          newTemplateName: newTemplateName
+          newTemplateName: newTemplateName,
+          method: 'delete_and_recreate'
         };
       } else {
         // Local template only - just update database
@@ -679,20 +680,20 @@ export class TemplateService {
     if (bodyComponent?.text) {
       const text = bodyComponent.text.trim();
       
-      // Check if variables are at start or end
-      if (text.match(/^\{\{\d+\}\}/) || text.match(/\{\{\d+\}\}$/)) {
+      // Check if variables are at start or end (support both numbered and named variables)
+      if (text.match(/^\{\{[a-zA-Z0-9_]+\}\}/) || text.match(/\{\{[a-zA-Z0-9_]+\}\}$/)) {
         throw new BadRequestException('Variables cannot be at the start or end of the message. Add some text before/after the variable.');
       }
       
       // Check for consecutive variables
-      if (text.match(/\{\{\d+\}\}\s*\{\{\d+\}\}/)) {
+      if (text.match(/\{\{[a-zA-Z0-9_]+\}\}\s*\{\{[a-zA-Z0-9_]+\}\}/)) {
         throw new BadRequestException('Variables cannot be consecutive. Add text between variables.');
       }
       
-      // Check variable numbering (must be sequential starting from 1)
-      const variables = text.match(/\{\{(\d+)\}\}/g);
-      if (variables) {
-        const numbers = variables.map(v => {
+      // Check variable numbering for numbered variables (must be sequential starting from 1)
+      const numberedVariables = text.match(/\{\{(\d+)\}\}/g);
+      if (numberedVariables) {
+        const numbers = numberedVariables.map(v => {
           const match = v.match(/\d+/);
           return match ? parseInt(match[0]) : 0;
         }).sort((a, b) => a - b);
@@ -701,10 +702,14 @@ export class TemplateService {
             throw new BadRequestException(`Variables must be numbered sequentially starting from {{1}}. Found {{${numbers[i]}}} but expected {{${i + 1}}}.`);
           }
         }
-        
+      }
+      
+      // Check all variables (both numbered and named)
+      const allVariables = text.match(/\{\{[a-zA-Z0-9_]+\}\}/g);
+      if (allVariables) {
         // Check variable density - Meta's rule: too many variables for message length
-        const textWithoutVariables = text.replace(/\{\{\d+\}\}/g, '');
-        const variableCount = variables.length;
+        const textWithoutVariables = text.replace(/\{\{[a-zA-Z0-9_]+\}\}/g, '');
+        const variableCount = allVariables.length;
         const textLength = textWithoutVariables.length;
         
         // Meta's approximate rule: For every 10-15 characters of text, you can have 1 variable
@@ -720,7 +725,7 @@ export class TemplateService {
         }
         
         // Additional check: minimum text between variables
-        const parts = text.split(/\{\{\d+\}\}/);
+        const parts = text.split(/\{\{[a-zA-Z0-9_]+\}\}/);
         for (let i = 1; i < parts.length - 1; i++) {
           if (parts[i].trim().length < 2) {
             throw new BadRequestException('There must be at least 2 characters of text between variables.');
@@ -743,11 +748,11 @@ export class TemplateService {
       // Same rules apply to header text
       const text = headerComponent.text.trim();
       
-      if (text.match(/^\{\{\d+\}\}/) || text.match(/\{\{\d+\}\}$/)) {
+      if (text.match(/^\{\{[a-zA-Z0-9_]+\}\}/) || text.match(/\{\{[a-zA-Z0-9_]+\}\}$/)) {
         throw new BadRequestException('Header variables cannot be at the start or end. Add text before/after the variable.');
       }
       
-      if (text.match(/\{\{\d+\}\}\s*\{\{\d+\}\}/)) {
+      if (text.match(/\{\{[a-zA-Z0-9_]+\}\}\s*\{\{[a-zA-Z0-9_]+\}\}/)) {
         throw new BadRequestException('Header variables cannot be consecutive. Add text between variables.');
       }
       

@@ -47,7 +47,17 @@ const TemplateManager = () => {
     components: [
       { type: 'BODY', text: 'Hello {{1}}, welcome to our service!' }
     ],
-    sampleValues: {} // Store sample values for variables
+    sampleValues: {}, // Store sample values for variables
+    // Authentication template specific fields
+    otpType: 'COPY_CODE', // ZERO_TAP, ONE_TAP, COPY_CODE
+    packageName: '',
+    signatureHash: '',
+    zeroTapAgreement: false,
+    addSecurityRecommendation: false,
+    addExpiryTime: false,
+    codeExpiryMinutes: 10,
+    customValidityPeriod: false,
+    validityPeriod: 10
   });
 
   const categories = [
@@ -214,7 +224,17 @@ const TemplateManager = () => {
       category: 'MARKETING',
       language: 'en',
       components: [{ type: 'BODY', text: 'Hello {{1}}, welcome to our service!' }],
-      sampleValues: {}
+      sampleValues: {},
+      // Authentication template specific fields
+      otpType: 'COPY_CODE',
+      packageName: '',
+      signatureHash: '',
+      zeroTapAgreement: false,
+      addSecurityRecommendation: false,
+      addExpiryTime: false,
+      codeExpiryMinutes: 10,
+      customValidityPeriod: false,
+      validityPeriod: 10
     });
     setOpenDialog(true);
   };
@@ -457,12 +477,25 @@ const TemplateManager = () => {
     setUploadedFile(null);
     setValidationError(null);
     setShowValidationErrors(false);
+    
+    const isAuthTemplate = libTemplate.category === 'AUTHENTICATION';
+    
     setFormData({
       name: libTemplate.name,
-      category: 'AUTHENTICATION',
+      category: libTemplate.category || 'MARKETING',
       language: 'en',
       components: libTemplate.components || [{ type: 'BODY', text: '' }],
-      sampleValues: {}
+      sampleValues: {},
+      // Authentication template specific fields
+      otpType: isAuthTemplate ? 'COPY_CODE' : 'COPY_CODE',
+      packageName: '',
+      signatureHash: '',
+      zeroTapAgreement: false,
+      addSecurityRecommendation: isAuthTemplate ? true : false, // Default to true for auth templates
+      addExpiryTime: isAuthTemplate ? false : false,
+      codeExpiryMinutes: 10,
+      customValidityPeriod: false,
+      validityPeriod: 10
     });
     setOpenDialog(true);
   };
@@ -640,14 +673,28 @@ const TemplateManager = () => {
       if (!text) return '';
       let formattedText = text;
       
+      // For authentication templates, show the standard format
+      if (formData.category === 'AUTHENTICATION') {
+        // Use Meta's standard authentication format
+        let authText = '{{1}} is your verification code.';
+        
+        if (formData.addSecurityRecommendation) {
+          authText += ' For your security, do not share this code.';
+        }
+        
+        formattedText = authText;
+      }
+      
       // Replace variables with sample values if available, otherwise keep the variable placeholder
-      const variables = getVariablesFromText(text);
+      const variables = getVariablesFromText(formattedText);
       variables.forEach(variable => {
         const sampleValue = formData.sampleValues[variable.number];
         if (sampleValue && sampleValue.trim() !== '') {
           formattedText = formattedText.replace(new RegExp(`\\{\\{${variable.number}\\}\\}`, 'g'), sampleValue);
+        } else if (formData.category === 'AUTHENTICATION') {
+          // For auth templates, show sample OTP
+          formattedText = formattedText.replace(new RegExp(`\\{\\{${variable.number}\\}\\}`, 'g'), '123456');
         }
-        // If no sample value provided, keep the variable placeholder as is
       });
       
       // Apply formatting
@@ -656,6 +703,14 @@ const TemplateManager = () => {
         .replace(/_(.*?)_/g, '<em>$1</em>')
         .replace(/~(.*?)~/g, '<del>$1</del>')
         .replace(/{{(\d+)}}/g, '<span style="color: #008069; background: #e7f3ef; padding: 0 4px; border-radius: 4px; font-weight: 600;">{{$1}}</span>');
+    };
+
+    // Generate footer text for authentication templates
+    const getAuthFooter = () => {
+      if (formData.category === 'AUTHENTICATION' && formData.addExpiryTime) {
+        return `This code expires in ${formData.codeExpiryMinutes} minutes.`;
+      }
+      return footer?.text || '';
     };
 
     return (
@@ -738,10 +793,17 @@ const TemplateManager = () => {
             )
           )}
 
-          {body?.text && <div className="wa-body" dangerouslySetInnerHTML={{ __html: formatBody(body.text) }} />}
-          {footer?.text && (
-            <div className="wa-footer">{footer.text}</div>
+          {(body?.text || formData.category === 'AUTHENTICATION') && (
+            <div className="wa-body" dangerouslySetInnerHTML={{ 
+              __html: formatBody(formData.category === 'AUTHENTICATION' ? null : body?.text) 
+            }} />
           )}
+          
+          {/* Footer - show auth footer or regular footer */}
+          {(getAuthFooter() || footer?.text) && (
+            <div className="wa-footer">{getAuthFooter()}</div>
+          )}
+          
           <div className="wa-timestamp">
             12:45 PM
             <svg viewBox="0 0 16 11" width="16" height="11" style={{marginLeft: 4, display: 'inline-block', verticalAlign: 'middle'}} fill="#4fc3f7">
@@ -750,15 +812,27 @@ const TemplateManager = () => {
             </svg>
           </div>
         </div>
-        {buttons?.buttons && (
+        
+        {/* Show authentication buttons or regular buttons */}
+        {formData.category === 'AUTHENTICATION' ? (
           <div className="wa-buttons">
-            {buttons.buttons.map((btn, i) => (
-              <div key={i} className="wa-button">
-                {btn.type === 'URL' && <ExternalLink size={12} style={{marginRight: 4, display: 'inline'}} />}
-                {btn.text || 'Button Text'}
-              </div>
-            ))}
+            <div className="wa-button" style={{background: '#008069', color: 'white'}}>
+              {formData.otpType === 'ZERO_TAP' && '🚀 Auto-fill'}
+              {formData.otpType === 'ONE_TAP' && '📱 Autofill'}
+              {formData.otpType === 'COPY_CODE' && '📋 Copy code'}
+            </div>
           </div>
+        ) : (
+          buttons?.buttons && (
+            <div className="wa-buttons">
+              {buttons.buttons.map((btn, i) => (
+                <div key={i} className="wa-button">
+                  {btn.type === 'URL' && <ExternalLink size={12} style={{marginRight: 4, display: 'inline'}} />}
+                  {btn.text || 'Button Text'}
+                </div>
+              ))}
+            </div>
+          )
         )}
       </div>
     );
@@ -1340,249 +1414,483 @@ const TemplateManager = () => {
                   </div>
                 </div>
 
-                <div className="section-title">
-                  <Type size={18} />
-                  Template Content
-                </div>
-
-                {/* Header Section */}
-                <div className="component-box">
-                  <div style={{marginBottom: 16}}>
-                    <label style={{fontWeight: 700, display: 'block', marginBottom: 8}}>Header type</label>
-                    <div className="header-type-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8}}>
-                      {['NONE', 'TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT'].map(type => (
-                        <button 
-                          key={type}
-                          className={`header-type-btn ${formData.headerType === type ? 'active' : ''}`}
-                          onClick={() => {
-                            const components = Array.isArray(formData.components) ? formData.components : [];
-                            const headerIndex = components.findIndex(c => c.type === 'HEADER');
-                            
-                            if (type === 'NONE') {
-                              // Remove header component if exists
-                              if (headerIndex !== -1) {
-                                removeComponent(headerIndex);
-                              }
-                              setFormData({...formData, headerType: type});
-                            } else {
-                              // Add or update header component
-                              if (headerIndex === -1) {
-                                // Add new header component
-                                const newComponent = { 
-                                  type: 'HEADER', 
-                                  format: type === 'TEXT' ? 'TEXT' : type,
-                                  text: type === 'TEXT' ? '' : undefined
-                                };
-                                setFormData({
-                                  ...formData, 
-                                  headerType: type,
-                                  components: [...components, newComponent]
-                                });
-                              } else {
-                                // Update existing header component
-                                const updatedComponents = [...components];
-                                updatedComponents[headerIndex] = {
-                                  ...updatedComponents[headerIndex],
-                                  format: type === 'TEXT' ? 'TEXT' : type,
-                                  text: type === 'TEXT' ? (updatedComponents[headerIndex].text || '') : undefined
-                                };
-                                setFormData({
-                                  ...formData, 
-                                  headerType: type,
-                                  components: updatedComponents
-                                });
-                              }
-                            }
-                          }}
-                        >
-                          {type.charAt(0) + type.slice(1).toLowerCase()}
-                        </button>
-                      ))}
+                {/* Authentication Template Special Handling */}
+                {formData.category === 'AUTHENTICATION' && (
+                  <div className="component-box" style={{background: '#fff3e0', border: '1px solid #f57c00'}}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16}}>
+                      <span style={{fontSize: 20}}>🔐</span>
+                      <label style={{fontWeight: 700, color: '#f57c00'}}>Authentication Template Setup</label>
                     </div>
-                  </div>
-
-                  {(formData.headerType === 'TEXT') && (
-                    <div className="field-group" style={{marginTop: 16}}>
-                      <div style={{display: 'flex', justifyContent: 'space-between'}}>
-                        <label>Header text</label>
-                        {getCharCount((Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'HEADER')?.text || '', 60)}
-                      </div>
-                      <div style={{position: 'relative'}}>
-                        <input 
-                          ref={(el) => {
-                            if (el) {
-                              window.headerInputRef = el;
-                            }
-                          }}
-                          type="text" 
-                          className="input-field" 
-                          placeholder="Add a header text..." 
-                          maxLength={60}
-                          value={(Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'HEADER')?.text || ''}
-                          onChange={(e) => {
-                            const components = Array.isArray(formData.components) ? formData.components : [];
-                            const headerIndex = components.findIndex(c => c.type === 'HEADER');
-                            if (headerIndex !== -1) updateComponent(headerIndex, 'text', e.target.value);
-                            
-                            // Clear validation errors related to header text when user types
-                            if (validationError && (
-                              validationError.includes('Header variables cannot be at the start or end') ||
-                              validationError.includes('Header variables cannot be consecutive')
-                            )) {
-                              setValidationError(null);
-                            }
-                          }}
-                        />
-                        <div style={{display: 'flex', gap: 4, marginTop: 4}}>
-                          <button 
-                            className="btn-secondary" 
-                            style={{fontSize: 10, padding: '2px 6px'}} 
-                            onClick={() => {
-                              const components = Array.isArray(formData.components) ? formData.components : [];
-                              const headerIndex = components.findIndex(c => c.type === 'HEADER');
-                              if (headerIndex !== -1) {
-                                const input = window.headerInputRef;
-                                if (input) {
-                                  const currentText = components[headerIndex]?.text || '';
-                                  const cursorPosition = input.selectionStart;
-                                  const existingVariables = getVariablesFromText(currentText);
-                                  const nextVar = existingVariables.length > 0 ? Math.max(...existingVariables.map(v => v.number)) + 1 : 1;
-                                  const variableText = `{{${nextVar}}}`;
-                                  
-                                  const newText = currentText.slice(0, cursorPosition) + variableText + currentText.slice(cursorPosition);
-                                  updateComponent(headerIndex, 'text', newText);
-                                  
-                                  setTimeout(() => {
-                                    input.focus();
-                                    input.setSelectionRange(cursorPosition + variableText.length, cursorPosition + variableText.length);
-                                  }, 0);
-                                }
-                              }
-                            }}
-                          >
-                            + Var
-                          </button>
-                        </div>
+                    
+                    <div style={{background: '#fff', padding: 16, borderRadius: 8, marginBottom: 16}}>
+                      <div style={{fontSize: 13, color: '#f57c00', marginBottom: 8, fontWeight: 600}}>📋 CONTENT RESTRICTIONS</div>
+                      <div style={{fontSize: 12, color: '#8d949e', lineHeight: 1.4}}>
+                        • Content for authentication templates cannot be edited - Meta provides preset text<br/>
+                        • Template will use format: "{{'{{'}}1{{'}}'}} is your verification code"<br/>
+                        • No media, URLs, or emojis allowed<br/>
+                        • OTP parameter limited to 15 characters
                       </div>
                     </div>
-                  )}
 
-                  {(formData.headerType === 'IMAGE' || formData.headerType === 'VIDEO' || formData.headerType === 'DOCUMENT') && (
-                    <div className="media-sample-container" style={{marginTop: 16}}>
-                      <label style={{fontWeight: 700, display: 'block', marginBottom: 4}}>Media sample <span style={{color: '#8d949e', fontWeight: 400}}>• Optional</span></label>
-                      <div style={{fontSize: 12, color: '#8d949e', marginBottom: 8}}>
-                        {formData.headerType === 'IMAGE' && 'Supported: JPG, JPEG, PNG, GIF • Max size: 16MB'}
-                        {formData.headerType === 'VIDEO' && 'Supported: MP4, AVI, MOV • Max size: 16MB'}
-                        {formData.headerType === 'DOCUMENT' && 'Supported: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX • Max size: 16MB'}
+                    {/* Code Delivery Setup */}
+                    <div className="field-group">
+                      <label style={{fontWeight: 700, marginBottom: 8}}>Code delivery setup</label>
+                      <div style={{fontSize: 12, color: '#8d949e', marginBottom: 12}}>
+                        Choose how customers send the code from WhatsApp to your app
                       </div>
-                      <input 
-                        type="file" 
-                        id="media-upload" 
-                        style={{display: 'none'}} 
-                        accept={
-                          formData.headerType === 'IMAGE' ? 'image/jpeg,image/jpg,image/png,image/gif' : 
-                          formData.headerType === 'VIDEO' ? 'video/mp4,video/avi,video/mov,video/quicktime' : 
-                          'application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx'
-                        }
-                        onChange={(e) => {
-                          const file = e.target.files[0];
-                          if (file) {
-                            // Validate file size (16MB)
-                            if (file.size > 16 * 1024 * 1024) {
-                              alert('File size exceeds 16MB limit');
-                              e.target.value = ''; // Reset input
-                              return;
-                            }
-                            handleFileUpload(file);
-                          } else {
-                            // User cancelled file selection
-                            handleFileUpload(null);
-                          }
-                        }}
-                      />
-                      <div 
-                        className="drag-drop-area" 
-                        style={{
-                          border: '2px dashed #dddfe2',
-                          borderRadius: 8,
-                          padding: '32px',
-                          textAlign: 'center',
-                          background: '#f9fafb',
-                          cursor: 'pointer'
-                        }}
-                        onClick={() => document.getElementById('media-upload').click()}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          e.currentTarget.style.borderColor = '#008069';
-                        }}
-                        onDragLeave={(e) => {
-                          e.preventDefault();
-                          e.currentTarget.style.borderColor = '#dddfe2';
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          e.currentTarget.style.borderColor = '#dddfe2';
-                          const files = e.dataTransfer.files;
-                          if (files.length > 0) {
-                            handleFileUpload(files[0]);
-                          }
-                        }}
-                      >
-                        {uploading ? (
-                          <div style={{color: '#008069', marginBottom: 8}}>Uploading...</div>
-                        ) : uploadedFile ? (
-                          <div style={{position: 'relative'}}>
-                            <div style={{color: '#008069', marginBottom: 8}}>✓ {uploadedFile.filename}</div>
-                            <div style={{fontSize: 12, color: '#8d949e'}}>Click to change file</div>
-                            <button 
-                              type="button"
-                              style={{
-                                position: 'absolute',
-                                top: '-20px',
-                                right: '-8px',
-                                width: '20px',
-                                height: '20px',
-                                padding: '0',
-                                background: '#ef4444',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '50%',
-                                fontSize: '14px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                zIndex: 10,
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                              }}
-                              onClick={() => {
-                                setUploadedFile(null);
-                                // Clear the header component example
-                                const components = Array.isArray(formData.components) ? formData.components : [];
-                                const headerIndex = components.findIndex(c => c.type === 'HEADER');
-                                if (headerIndex !== -1) {
-                                  updateComponent(headerIndex, 'example', undefined);
-                                }
-                                // Reset the file input
-                                const fileInput = document.getElementById('media-upload');
-                                if (fileInput) fileInput.value = '';
-                              }}
-                              title="Remove file"
-                            >
-                              ×
-                            </button>
+                      
+                      <div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
+                        <label style={{display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', padding: 12, border: '1px solid #dddfe2', borderRadius: 8, background: 'white'}}>
+                          <input 
+                            type="radio" 
+                            name="otpType" 
+                            value="ZERO_TAP"
+                            checked={formData.otpType === 'ZERO_TAP'}
+                            onChange={(e) => setFormData({...formData, otpType: e.target.value})}
+                            style={{marginTop: 2}}
+                          />
+                          <div>
+                            <div style={{fontWeight: 600, fontSize: 14, marginBottom: 4}}>Zero-tap auto-fill (Recommended)</div>
+                            <div style={{fontSize: 12, color: '#8d949e', lineHeight: 1.3}}>
+                              Automatically sends code without requiring customer to tap a button. 
+                              An auto-fill or copy code message will be sent if zero-tap isn't possible.
+                            </div>
                           </div>
-                        ) : (
-                          <>
-                            <div style={{color: '#008069', marginBottom: 8}}><Plus size={24} /></div>
-                            <div style={{fontSize: 14, fontWeight: 600}}>Drag and drop to upload</div>
-                            <div style={{fontSize: 12, color: '#8d949e'}}>Or choose files on your device</div>
-                          </>
+                        </label>
+                        
+                        <label style={{display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', padding: 12, border: '1px solid #dddfe2', borderRadius: 8, background: 'white'}}>
+                          <input 
+                            type="radio" 
+                            name="otpType" 
+                            value="ONE_TAP"
+                            checked={formData.otpType === 'ONE_TAP'}
+                            onChange={(e) => setFormData({...formData, otpType: e.target.value})}
+                            style={{marginTop: 2}}
+                          />
+                          <div>
+                            <div style={{fontWeight: 600, fontSize: 14, marginBottom: 4}}>One-tap auto-fill</div>
+                            <div style={{fontSize: 12, color: '#8d949e', lineHeight: 1.3}}>
+                              Code sends to your app when customers tap the button. 
+                              A copy code message will be sent if auto-fill isn't possible.
+                            </div>
+                          </div>
+                        </label>
+                        
+                        <label style={{display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', padding: 12, border: '1px solid #dddfe2', borderRadius: 8, background: 'white'}}>
+                          <input 
+                            type="radio" 
+                            name="otpType" 
+                            value="COPY_CODE"
+                            checked={formData.otpType === 'COPY_CODE'}
+                            onChange={(e) => setFormData({...formData, otpType: e.target.value})}
+                            style={{marginTop: 2}}
+                          />
+                          <div>
+                            <div style={{fontWeight: 600, fontSize: 14, marginBottom: 4}}>Copy code</div>
+                            <div style={{fontSize: 12, color: '#8d949e', lineHeight: 1.3}}>
+                              Basic authentication with quick setup. Customers copy and paste the code into your app.
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* App Setup for Zero-tap and One-tap */}
+                    {(formData.otpType === 'ZERO_TAP' || formData.otpType === 'ONE_TAP') && (
+                      <div className="field-group">
+                        <label style={{fontWeight: 700, marginBottom: 8}}>App setup</label>
+                        <div style={{fontSize: 12, color: '#8d949e', marginBottom: 12}}>
+                          You can add up to 5 apps. Required for zero-tap and one-tap authentication.
+                        </div>
+                        
+                        <div style={{display: 'flex', gap: 12, marginBottom: 12}}>
+                          <div style={{flex: 1}}>
+                            <label style={{fontSize: 13, fontWeight: 600, marginBottom: 4, display: 'block'}}>Package name</label>
+                            <input 
+                              type="text" 
+                              className="input-field"
+                              placeholder="com.example.myapplication"
+                              value={formData.packageName || ''}
+                              onChange={(e) => setFormData({...formData, packageName: e.target.value})}
+                              maxLength={224}
+                              style={{fontSize: 13}}
+                            />
+                            <div style={{fontSize: 11, color: '#8d949e', marginTop: 2}}>0/224</div>
+                          </div>
+                          <div style={{flex: 1}}>
+                            <label style={{fontSize: 13, fontWeight: 600, marginBottom: 4, display: 'block'}}>App signature hash</label>
+                            <input 
+                              type="text" 
+                              className="input-field"
+                              placeholder="K8a/AINcGX7"
+                              value={formData.signatureHash || ''}
+                              onChange={(e) => setFormData({...formData, signatureHash: e.target.value})}
+                              maxLength={11}
+                              style={{fontSize: 13}}
+                            />
+                            <div style={{fontSize: 11, color: formData.signatureHash?.length === 11 ? '#008069' : '#fa3e3e', marginTop: 2}}>
+                              {formData.signatureHash?.length || 0}/11 {formData.signatureHash?.length !== 11 && '(must be 11 characters)'}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {formData.otpType === 'ZERO_TAP' && (
+                          <div style={{background: '#fff8e1', padding: 12, borderRadius: 8, border: '1px solid #ffc107'}}>
+                            <div style={{display: 'flex', alignItems: 'flex-start', gap: 8}}>
+                              <input 
+                                type="checkbox" 
+                                checked={formData.zeroTapAgreement || false}
+                                onChange={(e) => setFormData({...formData, zeroTapAgreement: e.target.checked})}
+                                style={{marginTop: 2}}
+                              />
+                              <div style={{fontSize: 12, lineHeight: 1.4}}>
+                                By selecting zero-tap, I understand that <strong>your business</strong>'s use of zero-tap authentication is subject to the 
+                                <a href="#" style={{color: '#1976d2'}}> WhatsApp Business Terms of Service</a>. 
+                                It's your responsibility to ensure that customers expect the code will be automatically filled in on their behalf.
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Additional Content Options */}
+                    <div className="field-group">
+                      <label style={{fontWeight: 700, marginBottom: 8}}>Additional content options</label>
+                      
+                      <div style={{display: 'flex', flexDirection: 'column', gap: 8}}>
+                        <label style={{display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer'}}>
+                          <input 
+                            type="checkbox" 
+                            checked={formData.addSecurityRecommendation || false}
+                            onChange={(e) => setFormData({...formData, addSecurityRecommendation: e.target.checked})}
+                          />
+                          <span style={{fontSize: 14}}>Add security recommendation</span>
+                        </label>
+                        
+                        <label style={{display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer'}}>
+                          <input 
+                            type="checkbox" 
+                            checked={formData.addExpiryTime || false}
+                            onChange={(e) => setFormData({...formData, addExpiryTime: e.target.checked})}
+                          />
+                          <span style={{fontSize: 14}}>Add expiry time for the code</span>
+                        </label>
+                        
+                        {formData.addExpiryTime && (
+                          <div style={{marginLeft: 24, marginTop: 8}}>
+                            <label style={{fontSize: 13, fontWeight: 600, marginBottom: 4, display: 'block'}}>Code expires in (minutes)</label>
+                            <select 
+                              className="select-field"
+                              value={formData.codeExpiryMinutes || 10}
+                              onChange={(e) => setFormData({...formData, codeExpiryMinutes: parseInt(e.target.value)})}
+                              style={{width: 120, fontSize: 13}}
+                            >
+                              <option value={1}>1 minute</option>
+                              <option value={5}>5 minutes</option>
+                              <option value={10}>10 minutes</option>
+                              <option value={15}>15 minutes</option>
+                              <option value={30}>30 minutes</option>
+                              <option value={60}>60 minutes</option>
+                              <option value={90}>90 minutes</option>
+                            </select>
+                            <div style={{fontSize: 11, color: '#8d949e', marginTop: 4}}>
+                              After expiry, the auto-fill button will be disabled
+                            </div>
+                          </div>
                         )}
                       </div>
                     </div>
-                  )}
-                </div>
+
+                    {/* Message Validity Period */}
+                    <div className="field-group">
+                      <label style={{fontWeight: 700, marginBottom: 8}}>Message validity period</label>
+                      <div style={{fontSize: 12, color: '#8d949e', marginBottom: 12}}>
+                        Set a custom validity period that your authentication message must be delivered by before it expires.
+                      </div>
+                      
+                      <label style={{display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 8}}>
+                        <input 
+                          type="checkbox" 
+                          checked={formData.customValidityPeriod || false}
+                          onChange={(e) => setFormData({...formData, customValidityPeriod: e.target.checked})}
+                        />
+                        <span style={{fontSize: 14}}>Set custom validity period for your message</span>
+                      </label>
+                      
+                      {formData.customValidityPeriod && (
+                        <div style={{marginLeft: 24}}>
+                          <label style={{fontSize: 13, fontWeight: 600, marginBottom: 4, display: 'block'}}>Validity period</label>
+                          <select 
+                            className="select-field"
+                            value={formData.validityPeriod || 10}
+                            onChange={(e) => setFormData({...formData, validityPeriod: parseInt(e.target.value)})}
+                            style={{width: 150, fontSize: 13}}
+                          >
+                            <option value={1}>1 minute</option>
+                            <option value={5}>5 minutes</option>
+                            <option value={10}>10 minutes</option>
+                            <option value={15}>15 minutes</option>
+                            <option value={30}>30 minutes</option>
+                            <option value={60}>1 hour</option>
+                            <option value={120}>2 hours</option>
+                            <option value={360}>6 hours</option>
+                            <option value={720}>12 hours</option>
+                            <option value={1440}>24 hours</option>
+                          </select>
+                        </div>
+                      )}
+                      
+                      {!formData.customValidityPeriod && (
+                        <div style={{fontSize: 12, color: '#8d949e', fontStyle: 'italic'}}>
+                          Standard 10 minutes WhatsApp message validity period will be applied
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Show regular template content only for non-authentication templates */}
+                {formData.category !== 'AUTHENTICATION' && (
+                  <>
+                    {/* Header Section */}
+                    <div className="component-box">
+                      <div style={{marginBottom: 16}}>
+                        <label style={{fontWeight: 700, display: 'block', marginBottom: 8}}>Header type</label>
+                        <div className="header-type-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8}}>
+                          {['NONE', 'TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT'].map(type => (
+                            <button 
+                              key={type}
+                              className={`header-type-btn ${formData.headerType === type ? 'active' : ''}`}
+                              onClick={() => {
+                                const components = Array.isArray(formData.components) ? formData.components : [];
+                                const headerIndex = components.findIndex(c => c.type === 'HEADER');
+                                
+                                if (type === 'NONE') {
+                                  // Remove header component if exists
+                                  if (headerIndex !== -1) {
+                                    removeComponent(headerIndex);
+                                  }
+                                  setFormData({...formData, headerType: type});
+                                } else {
+                                  // Add or update header component
+                                  if (headerIndex === -1) {
+                                    // Add new header component
+                                    const newComponent = { 
+                                      type: 'HEADER', 
+                                      format: type === 'TEXT' ? 'TEXT' : type,
+                                      text: type === 'TEXT' ? '' : undefined
+                                    };
+                                    setFormData({
+                                      ...formData, 
+                                      headerType: type,
+                                      components: [...components, newComponent]
+                                    });
+                                  } else {
+                                    // Update existing header component
+                                    const updatedComponents = [...components];
+                                    updatedComponents[headerIndex] = {
+                                      ...updatedComponents[headerIndex],
+                                      format: type === 'TEXT' ? 'TEXT' : type,
+                                      text: type === 'TEXT' ? (updatedComponents[headerIndex].text || '') : undefined
+                                    };
+                                    setFormData({
+                                      ...formData, 
+                                      headerType: type,
+                                      components: updatedComponents
+                                    });
+                                  }
+                                }
+                              }}
+                            >
+                              {type.charAt(0) + type.slice(1).toLowerCase()}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {(formData.headerType === 'TEXT') && (
+                        <div className="field-group" style={{marginTop: 16}}>
+                          <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                            <label>Header text</label>
+                            {getCharCount((Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'HEADER')?.text || '', 60)}
+                          </div>
+                          <div style={{position: 'relative'}}>
+                            <input 
+                              ref={(el) => {
+                                if (el) {
+                                  window.headerInputRef = el;
+                                }
+                              }}
+                              type="text" 
+                              className="input-field" 
+                              placeholder="Add a header text..." 
+                              maxLength={60}
+                              value={(Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'HEADER')?.text || ''}
+                              onChange={(e) => {
+                                const components = Array.isArray(formData.components) ? formData.components : [];
+                                const headerIndex = components.findIndex(c => c.type === 'HEADER');
+                                if (headerIndex !== -1) updateComponent(headerIndex, 'text', e.target.value);
+                                
+                                // Clear validation errors related to header text when user types
+                                if (validationError && (
+                                  validationError.includes('Header variables cannot be at the start or end') ||
+                                  validationError.includes('Header variables cannot be consecutive')
+                                )) {
+                                  setValidationError(null);
+                                }
+                              }}
+                            />
+                            <div style={{display: 'flex', gap: 4, marginTop: 4}}>
+                              <button 
+                                className="btn-secondary" 
+                                style={{fontSize: 10, padding: '2px 6px'}} 
+                                onClick={() => {
+                                  const components = Array.isArray(formData.components) ? formData.components : [];
+                                  const headerIndex = components.findIndex(c => c.type === 'HEADER');
+                                  if (headerIndex !== -1) {
+                                    const input = window.headerInputRef;
+                                    if (input) {
+                                      const currentText = components[headerIndex]?.text || '';
+                                      const cursorPosition = input.selectionStart;
+                                      const existingVariables = getVariablesFromText(currentText);
+                                      const nextVar = existingVariables.length > 0 ? Math.max(...existingVariables.map(v => v.number)) + 1 : 1;
+                                      const variableText = `{{${nextVar}}}`;
+                                      
+                                      const newText = currentText.slice(0, cursorPosition) + variableText + currentText.slice(cursorPosition);
+                                      updateComponent(headerIndex, 'text', newText);
+                                      
+                                      setTimeout(() => {
+                                        input.focus();
+                                        input.setSelectionRange(cursorPosition + variableText.length, cursorPosition + variableText.length);
+                                      }, 0);
+                                    }
+                                  }
+                                }}
+                              >
+                                + Var
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {(formData.headerType === 'IMAGE' || formData.headerType === 'VIDEO' || formData.headerType === 'DOCUMENT') && (
+                        <div className="media-sample-container" style={{marginTop: 16}}>
+                          <label style={{fontWeight: 700, display: 'block', marginBottom: 4}}>Media sample <span style={{color: '#8d949e', fontWeight: 400}}>• Optional</span></label>
+                          <div style={{fontSize: 12, color: '#8d949e', marginBottom: 8}}>
+                            {formData.headerType === 'IMAGE' && 'Supported: JPG, JPEG, PNG, GIF • Max size: 16MB'}
+                            {formData.headerType === 'VIDEO' && 'Supported: MP4, AVI, MOV • Max size: 16MB'}
+                            {formData.headerType === 'DOCUMENT' && 'Supported: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX • Max size: 16MB'}
+                          </div>
+                          <input 
+                            type="file" 
+                            id="media-upload" 
+                            style={{display: 'none'}} 
+                            accept={
+                              formData.headerType === 'IMAGE' ? 'image/jpeg,image/jpg,image/png,image/gif' : 
+                              formData.headerType === 'VIDEO' ? 'video/mp4,video/avi,video/mov,video/quicktime' : 
+                              'application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx'
+                            }
+                            onChange={(e) => {
+                              const file = e.target.files[0];
+                              if (file) {
+                                // Validate file size (16MB)
+                                if (file.size > 16 * 1024 * 1024) {
+                                  alert('File size exceeds 16MB limit');
+                                  e.target.value = ''; // Reset input
+                                  return;
+                                }
+                                handleFileUpload(file);
+                              } else {
+                                // User cancelled file selection
+                                handleFileUpload(null);
+                              }
+                            }}
+                          />
+                          <div 
+                            className="drag-drop-area" 
+                            style={{
+                              border: '2px dashed #dddfe2',
+                              borderRadius: 8,
+                              padding: '32px',
+                              textAlign: 'center',
+                              background: '#f9fafb',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => document.getElementById('media-upload').click()}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.currentTarget.style.borderColor = '#008069';
+                            }}
+                            onDragLeave={(e) => {
+                              e.preventDefault();
+                              e.currentTarget.style.borderColor = '#dddfe2';
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              e.currentTarget.style.borderColor = '#dddfe2';
+                              const files = e.dataTransfer.files;
+                              if (files.length > 0) {
+                                handleFileUpload(files[0]);
+                              }
+                            }}
+                          >
+                            {uploading ? (
+                              <div style={{color: '#008069', marginBottom: 8}}>Uploading...</div>
+                            ) : uploadedFile ? (
+                              <div style={{position: 'relative'}}>
+                                <div style={{color: '#008069', marginBottom: 8}}>✓ {uploadedFile.filename}</div>
+                                <div style={{fontSize: 12, color: '#8d949e'}}>Click to change file</div>
+                                <button 
+                                  type="button"
+                                  style={{
+                                    position: 'absolute',
+                                    top: '-20px',
+                                    right: '-8px',
+                                    width: '20px',
+                                    height: '20px',
+                                    padding: '0',
+                                    background: '#ef4444',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '50%',
+                                    fontSize: '14px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    zIndex: 10,
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                                  }}
+                                  onClick={() => {
+                                    setUploadedFile(null);
+                                    // Clear the header component example
+                                    const components = Array.isArray(formData.components) ? formData.components : [];
+                                    const headerIndex = components.findIndex(c => c.type === 'HEADER');
+                                    if (headerIndex !== -1) {
+                                      updateComponent(headerIndex, 'example', undefined);
+                                    }
+                                    // Reset the file input
+                                    const fileInput = document.getElementById('media-upload');
+                                    if (fileInput) fileInput.value = '';
+                                  }}
+                                  title="Remove file"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <div style={{color: '#008069', marginBottom: 8}}><Plus size={24} /></div>
+                                <div style={{fontSize: 14, fontWeight: 600}}>Drag and drop to upload</div>
+                                <div style={{fontSize: 12, color: '#8d949e'}}>Or choose files on your device</div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                 {/* Body */}
                 <div className="component-box">

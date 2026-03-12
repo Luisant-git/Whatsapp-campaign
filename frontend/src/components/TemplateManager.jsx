@@ -949,7 +949,7 @@ const TemplateManager = () => {
       {deleteConfirmModal.open && (
         <div className="modal-overlay" style={{backgroundColor: 'rgba(0, 0, 0, 0.45)'}}>
           <div className="modal" style={{
-            maxWidth: 416,
+            width: 320,
             minHeight: 'auto',
             padding: 0,
             borderRadius: 6,
@@ -957,14 +957,14 @@ const TemplateManager = () => {
           }}>
             {/* Header */}
             <div style={{
-              padding: '16px 24px',
+              padding: '12px 16px',
               borderBottom: '1px solid #f0f0f0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between'
             }}>
               <div style={{
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: 600,
                 color: 'rgba(0, 0, 0, 0.88)',
                 margin: 0
@@ -978,7 +978,7 @@ const TemplateManager = () => {
                   background: 'none',
                   border: 'none',
                   cursor: deleteConfirmModal.loading ? 'not-allowed' : 'pointer',
-                  padding: 4,
+                  padding: 2,
                   borderRadius: 4,
                   display: 'flex',
                   alignItems: 'center',
@@ -986,32 +986,31 @@ const TemplateManager = () => {
                   opacity: deleteConfirmModal.loading ? 0.5 : 1
                 }}
               >
-                <X size={14} color="rgba(0, 0, 0, 0.45)" />
+                <X size={12} color="rgba(0, 0, 0, 0.45)" />
               </button>
             </div>
             
             {/* Body */}
-            <div style={{padding: '20px 24px'}}>
-              <div style={{display: 'flex', alignItems: 'flex-start', gap: 12}}>
+            <div style={{padding: '16px'}}>
+              <div style={{display: 'flex', alignItems: 'flex-start', gap: 8}}>
                 <div style={{marginTop: 1}}>
-                  <svg width="22" height="22" viewBox="0 0 1024 1024" fill="#faad14">
+                  <svg width="16" height="16" viewBox="0 0 1024 1024" fill="#faad14">
                     <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm-32 232c0-4.4 3.6-8 8-8h48c4.4 0 8 3.6 8 8v272c0 4.4-3.6 8-8 8h-48c-4.4 0-8-3.6-8-8V296zm32 440a48.01 48.01 0 0 1 0-96 48.01 48.01 0 0 1 0 96z"/>
                   </svg>
                 </div>
                 <div style={{flex: 1}}>
                   <div style={{
-                    fontSize: 14,
+                    fontSize: 13,
                     color: 'rgba(0, 0, 0, 0.88)',
-                    lineHeight: 1.5714,
-                    marginBottom: 0
+                    lineHeight: 1.4,
+                    marginBottom: 4
                   }}>
                     Are you sure you want to delete <strong>{deleteConfirmModal.template?.name}</strong>?
                   </div>
                   <div style={{
-                    fontSize: 14,
+                    fontSize: 12,
                     color: 'rgba(0, 0, 0, 0.65)',
-                    lineHeight: 1.5714,
-                    marginTop: 4
+                    lineHeight: 1.4
                   }}>
                     This action cannot be undone.
                   </div>
@@ -1021,21 +1020,21 @@ const TemplateManager = () => {
             
             {/* Footer */}
             <div style={{
-              padding: '10px 16px',
+              padding: '8px 12px',
               textAlign: 'right',
               borderTop: '1px solid #f0f0f0',
               display: 'flex',
               justifyContent: 'flex-end',
-              gap: 8
+              gap: 6
             }}>
               <button
                 onClick={() => setDeleteConfirmModal({ open: false, template: null, loading: false })}
                 disabled={deleteConfirmModal.loading}
                 style={{
-                  height: 32,
-                  padding: '4px 15px',
-                  fontSize: 14,
-                  borderRadius: 6,
+                  height: 28,
+                  padding: '0 12px',
+                  fontSize: 12,
+                  borderRadius: 4,
                   border: '1px solid #d9d9d9',
                   background: '#fff',
                   color: 'rgba(0, 0, 0, 0.88)',
@@ -1062,10 +1061,10 @@ const TemplateManager = () => {
                 onClick={confirmDeleteTemplate}
                 disabled={deleteConfirmModal.loading}
                 style={{
-                  height: 32,
-                  padding: '4px 15px',
-                  fontSize: 14,
-                  borderRadius: 6,
+                  height: 28,
+                  padding: '0 12px',
+                  fontSize: 12,
+                  borderRadius: 4,
                   border: '1px solid #ff4d4f',
                   background: '#ff4d4f',
                   color: '#fff',
@@ -1074,7 +1073,7 @@ const TemplateManager = () => {
                   transition: 'all 0.2s',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 6
+                  gap: 4
                 }}
                 onMouseEnter={(e) => {
                   if (!deleteConfirmModal.loading) {
@@ -1091,10 +1090,10 @@ const TemplateManager = () => {
               >
                 {deleteConfirmModal.loading && (
                   <div style={{
-                    width: 12,
-                    height: 12,
-                    border: '2px solid rgba(255, 255, 255, 0.3)',
-                    borderTop: '2px solid #fff',
+                    width: 10,
+                    height: 10,
+                    border: '1.5px solid rgba(255, 255, 255, 0.3)',
+                    borderTop: '1.5px solid #fff',
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite'
                   }} />

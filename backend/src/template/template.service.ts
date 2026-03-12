@@ -692,13 +692,59 @@ export class TemplateService {
             throw new BadRequestException(`Variables must be numbered sequentially starting from {{1}}. Found {{${numbers[i]}}} but expected {{${i + 1}}}.`);
           }
         }
+        
+        // Check variable density - Meta's rule: too many variables for message length
+        const textWithoutVariables = text.replace(/\{\{\d+\}\}/g, '');
+        const variableCount = variables.length;
+        const textLength = textWithoutVariables.length;
+        
+        // Meta's approximate rule: For every 10-15 characters of text, you can have 1 variable
+        // This is a conservative estimate based on Meta's validation
+        const maxVariablesForLength = Math.floor(textLength / 10);
+        
+        if (variableCount > maxVariablesForLength && textLength < 30) {
+          throw new BadRequestException(
+            `This template has too many variables for its length. ` +
+            `Reduce the number of variables (currently ${variableCount}) or increase the message length. ` +
+            `Variables can't be at the start or end of the template.`
+          );
+        }
+        
+        // Additional check: minimum text between variables
+        const parts = text.split(/\{\{\d+\}\}/);
+        for (let i = 1; i < parts.length - 1; i++) {
+          if (parts[i].trim().length < 2) {
+            throw new BadRequestException('There must be at least 2 characters of text between variables.');
+          }
+        }
+        
+        // Check first and last parts have sufficient text
+        if (parts[0].trim().length < 2) {
+          throw new BadRequestException('There must be at least 2 characters of text before the first variable.');
+        }
+        if (parts[parts.length - 1].trim().length < 2) {
+          throw new BadRequestException('There must be at least 2 characters of text after the last variable.');
+        }
       }
     }
     
     // Validate header component
     const headerComponent = template.components.find(c => c.type === 'HEADER');
-    if (headerComponent?.text && headerComponent.text.length > 60) {
-      throw new BadRequestException('Header text cannot exceed 60 characters.');
+    if (headerComponent?.text) {
+      // Same rules apply to header text
+      const text = headerComponent.text.trim();
+      
+      if (text.match(/^\{\{\d+\}\}/) || text.match(/\{\{\d+\}\}$/)) {
+        throw new BadRequestException('Header variables cannot be at the start or end. Add text before/after the variable.');
+      }
+      
+      if (text.match(/\{\{\d+\}\}\s*\{\{\d+\}\}/)) {
+        throw new BadRequestException('Header variables cannot be consecutive. Add text between variables.');
+      }
+      
+      if (headerComponent.text.length > 60) {
+        throw new BadRequestException('Header text cannot exceed 60 characters.');
+      }
     }
     
     // Validate footer component

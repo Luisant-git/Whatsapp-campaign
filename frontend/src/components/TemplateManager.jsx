@@ -35,6 +35,7 @@ const TemplateManager = () => {
   const [filterCategory, setFilterCategory] = useState('ALL');
   const [uploadedFile, setUploadedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [validationError, setValidationError] = useState(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -43,7 +44,8 @@ const TemplateManager = () => {
     headerType: 'NONE', // NONE, TEXT, IMAGE, VIDEO, DOCUMENT
     components: [
       { type: 'BODY', text: 'Hello {{1}}, welcome to our service!' }
-    ]
+    ],
+    sampleValues: {} // Store sample values for variables
   });
 
   const categories = [
@@ -203,11 +205,13 @@ const TemplateManager = () => {
     setDialogType('create');
     setCurrentTemplate(null);
     setUploadedFile(null);
+    setValidationError(null);
     setFormData({
       name: '',
       category: 'MARKETING',
       language: 'en',
-      components: [{ type: 'BODY', text: 'Hello {{1}}, welcome to our service!' }]
+      components: [{ type: 'BODY', text: 'Hello {{1}}, welcome to our service!' }],
+      sampleValues: {}
     });
     setOpenDialog(true);
   };
@@ -215,6 +219,7 @@ const TemplateManager = () => {
   const handleEditTemplate = (template) => {
     setDialogType('edit');
     setCurrentTemplate(template);
+    setValidationError(null);
     
     // Parse components if it's a JSON string
     let components;
@@ -249,13 +254,106 @@ const TemplateManager = () => {
       category: template.category,
       language: template.language,
       headerType,
-      components
+      components,
+      sampleValues: template.sampleValues || {}
     });
     setOpenDialog(true);
   };
 
+  const validateTemplate = () => {
+    const components = Array.isArray(formData.components) ? formData.components : [];
+    const bodyComponent = components.find(c => c.type === 'BODY');
+    const headerComponent = components.find(c => c.type === 'HEADER');
+    
+    if (!formData.name || formData.name.trim() === '') {
+      return 'Template name is required';
+    }
+    
+    // Check if all variables have sample values
+    const allVariables = getAllVariables();
+    if (allVariables.length > 0) {
+      const missingSamples = [];
+      allVariables.forEach(variableNumber => {
+        const sampleValue = formData.sampleValues[variableNumber];
+        if (!sampleValue || sampleValue.trim() === '') {
+          missingSamples.push(`{{${variableNumber}}}`);
+        }
+      });
+      
+      if (missingSamples.length > 0) {
+        return `Please provide sample values for all variables: ${missingSamples.join(', ')}. This is required for Meta template review.`;
+      }
+    }
+    
+    if (bodyComponent?.text) {
+      const text = bodyComponent.text.trim();
+      
+      // Check if variables are at start or end
+      if (text.match(/^\{\{\d+\}\}/) || text.match(/\{\{\d+\}\}$/)) {
+        return 'Variables cannot be at the start or end of the message. Add some text before/after the variable.';
+      }
+      
+      // Check for consecutive variables
+      if (text.match(/\{\{\d+\}\}\s*\{\{\d+\}\}/)) {
+        return 'Variables cannot be consecutive. Add text between variables.';
+      }
+      
+      // Check variable density
+      const variables = text.match(/\{\{(\d+)\}\}/g);
+      if (variables) {
+        const textWithoutVariables = text.replace(/\{\{\d+\}\}/g, '');
+        const variableCount = variables.length;
+        const textLength = textWithoutVariables.length;
+        
+        // Meta's rule: too many variables for message length
+        const maxVariablesForLength = Math.floor(textLength / 10);
+        
+        if (variableCount > maxVariablesForLength && textLength < 30) {
+          return `This template has too many variables (${variableCount}) for its length. Reduce the number of variables or increase the message length.`;
+        }
+        
+        // Check minimum text between variables
+        const parts = text.split(/\{\{\d+\}\}/);
+        for (let i = 1; i < parts.length - 1; i++) {
+          if (parts[i].trim().length < 2) {
+            return 'There must be at least 2 characters of text between variables.';
+          }
+        }
+        
+        // Check first and last parts have sufficient text
+        if (parts[0].trim().length < 2) {
+          return 'There must be at least 2 characters of text before the first variable.';
+        }
+        if (parts[parts.length - 1].trim().length < 2) {
+          return 'There must be at least 2 characters of text after the last variable.';
+        }
+      }
+    }
+    
+    // Validate header
+    if (headerComponent?.text) {
+      const text = headerComponent.text.trim();
+      
+      if (text.match(/^\{\{\d+\}\}/) || text.match(/\{\{\d+\}\}$/)) {
+        return 'Header variables cannot be at the start or end. Add text before/after the variable.';
+      }
+      
+      if (text.match(/\{\{\d+\}\}\s*\{\{\d+\}\}/)) {
+        return 'Header variables cannot be consecutive. Add text between variables.';
+      }
+    }
+    
+    return null;
+  };
+
   const handleSubmitTemplate = async () => {
-    if (!formData.name) return alert('Template name is required');
+    const validationError = validateTemplate();
+    if (validationError) {
+      setValidationError(validationError);
+      return;
+    }
+    
+    setValidationError(null);
     setLoading(true);
     try {
       const url = dialogType === 'create' 
@@ -276,10 +374,11 @@ const TemplateManager = () => {
         fetchTemplates();
       } else {
         const err = await response.json();
-        alert(`Error: ${err.message || 'Failed to save template'}`);
+        setValidationError(`Error: ${err.message || 'Failed to save template'}`);
       }
     } catch (error) {
       console.error('Error submitting template:', error);
+      setValidationError('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -323,11 +422,13 @@ const TemplateManager = () => {
     setDialogType('create');
     setCurrentTemplate(null);
     setUploadedFile(null);
+    setValidationError(null);
     setFormData({
       name: libTemplate.name,
       category: 'AUTHENTICATION',
       language: 'en',
-      components: libTemplate.components || [{ type: 'BODY', text: '' }]
+      components: libTemplate.components || [{ type: 'BODY', text: '' }],
+      sampleValues: {}
     });
     setOpenDialog(true);
   };
@@ -435,15 +536,44 @@ const TemplateManager = () => {
     (filterCategory === 'ALL' || t.category === filterCategory)
   );
 
-  const getVariableCount = (text) => {
+  const getVariablesFromText = (text) => {
+    if (!text) return [];
     const matches = text.match(/{{(\d+)}}/g);
-    return matches ? matches.length : 0;
+    return matches ? matches.map(match => {
+      const num = match.match(/\d+/)[0];
+      return { placeholder: match, number: parseInt(num) };
+    }).sort((a, b) => a.number - b.number) : [];
+  };
+
+  const getAllVariables = () => {
+    const components = Array.isArray(formData.components) ? formData.components : [];
+    const allVariables = new Set();
+    
+    components.forEach(component => {
+      if (component.text) {
+        const variables = getVariablesFromText(component.text);
+        variables.forEach(v => allVariables.add(v.number));
+      }
+    });
+    
+    return Array.from(allVariables).sort((a, b) => a - b);
+  };
+
+  const updateSampleValue = (variableNumber, value) => {
+    setFormData({
+      ...formData,
+      sampleValues: {
+        ...formData.sampleValues,
+        [variableNumber]: value
+      }
+    });
   };
 
   const addVariable = (index) => {
     const components = Array.isArray(formData.components) ? formData.components : [];
     const currentText = components[index]?.text || '';
-    const nextVar = getVariableCount(currentText) + 1;
+    const existingVariables = getVariablesFromText(currentText);
+    const nextVar = existingVariables.length > 0 ? Math.max(...existingVariables.map(v => v.number)) + 1 : 1;
     updateComponent(index, 'text', currentText + ` {{${nextVar}}}`);
   };
 
@@ -474,8 +604,20 @@ const TemplateManager = () => {
 
     const formatBody = (text) => {
       if (!text) return '';
-      // Simple bold/italic/strikethrough preview
-      return text
+      let formattedText = text;
+      
+      // Replace variables with sample values if available, otherwise keep the variable placeholder
+      const variables = getVariablesFromText(text);
+      variables.forEach(variable => {
+        const sampleValue = formData.sampleValues[variable.number];
+        if (sampleValue && sampleValue.trim() !== '') {
+          formattedText = formattedText.replace(new RegExp(`\\{\\{${variable.number}\\}\\}`, 'g'), sampleValue);
+        }
+        // If no sample value provided, keep the variable placeholder as is
+      });
+      
+      // Apply formatting
+      return formattedText
         .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
         .replace(/_(.*?)_/g, '<em>$1</em>')
         .replace(/~(.*?)~/g, '<del>$1</del>')
@@ -487,7 +629,19 @@ const TemplateManager = () => {
         <div className="wa-bubble">
           {/* Header Rendering */}
           {formData.headerType === 'TEXT' && header?.text && (
-            <div className="wa-header">{header.text}</div>
+            <div className="wa-header">
+              {(() => {
+                let headerText = header.text;
+                const variables = getVariablesFromText(header.text);
+                variables.forEach(variable => {
+                  const sampleValue = formData.sampleValues[variable.number];
+                  if (sampleValue && sampleValue.trim() !== '') {
+                    headerText = headerText.replace(new RegExp(`\\{\\{${variable.number}\\}\\}`, 'g'), sampleValue);
+                  }
+                });
+                return headerText;
+              })()} 
+            </div>
           )}
           {formData.headerType === 'IMAGE' && (
             uploadedFile ? (
@@ -551,7 +705,9 @@ const TemplateManager = () => {
           )}
 
           {body?.text && <div className="wa-body" dangerouslySetInnerHTML={{ __html: formatBody(body.text) }} />}
-          {footer?.text && <div className="wa-footer">{footer.text}</div>}
+          {footer?.text && (
+            <div className="wa-footer">{footer.text}</div>
+          )}
           <div className="wa-timestamp">
             12:45 PM
             <svg viewBox="0 0 16 11" width="16" height="11" style={{marginLeft: 4, display: 'inline-block', verticalAlign: 'middle'}} fill="#4fc3f7">
@@ -761,15 +917,54 @@ const TemplateManager = () => {
             <div className="modal-header">
               <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
                 <button 
-                  onClick={() => setOpenDialog(false)}
+                  onClick={() => {
+                    setOpenDialog(false);
+                    setValidationError(null);
+                  }}
                   style={{background: 'none', border: 'none', cursor: 'pointer', padding: 4}}
                 >
                   <X size={20} color="#606770" />
                 </button>
                 <h2>{dialogType === 'create' ? 'Create a message template' : 'Edit message template'}</h2>
               </div>
+              
+              {/* Validation Error Display */}
+              {validationError && (
+                <div style={{
+                  background: '#f8d7da',
+                  border: '1px solid #f5c6cb',
+                  borderRadius: 8,
+                  padding: 12,
+                  margin: '12px 0',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 8
+                }}>
+                  <AlertCircle size={16} color="#721c24" style={{marginTop: 2, flexShrink: 0}} />
+                  <div style={{fontSize: 13, color: '#721c24', lineHeight: 1.4}}>
+                    <strong>Validation Error:</strong> {validationError}
+                  </div>
+                  <button 
+                    onClick={() => setValidationError(null)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      marginLeft: 'auto',
+                      cursor: 'pointer',
+                      color: '#721c24',
+                      padding: 0
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+              
               <div style={{display: 'flex', gap: 12}}>
-                <button className="btn-cancel" onClick={() => setOpenDialog(false)}>Cancel</button>
+                <button className="btn-cancel" onClick={() => {
+                  setOpenDialog(false);
+                  setValidationError(null);
+                }}>Cancel</button>
                 <button className="btn-submit" onClick={handleSubmitTemplate} disabled={loading}>
                   {loading ? 'Processing...' : (dialogType === 'create' ? 'Finish' : 'Save Changes')}
                 </button>
@@ -819,7 +1014,13 @@ const TemplateManager = () => {
                     className="input-field"
                     placeholder="e.g. shipping_update"
                     value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_')})}
+                    onChange={(e) => {
+                      setFormData({...formData, name: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_')});
+                      // Clear validation error when user starts typing name
+                      if (validationError && validationError.includes('Template name is required')) {
+                        setValidationError(null);
+                      }
+                    }}
                   />
                   <div style={{fontSize: 12, color: '#8d949e', marginTop: 4}}>
                     Use only lowercase letters, numbers, and underscores.
@@ -887,24 +1088,69 @@ const TemplateManager = () => {
                     </div>
                   </div>
 
-                  {formData.headerType === 'TEXT' && (
+                  {(formData.headerType === 'TEXT') && (
                     <div className="field-group" style={{marginTop: 16}}>
                       <div style={{display: 'flex', justifyContent: 'space-between'}}>
                         <label>Header text</label>
                         {getCharCount((Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'HEADER')?.text || '', 60)}
                       </div>
-                      <input 
-                        type="text" 
-                        className="input-field" 
-                        placeholder="Add a header text..." 
-                        maxLength={60}
-                        value={(Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'HEADER')?.text || ''}
-                        onChange={(e) => {
-                          const components = Array.isArray(formData.components) ? formData.components : [];
-                          const headerIndex = components.findIndex(c => c.type === 'HEADER');
-                          if (headerIndex !== -1) updateComponent(headerIndex, 'text', e.target.value);
-                        }}
-                      />
+                      <div style={{position: 'relative'}}>
+                        <input 
+                          ref={(el) => {
+                            if (el) {
+                              window.headerInputRef = el;
+                            }
+                          }}
+                          type="text" 
+                          className="input-field" 
+                          placeholder="Add a header text..." 
+                          maxLength={60}
+                          value={(Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'HEADER')?.text || ''}
+                          onChange={(e) => {
+                            const components = Array.isArray(formData.components) ? formData.components : [];
+                            const headerIndex = components.findIndex(c => c.type === 'HEADER');
+                            if (headerIndex !== -1) updateComponent(headerIndex, 'text', e.target.value);
+                            
+                            // Clear validation errors related to header text when user types
+                            if (validationError && (
+                              validationError.includes('Header variables cannot be at the start or end') ||
+                              validationError.includes('Header variables cannot be consecutive')
+                            )) {
+                              setValidationError(null);
+                            }
+                          }}
+                        />
+                        <div style={{display: 'flex', gap: 4, marginTop: 4}}>
+                          <button 
+                            className="btn-secondary" 
+                            style={{fontSize: 10, padding: '2px 6px'}} 
+                            onClick={() => {
+                              const components = Array.isArray(formData.components) ? formData.components : [];
+                              const headerIndex = components.findIndex(c => c.type === 'HEADER');
+                              if (headerIndex !== -1) {
+                                const input = window.headerInputRef;
+                                if (input) {
+                                  const currentText = components[headerIndex]?.text || '';
+                                  const cursorPosition = input.selectionStart;
+                                  const existingVariables = getVariablesFromText(currentText);
+                                  const nextVar = existingVariables.length > 0 ? Math.max(...existingVariables.map(v => v.number)) + 1 : 1;
+                                  const variableText = `{{${nextVar}}}`;
+                                  
+                                  const newText = currentText.slice(0, cursorPosition) + variableText + currentText.slice(cursorPosition);
+                                  updateComponent(headerIndex, 'text', newText);
+                                  
+                                  setTimeout(() => {
+                                    input.focus();
+                                    input.setSelectionRange(cursorPosition + variableText.length, cursorPosition + variableText.length);
+                                  }, 0);
+                                }
+                              }
+                            }}
+                          >
+                            + Var
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -1032,6 +1278,11 @@ const TemplateManager = () => {
                     {getCharCount((Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'BODY')?.text || '', 1024)}
                   </div>
                   <textarea 
+                    ref={(el) => {
+                      if (el) {
+                        window.bodyTextareaRef = el;
+                      }
+                    }}
                     className="textarea-field" 
                     placeholder="Enter the body text for your message..."
                     maxLength={1024}
@@ -1040,16 +1291,202 @@ const TemplateManager = () => {
                       const components = Array.isArray(formData.components) ? formData.components : [];
                       const bodyIndex = components.findIndex(c => c.type === 'BODY');
                       if (bodyIndex !== -1) updateComponent(bodyIndex, 'text', e.target.value);
+                      
+                      // Clear validation errors related to body text when user types
+                      if (validationError && (
+                        validationError.includes('Variables cannot be at the start or end') ||
+                        validationError.includes('Variables cannot be consecutive') ||
+                        validationError.includes('too many variables') ||
+                        validationError.includes('characters of text between') ||
+                        validationError.includes('characters of text before') ||
+                        validationError.includes('characters of text after')
+                      )) {
+                        setValidationError(null);
+                      }
                     }}
                   />
-                  <div style={{display: 'flex', gap: 8, marginTop: 8}}>
-                    <button className="btn-secondary" style={{fontSize: 12, padding: '4px 8px'}} onClick={() => {
-                       const components = Array.isArray(formData.components) ? formData.components : [];
-                       const index = components.findIndex(c => c.type === 'BODY');
-                       if (index !== -1) addVariable(index);
-                    }}>+ Add Variable</button>
+                  <div style={{display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap'}}>
+                    <button 
+                      className="btn-secondary" 
+                      style={{fontSize: 12, padding: '4px 8px'}} 
+                      onClick={() => {
+                        const components = Array.isArray(formData.components) ? formData.components : [];
+                        const bodyIndex = components.findIndex(c => c.type === 'BODY');
+                        if (bodyIndex !== -1) {
+                          const textarea = window.bodyTextareaRef;
+                          if (textarea) {
+                            const currentText = components[bodyIndex]?.text || '';
+                            const cursorPosition = textarea.selectionStart;
+                            const existingVariables = getVariablesFromText(currentText);
+                            const nextVar = existingVariables.length > 0 ? Math.max(...existingVariables.map(v => v.number)) + 1 : 1;
+                            const variableText = `{{${nextVar}}}`;
+                            
+                            const newText = currentText.slice(0, cursorPosition) + variableText + currentText.slice(cursorPosition);
+                            updateComponent(bodyIndex, 'text', newText);
+                            
+                            // Set cursor position after the inserted variable
+                            setTimeout(() => {
+                              textarea.focus();
+                              textarea.setSelectionRange(cursorPosition + variableText.length, cursorPosition + variableText.length);
+                            }, 0);
+                          }
+                        }
+                      }}
+                    >
+                      + Add Variable
+                    </button>
+                    
+                    {/* Quick insert buttons for common variables */}
+                    <button 
+                      className="btn-secondary" 
+                      style={{fontSize: 12, padding: '4px 8px', background: '#e3f2fd'}} 
+                      onClick={() => {
+                        const components = Array.isArray(formData.components) ? formData.components : [];
+                        const bodyIndex = components.findIndex(c => c.type === 'BODY');
+                        if (bodyIndex !== -1) {
+                          const textarea = window.bodyTextareaRef;
+                          if (textarea) {
+                            const currentText = components[bodyIndex]?.text || '';
+                            const cursorPosition = textarea.selectionStart;
+                            const insertText = '{{1}}';
+                            
+                            const newText = currentText.slice(0, cursorPosition) + insertText + currentText.slice(cursorPosition);
+                            updateComponent(bodyIndex, 'text', newText);
+                            
+                            setTimeout(() => {
+                              textarea.focus();
+                              textarea.setSelectionRange(cursorPosition + insertText.length, cursorPosition + insertText.length);
+                            }, 0);
+                          }
+                        }
+                      }}
+                      title="Insert {{1}} at cursor position"
+                    >
+                      {'{{'}{1}{'}}'}  
+                    </button>
+                    
+                    <button 
+                      className="btn-secondary" 
+                      style={{fontSize: 12, padding: '4px 8px', background: '#e8f5e8'}} 
+                      onClick={() => {
+                        const components = Array.isArray(formData.components) ? formData.components : [];
+                        const bodyIndex = components.findIndex(c => c.type === 'BODY');
+                        if (bodyIndex !== -1) {
+                          const textarea = window.bodyTextareaRef;
+                          if (textarea) {
+                            const currentText = components[bodyIndex]?.text || '';
+                            const cursorPosition = textarea.selectionStart;
+                            const insertText = '{{2}}';
+                            
+                            const newText = currentText.slice(0, cursorPosition) + insertText + currentText.slice(cursorPosition);
+                            updateComponent(bodyIndex, 'text', newText);
+                            
+                            setTimeout(() => {
+                              textarea.focus();
+                              textarea.setSelectionRange(cursorPosition + insertText.length, cursorPosition + insertText.length);
+                            }, 0);
+                          }
+                        }
+                      }}
+                      title="Insert {{2}} at cursor position"
+                    >
+                      {'{{'}{2}{'}}'}  
+                    </button>
+                    
+                    <button 
+                      className="btn-secondary" 
+                      style={{fontSize: 12, padding: '4px 8px', background: '#fff8e1'}} 
+                      onClick={() => {
+                        const components = Array.isArray(formData.components) ? formData.components : [];
+                        const bodyIndex = components.findIndex(c => c.type === 'BODY');
+                        if (bodyIndex !== -1) {
+                          const textarea = window.bodyTextareaRef;
+                          if (textarea) {
+                            const currentText = components[bodyIndex]?.text || '';
+                            const cursorPosition = textarea.selectionStart;
+                            const insertText = '{{3}}';
+                            
+                            const newText = currentText.slice(0, cursorPosition) + insertText + currentText.slice(cursorPosition);
+                            updateComponent(bodyIndex, 'text', newText);
+                            
+                            setTimeout(() => {
+                              textarea.focus();
+                              textarea.setSelectionRange(cursorPosition + insertText.length, cursorPosition + insertText.length);
+                            }, 0);
+                          }
+                        }
+                      }}
+                      title="Insert {{3}} at cursor position"
+                    >
+                      {'{{'}{3}{'}}'}  
+                    </button>
+                  </div>
+                  
+                  {/* Template validation warning - Removed from here */}
+
+                  {/* Variable usage guide */}
+                  <div style={{fontSize: 11, color: '#8d949e', marginTop: 8, padding: 8, background: '#f9fafb', borderRadius: 4}}>
+                    💡 <strong>Tip:</strong> Click where you want to insert a variable in the text above, then click "+ Add Variable" or use the quick buttons ({'{{'}{1}{'}}'}  , {'{{'}{2}{'}}'}  , {'{{'}{3}{'}}'}  ).
                   </div>
                 </div>
+
+                {/* Variable Samples Section */}
+                {getAllVariables().length > 0 && (
+                  <div className="component-box">
+                    <div style={{marginBottom: 16}}>
+                      <label style={{fontWeight: 700, display: 'block', marginBottom: 8}}>Variable samples</label>
+                      <div style={{fontSize: 12, color: '#8d949e', marginBottom: 12}}>
+                        Include samples of all variables in your message to help Meta review your template. 
+                        Remember not to include any customer information to protect your customer's privacy.
+                      </div>
+                    </div>
+                    
+                    {getAllVariables().map(variableNumber => {
+                      const components = Array.isArray(formData.components) ? formData.components : [];
+                      const componentWithVariable = components.find(c => 
+                        c.text && c.text.includes(`{{${variableNumber}}}`)
+                      );
+                      const componentType = componentWithVariable?.type || 'BODY';
+                      
+                      return (
+                        <div key={variableNumber} style={{marginBottom: 16, padding: 12, background: '#f9fafb', borderRadius: 8}}>
+                          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8}}>
+                            <label style={{fontWeight: 600, fontSize: 13}}>
+                              {componentType.charAt(0) + componentType.slice(1).toLowerCase()}
+                            </label>
+                            <span style={{fontSize: 11, color: '#8d949e', background: '#e3f2fd', padding: '2px 6px', borderRadius: 4}}>
+                              {'{{'}{variableNumber}{'}}'}  
+                            </span>
+                          </div>
+                          <div style={{fontSize: 12, color: '#606770', marginBottom: 6}}>
+                            Enter content for {'{{'}{variableNumber}{'}}'}  
+                          </div>
+                          <input
+                            type="text"
+                            className="input-field"
+                            placeholder="Add sample text"
+                            value={formData.sampleValues[variableNumber] || ''}
+                            onChange={(e) => {
+                              updateSampleValue(variableNumber, e.target.value);
+                              
+                              // Clear validation error when user starts typing sample values
+                              if (validationError && validationError.includes('Please provide sample values for all variables')) {
+                                setValidationError(null);
+                              }
+                            }}
+                            style={{
+                              fontSize: 13, 
+                              padding: 8,
+                              border: (!formData.sampleValues[variableNumber] || formData.sampleValues[variableNumber].trim() === '') 
+                                ? '2px solid #ef4444' 
+                                : '1px solid #e5e7eb'
+                            }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {/* Footer */}
                 <div className="component-box">
@@ -1091,6 +1528,8 @@ const TemplateManager = () => {
                     />
                   )}
                 </div>
+
+                {/* Variable Samples Section - Removed from here */}
 
                 {/* Buttons */}
                 <div className="component-box">

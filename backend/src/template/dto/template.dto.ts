@@ -53,6 +53,9 @@ export class CreateTemplateDto {
   @IsOptional()
   @IsBoolean()
   allowCategoryChange?: boolean;
+
+  @IsOptional()
+  sampleValues?: { [key: string]: string };
 }
 
 export class UpdateTemplateDto {
@@ -74,6 +77,9 @@ export class UpdateTemplateDto {
   @ValidateNested({ each: true })
   @Type(() => TemplateComponentDto)
   components?: TemplateComponentDto[];
+
+  @IsOptional()
+  sampleValues?: { [key: string]: string };
 }
 
 export class TemplatePreviewDto {

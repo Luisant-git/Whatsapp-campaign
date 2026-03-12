@@ -945,46 +945,162 @@ const TemplateManager = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal - Ant Design Style */}
       {deleteConfirmModal.open && (
-        <div className="modal-overlay">
-          <div className="modal" style={{maxWidth: 420, minHeight: 'auto', padding: 20, borderRadius: 8}}>
-            <div style={{display: 'flex', alignItems: 'flex-start', gap: 12}}>
-              <div style={{marginTop: 2}}>
-                <Trash2 size={20} color="#fa3e3e" />
+        <div className="modal-overlay" style={{backgroundColor: 'rgba(0, 0, 0, 0.45)'}}>
+          <div className="modal" style={{
+            maxWidth: 416,
+            minHeight: 'auto',
+            padding: 0,
+            borderRadius: 6,
+            boxShadow: '0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05)'
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: '16px 24px',
+              borderBottom: '1px solid #f0f0f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{
+                fontSize: 16,
+                fontWeight: 600,
+                color: 'rgba(0, 0, 0, 0.88)',
+                margin: 0
+              }}>
+                Delete Template
               </div>
-              <div style={{flex: 1}}>
-                <h3 style={{margin: 0, marginBottom: 8, fontSize: 16, color: '#1c1e21'}}>Delete Template</h3>
-                <p style={{color: '#606770', margin: 0, marginBottom: 20, fontSize: 14, lineHeight: 1.4}}>
-                  Are you sure you want to delete <strong>"{deleteConfirmModal.template?.name}"</strong>? This action cannot be undone.
-                </p>
-                <div style={{display: 'flex', gap: 8, justifyContent: 'flex-end'}}>
-                  <button 
-                    className="btn-cancel" 
-                    onClick={() => setDeleteConfirmModal({ open: false, template: null, loading: false })}
-                    disabled={deleteConfirmModal.loading}
-                    style={{minWidth: 70, fontSize: 13, padding: '6px 12px'}}
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    className="btn-submit" 
-                    onClick={confirmDeleteTemplate}
-                    disabled={deleteConfirmModal.loading}
-                    style={{
-                      minWidth: 70, 
-                      fontSize: 13, 
-                      padding: '6px 12px',
-                      background: '#fa3e3e', 
-                      borderColor: '#fa3e3e',
-                      opacity: deleteConfirmModal.loading ? 0.7 : 1,
-                      cursor: deleteConfirmModal.loading ? 'not-allowed' : 'pointer'
-                    }}
-                  >
-                    {deleteConfirmModal.loading ? 'Deleting...' : 'Delete'}
-                  </button>
+              <button
+                onClick={() => setDeleteConfirmModal({ open: false, template: null, loading: false })}
+                disabled={deleteConfirmModal.loading}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: deleteConfirmModal.loading ? 'not-allowed' : 'pointer',
+                  padding: 4,
+                  borderRadius: 4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: deleteConfirmModal.loading ? 0.5 : 1
+                }}
+              >
+                <X size={14} color="rgba(0, 0, 0, 0.45)" />
+              </button>
+            </div>
+            
+            {/* Body */}
+            <div style={{padding: '20px 24px'}}>
+              <div style={{display: 'flex', alignItems: 'flex-start', gap: 12}}>
+                <div style={{marginTop: 1}}>
+                  <svg width="22" height="22" viewBox="0 0 1024 1024" fill="#faad14">
+                    <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm-32 232c0-4.4 3.6-8 8-8h48c4.4 0 8 3.6 8 8v272c0 4.4-3.6 8-8 8h-48c-4.4 0-8-3.6-8-8V296zm32 440a48.01 48.01 0 0 1 0-96 48.01 48.01 0 0 1 0 96z"/>
+                  </svg>
+                </div>
+                <div style={{flex: 1}}>
+                  <div style={{
+                    fontSize: 14,
+                    color: 'rgba(0, 0, 0, 0.88)',
+                    lineHeight: 1.5714,
+                    marginBottom: 0
+                  }}>
+                    Are you sure you want to delete <strong>{deleteConfirmModal.template?.name}</strong>?
+                  </div>
+                  <div style={{
+                    fontSize: 14,
+                    color: 'rgba(0, 0, 0, 0.65)',
+                    lineHeight: 1.5714,
+                    marginTop: 4
+                  }}>
+                    This action cannot be undone.
+                  </div>
                 </div>
               </div>
+            </div>
+            
+            {/* Footer */}
+            <div style={{
+              padding: '10px 16px',
+              textAlign: 'right',
+              borderTop: '1px solid #f0f0f0',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 8
+            }}>
+              <button
+                onClick={() => setDeleteConfirmModal({ open: false, template: null, loading: false })}
+                disabled={deleteConfirmModal.loading}
+                style={{
+                  height: 32,
+                  padding: '4px 15px',
+                  fontSize: 14,
+                  borderRadius: 6,
+                  border: '1px solid #d9d9d9',
+                  background: '#fff',
+                  color: 'rgba(0, 0, 0, 0.88)',
+                  cursor: deleteConfirmModal.loading ? 'not-allowed' : 'pointer',
+                  opacity: deleteConfirmModal.loading ? 0.5 : 1,
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  if (!deleteConfirmModal.loading) {
+                    e.target.style.borderColor = '#4096ff';
+                    e.target.style.color = '#4096ff';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!deleteConfirmModal.loading) {
+                    e.target.style.borderColor = '#d9d9d9';
+                    e.target.style.color = 'rgba(0, 0, 0, 0.88)';
+                  }
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteTemplate}
+                disabled={deleteConfirmModal.loading}
+                style={{
+                  height: 32,
+                  padding: '4px 15px',
+                  fontSize: 14,
+                  borderRadius: 6,
+                  border: '1px solid #ff4d4f',
+                  background: '#ff4d4f',
+                  color: '#fff',
+                  cursor: deleteConfirmModal.loading ? 'not-allowed' : 'pointer',
+                  opacity: deleteConfirmModal.loading ? 0.7 : 1,
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+                onMouseEnter={(e) => {
+                  if (!deleteConfirmModal.loading) {
+                    e.target.style.background = '#ff7875';
+                    e.target.style.borderColor = '#ff7875';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!deleteConfirmModal.loading) {
+                    e.target.style.background = '#ff4d4f';
+                    e.target.style.borderColor = '#ff4d4f';
+                  }
+                }}
+              >
+                {deleteConfirmModal.loading && (
+                  <div style={{
+                    width: 12,
+                    height: 12,
+                    border: '2px solid rgba(255, 255, 255, 0.3)',
+                    borderTop: '2px solid #fff',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }} />
+                )}
+                {deleteConfirmModal.loading ? 'Deleting' : 'Delete'}
+              </button>
             </div>
           </div>
         </div>

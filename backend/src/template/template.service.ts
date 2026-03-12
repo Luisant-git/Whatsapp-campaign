@@ -242,32 +242,191 @@ export class TemplateService {
       // Validate the update data if components are provided
       if (updateTemplateDto.components) {
         this.validateTemplateStructure({
-          name: template.name,
+          name: updateTemplateDto.name || template.name,
           category: updateTemplateDto.category || template.category as TemplateCategory,
-          language: template.language,
+          language: updateTemplateDto.language || template.language,
           components: updateTemplateDto.components
         });
       }
       
-      // Update only in database - Meta templates cannot be directly updated
-      // They need to be deleted and recreated, which is handled separately
-      const updatedTemplate = await tenantClient.messageTemplate.update({
-        where: { id: template.id },
-        data: {
-          category: updateTemplateDto.category || template.category,
-          components: updateTemplateDto.components
-            ? JSON.stringify(updateTemplateDto.components)
-            : template.components,
-          status: TemplateStatus.IN_REVIEW, // Reset to review status
-          updatedAt: new Date(),
-        },
-      });
-
-      return {
-        success: true,
-        template: updatedTemplate,
-        message: 'Template updated locally. To apply changes to WhatsApp, delete this template and create a new one with the updated content.'
-      };
+      // For Meta templates, we need to delete and recreate
+      if (template.templateId && !template.templateId.startsWith('template_')) {
+        console.log('Deleting old template from Meta:', template.templateId);
+        
+        try {
+          // Delete old template from Meta
+          await axios.delete(
+            `https://graph.facebook.com/v21.0/${template.templateId}`,
+            {
+              headers: {
+                Authorization: `Bearer ${masterConfig.accessToken}`,
+              },
+            }
+          );
+          console.log('Old template deleted from Meta successfully');
+        } catch (deleteError) {
+          console.warn('Failed to delete old template from Meta:', deleteError.response?.data);
+          // Continue anyway - we'll create the new template
+        }
+        
+        // Create new template with updated data
+        const createTemplateData = {
+          name: updateTemplateDto.name || template.name,
+          category: updateTemplateDto.category || template.category as TemplateCategory,
+          language: updateTemplateDto.language || template.language,
+          components: updateTemplateDto.components || JSON.parse(template.components || '[]')
+        };
+        
+        console.log('Creating new template on Meta:', JSON.stringify(createTemplateData, null, 2));
+        
+        // Process components for Meta API
+        const processedComponents = await Promise.all(
+          createTemplateData.components.map(async (component: any) => {
+            if (component.type === 'HEADER') {
+              if (component.text && !component.format) {
+                const processedComponent = { ...component, format: 'TEXT' };
+                if (component.text.includes('{{')) {
+                  const variableCount = (component.text.match(/{{\d+}}/g) || []).length;
+                  (processedComponent as any).example = {
+                    header_text: [Array(variableCount).fill(0).map((_, i) => `Sample ${i + 1}`)]
+                  };
+                }
+                return processedComponent;
+              }
+              
+              if (component.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(component.format)) {
+                if (component.example && (component.example as any).header_handle) {
+                  const localPath = (component.example as any).header_handle[0];
+                  const assetHandle = await this.uploadTemplateMedia(masterConfig, localPath);
+                  
+                  return {
+                    type: 'HEADER',
+                    format: component.format,
+                    example: {
+                      header_handle: [assetHandle]
+                    }
+                  };
+                }
+                throw new BadRequestException(`${component.format} header requires a sample media file`);
+              }
+            }
+            
+            if (component.type === 'BODY' && component.text && component.text.includes('{{')) {
+              const variableCount = (component.text.match(/{{\d+}}/g) || []).length;
+              return {
+                ...component,
+                example: {
+                  body_text: [[...Array(variableCount).fill(0).map((_, i) => `Sample ${i + 1}`)]]
+                }
+              };
+            }
+            
+            if (component.type === 'BUTTONS' && component.buttons) {
+              const processedButtons = component.buttons.map((button: any) => {
+                if (button.type === 'URL') {
+                  return {
+                    type: 'URL',
+                    text: button.text || 'Visit Website',
+                    url: button.url || 'https://example.com'
+                  };
+                }
+                if (button.type === 'PHONE_NUMBER') {
+                  const phoneNumber = button.phone_number?.startsWith('+') 
+                    ? button.phone_number 
+                    : `+${button.phone_number}`;
+                  
+                  return {
+                    type: 'PHONE_NUMBER',
+                    text: button.text || 'Call Us',
+                    phone_number: phoneNumber
+                  };
+                }
+                return {
+                  type: 'QUICK_REPLY',
+                  text: button.text || 'Reply'
+                };
+              });
+              return {
+                ...component,
+                buttons: processedButtons
+              };
+            }
+            
+            return component;
+          })
+        );
+        
+        // Reorder components
+        const order = ['HEADER', 'BODY', 'FOOTER', 'BUTTONS'];
+        const sortedComponents = processedComponents.sort(
+          (a, b) => order.indexOf(a.type) - order.indexOf(b.type)
+        );
+        
+        const metaPayload = {
+          name: createTemplateData.name,
+          category: createTemplateData.category.toUpperCase(),
+          language: createTemplateData.language,
+          components: sortedComponents
+        };
+        
+        console.log('Sending to Meta API:', JSON.stringify(metaPayload, null, 2));
+        
+        // Create new template on Meta
+        const response = await axios.post(
+          `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
+          metaPayload,
+          {
+            headers: {
+              Authorization: `Bearer ${masterConfig.accessToken}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        
+        console.log('New template created on Meta:', response.data);
+        
+        // Update database with new template ID
+        const updatedTemplate = await tenantClient.messageTemplate.update({
+          where: { id: template.id },
+          data: {
+            templateId: response.data.id,
+            name: createTemplateData.name,
+            category: createTemplateData.category,
+            language: createTemplateData.language,
+            components: JSON.stringify(createTemplateData.components),
+            status: TemplateStatus.IN_REVIEW,
+            updatedAt: new Date(),
+          },
+        });
+        
+        return {
+          success: true,
+          template: updatedTemplate,
+          message: 'Template updated successfully on WhatsApp and local database',
+          newTemplateId: response.data.id
+        };
+      } else {
+        // Local template only - just update database
+        const updatedTemplate = await tenantClient.messageTemplate.update({
+          where: { id: template.id },
+          data: {
+            name: updateTemplateDto.name || template.name,
+            category: updateTemplateDto.category || template.category,
+            language: updateTemplateDto.language || template.language,
+            components: updateTemplateDto.components
+              ? JSON.stringify(updateTemplateDto.components)
+              : template.components,
+            status: TemplateStatus.IN_REVIEW,
+            updatedAt: new Date(),
+          },
+        });
+        
+        return {
+          success: true,
+          template: updatedTemplate,
+          message: 'Local template updated successfully'
+        };
+      }
     } catch (error) {
       console.error('Template update error:', error.response?.data || error.message);
       throw new BadRequestException(

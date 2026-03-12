@@ -1066,16 +1066,26 @@ const TemplateManager = () => {
                     className="input-field"
                     placeholder="e.g. shipping_update"
                     value={formData.name}
+                    disabled={dialogType === 'edit'} // Disable name editing during updates
                     onChange={(e) => {
-                      setFormData({...formData, name: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_')});
-                      // Clear validation error when user starts typing name
-                      if (validationError && validationError.includes('Template name is required')) {
-                        setValidationError(null);
+                      if (dialogType === 'create') {
+                        setFormData({...formData, name: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_')});
+                        // Clear validation error when user starts typing name
+                        if (validationError && validationError.includes('Template name is required')) {
+                          setValidationError(null);
+                        }
                       }
+                    }}
+                    style={{
+                      backgroundColor: dialogType === 'edit' ? '#f5f5f5' : 'white',
+                      cursor: dialogType === 'edit' ? 'not-allowed' : 'text',
+                      color: dialogType === 'edit' ? '#8d949e' : '#1c1e21'
                     }}
                   />
                   <div style={{fontSize: 12, color: '#8d949e', marginTop: 4}}>
-                    Use only lowercase letters, numbers, and underscores.
+                    {dialogType === 'edit' 
+                      ? 'Template name cannot be changed during updates. A new version will be created automatically.' 
+                      : 'Use only lowercase letters, numbers, and underscores.'}
                   </div>
                 </div>
 

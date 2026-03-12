@@ -10,7 +10,8 @@ export enum TemplateCategory {
 export enum TemplateStatus {
   IN_REVIEW = 'IN_REVIEW',
   REJECTED = 'REJECTED',
-  ACTIVE = 'ACTIVE'
+  ACTIVE = 'ACTIVE',
+  ARCHIVED = 'ARCHIVED'
 }
 
 export class TemplateComponentDto {

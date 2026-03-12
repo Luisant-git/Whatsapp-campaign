@@ -200,8 +200,22 @@ export class TemplateService {
 
   async getTemplates(userId: number, status?: TemplateStatus, category?: TemplateCategory) {
     const { tenantClient } = await this.getTenantWithCredentials(userId);
-    const where: any = {};
-    if (status) where.status = status;
+    const where: any = {
+      status: {
+        not: TemplateStatus.ARCHIVED // Exclude archived templates by default
+      }
+    };
+    
+    if (status) {
+      if (status === TemplateStatus.ARCHIVED) {
+        // If specifically requesting archived templates, show only archived
+        where.status = TemplateStatus.ARCHIVED;
+      } else {
+        // For other statuses, show that status but exclude archived
+        where.status = status;
+      }
+    }
+    
     if (category) where.category = category;
 
     return tenantClient.messageTemplate.findMany({
@@ -258,45 +272,31 @@ export class TemplateService {
       
       // For Meta templates, use delete-and-recreate method (Meta doesn't support direct updates)
       if (template.templateId && !template.templateId.startsWith('template_')) {
-        console.log('Deleting old template from Meta:', {
+        console.log('Meta template update: Will create new versioned template instead of delete-and-recreate');
+        console.log('Original template:', {
           templateId: template.templateId,
           templateName: template.name,
           wabaId: masterConfig.wabaId
         });
         
-        try {
-          // Step 1: Delete old template from Meta using WABA ID + template name
-          await axios.delete(
-            `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
-            {
-              params: {
-                name: template.name,
-              },
-              headers: {
-                Authorization: `Bearer ${masterConfig.accessToken}`,
-              },
-            }
-          );
-          console.log('Old template deleted from Meta successfully');
-        } catch (deleteError) {
-          console.warn('Failed to delete old template from Meta:', deleteError.response?.data);
-          // Continue anyway - we'll create the new template with a modified name
-        }
-        
-        // Step 2: Create new template with updated data
-        // Try to use the original name first, only add version if there's a conflict
+        // Step 1: Create new versioned template (don't delete old one to avoid Meta API conflicts)
         const desiredName = updateTemplateDto.name || template.name;
-        let newTemplateName = desiredName;
+        let newTemplateName;
         let createAttempt = 0;
         let templateCreated = false;
         let response;
         
         const createTemplateData = {
-          name: newTemplateName,
+          name: desiredName,
           category: updateTemplateDto.category || template.category as TemplateCategory,
           language: updateTemplateDto.language || template.language,
           components: updateTemplateDto.components || JSON.parse(template.components || '[]')
         };
+        
+        // Always create a new version to avoid Meta API conflicts
+        const nextVersion = await this.getNextVersionNumber(tenantClient, desiredName, createTemplateData.language);
+        newTemplateName = `${desiredName}_v${nextVersion}`;
+        console.log(`Creating new versioned template: ${newTemplateName}`);
         
         // Process components for Meta API
         const processedComponents = await Promise.all(
@@ -387,86 +387,72 @@ export class TemplateService {
           (a, b) => order.indexOf(a.type) - order.indexOf(b.type)
         );
         
-        // Try creating template with original name first, then with versioned names if conflicts occur
-        while (!templateCreated && createAttempt < 5) {
-          try {
-            const metaPayload = {
-              name: newTemplateName,
-              category: createTemplateData.category.toUpperCase(),
-              language: createTemplateData.language,
-              components: sortedComponents
-            };
-            
-            console.log(`Attempt ${createAttempt + 1}: Creating template with name '${newTemplateName}'`);
-            console.log('Sending to Meta API:', JSON.stringify(metaPayload, null, 2));
-            
-            // Step 3: Create new template on Meta
-            response = await axios.post(
-              `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
-              metaPayload,
-              {
-                headers: {
-                  Authorization: `Bearer ${masterConfig.accessToken}`,
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
-            
-            console.log('Template created successfully on Meta:', response.data);
-            templateCreated = true;
-            
-          } catch (createError) {
-            console.log(`Template creation attempt ${createAttempt + 1} failed:`, createError.response?.data);
-            
-            // If it's a name conflict, try with a versioned name
-            if (createError.response?.data?.error?.message?.includes('already exists') || 
-                createError.response?.data?.error?.message?.includes('duplicate')) {
-              createAttempt++;
-              
-              // Generate next version number by checking existing templates
-              const nextVersion = await this.getNextVersionNumber(tenantClient, desiredName, createTemplateData.language);
-              newTemplateName = `${desiredName}_v${nextVersion}`;
-              console.log(`Name conflict detected, trying with versioned name: ${newTemplateName}`);
-            } else {
-              // If it's not a name conflict, throw the error
-              throw createError;
+        try {
+          const metaPayload = {
+            name: newTemplateName,
+            category: createTemplateData.category.toUpperCase(),
+            language: createTemplateData.language,
+            components: sortedComponents
+          };
+          
+          console.log(`Creating new versioned template: ${newTemplateName}`);
+          console.log('Sending to Meta API:', JSON.stringify(metaPayload, null, 2));
+          
+          // Create new versioned template on Meta
+          response = await axios.post(
+            `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
+            metaPayload,
+            {
+              headers: {
+                Authorization: `Bearer ${masterConfig.accessToken}`,
+                'Content-Type': 'application/json',
+              },
             }
-          }
+          );
+          
+          console.log('New versioned template created successfully on Meta:', response.data);
+          templateCreated = true;
+          
+        } catch (createError) {
+          console.error('Failed to create new versioned template:', createError.response?.data);
+          throw createError;
         }
         
         if (!templateCreated) {
-          throw new BadRequestException('Failed to create template after multiple attempts due to name conflicts');
+          throw new BadRequestException('Failed to create new versioned template');
         }
         
-        // Update database with new template ID and name
-        const updatedTemplate = await tenantClient.messageTemplate.update({
+        // Step 2: Archive old template locally (don't delete from Meta to avoid API conflicts)
+        await tenantClient.messageTemplate.update({
           where: { id: template.id },
           data: {
-            templateId: response.data.id,
-            name: newTemplateName, // Use the actual name that was created (original or versioned)
-            category: createTemplateData.category,
-            language: createTemplateData.language,
-            components: JSON.stringify(createTemplateData.components),
-            sampleValues: updateTemplateDto.sampleValues ? JSON.stringify(updateTemplateDto.sampleValues) : (template.sampleValues || null),
-            status: TemplateStatus.IN_REVIEW, // New template needs approval again
+            status: 'ARCHIVED', // Mark as archived instead of deleting
             updatedAt: new Date(),
           },
         });
         
-        // Create user-friendly message
-        const isOriginalName = newTemplateName === desiredName;
-        const message = isOriginalName 
-          ? `Template updated successfully. Status: PENDING (requires Meta approval)`
-          : `Template updated successfully with name '${newTemplateName}' (original name had conflicts). Status: PENDING (requires Meta approval)`;
+        // Step 3: Create new template record in database
+        const newTemplate = await tenantClient.messageTemplate.create({
+          data: {
+            templateId: response.data.id,
+            name: newTemplateName,
+            category: createTemplateData.category,
+            language: createTemplateData.language,
+            components: JSON.stringify(createTemplateData.components),
+            sampleValues: updateTemplateDto.sampleValues ? JSON.stringify(updateTemplateDto.sampleValues) : null,
+            status: TemplateStatus.IN_REVIEW, // New template needs approval
+            createdAt: new Date(),
+          },
+        });
         
         return {
           success: true,
-          template: updatedTemplate,
-          message,
+          template: newTemplate,
+          message: `Template updated successfully with new version '${newTemplateName}'. Previous version archived. Status: PENDING (requires Meta approval)`,
           newTemplateId: response.data.id,
           newTemplateName: newTemplateName,
-          originalNameUsed: isOriginalName,
-          method: 'delete_and_recreate'
+          method: 'create_new_version',
+          archivedOldTemplate: true
         };
       } else {
         // Local template only - just update database

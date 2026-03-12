@@ -251,13 +251,20 @@ export class TemplateService {
       
       // For Meta templates, use delete-and-recreate method (Meta doesn't support direct updates)
       if (template.templateId && !template.templateId.startsWith('template_')) {
-        console.log('Deleting old template from Meta:', template.templateId);
+        console.log('Deleting old template from Meta:', {
+          templateId: template.templateId,
+          templateName: template.name,
+          wabaId: masterConfig.wabaId
+        });
         
         try {
-          // Step 1: Delete old template from Meta
+          // Step 1: Delete old template from Meta using WABA ID + template name
           await axios.delete(
-            `https://graph.facebook.com/v21.0/${template.templateId}`,
+            `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
             {
+              params: {
+                name: template.name,
+              },
               headers: {
                 Authorization: `Bearer ${masterConfig.accessToken}`,
               },
@@ -270,12 +277,10 @@ export class TemplateService {
         }
         
         // Step 2: Create new template with updated data
-        // Try to use the original name first, only add version if there's a conflict
-        const desiredName = updateTemplateDto.name || template.name;
-        let newTemplateName = desiredName;
-        let createAttempt = 0;
-        let templateCreated = false;
-        let response;
+        // Use original name or updated name, but add timestamp to avoid conflicts
+        const baseName = updateTemplateDto.name || template.name;
+        const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
+        const newTemplateName = `${baseName}_v${timestamp}`;
         
         const createTemplateData = {
           name: newTemplateName,
@@ -283,6 +288,9 @@ export class TemplateService {
           language: updateTemplateDto.language || template.language,
           components: updateTemplateDto.components || JSON.parse(template.components || '[]')
         };
+        
+        console.log('Creating new template on Meta with name:', newTemplateName);
+        console.log('Template data:', JSON.stringify(createTemplateData, null, 2));
         
         // Process components for Meta API
         const processedComponents = await Promise.all(
@@ -367,61 +375,35 @@ export class TemplateService {
           (a, b) => order.indexOf(a.type) - order.indexOf(b.type)
         );
         
-        // Try creating template with original name first, then with versioned names if conflicts occur
-        while (!templateCreated && createAttempt < 3) {
-          try {
-            const metaPayload = {
-              name: newTemplateName,
-              category: createTemplateData.category.toUpperCase(),
-              language: createTemplateData.language,
-              components: sortedComponents
-            };
-            
-            console.log(`Attempt ${createAttempt + 1}: Creating template with name '${newTemplateName}'`);
-            console.log('Sending to Meta API:', JSON.stringify(metaPayload, null, 2));
-            
-            // Step 3: Create new template on Meta
-            response = await axios.post(
-              `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
-              metaPayload,
-              {
-                headers: {
-                  Authorization: `Bearer ${masterConfig.accessToken}`,
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
-            
-            console.log('Template created successfully on Meta:', response.data);
-            templateCreated = true;
-            
-          } catch (createError) {
-            console.log(`Template creation attempt ${createAttempt + 1} failed:`, createError.response?.data);
-            
-            // If it's a name conflict, try with a versioned name
-            if (createError.response?.data?.error?.message?.includes('already exists') || 
-                createError.response?.data?.error?.message?.includes('duplicate')) {
-              createAttempt++;
-              const timestamp = Date.now().toString().slice(-6);
-              newTemplateName = `${desiredName}_v${timestamp}`;
-              console.log(`Name conflict detected, trying with versioned name: ${newTemplateName}`);
-            } else {
-              // If it's not a name conflict, throw the error
-              throw createError;
-            }
-          }
-        }
+        const metaPayload = {
+          name: newTemplateName,
+          category: createTemplateData.category.toUpperCase(),
+          language: createTemplateData.language,
+          components: sortedComponents
+        };
         
-        if (!templateCreated) {
-          throw new BadRequestException('Failed to create template after multiple attempts due to name conflicts');
-        }
+        console.log('Sending to Meta API:', JSON.stringify(metaPayload, null, 2));
+        
+        // Step 3: Create new template on Meta
+        const response = await axios.post(
+          `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
+          metaPayload,
+          {
+            headers: {
+              Authorization: `Bearer ${masterConfig.accessToken}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        
+        console.log('New template created on Meta:', response.data);
         
         // Update database with new template ID and name
         const updatedTemplate = await tenantClient.messageTemplate.update({
           where: { id: template.id },
           data: {
             templateId: response.data.id,
-            name: newTemplateName, // Use the actual name that was created (original or versioned)
+            name: newTemplateName, // Update to the new name
             category: createTemplateData.category,
             language: createTemplateData.language,
             components: JSON.stringify(createTemplateData.components),
@@ -431,19 +413,12 @@ export class TemplateService {
           },
         });
         
-        // Create user-friendly message
-        const isOriginalName = newTemplateName === desiredName;
-        const message = isOriginalName 
-          ? `Template updated successfully. Status: PENDING (requires Meta approval)`
-          : `Template updated successfully with name '${newTemplateName}' (original name had conflicts). Status: PENDING (requires Meta approval)`;
-        
         return {
           success: true,
           template: updatedTemplate,
-          message,
+          message: `Template updated successfully. New template name: ${newTemplateName}. Status: PENDING (requires Meta approval)`,
           newTemplateId: response.data.id,
           newTemplateName: newTemplateName,
-          originalNameUsed: isOriginalName,
           method: 'delete_and_recreate'
         };
       } else {
@@ -508,11 +483,17 @@ export class TemplateService {
     try {
       // Delete from Meta API if it's a real template ID (not a local placeholder)
       if (template.templateId && !template.templateId.startsWith('template_')) {
-        console.log('Deleting from Meta API:', template.templateId);
+        console.log('Deleting from Meta API using WABA ID + template name:', {
+          wabaId: masterConfig.wabaId,
+          templateName: template.name
+        });
         
         const response = await axios.delete(
-          `https://graph.facebook.com/v21.0/${template.templateId}`,
+          `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
           {
+            params: {
+              name: template.name,
+            },
             headers: {
               Authorization: `Bearer ${masterConfig.accessToken}`,
             },
@@ -534,6 +515,14 @@ export class TemplateService {
       });
       
       metaError = error.response?.data?.error?.message || error.message;
+      
+      // Check if template is in use
+      if (metaError?.includes('template in use') || metaError?.includes('Permissions error')) {
+        throw new BadRequestException(
+          `Cannot delete template '${template.name}' because it is currently in use in running campaigns or automation flows. ` +
+          `Please stop all campaigns using this template before deleting it.`
+        );
+      }
       
       // Don't proceed with database deletion if Meta deletion failed
       throw new BadRequestException(

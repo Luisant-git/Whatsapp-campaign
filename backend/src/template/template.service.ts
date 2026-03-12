@@ -1236,6 +1236,8 @@ export class TemplateService {
   }
 
   private async getNextVersionNumber(tenantClient: any, baseName: string, language: string): Promise<number> {
+    console.log(`Finding next version number for template: ${baseName} (language: ${language})`);
+    
     // Find all existing templates with the same base name and language
     const existingTemplates = await tenantClient.messageTemplate.findMany({
       where: {
@@ -1249,28 +1251,36 @@ export class TemplateService {
       }
     });
     
+    console.log('Found existing templates:', existingTemplates.map(t => t.name));
+    
     // Extract version numbers from existing template names
-    const versionNumbers: number[] = [];
+    let maxVersion = 0;
     
     for (const template of existingTemplates) {
       if (template.name === baseName) {
-        // Original template without version
-        versionNumbers.push(0);
+        // Original template without version (consider it as version 0)
+        console.log(`Found original template: ${template.name}`);
+        continue;
       } else if (template.name.startsWith(`${baseName}_v`)) {
-        // Versioned template
-        const versionMatch = template.name.match(new RegExp(`^${baseName}_v(\\d+)$`));
+        // Versioned template - extract version number
+        const versionMatch = template.name.match(new RegExp(`^${this.escapeRegex(baseName)}_v(\\d+)$`));
         if (versionMatch) {
-          versionNumbers.push(parseInt(versionMatch[1]));
+          const version = parseInt(versionMatch[1]);
+          console.log(`Found versioned template: ${template.name} (version: ${version})`);
+          if (version > maxVersion) {
+            maxVersion = version;
+          }
         }
       }
     }
     
-    // Find the next available version number
-    let nextVersion = 1;
-    while (versionNumbers.includes(nextVersion)) {
-      nextVersion++;
-    }
+    const nextVersion = maxVersion + 1;
+    console.log(`Next version number will be: ${nextVersion}`);
     
     return nextVersion;
+  }
+
+  private escapeRegex(string: string): string {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }

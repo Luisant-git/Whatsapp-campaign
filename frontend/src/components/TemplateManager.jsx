@@ -36,6 +36,8 @@ const TemplateManager = () => {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [validationError, setValidationError] = useState(null);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState({ open: false, template: null });
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -206,6 +208,7 @@ const TemplateManager = () => {
     setCurrentTemplate(null);
     setUploadedFile(null);
     setValidationError(null);
+    setShowValidationErrors(false);
     setFormData({
       name: '',
       category: 'MARKETING',
@@ -220,6 +223,7 @@ const TemplateManager = () => {
     setDialogType('edit');
     setCurrentTemplate(template);
     setValidationError(null);
+    setShowValidationErrors(false);
     
     // Parse components if it's a JSON string
     let components;
@@ -347,6 +351,8 @@ const TemplateManager = () => {
   };
 
   const handleSubmitTemplate = async () => {
+    setShowValidationErrors(true);
+    
     const validationError = validateTemplate();
     if (validationError) {
       setValidationError(validationError);
@@ -371,6 +377,7 @@ const TemplateManager = () => {
 
       if (response.ok) {
         setOpenDialog(false);
+        setShowValidationErrors(false);
         fetchTemplates();
       } else {
         const err = await response.json();
@@ -384,18 +391,29 @@ const TemplateManager = () => {
     }
   };
 
-  const handleDeleteTemplate = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this template?')) return;
+  const handleDeleteTemplate = async (template) => {
+    setDeleteConfirmModal({ open: true, template });
+  };
+
+  const confirmDeleteTemplate = async () => {
+    const template = deleteConfirmModal.template;
+    if (!template) return;
+    
     try {
-      const response = await fetch(`${API_BASE_URL}/templates/${id}`, { 
+      const response = await fetch(`${API_BASE_URL}/templates/${template.templateId || template.id}`, { 
         method: 'DELETE',
         credentials: "include"
       });
       if (response.ok) {
         fetchTemplates();
+        setDeleteConfirmModal({ open: false, template: null });
+      } else {
+        const error = await response.json();
+        alert(`Failed to delete template: ${error.message}`);
       }
     } catch (error) {
       console.error('Error deleting template:', error);
+      alert('Network error. Please try again.');
     }
   };
 
@@ -851,7 +869,7 @@ const TemplateManager = () => {
                       <button 
                         className="icon-btn" 
                         title="Delete Template"
-                        onClick={() => handleDeleteTemplate(template.templateId || template.id)}
+                        onClick={() => handleDeleteTemplate(template)}
                         style={{background: 'none', border: 'none', color: '#fa3e3e', cursor: 'pointer'}}
                       >
                         <Trash2 size={18} />
@@ -908,6 +926,40 @@ const TemplateManager = () => {
               <p>Loading template library...</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmModal.open && (
+        <div className="modal-overlay">
+          <div className="modal" style={{maxWidth: 400, padding: 24}}>
+            <div style={{textAlign: 'center'}}>
+              <div style={{marginBottom: 16}}>
+                <Trash2 size={48} color="#fa3e3e" style={{opacity: 0.8}} />
+              </div>
+              <h3 style={{marginBottom: 8, color: '#1c1e21'}}>Delete Template</h3>
+              <p style={{color: '#606770', marginBottom: 24, lineHeight: 1.4}}>
+                Are you sure you want to delete the template <strong>"{deleteConfirmModal.template?.name}"</strong>? 
+                This action cannot be undone and will remove the template from both WhatsApp and your local database.
+              </p>
+              <div style={{display: 'flex', gap: 12, justifyContent: 'center'}}>
+                <button 
+                  className="btn-cancel" 
+                  onClick={() => setDeleteConfirmModal({ open: false, template: null })}
+                  style={{minWidth: 100}}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="btn-submit" 
+                  onClick={confirmDeleteTemplate}
+                  style={{minWidth: 100, background: '#fa3e3e', borderColor: '#fa3e3e'}}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1477,7 +1529,7 @@ const TemplateManager = () => {
                             style={{
                               fontSize: 13, 
                               padding: 8,
-                              border: (!formData.sampleValues[variableNumber] || formData.sampleValues[variableNumber].trim() === '') 
+                              border: (showValidationErrors && (!formData.sampleValues[variableNumber] || formData.sampleValues[variableNumber].trim() === '')) 
                                 ? '2px solid #ef4444' 
                                 : '1px solid #e5e7eb'
                             }}

@@ -57,7 +57,10 @@ export class TemplateService {
             if (component.text.includes('{{')) {
               const variableCount = (component.text.match(/{{\d+}}/g) || []).length;
               (processedComponent as any).example = {
-                header_text: [Array(variableCount).fill(0).map((_, i) => `Sample ${i + 1}`)]
+                header_text: [Array(variableCount).fill(0).map((_, i) => {
+                  const sampleValue = createTemplateDto.sampleValues?.[i + 1];
+                  return sampleValue || `Sample ${i + 1}`;
+                })]
               };
             }
             return processedComponent;
@@ -90,7 +93,10 @@ export class TemplateService {
           return {
             ...component,
             example: {
-              body_text: [[...Array(variableCount).fill(0).map((_, i) => `Sample ${i + 1}`)]]
+              body_text: [[...Array(variableCount).fill(0).map((_, i) => {
+                const sampleValue = createTemplateDto.sampleValues?.[i + 1];
+                return sampleValue || `Sample ${i + 1}`;
+              })]]
             }
           };
         }
@@ -173,6 +179,7 @@ export class TemplateService {
           language: createTemplateDto.language,
           status: TemplateStatus.IN_REVIEW,
           components: JSON.stringify(createTemplateDto.components),
+          sampleValues: createTemplateDto.sampleValues ? JSON.stringify(createTemplateDto.sampleValues) : null,
           createdAt: new Date(),
         },
       });
@@ -277,10 +284,12 @@ export class TemplateService {
         }
         
         // Step 2: Create new template with updated data
-        // Use original name or updated name, but add timestamp to avoid conflicts
-        const baseName = updateTemplateDto.name || template.name;
-        const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
-        const newTemplateName = `${baseName}_v${timestamp}`;
+        // Try to use the original name first, only add version if there's a conflict
+        const desiredName = updateTemplateDto.name || template.name;
+        let newTemplateName = desiredName;
+        let createAttempt = 0;
+        let templateCreated = false;
+        let response;
         
         const createTemplateData = {
           name: newTemplateName,
@@ -289,9 +298,6 @@ export class TemplateService {
           components: updateTemplateDto.components || JSON.parse(template.components || '[]')
         };
         
-        console.log('Creating new template on Meta with name:', newTemplateName);
-        console.log('Template data:', JSON.stringify(createTemplateData, null, 2));
-        
         // Process components for Meta API
         const processedComponents = await Promise.all(
           createTemplateData.components.map(async (component: any) => {
@@ -299,9 +305,12 @@ export class TemplateService {
               if (component.text && !component.format) {
                 const processedComponent = { ...component, format: 'TEXT' };
                 if (component.text.includes('{{')) {
-                  const variableCount = (component.text.match(/{{[a-zA-Z0-9_]+}}/g) || []).length;
+                  const variableCount = (component.text.match(/{{\d+}}/g) || []).length;
                   (processedComponent as any).example = {
-                    header_text: [Array(variableCount).fill(0).map((_, i) => `Sample ${i + 1}`)]
+                    header_text: [Array(variableCount).fill(0).map((_, i) => {
+                      const sampleValue = updateTemplateDto.sampleValues?.[i + 1];
+                      return sampleValue || `Sample ${i + 1}`;
+                    })]
                   };
                 }
                 return processedComponent;
@@ -325,11 +334,14 @@ export class TemplateService {
             }
             
             if (component.type === 'BODY' && component.text && component.text.includes('{{')) {
-              const variableCount = (component.text.match(/{{[a-zA-Z0-9_]+}}/g) || []).length;
+              const variableCount = (component.text.match(/{{\d+}}/g) || []).length;
               return {
                 ...component,
                 example: {
-                  body_text: [[...Array(variableCount).fill(0).map((_, i) => `Sample ${i + 1}`)]]
+                  body_text: [[...Array(variableCount).fill(0).map((_, i) => {
+                    const sampleValue = updateTemplateDto.sampleValues?.[i + 1];
+                    return sampleValue || `Sample ${i + 1}`;
+                  })]]
                 }
               };
             }
@@ -375,35 +387,63 @@ export class TemplateService {
           (a, b) => order.indexOf(a.type) - order.indexOf(b.type)
         );
         
-        const metaPayload = {
-          name: newTemplateName,
-          category: createTemplateData.category.toUpperCase(),
-          language: createTemplateData.language,
-          components: sortedComponents
-        };
-        
-        console.log('Sending to Meta API:', JSON.stringify(metaPayload, null, 2));
-        
-        // Step 3: Create new template on Meta
-        const response = await axios.post(
-          `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
-          metaPayload,
-          {
-            headers: {
-              Authorization: `Bearer ${masterConfig.accessToken}`,
-              'Content-Type': 'application/json',
-            },
+        // Try creating template with original name first, then with versioned names if conflicts occur
+        while (!templateCreated && createAttempt < 5) {
+          try {
+            const metaPayload = {
+              name: newTemplateName,
+              category: createTemplateData.category.toUpperCase(),
+              language: createTemplateData.language,
+              components: sortedComponents
+            };
+            
+            console.log(`Attempt ${createAttempt + 1}: Creating template with name '${newTemplateName}'`);
+            console.log('Sending to Meta API:', JSON.stringify(metaPayload, null, 2));
+            
+            // Step 3: Create new template on Meta
+            response = await axios.post(
+              `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
+              metaPayload,
+              {
+                headers: {
+                  Authorization: `Bearer ${masterConfig.accessToken}`,
+                  'Content-Type': 'application/json',
+                },
+              }
+            );
+            
+            console.log('Template created successfully on Meta:', response.data);
+            templateCreated = true;
+            
+          } catch (createError) {
+            console.log(`Template creation attempt ${createAttempt + 1} failed:`, createError.response?.data);
+            
+            // If it's a name conflict, try with a versioned name
+            if (createError.response?.data?.error?.message?.includes('already exists') || 
+                createError.response?.data?.error?.message?.includes('duplicate')) {
+              createAttempt++;
+              
+              // Generate next version number by checking existing templates
+              const nextVersion = await this.getNextVersionNumber(tenantClient, desiredName, createTemplateData.language);
+              newTemplateName = `${desiredName}_v${nextVersion}`;
+              console.log(`Name conflict detected, trying with versioned name: ${newTemplateName}`);
+            } else {
+              // If it's not a name conflict, throw the error
+              throw createError;
+            }
           }
-        );
+        }
         
-        console.log('New template created on Meta:', response.data);
+        if (!templateCreated) {
+          throw new BadRequestException('Failed to create template after multiple attempts due to name conflicts');
+        }
         
         // Update database with new template ID and name
         const updatedTemplate = await tenantClient.messageTemplate.update({
           where: { id: template.id },
           data: {
             templateId: response.data.id,
-            name: newTemplateName, // Update to the new name
+            name: newTemplateName, // Use the actual name that was created (original or versioned)
             category: createTemplateData.category,
             language: createTemplateData.language,
             components: JSON.stringify(createTemplateData.components),
@@ -413,12 +453,19 @@ export class TemplateService {
           },
         });
         
+        // Create user-friendly message
+        const isOriginalName = newTemplateName === desiredName;
+        const message = isOriginalName 
+          ? `Template updated successfully. Status: PENDING (requires Meta approval)`
+          : `Template updated successfully with name '${newTemplateName}' (original name had conflicts). Status: PENDING (requires Meta approval)`;
+        
         return {
           success: true,
           template: updatedTemplate,
-          message: `Template updated successfully. New template name: ${newTemplateName}. Status: PENDING (requires Meta approval)`,
+          message,
           newTemplateId: response.data.id,
           newTemplateName: newTemplateName,
+          originalNameUsed: isOriginalName,
           method: 'delete_and_recreate'
         };
       } else {
@@ -1186,5 +1233,44 @@ export class TemplateService {
       'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     };
     return mimeTypes[ext || ''] || 'application/octet-stream';
+  }
+
+  private async getNextVersionNumber(tenantClient: any, baseName: string, language: string): Promise<number> {
+    // Find all existing templates with the same base name and language
+    const existingTemplates = await tenantClient.messageTemplate.findMany({
+      where: {
+        name: {
+          startsWith: baseName
+        },
+        language: language
+      },
+      select: {
+        name: true
+      }
+    });
+    
+    // Extract version numbers from existing template names
+    const versionNumbers: number[] = [];
+    
+    for (const template of existingTemplates) {
+      if (template.name === baseName) {
+        // Original template without version
+        versionNumbers.push(0);
+      } else if (template.name.startsWith(`${baseName}_v`)) {
+        // Versioned template
+        const versionMatch = template.name.match(new RegExp(`^${baseName}_v(\\d+)$`));
+        if (versionMatch) {
+          versionNumbers.push(parseInt(versionMatch[1]));
+        }
+      }
+    }
+    
+    // Find the next available version number
+    let nextVersion = 1;
+    while (versionNumbers.includes(nextVersion)) {
+      nextVersion++;
+    }
+    
+    return nextVersion;
   }
 }

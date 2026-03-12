@@ -901,14 +901,28 @@ const TemplateManager = () => {
                   {(formData.headerType === 'IMAGE' || formData.headerType === 'VIDEO' || formData.headerType === 'DOCUMENT') && (
                     <div className="media-sample-container" style={{marginTop: 16}}>
                       <label style={{fontWeight: 700, display: 'block', marginBottom: 4}}>Media sample <span style={{color: '#8d949e', fontWeight: 400}}>• Optional</span></label>
+                      <div style={{fontSize: 12, color: '#8d949e', marginBottom: 8}}>
+                        {formData.headerType === 'IMAGE' && 'Supported: JPG, JPEG, PNG, GIF • Max size: 16MB'}
+                        {formData.headerType === 'VIDEO' && 'Supported: MP4, AVI, MOV • Max size: 16MB'}
+                        {formData.headerType === 'DOCUMENT' && 'Supported: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX • Max size: 16MB'}
+                      </div>
                       <input 
                         type="file" 
                         id="media-upload" 
                         style={{display: 'none'}} 
-                        accept={formData.headerType === 'IMAGE' ? 'image/*' : formData.headerType === 'VIDEO' ? 'video/*' : '*'}
+                        accept={
+                          formData.headerType === 'IMAGE' ? 'image/jpeg,image/jpg,image/png,image/gif' : 
+                          formData.headerType === 'VIDEO' ? 'video/mp4,video/avi,video/mov,video/quicktime' : 
+                          'application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx'
+                        }
                         onChange={(e) => {
                           const file = e.target.files[0];
                           if (file) {
+                            // Validate file size (16MB)
+                            if (file.size > 16 * 1024 * 1024) {
+                              alert('File size exceeds 16MB limit');
+                              return;
+                            }
                             handleFileUpload(file);
                           }
                         }}

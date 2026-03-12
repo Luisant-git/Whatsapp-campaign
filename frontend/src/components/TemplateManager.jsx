@@ -947,14 +947,8 @@ const TemplateManager = () => {
 
       {/* Delete Confirmation Modal - Ant Design Style */}
       {deleteConfirmModal.open && (
-        <div className="modal-overlay delete-modal-overlay" style={{backgroundColor: 'rgba(0, 0, 0, 0.45)'}}>
-          <div className="modal delete-modal" style={{
-            maxWidth: 416,
-            minHeight: 'auto',
-            padding: 0,
-            borderRadius: 6,
-            boxShadow: '0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05)'
-          }}>
+        <div className="delete-modal-overlay">
+          <div className="delete-modal">
             {/* Header */}
             <div style={{
               padding: '16px 24px',

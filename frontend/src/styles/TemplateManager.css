@@ -192,32 +192,44 @@
 }
 
 /* Delete Modal Specific Overrides */
-.template-manager .modal-overlay .modal[style*="width: 320"] {
-  width: 320px !important;
+.delete-modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 2000 !important;
+}
+
+.delete-modal {
+  width: 416px !important;
+  max-width: 416px !important;
+  min-width: 416px !important;
   height: auto !important;
-  max-width: 320px !important;
+  max-height: none !important;
+  min-height: auto !important;
   background: white !important;
-  flex-direction: column !important;
-}
-
-.template-manager .modal-overlay .modal[style*="width: 320"] > div {
-  background: white !important;
-}
-
-/* Ensure delete modal buttons are properly sized */
-.template-manager .modal-overlay .modal[style*="width: 320"] button {
-  box-sizing: border-box !important;
-  font-family: inherit !important;
-}
-
-/* Override any global modal styles for delete modal */
-.template-manager .modal-overlay .modal[style*="width: 320"] {
+  border-radius: 6px !important;
+  box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05) !important;
+  display: block !important;
+  flex-direction: initial !important;
+  overflow: visible !important;
   padding: 0 !important;
   margin: 0 !important;
 }
 
-.template-manager .modal-overlay .modal[style*="width: 320"] * {
+.delete-modal * {
   box-sizing: border-box !important;
+}
+
+.delete-modal > div {
+  background: white !important;
+}
+
+.delete-modal button {
+  box-sizing: border-box !important;
+  font-family: inherit !important;
 }
 
 .modal-header {

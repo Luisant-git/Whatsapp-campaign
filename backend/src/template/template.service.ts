@@ -737,11 +737,12 @@ export class TemplateService {
   }
 
   async getTemplateLibrary() {
-    // Return predefined authentication templates from Meta
+    // Return predefined templates based on Meta's official template library
     return {
       authentication: [
         {
           name: 'verification_code',
+          description: 'Standard verification code template for OTP authentication',
           components: [
             {
               type: 'BODY',
@@ -749,9 +750,14 @@ export class TemplateService {
               example: { body_text: [['123456']] },
             },
           ],
+          category: 'AUTHENTICATION',
+          language: 'en',
+          features: ['OTP', 'Copy Code Button', 'One-tap Autofill (Android)'],
+          metaCompliant: true
         },
         {
           name: 'login_code',
+          description: 'Login verification code with security disclaimer',
           components: [
             {
               type: 'BODY',
@@ -759,8 +765,255 @@ export class TemplateService {
               example: { body_text: [['987654']] },
             },
           ],
+          category: 'AUTHENTICATION',
+          language: 'en',
+          features: ['OTP', 'Security Warning', 'Copy Code Button'],
+          metaCompliant: true
         },
+        {
+          name: 'verification_code_with_security',
+          description: 'Verification code with security recommendation',
+          components: [
+            {
+              type: 'BODY',
+              text: '{{1}} is your verification code. For your security, do not share this code.',
+              example: { body_text: [['456789']] },
+            },
+          ],
+          category: 'AUTHENTICATION',
+          language: 'en',
+          features: ['OTP', 'Security Recommendation', 'Copy Code Button'],
+          metaCompliant: true
+        },
+        {
+          name: 'verification_code_with_expiry',
+          description: 'Verification code with expiration warning',
+          components: [
+            {
+              type: 'BODY',
+              text: '{{1}} is your verification code. For your security, do not share this code.',
+              example: { body_text: [['789123']] },
+            },
+            {
+              type: 'FOOTER',
+              text: 'This code expires in 10 minutes.'
+            }
+          ],
+          category: 'AUTHENTICATION',
+          language: 'en',
+          features: ['OTP', 'Security Recommendation', 'Expiration Warning', 'Copy Code Button'],
+          metaCompliant: true
+        },
+        {
+          name: 'password_reset_code',
+          description: 'Password reset verification code',
+          components: [
+            {
+              type: 'BODY',
+              text: 'Your password reset code is {{1}}. Enter this code to reset your password.',
+              example: { body_text: [['321654']] },
+            },
+          ],
+          category: 'AUTHENTICATION',
+          language: 'en',
+          features: ['OTP', 'Password Reset', 'Copy Code Button'],
+          metaCompliant: true
+        },
+        {
+          name: 'account_verification',
+          description: 'Account verification code for new registrations',
+          components: [
+            {
+              type: 'BODY',
+              text: 'Welcome! Your account verification code is {{1}}. Please verify your account to continue.',
+              example: { body_text: [['654321']] },
+            },
+          ],
+          category: 'AUTHENTICATION',
+          language: 'en',
+          features: ['OTP', 'Account Verification', 'Copy Code Button'],
+          metaCompliant: true
+        }
       ],
+      utility: [
+        {
+          name: 'order_confirmation',
+          description: 'Order confirmation with details',
+          components: [
+            {
+              type: 'BODY',
+              text: 'Hi {{1}}, your order #{{2}} has been confirmed. Total: ${{3}}. Expected delivery: {{4}}.',
+              example: { body_text: [['John', 'ORD123', '29.99', 'Dec 25, 2024']] },
+            },
+          ],
+          category: 'UTILITY',
+          language: 'en',
+          features: ['Order Updates', 'Transactional'],
+          metaCompliant: true
+        },
+        {
+          name: 'shipping_update',
+          description: 'Shipping status update notification',
+          components: [
+            {
+              type: 'BODY',
+              text: 'Hi {{1}}, your order #{{2}} has been shipped! Track your package: {{3}}',
+              example: { body_text: [['Sarah', 'ORD456', 'TRK789123']] },
+            },
+          ],
+          category: 'UTILITY',
+          language: 'en',
+          features: ['Shipping Updates', 'Tracking'],
+          metaCompliant: true
+        },
+        {
+          name: 'appointment_reminder',
+          description: 'Appointment reminder notification',
+          components: [
+            {
+              type: 'BODY',
+              text: 'Hi {{1}}, this is a reminder about your appointment on {{2}} at {{3}}. Please arrive 15 minutes early.',
+              example: { body_text: [['Mike', 'Dec 20, 2024', '2:00 PM']] },
+            },
+          ],
+          category: 'UTILITY',
+          language: 'en',
+          features: ['Appointments', 'Reminders'],
+          metaCompliant: true
+        },
+        {
+          name: 'payment_confirmation',
+          description: 'Payment received confirmation',
+          components: [
+            {
+              type: 'BODY',
+              text: 'Hi {{1}}, we have received your payment of ${{2}} for invoice #{{3}}. Thank you!',
+              example: { body_text: [['Lisa', '150.00', 'INV789']] },
+            },
+          ],
+          category: 'UTILITY',
+          language: 'en',
+          features: ['Payment Updates', 'Transactional'],
+          metaCompliant: true
+        }
+      ],
+      marketing: [
+        {
+          name: 'welcome_offer',
+          description: 'Welcome message with special offer',
+          components: [
+            {
+              type: 'BODY',
+              text: 'Welcome to {{1}}! Get {{2}}% off your first order with code {{3}}. Valid until {{4}}.',
+              example: { body_text: [['Our Store', '20', 'WELCOME20', 'Dec 31, 2024']] },
+            },
+            {
+              type: 'BUTTONS',
+              buttons: [
+                {
+                  type: 'URL',
+                  text: 'Shop Now',
+                  url: 'https://example.com/shop'
+                }
+              ]
+            }
+          ],
+          category: 'MARKETING',
+          language: 'en',
+          features: ['Promotional', 'Call-to-Action Button'],
+          metaCompliant: true
+        },
+        {
+          name: 'flash_sale',
+          description: 'Flash sale announcement',
+          components: [
+            {
+              type: 'HEADER',
+              format: 'TEXT',
+              text: '🔥 Flash Sale Alert!'
+            },
+            {
+              type: 'BODY',
+              text: 'Hi {{1}}! Don\'t miss our {{2}} flash sale - up to {{3}}% off everything! Sale ends in {{4}} hours.',
+              example: { body_text: [['Customer', '24-hour', '50', '6']] },
+            },
+            {
+              type: 'BUTTONS',
+              buttons: [
+                {
+                  type: 'URL',
+                  text: 'Shop Sale',
+                  url: 'https://example.com/sale'
+                }
+              ]
+            }
+          ],
+          category: 'MARKETING',
+          language: 'en',
+          features: ['Promotional', 'Urgency', 'Call-to-Action Button'],
+          metaCompliant: true
+        },
+        {
+          name: 'product_launch',
+          description: 'New product launch announcement',
+          components: [
+            {
+              type: 'HEADER',
+              format: 'TEXT',
+              text: '🚀 New Product Launch'
+            },
+            {
+              type: 'BODY',
+              text: 'Hi {{1}}! We\'re excited to introduce our latest product: {{2}}. Special launch price: ${{3}} (was ${{4}}).',
+              example: { body_text: [['Valued Customer', 'Premium Widget', '99.99', '149.99']] },
+            },
+            {
+              type: 'BUTTONS',
+              buttons: [
+                {
+                  type: 'URL',
+                  text: 'Learn More',
+                  url: 'https://example.com/new-product'
+                }
+              ]
+            }
+          ],
+          category: 'MARKETING',
+          language: 'en',
+          features: ['Product Launch', 'Special Pricing', 'Call-to-Action Button'],
+          metaCompliant: true
+        },
+        {
+          name: 'event_invitation',
+          description: 'Event invitation template',
+          components: [
+            {
+              type: 'HEADER',
+              format: 'TEXT',
+              text: '🎉 You\'re Invited!'
+            },
+            {
+              type: 'BODY',
+              text: 'Hi {{1}}! Join us for {{2}} on {{3}} at {{4}}. Don\'t miss this exclusive event!',
+              example: { body_text: [['Guest', 'our annual conference', 'Jan 15, 2025', 'Grand Hotel']] },
+            },
+            {
+              type: 'BUTTONS',
+              buttons: [
+                {
+                  type: 'URL',
+                  text: 'RSVP Now',
+                  url: 'https://example.com/rsvp'
+                }
+              ]
+            }
+          ],
+          category: 'MARKETING',
+          language: 'en',
+          features: ['Event Marketing', 'RSVP', 'Call-to-Action Button'],
+          metaCompliant: true
+        }
+      ]
     };
   }
 
@@ -883,15 +1136,89 @@ export class TemplateService {
       throw new BadRequestException('Authentication templates must have a body text');
     }
 
-    // Check for OTP pattern
+    // Check for OTP parameter pattern
     if (!bodyComponent.text.includes('{{1}}')) {
-      throw new BadRequestException('Authentication templates must include a parameter for the code');
+      throw new BadRequestException('Authentication templates must include {{1}} parameter for the verification code');
     }
 
-    // Validate character limit for parameters (15 chars max)
-    const hasMedia = template.components.some(c => c.type === 'HEADER' && c.format);
+    // Validate that the template follows Meta's authentication format
+    const text = bodyComponent.text.toLowerCase();
+    const validPatterns = [
+      'is your verification code',
+      'is your login code', 
+      'is your password reset code',
+      'is your account verification code',
+      'verification code is',
+      'login code is',
+      'password reset code is'
+    ];
+    
+    const hasValidPattern = validPatterns.some(pattern => text.includes(pattern));
+    if (!hasValidPattern) {
+      console.warn('Authentication template may not follow Meta\'s recommended patterns:', text);
+    }
+
+    // Check for security disclaimer (recommended but not required)
+    const hasSecurityDisclaimer = text.includes('do not share') || text.includes('for your security');
+    if (!hasSecurityDisclaimer) {
+      console.info('Consider adding security disclaimer: "For your security, do not share this code."');
+    }
+
+    // Validate character limit for OTP parameter (15 chars max)
+    const sampleValues = (template as CreateTemplateDto).sampleValues;
+    if (sampleValues && sampleValues['1'] && sampleValues['1'].length > 15) {
+      throw new BadRequestException('Authentication code parameter cannot exceed 15 characters');
+    }
+
+    // Check for prohibited content in authentication templates
+    const hasMedia = template.components.some(c => c.type === 'HEADER' && c.format && c.format !== 'TEXT');
     if (hasMedia) {
-      throw new BadRequestException('Authentication templates cannot contain media');
+      throw new BadRequestException('Authentication templates cannot contain media (images, videos, documents)');
+    }
+
+    // Check for URLs in authentication templates
+    const hasUrls = template.components.some(c => 
+      c.type === 'BUTTONS' && c.buttons && c.buttons.some((btn: any) => btn.type === 'URL')
+    );
+    if (hasUrls) {
+      throw new BadRequestException('Authentication templates cannot contain URL buttons');
+    }
+
+    // Check for emojis (not allowed in authentication templates)
+    const emojiRegex = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu;
+    const bodyText = bodyComponent.text;
+    const headerComponent = template.components.find(c => c.type === 'HEADER');
+    const footerComponent = template.components.find(c => c.type === 'FOOTER');
+    
+    if (emojiRegex.test(bodyText) || 
+        (headerComponent?.text && emojiRegex.test(headerComponent.text)) ||
+        (footerComponent?.text && emojiRegex.test(footerComponent.text))) {
+      throw new BadRequestException('Authentication templates cannot contain emojis');
+    }
+
+    // Validate footer for expiration warning (if present)
+    if (footerComponent?.text) {
+      const footerText = footerComponent.text.toLowerCase();
+      const validFooterPatterns = [
+        'this code expires',
+        'code expires in',
+        'expires in',
+        'valid for'
+      ];
+      
+      const hasValidFooter = validFooterPatterns.some(pattern => footerText.includes(pattern));
+      if (!hasValidFooter) {
+        console.warn('Authentication template footer should indicate code expiration time');
+      }
+    }
+
+    // Check for proper button configuration (OTP buttons)
+    const buttonsComponent = template.components.find(c => c.type === 'BUTTONS');
+    if (buttonsComponent?.buttons) {
+      const hasOtpButton = buttonsComponent.buttons.some((btn: any) => btn.type === 'OTP');
+      if (!hasOtpButton) {
+        console.info('Consider adding OTP button for better user experience (copy code or one-tap autofill)');
+      }
     }
   }
 

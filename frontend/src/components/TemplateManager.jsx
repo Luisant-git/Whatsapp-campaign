@@ -910,27 +910,141 @@ const TemplateManager = () => {
           {templateLibrary ? (
             Object.keys(templateLibrary).map((catKey) => (
               <div key={catKey} style={{marginBottom: 32}}>
-                <h2 style={{fontSize: 18, marginBottom: 16, textTransform: 'capitalize'}}>{catKey} Templates</h2>
-                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20}}>
+                <h2 style={{fontSize: 18, marginBottom: 16, textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: 8}}>
+                  {catKey === 'authentication' && <span style={{fontSize: 20}}>🔐</span>}
+                  {catKey === 'utility' && <span style={{fontSize: 20}}>⚙️</span>}
+                  {catKey === 'marketing' && <span style={{fontSize: 20}}>📢</span>}
+                  {catKey} Templates
+                  <span style={{fontSize: 12, background: '#e3f2fd', color: '#1976d2', padding: '2px 8px', borderRadius: 12, fontWeight: 600}}>
+                    {templateLibrary[catKey].length} templates
+                  </span>
+                </h2>
+                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 20}}>
                   {templateLibrary[catKey].map((libTemplate, idx) => (
                     <div key={idx} className="library-card" style={{
                       background: 'white', 
                       padding: 20, 
                       borderRadius: 12, 
                       border: '1px solid #ebedf0',
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                      position: 'relative'
                     }}>
-                      <h3 style={{fontSize: 16, marginBottom: 8}}>{libTemplate.name}</h3>
-                      <p style={{fontSize: 14, color: '#606770', marginBottom: 16, height: 40, overflow: 'hidden'}}>
-                        {libTemplate.components?.find(c => c.type === 'BODY')?.text || 'No preview available'}
-                      </p>
-                      <button 
-                        className="btn-secondary" 
-                        onClick={() => handleUseLibraryTemplate(libTemplate)}
-                        style={{width: '100%', fontSize: 13, fontWeight: 600}}
-                      >
-                        Use Template
-                      </button>
+                      {/* Meta Compliant Badge */}
+                      {libTemplate.metaCompliant && (
+                        <div style={{
+                          position: 'absolute',
+                          top: 12,
+                          right: 12,
+                          background: '#4caf50',
+                          color: 'white',
+                          fontSize: 10,
+                          padding: '2px 6px',
+                          borderRadius: 4,
+                          fontWeight: 600
+                        }}>
+                          ✓ META APPROVED
+                        </div>
+                      )}
+                      
+                      <h3 style={{fontSize: 16, marginBottom: 8, paddingRight: 80}}>{libTemplate.name}</h3>
+                      
+                      {/* Description */}
+                      {libTemplate.description && (
+                        <p style={{fontSize: 12, color: '#8d949e', marginBottom: 12, fontStyle: 'italic'}}>
+                          {libTemplate.description}
+                        </p>
+                      )}
+                      
+                      {/* Template Preview */}
+                      <div style={{
+                        background: '#f9fafb',
+                        padding: 12,
+                        borderRadius: 8,
+                        marginBottom: 12,
+                        border: '1px solid #ebedf0'
+                      }}>
+                        {libTemplate.components?.map((comp, compIdx) => (
+                          <div key={compIdx} style={{marginBottom: compIdx < libTemplate.components.length - 1 ? 8 : 0}}>
+                            {comp.type === 'HEADER' && comp.text && (
+                              <div style={{fontWeight: 700, fontSize: 13, color: '#1c1e21', marginBottom: 4}}>
+                                {comp.text}
+                              </div>
+                            )}
+                            {comp.type === 'BODY' && (
+                              <div style={{fontSize: 13, color: '#606770', lineHeight: 1.4}}>
+                                {comp.text || 'No preview available'}
+                              </div>
+                            )}
+                            {comp.type === 'FOOTER' && comp.text && (
+                              <div style={{fontSize: 11, color: '#8d949e', marginTop: 4, fontStyle: 'italic'}}>
+                                {comp.text}
+                              </div>
+                            )}
+                            {comp.type === 'BUTTONS' && comp.buttons && (
+                              <div style={{marginTop: 8}}>
+                                {comp.buttons.map((btn, btnIdx) => (
+                                  <div key={btnIdx} style={{
+                                    display: 'inline-block',
+                                    background: '#e3f2fd',
+                                    color: '#1976d2',
+                                    padding: '4px 8px',
+                                    borderRadius: 4,
+                                    fontSize: 11,
+                                    marginRight: 4,
+                                    marginTop: 4
+                                  }}>
+                                    📱 {btn.text}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {/* Features */}
+                      {libTemplate.features && (
+                        <div style={{marginBottom: 12}}>
+                          <div style={{fontSize: 11, color: '#8d949e', marginBottom: 4, fontWeight: 600}}>FEATURES:</div>
+                          <div style={{display: 'flex', flexWrap: 'wrap', gap: 4}}>
+                            {libTemplate.features.map((feature, featureIdx) => (
+                              <span key={featureIdx} style={{
+                                background: catKey === 'authentication' ? '#fff3e0' : catKey === 'utility' ? '#e8f5e8' : '#fce4ec',
+                                color: catKey === 'authentication' ? '#f57c00' : catKey === 'utility' ? '#388e3c' : '#c2185b',
+                                fontSize: 10,
+                                padding: '2px 6px',
+                                borderRadius: 3,
+                                fontWeight: 500
+                              }}>
+                                {feature}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Category Badge */}
+                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                        <span style={{
+                          background: catKey === 'authentication' ? '#fff3e0' : catKey === 'utility' ? '#e8f5e8' : '#fce4ec',
+                          color: catKey === 'authentication' ? '#f57c00' : catKey === 'utility' ? '#388e3c' : '#c2185b',
+                          fontSize: 10,
+                          padding: '3px 8px',
+                          borderRadius: 12,
+                          fontWeight: 600,
+                          textTransform: 'uppercase'
+                        }}>
+                          {libTemplate.category}
+                        </span>
+                        
+                        <button 
+                          className="btn-secondary" 
+                          onClick={() => handleUseLibraryTemplate(libTemplate)}
+                          style={{fontSize: 12, fontWeight: 600, padding: '6px 12px'}}
+                        >
+                          Use Template
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

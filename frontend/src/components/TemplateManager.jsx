@@ -36,7 +36,7 @@ const TemplateManager = () => {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [validationError, setValidationError] = useState(null);
-  const [deleteConfirmModal, setDeleteConfirmModal] = useState({ open: false, template: null });
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState({ open: false, template: null, loading: false });
   const [showValidationErrors, setShowValidationErrors] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -410,6 +410,8 @@ const TemplateManager = () => {
     const template = deleteConfirmModal.template;
     if (!template) return;
     
+    setDeleteConfirmModal({ ...deleteConfirmModal, loading: true });
+    
     try {
       const response = await fetch(`${API_BASE_URL}/templates/${template.templateId || template.id}`, { 
         method: 'DELETE',
@@ -417,14 +419,16 @@ const TemplateManager = () => {
       });
       if (response.ok) {
         fetchTemplates();
-        setDeleteConfirmModal({ open: false, template: null });
+        setDeleteConfirmModal({ open: false, template: null, loading: false });
       } else {
         const error = await response.json();
         alert(`Failed to delete template: ${error.message}`);
+        setDeleteConfirmModal({ ...deleteConfirmModal, loading: false });
       }
     } catch (error) {
       console.error('Error deleting template:', error);
       alert('Network error. Please try again.');
+      setDeleteConfirmModal({ ...deleteConfirmModal, loading: false });
     }
   };
 
@@ -944,31 +948,42 @@ const TemplateManager = () => {
       {/* Delete Confirmation Modal */}
       {deleteConfirmModal.open && (
         <div className="modal-overlay">
-          <div className="modal" style={{maxWidth: 400, padding: 24}}>
-            <div style={{textAlign: 'center'}}>
-              <div style={{marginBottom: 16}}>
-                <Trash2 size={48} color="#fa3e3e" style={{opacity: 0.8}} />
+          <div className="modal" style={{maxWidth: 420, minHeight: 'auto', padding: 20, borderRadius: 8}}>
+            <div style={{display: 'flex', alignItems: 'flex-start', gap: 12}}>
+              <div style={{marginTop: 2}}>
+                <Trash2 size={20} color="#fa3e3e" />
               </div>
-              <h3 style={{marginBottom: 8, color: '#1c1e21'}}>Delete Template</h3>
-              <p style={{color: '#606770', marginBottom: 24, lineHeight: 1.4}}>
-                Are you sure you want to delete the template <strong>"{deleteConfirmModal.template?.name}"</strong>? 
-                This action cannot be undone and will remove the template from both WhatsApp and your local database.
-              </p>
-              <div style={{display: 'flex', gap: 12, justifyContent: 'center'}}>
-                <button 
-                  className="btn-cancel" 
-                  onClick={() => setDeleteConfirmModal({ open: false, template: null })}
-                  style={{minWidth: 100}}
-                >
-                  Cancel
-                </button>
-                <button 
-                  className="btn-submit" 
-                  onClick={confirmDeleteTemplate}
-                  style={{minWidth: 100, background: '#fa3e3e', borderColor: '#fa3e3e'}}
-                >
-                  Delete
-                </button>
+              <div style={{flex: 1}}>
+                <h3 style={{margin: 0, marginBottom: 8, fontSize: 16, color: '#1c1e21'}}>Delete Template</h3>
+                <p style={{color: '#606770', margin: 0, marginBottom: 20, fontSize: 14, lineHeight: 1.4}}>
+                  Are you sure you want to delete <strong>"{deleteConfirmModal.template?.name}"</strong>? This action cannot be undone.
+                </p>
+                <div style={{display: 'flex', gap: 8, justifyContent: 'flex-end'}}>
+                  <button 
+                    className="btn-cancel" 
+                    onClick={() => setDeleteConfirmModal({ open: false, template: null, loading: false })}
+                    disabled={deleteConfirmModal.loading}
+                    style={{minWidth: 70, fontSize: 13, padding: '6px 12px'}}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    className="btn-submit" 
+                    onClick={confirmDeleteTemplate}
+                    disabled={deleteConfirmModal.loading}
+                    style={{
+                      minWidth: 70, 
+                      fontSize: 13, 
+                      padding: '6px 12px',
+                      background: '#fa3e3e', 
+                      borderColor: '#fa3e3e',
+                      opacity: deleteConfirmModal.loading ? 0.7 : 1,
+                      cursor: deleteConfirmModal.loading ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {deleteConfirmModal.loading ? 'Deleting...' : 'Delete'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

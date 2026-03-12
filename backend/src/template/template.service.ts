@@ -280,23 +280,28 @@ export class TemplateService {
         });
         
         // Step 1: Create new versioned template (don't delete old one to avoid Meta API conflicts)
-        const desiredName = updateTemplateDto.name || template.name;
+        const originalName = template.name;
+        
+        // Remove existing version suffix to get base name
+        const baseName = originalName.replace(/_v\d+$/, '');
+        console.log(`Original name: ${originalName}, Base name: ${baseName}`);
+        
         let newTemplateName;
         let createAttempt = 0;
         let templateCreated = false;
         let response;
         
         const createTemplateData = {
-          name: desiredName,
+          name: baseName, // Use base name for template data
           category: updateTemplateDto.category || template.category as TemplateCategory,
           language: updateTemplateDto.language || template.language,
           components: updateTemplateDto.components || JSON.parse(template.components || '[]')
         };
         
         // Always create a new version to avoid Meta API conflicts
-        const nextVersion = await this.getNextVersionNumber(tenantClient, desiredName, createTemplateData.language);
-        newTemplateName = `${desiredName}_v${nextVersion}`;
-        console.log(`Creating new versioned template: ${newTemplateName}`);
+        const nextVersion = await this.getNextVersionNumber(tenantClient, baseName, createTemplateData.language);
+        newTemplateName = `${baseName}_v${nextVersion}`;
+        console.log(`Creating new versioned template: ${newTemplateName} (base: ${baseName}, version: ${nextVersion})`);
         
         // Process components for Meta API
         const processedComponents = await Promise.all(
@@ -448,9 +453,10 @@ export class TemplateService {
         return {
           success: true,
           template: newTemplate,
-          message: `Template updated successfully with new version '${newTemplateName}'. Previous version archived. Status: PENDING (requires Meta approval)`,
+          message: `Template updated successfully with new version '${newTemplateName}' (base: ${baseName}). Previous version archived. Status: PENDING (requires Meta approval)`,
           newTemplateId: response.data.id,
           newTemplateName: newTemplateName,
+          baseName: baseName,
           method: 'create_new_version',
           archivedOldTemplate: true
         };
@@ -510,6 +516,30 @@ export class TemplateService {
       name: template.name
     });
 
+    // Check if this is a malformed template name (contains multiple _v suffixes)
+    const isMalformedName = template.name.match(/_v\d+_v\d+/);
+    if (isMalformedName) {
+      console.log(`Detected malformed template name: ${template.name}. This is likely from old versioning logic.`);
+      console.log('Skipping Meta API deletion and cleaning up database only.');
+      
+      // Just delete from database - don't try to delete from Meta API
+      try {
+        await tenantClient.messageTemplate.delete({
+          where: { id: template.id },
+        });
+
+        console.log('Malformed template cleaned up from database successfully');
+        
+        return { 
+          success: true,
+          message: 'Malformed template cleaned up from local database (was not found on Meta servers)'
+        };
+      } catch (dbError) {
+        console.error('Database delete error for malformed template:', dbError);
+        throw new BadRequestException('Failed to clean up malformed template from database');
+      }
+    }
+
     let metaDeleteSuccess = false;
     let metaError: string | null = null;
 
@@ -549,23 +579,29 @@ export class TemplateService {
       
       metaError = error.response?.data?.error?.message || error.message;
       
+      // Check if template is not found on Meta (common for malformed names)
+      if (error.response?.data?.error?.error_user_title === 'Message template not found') {
+        console.log('Template not found on Meta servers - likely a database-only template. Proceeding with database cleanup.');
+        metaDeleteSuccess = true; // Allow database deletion
+      }
       // Check if template is in use
-      if (metaError && (metaError.includes('template in use') || metaError.includes('Permissions error'))) {
+      else if (metaError && (metaError.includes('template in use') || metaError.includes('Permissions error'))) {
         throw new BadRequestException(
           `Cannot delete template '${template.name}' because it is currently in use in running campaigns or automation flows. ` +
           `Please stop all campaigns using this template before deleting it.`
         );
       }
-      
-      // Don't proceed with database deletion if Meta deletion failed
-      throw new BadRequestException(
-        `Failed to delete template from WhatsApp: ${metaError}. ` +
-        `Template not deleted to maintain consistency. Please try again or contact support if the issue persists.`
-      );
+      // For other errors, don't proceed with database deletion
+      else {
+        throw new BadRequestException(
+          `Failed to delete template from WhatsApp: ${metaError}. ` +
+          `Template not deleted to maintain consistency. Please try again or contact support if the issue persists.`
+        );
+      }
     }
 
     try {
-      // Only delete from database if Meta deletion was successful
+      // Only delete from database if Meta deletion was successful or template wasn't found on Meta
       await tenantClient.messageTemplate.delete({
         where: { id: template.id },
       });

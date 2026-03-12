@@ -63,15 +63,41 @@ export class SettingsController {
       }
     }),
     fileFilter: (req, file, cb) => {
-      if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|mp4|avi|mov|quicktime)$/)) {
-        return cb(new Error('Only image and video files are allowed!'), false);
+      // Allow images, videos, and documents
+      const allowedMimes = [
+        // Images
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+        'image/gif',
+        // Videos
+        'video/mp4',
+        'video/avi',
+        'video/quicktime',
+        'video/x-msvideo',
+        // Documents
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      ];
+      
+      if (allowedMimes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        return cb(new Error('Only images (JPG, PNG, GIF), videos (MP4, AVI, MOV), and documents (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX) are allowed!'), false);
       }
-      cb(null, true);
     },
     limits: { fileSize: 16 * 1024 * 1024 }
   }))
   @ApiOperation({ summary: 'Upload header media' })
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new Error('No file uploaded');
+    }
     const imageUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
     return { url: imageUrl };
   }

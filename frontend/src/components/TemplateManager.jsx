@@ -333,7 +333,17 @@ const TemplateManager = () => {
   };
 
   const handleFileUpload = async (file) => {
-    if (!file) return;
+    if (!file) {
+      // If no file selected (user cancelled), clear the current upload
+      setUploadedFile(null);
+      // Clear the header component example if it exists
+      const components = Array.isArray(formData.components) ? formData.components : [];
+      const headerIndex = components.findIndex(c => c.type === 'HEADER');
+      if (headerIndex !== -1) {
+        updateComponent(headerIndex, 'example', undefined);
+      }
+      return;
+    }
     
     setUploading(true);
     const uploadFormData = new FormData();
@@ -921,9 +931,13 @@ const TemplateManager = () => {
                             // Validate file size (16MB)
                             if (file.size > 16 * 1024 * 1024) {
                               alert('File size exceeds 16MB limit');
+                              e.target.value = ''; // Reset input
                               return;
                             }
                             handleFileUpload(file);
+                          } else {
+                            // User cancelled file selection
+                            handleFileUpload(null);
                           }
                         }}
                       />
@@ -958,9 +972,46 @@ const TemplateManager = () => {
                         {uploading ? (
                           <div style={{color: '#008069', marginBottom: 8}}>Uploading...</div>
                         ) : uploadedFile ? (
-                          <div>
+                          <div style={{position: 'relative'}}>
                             <div style={{color: '#008069', marginBottom: 8}}>✓ {uploadedFile.filename}</div>
                             <div style={{fontSize: 12, color: '#8d949e'}}>Click to change file</div>
+                            <button 
+                              type="button"
+                              style={{
+                                position: 'absolute',
+                                top: '-20px',
+                                right: '-8px',
+                                width: '20px',
+                                height: '20px',
+                                padding: '0',
+                                background: '#ef4444',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '50%',
+                                fontSize: '14px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                zIndex: 10,
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                              }}
+                              onClick={() => {
+                                setUploadedFile(null);
+                                // Clear the header component example
+                                const components = Array.isArray(formData.components) ? formData.components : [];
+                                const headerIndex = components.findIndex(c => c.type === 'HEADER');
+                                if (headerIndex !== -1) {
+                                  updateComponent(headerIndex, 'example', undefined);
+                                }
+                                // Reset the file input
+                                const fileInput = document.getElementById('media-upload');
+                                if (fileInput) fileInput.value = '';
+                              }}
+                              title="Remove file"
+                            >
+                              ×
+                            </button>
                           </div>
                         ) : (
                           <>
@@ -1004,8 +1055,12 @@ const TemplateManager = () => {
                 <div className="component-box">
                   <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 8}}>
                     <label style={{fontWeight: 700}}>Footer (Optional)</label>
-                    <div style={{display: 'flex', gap: 8, alignItems: 'center'}}>
-                      {(Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'FOOTER') && getCharCount((Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'FOOTER').text, 60)}
+                    <div style={{display: 'flex', alignItems: 'center'}}>
+                      {(Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'FOOTER') && (
+                        <div style={{marginRight: 20, transform: 'translateY(-5px)'}}>
+                          {getCharCount((Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'FOOTER').text, 60)}
+                        </div>
+                      )}
                       {(Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'FOOTER') && (
                         <button onClick={() => {
                           const components = Array.isArray(formData.components) ? formData.components : [];

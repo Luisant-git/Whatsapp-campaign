@@ -162,7 +162,12 @@ const Settings = ({ onNavigate }) => {
 
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      // If no file selected (user cancelled), clear the current upload
+      setUploadedFile(null);
+      handleInputChange('headerImageUrl', '');
+      return;
+    }
 
     setUploading(true);
     try {
@@ -1054,7 +1059,12 @@ const Settings = ({ onNavigate }) => {
                         fontWeight: 'bold',
                         lineHeight: '1'
                       }}
-                      onClick={() => handleInputChange('headerImageUrl', '')}
+                      onClick={() => {
+                        handleInputChange('headerImageUrl', '');
+                        // Reset the file input
+                        const fileInput = document.querySelector('input[type="file"]');
+                        if (fileInput) fileInput.value = '';
+                      }}
                       title="Remove media"
                     >
                       ×

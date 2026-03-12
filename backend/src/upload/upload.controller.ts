@@ -24,7 +24,36 @@ export class UploadController {
         },
       }),
       limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB limit
+        fileSize: 16 * 1024 * 1024, // 16MB limit
+      },
+      fileFilter: (req, file, cb) => {
+        // Allow images, videos, and documents
+        const allowedMimes = [
+          // Images
+          'image/jpeg',
+          'image/jpg',
+          'image/png',
+          'image/gif',
+          // Videos
+          'video/mp4',
+          'video/avi',
+          'video/quicktime',
+          'video/x-msvideo',
+          // Documents
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-powerpoint',
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        ];
+        
+        if (allowedMimes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new Error('Invalid file type. Only images (JPG, PNG, GIF), videos (MP4, AVI, MOV), and documents (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX) are allowed.'), false);
+        }
       },
     }),
   )

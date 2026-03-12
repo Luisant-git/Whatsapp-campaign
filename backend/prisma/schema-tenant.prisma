@@ -420,6 +420,7 @@ model MessageTemplate {
   language           String
   status             String   @default("PENDING")
   components         String
+  sampleValues       String?  @db.Text
   reviewRequested    Boolean  @default(false)
   reviewRequestedAt  DateTime?
   reviewReason       String?

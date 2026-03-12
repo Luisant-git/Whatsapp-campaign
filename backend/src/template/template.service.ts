@@ -400,7 +400,7 @@ export class TemplateService {
             category: createTemplateData.category,
             language: createTemplateData.language,
             components: JSON.stringify(createTemplateData.components),
-            sampleValues: updateTemplateDto.sampleValues ? JSON.stringify(updateTemplateDto.sampleValues) : template.sampleValues,
+            sampleValues: updateTemplateDto.sampleValues ? JSON.stringify(updateTemplateDto.sampleValues) : (template.sampleValues || null),
             status: TemplateStatus.IN_REVIEW,
             updatedAt: new Date(),
           },
@@ -424,7 +424,7 @@ export class TemplateService {
             components: updateTemplateDto.components
               ? JSON.stringify(updateTemplateDto.components)
               : template.components,
-            sampleValues: updateTemplateDto.sampleValues ? JSON.stringify(updateTemplateDto.sampleValues) : template.sampleValues,
+            sampleValues: updateTemplateDto.sampleValues ? JSON.stringify(updateTemplateDto.sampleValues) : (template.sampleValues || null),
             status: TemplateStatus.IN_REVIEW,
             updatedAt: new Date(),
           },

@@ -765,14 +765,117 @@ const Settings = ({ onNavigate }) => {
                     handleInputChange("language", e.target.value)
                   }
                 >
-                  <option value="en">English</option>
-                  <option value="hi">Hindi</option>
-                  <option value="ta">Tamil</option>
-                  <option value="es">Spanish</option>
-                  <option value="fr">French</option>
-                  <option value="de">German</option>
-                  <option value="pt">Portuguese</option>
+                  <option value="af">Afrikaans</option>
+                  <option value="sq">Albanian</option>
                   <option value="ar">Arabic</option>
+                  <option value="ar_EG">Arabic (Egypt)</option>
+                  <option value="ar_AE">Arabic (UAE)</option>
+                  <option value="ar_LB">Arabic (Lebanon)</option>
+                  <option value="ar_MA">Arabic (Morocco)</option>
+                  <option value="ar_QA">Arabic (Qatar)</option>
+                  <option value="az">Azerbaijani</option>
+                  <option value="be_BY">Belarusian</option>
+                  <option value="bn">Bengali</option>
+                  <option value="bn_IN">Bengali (India)</option>
+                  <option value="bg">Bulgarian</option>
+                  <option value="ca">Catalan</option>
+                  <option value="zh_CN">Chinese (China)</option>
+                  <option value="zh_HK">Chinese (Hong Kong)</option>
+                  <option value="zh_TW">Chinese (Taiwan)</option>
+                  <option value="hr">Croatian</option>
+                  <option value="cs">Czech</option>
+                  <option value="da">Danish</option>
+                  <option value="prs_AF">Dari</option>
+                  <option value="nl">Dutch</option>
+                  <option value="nl_BE">Dutch (Belgium)</option>
+                  <option value="en">English</option>
+                  <option value="en_GB">English (UK)</option>
+                  <option value="en_US">English (US)</option>
+                  <option value="en_AE">English (UAE)</option>
+                  <option value="en_AU">English (Australia)</option>
+                  <option value="en_CA">English (Canada)</option>
+                  <option value="en_GH">English (Ghana)</option>
+                  <option value="en_IE">English (Ireland)</option>
+                  <option value="en_IN">English (India)</option>
+                  <option value="en_JM">English (Jamaica)</option>
+                  <option value="en_MY">English (Malaysia)</option>
+                  <option value="en_NZ">English (New Zealand)</option>
+                  <option value="en_QA">English (Qatar)</option>
+                  <option value="en_SG">English (Singapore)</option>
+                  <option value="en_UG">English (Uganda)</option>
+                  <option value="en_ZA">English (South Africa)</option>
+                  <option value="et">Estonian</option>
+                  <option value="fil">Filipino</option>
+                  <option value="fi">Finnish</option>
+                  <option value="fr">French</option>
+                  <option value="fr_BE">French (Belgium)</option>
+                  <option value="fr_CA">French (Canada)</option>
+                  <option value="fr_CH">French (Switzerland)</option>
+                  <option value="fr_CI">French (Ivory Coast)</option>
+                  <option value="fr_MA">French (Morocco)</option>
+                  <option value="ka">Georgian</option>
+                  <option value="de">German</option>
+                  <option value="de_AT">German (Austria)</option>
+                  <option value="de_CH">German (Switzerland)</option>
+                  <option value="el">Greek</option>
+                  <option value="gu">Gujarati</option>
+                  <option value="ha">Hausa</option>
+                  <option value="he">Hebrew</option>
+                  <option value="hi">Hindi</option>
+                  <option value="hu">Hungarian</option>
+                  <option value="id">Indonesian</option>
+                  <option value="ga">Irish</option>
+                  <option value="it">Italian</option>
+                  <option value="ja">Japanese</option>
+                  <option value="kn">Kannada</option>
+                  <option value="kk">Kazakh</option>
+                  <option value="rw_RW">Kinyarwanda</option>
+                  <option value="ko">Korean</option>
+                  <option value="ky_KG">Kyrgyz</option>
+                  <option value="lo">Lao</option>
+                  <option value="lv">Latvian</option>
+                  <option value="lt">Lithuanian</option>
+                  <option value="mk">Macedonian</option>
+                  <option value="ms">Malay</option>
+                  <option value="ml">Malayalam</option>
+                  <option value="mr">Marathi</option>
+                  <option value="nb">Norwegian</option>
+                  <option value="ps_AF">Pashto</option>
+                  <option value="fa">Persian</option>
+                  <option value="pl">Polish</option>
+                  <option value="pt_BR">Portuguese (Brazil)</option>
+                  <option value="pt_PT">Portuguese (Portugal)</option>
+                  <option value="pa">Punjabi</option>
+                  <option value="ro">Romanian</option>
+                  <option value="ru">Russian</option>
+                  <option value="sr">Serbian</option>
+                  <option value="si_LK">Sinhala</option>
+                  <option value="sk">Slovak</option>
+                  <option value="sl">Slovenian</option>
+                  <option value="es">Spanish</option>
+                  <option value="es_AR">Spanish (Argentina)</option>
+                  <option value="es_CL">Spanish (Chile)</option>
+                  <option value="es_CO">Spanish (Colombia)</option>
+                  <option value="es_CR">Spanish (Costa Rica)</option>
+                  <option value="es_DO">Spanish (Dominican Republic)</option>
+                  <option value="es_EC">Spanish (Ecuador)</option>
+                  <option value="es_HN">Spanish (Honduras)</option>
+                  <option value="es_MX">Spanish (Mexico)</option>
+                  <option value="es_PA">Spanish (Panama)</option>
+                  <option value="es_PE">Spanish (Peru)</option>
+                  <option value="es_ES">Spanish (Spain)</option>
+                  <option value="es_UY">Spanish (Uruguay)</option>
+                  <option value="sw">Swahili</option>
+                  <option value="sv">Swedish</option>
+                  <option value="ta">Tamil</option>
+                  <option value="te">Telugu</option>
+                  <option value="th">Thai</option>
+                  <option value="tr">Turkish</option>
+                  <option value="uk">Ukrainian</option>
+                  <option value="ur">Urdu</option>
+                  <option value="uz">Uzbek</option>
+                  <option value="vi">Vietnamese</option>
+                  <option value="zu">Zulu</option>
                 </select>
               </div>
 
@@ -854,17 +957,27 @@ const Settings = ({ onNavigate }) => {
                 <small style={{display: 'block', marginBottom: '8px', color: '#666'}}>
                   Only add if your WhatsApp template has a media header parameter
                 </small>
-                <ul style={{margin: '0 0 8px 0', padding: '0 0 0 20px', fontSize: '12px', color: '#666'}}>
-                  <li>Supported formats: JPG, JPEG, PNG, GIF, MP4, AVI, MOV</li>
-                  <li>Maximum size: 16MB</li>
-                </ul>
+                <div style={{fontSize: '12px', color: '#8d949e', marginBottom: '8px'}}>
+                  <strong>Images:</strong> JPG, JPEG, PNG, GIF • <strong>Videos:</strong> MP4, AVI, MOV • <strong>Documents:</strong> PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX • Max size: 16MB
+                </div>
                 <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
                   <label className="btn-secondary" style={{cursor: 'pointer', margin: 0}}>
                     <Upload size={16} /> {uploading ? 'Uploading...' : 'Upload Media'}
                     <input
                       type="file"
-                      accept="image/*,video/*"
-                      onChange={handleImageUpload}
+                      accept="image/jpeg,image/jpg,image/png,image/gif,video/mp4,video/avi,video/mov,video/quicktime,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          // Validate file size (16MB)
+                          if (file.size > 16 * 1024 * 1024) {
+                            showError('File size exceeds 16MB limit');
+                            e.target.value = '';
+                            return;
+                          }
+                          handleImageUpload(e);
+                        }
+                      }}
                       disabled={uploading}
                       style={{display: 'none'}}
                     />
@@ -888,6 +1001,24 @@ const Settings = ({ onNavigate }) => {
                         }}
                         controls
                       />
+                    ) : currentSettings.headerImageUrl.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i) ? (
+                      <div style={{
+                        width: '100%',
+                        height: '150px',
+                        borderRadius: '4px',
+                        border: '1px solid #ddd',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: '#f8f9fa',
+                        flexDirection: 'column',
+                        gap: '8px'
+                      }}>
+                        <div style={{fontSize: '48px'}}>📄</div>
+                        <div style={{fontSize: '12px', color: '#666', textAlign: 'center', padding: '0 10px'}}>
+                          {currentSettings.headerImageUrl.split('/').pop()}
+                        </div>
+                      </div>
                     ) : (
                       <img 
                         src={currentSettings.headerImageUrl} 

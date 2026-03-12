@@ -1188,8 +1188,43 @@ export class WhatsappService {
         const components: any[] = [];
         
         if (headerImageUrl && headerImageUrl.trim() !== '' && headerImageUrl.startsWith('http')) {
-          const isVideo = /\.(mp4|avi|mov)$/i.test(headerImageUrl);
-          const mediaType = isVideo ? 'video' : 'image';
+          // Get template information to determine the correct header format
+          let headerFormat = 'IMAGE'; // Default fallback
+          
+          try {
+            // Try to get template from database to determine actual header format
+            const template = await this.prisma.messageTemplate.findFirst({
+              where: { name: templateName }
+            });
+            
+            if (template && template.components) {
+              const templateComponents = typeof template.components === 'string' 
+                ? JSON.parse(template.components) 
+                : template.components;
+              
+              const headerComponent = templateComponents.find((c: any) => c.type === 'HEADER');
+              if (headerComponent && headerComponent.format) {
+                headerFormat = headerComponent.format;
+                this.logger.log(`Using template header format: ${headerFormat}`);
+              }
+            }
+          } catch (error) {
+            this.logger.warn('Could not determine template header format, using file extension detection');
+            // Fallback to file extension detection
+            const isVideo = /\.(mp4|avi|mov)$/i.test(headerImageUrl);
+            const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i.test(headerImageUrl);
+            
+            if (isDocument) {
+              headerFormat = 'DOCUMENT';
+            } else if (isVideo) {
+              headerFormat = 'VIDEO';
+            } else {
+              headerFormat = 'IMAGE';
+            }
+          }
+          
+          // Use the determined format
+          const mediaType = headerFormat.toLowerCase();
           
           components.push({
             type: 'header',

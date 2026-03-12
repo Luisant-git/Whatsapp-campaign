@@ -259,7 +259,18 @@ const TemplateManager = () => {
       language: template.language,
       headerType,
       components,
-      sampleValues: template.sampleValues || {}
+      sampleValues: (() => {
+        try {
+          // Parse sampleValues if it's a JSON string
+          if (typeof template.sampleValues === 'string') {
+            return JSON.parse(template.sampleValues);
+          }
+          return template.sampleValues || {};
+        } catch (error) {
+          console.error('Error parsing sampleValues:', error);
+          return {};
+        }
+      })()
     });
     setOpenDialog(true);
   };
@@ -441,6 +452,7 @@ const TemplateManager = () => {
     setCurrentTemplate(null);
     setUploadedFile(null);
     setValidationError(null);
+    setShowValidationErrors(false);
     setFormData({
       name: libTemplate.name,
       category: 'AUTHENTICATION',

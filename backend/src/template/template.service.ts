@@ -236,19 +236,21 @@ export class TemplateService {
     }
 
     try {
-      // Update template via Meta API
-      const response = await axios.post(
-        `https://graph.facebook.com/v21.0/${template.templateId}`,
-        updateTemplateDto,
-        {
-          headers: {
-            Authorization: `Bearer ${masterConfig.accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      // Update in database
+      console.log('Updating template:', template.templateId);
+      console.log('Update data:', JSON.stringify(updateTemplateDto, null, 2));
+      
+      // Validate the update data if components are provided
+      if (updateTemplateDto.components) {
+        this.validateTemplateStructure({
+          name: template.name,
+          category: updateTemplateDto.category || template.category as TemplateCategory,
+          language: template.language,
+          components: updateTemplateDto.components
+        });
+      }
+      
+      // Update only in database - Meta templates cannot be directly updated
+      // They need to be deleted and recreated, which is handled separately
       const updatedTemplate = await tenantClient.messageTemplate.update({
         where: { id: template.id },
         data: {
@@ -256,7 +258,7 @@ export class TemplateService {
           components: updateTemplateDto.components
             ? JSON.stringify(updateTemplateDto.components)
             : template.components,
-          status: TemplateStatus.IN_REVIEW,
+          status: TemplateStatus.IN_REVIEW, // Reset to review status
           updatedAt: new Date(),
         },
       });
@@ -264,10 +266,12 @@ export class TemplateService {
       return {
         success: true,
         template: updatedTemplate,
+        message: 'Template updated locally. To apply changes to WhatsApp, delete this template and create a new one with the updated content.'
       };
     } catch (error) {
+      console.error('Template update error:', error.response?.data || error.message);
       throw new BadRequestException(
-        error.response?.data?.error?.message || 'Failed to update template'
+        error.response?.data?.error?.message || error.message || 'Failed to update template'
       );
     }
   }
@@ -291,10 +295,21 @@ export class TemplateService {
       throw new NotFoundException('Template not found');
     }
 
+    console.log('Deleting template:', {
+      databaseId: template.id,
+      templateId: template.templateId,
+      name: template.name
+    });
+
+    let metaDeleteSuccess = false;
+    let metaError = null;
+
     try {
-      // Delete from Meta API if it's a real template ID
+      // Delete from Meta API if it's a real template ID (not a local placeholder)
       if (template.templateId && !template.templateId.startsWith('template_')) {
-        await axios.delete(
+        console.log('Deleting from Meta API:', template.templateId);
+        
+        const response = await axios.delete(
           `https://graph.facebook.com/v21.0/${template.templateId}`,
           {
             headers: {
@@ -302,24 +317,50 @@ export class TemplateService {
             },
           }
         );
+        
+        console.log('Meta API delete response:', response.data);
+        metaDeleteSuccess = true;
+      } else {
+        console.log('Skipping Meta API delete - local template only');
+        metaDeleteSuccess = true; // Consider it successful for local-only templates
       }
-
-      // Delete from database
-      await tenantClient.messageTemplate.delete({
-        where: { id: template.id },
-      });
-
-      return { success: true };
     } catch (error) {
-      // If Meta API fails, still delete from database
-      await tenantClient.messageTemplate.delete({
-        where: { id: template.id },
+      console.error('Meta API delete error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
       });
       
+      metaError = error.response?.data?.error?.message || error.message;
+      
+      // Don't proceed with database deletion if Meta deletion failed
+      throw new BadRequestException(
+        `Failed to delete template from WhatsApp: ${metaError}. ` +
+        `Template not deleted to maintain consistency. Please try again or contact support if the issue persists.`
+      );
+    }
+
+    try {
+      // Only delete from database if Meta deletion was successful
+      await tenantClient.messageTemplate.delete({
+        where: { id: template.id },
+      });
+
+      console.log('Template deleted successfully from both Meta and database');
+      
       return { 
-        success: true, 
-        warning: 'Template deleted locally but may still exist on Meta servers'
+        success: true,
+        message: 'Template deleted successfully from WhatsApp and local database'
       };
+    } catch (dbError) {
+      console.error('Database delete error after successful Meta delete:', dbError);
+      
+      // This is a critical situation - template deleted from Meta but not from DB
+      throw new BadRequestException(
+        'Template was deleted from WhatsApp but failed to delete from local database. ' +
+        'Please contact support to resolve this inconsistency.'
+      );
     }
   }
 

@@ -57,8 +57,17 @@ export class CreateTemplateDto {
 
 export class UpdateTemplateDto {
   @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  name?: string;
+
+  @IsOptional()
   @IsEnum(TemplateCategory)
   category?: TemplateCategory;
+
+  @IsOptional()
+  @IsString()
+  language?: string;
 
   @IsOptional()
   @IsArray()

@@ -682,18 +682,27 @@ const TemplateManager = () => {
           authText += ' For your security, do not share this code.';
         }
         
-        formattedText = authText;
+        // Replace {{1}} with sample OTP if sample value exists, otherwise keep placeholder
+        const sampleValue = formData.sampleValues[1];
+        if (sampleValue && sampleValue.trim() !== '') {
+          formattedText = authText.replace(/\{\{1\}\}/g, sampleValue);
+        } else {
+          // Show with placeholder styling for {{1}}
+          formattedText = authText.replace(/\{\{1\}\}/g, '<span style="color: #008069; background: #e7f3ef; padding: 0 4px; border-radius: 4px; font-weight: 600;">{{1}}</span>');
+        }
+        
+        return formattedText;
       }
       
+      // For non-auth templates, use the regular body text
+      if (!text) return '';
+      
       // Replace variables with sample values if available, otherwise keep the variable placeholder
-      const variables = getVariablesFromText(formattedText);
+      const variables = getVariablesFromText(text);
       variables.forEach(variable => {
         const sampleValue = formData.sampleValues[variable.number];
         if (sampleValue && sampleValue.trim() !== '') {
           formattedText = formattedText.replace(new RegExp(`\\{\\{${variable.number}\\}\\}`, 'g'), sampleValue);
-        } else if (formData.category === 'AUTHENTICATION') {
-          // For auth templates, show sample OTP
-          formattedText = formattedText.replace(new RegExp(`\\{\\{${variable.number}\\}\\}`, 'g'), '123456');
         }
       });
       
@@ -793,6 +802,7 @@ const TemplateManager = () => {
             )
           )}
 
+          {/* Body - Always show for authentication templates */}
           {(body?.text || formData.category === 'AUTHENTICATION') && (
             <div className="wa-body" dangerouslySetInnerHTML={{ 
               __html: formatBody(formData.category === 'AUTHENTICATION' ? null : body?.text) 
@@ -1426,7 +1436,7 @@ const TemplateManager = () => {
                       <div style={{fontSize: 13, color: '#f57c00', marginBottom: 8, fontWeight: 600}}>📋 CONTENT RESTRICTIONS</div>
                       <div style={{fontSize: 12, color: '#8d949e', lineHeight: 1.4}}>
                         • Content for authentication templates cannot be edited - Meta provides preset text<br/>
-                        • Template will use format: "{{'{{'}}1{{'}}'}} is your verification code"<br/>
+                        • Template will use format: "{'{{'}1{'}}'}  is your verification code"<br/>
                         • No media, URLs, or emojis allowed<br/>
                         • OTP parameter limited to 15 characters
                       </div>
@@ -1440,7 +1450,16 @@ const TemplateManager = () => {
                       </div>
                       
                       <div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
-                        <label style={{display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', padding: 12, border: '1px solid #dddfe2', borderRadius: 8, background: 'white'}}>
+                        <label style={{
+                          display: 'flex', 
+                          alignItems: 'flex-start', 
+                          gap: 8, 
+                          cursor: 'pointer', 
+                          padding: 12, 
+                          border: formData.otpType === 'ZERO_TAP' ? '2px solid #008069' : '1px solid #dddfe2', 
+                          borderRadius: 8, 
+                          background: formData.otpType === 'ZERO_TAP' ? '#e7f3ef' : 'white'
+                        }}>
                           <input 
                             type="radio" 
                             name="otpType" 
@@ -1458,7 +1477,16 @@ const TemplateManager = () => {
                           </div>
                         </label>
                         
-                        <label style={{display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', padding: 12, border: '1px solid #dddfe2', borderRadius: 8, background: 'white'}}>
+                        <label style={{
+                          display: 'flex', 
+                          alignItems: 'flex-start', 
+                          gap: 8, 
+                          cursor: 'pointer', 
+                          padding: 12, 
+                          border: formData.otpType === 'ONE_TAP' ? '2px solid #008069' : '1px solid #dddfe2', 
+                          borderRadius: 8, 
+                          background: formData.otpType === 'ONE_TAP' ? '#e7f3ef' : 'white'
+                        }}>
                           <input 
                             type="radio" 
                             name="otpType" 
@@ -1476,7 +1504,16 @@ const TemplateManager = () => {
                           </div>
                         </label>
                         
-                        <label style={{display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', padding: 12, border: '1px solid #dddfe2', borderRadius: 8, background: 'white'}}>
+                        <label style={{
+                          display: 'flex', 
+                          alignItems: 'flex-start', 
+                          gap: 8, 
+                          cursor: 'pointer', 
+                          padding: 12, 
+                          border: formData.otpType === 'COPY_CODE' ? '2px solid #008069' : '1px solid #dddfe2', 
+                          borderRadius: 8, 
+                          background: formData.otpType === 'COPY_CODE' ? '#e7f3ef' : 'white'
+                        }}>
                           <input 
                             type="radio" 
                             name="otpType" 
@@ -1515,7 +1552,7 @@ const TemplateManager = () => {
                               maxLength={224}
                               style={{fontSize: 13}}
                             />
-                            <div style={{fontSize: 11, color: '#8d949e', marginTop: 2}}>0/224</div>
+                            <div style={{fontSize: 11, color: '#8d949e', marginTop: 2}}>{(formData.packageName || '').length}/224</div>
                           </div>
                           <div style={{flex: 1}}>
                             <label style={{fontSize: 13, fontWeight: 600, marginBottom: 4, display: 'block'}}>App signature hash</label>
@@ -1652,7 +1689,7 @@ const TemplateManager = () => {
 
                 {/* Show regular template content only for non-authentication templates */}
                 {formData.category !== 'AUTHENTICATION' && (
-                  <>
+                  <React.Fragment>
                     {/* Header Section */}
                     <div className="component-box">
                       <div style={{marginBottom: 16}}>
@@ -2280,6 +2317,9 @@ const TemplateManager = () => {
                     </div>
                   )}
                 </div>
+                  </React.Fragment>
+                )}
+
               </div>
 
               {/* Preview Side */}

@@ -249,7 +249,7 @@ export class TemplateService {
         });
       }
       
-      // For Meta templates, we need to delete and recreate
+      // For Meta templates, we need to delete and recreate with a new name to avoid conflicts
       if (template.templateId && !template.templateId.startsWith('template_')) {
         console.log('Deleting old template from Meta:', template.templateId);
         
@@ -266,18 +266,24 @@ export class TemplateService {
           console.log('Old template deleted from Meta successfully');
         } catch (deleteError) {
           console.warn('Failed to delete old template from Meta:', deleteError.response?.data);
-          // Continue anyway - we'll create the new template
+          // Continue anyway - we'll create the new template with a modified name
         }
         
         // Create new template with updated data
+        // Use original name or updated name, but add timestamp to avoid conflicts
+        const baseName = updateTemplateDto.name || template.name;
+        const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
+        const newTemplateName = `${baseName}_v${timestamp}`;
+        
         const createTemplateData = {
-          name: updateTemplateDto.name || template.name,
+          name: newTemplateName,
           category: updateTemplateDto.category || template.category as TemplateCategory,
           language: updateTemplateDto.language || template.language,
           components: updateTemplateDto.components || JSON.parse(template.components || '[]')
         };
         
-        console.log('Creating new template on Meta:', JSON.stringify(createTemplateData, null, 2));
+        console.log('Creating new template on Meta with name:', newTemplateName);
+        console.log('Template data:', JSON.stringify(createTemplateData, null, 2));
         
         // Process components for Meta API
         const processedComponents = await Promise.all(
@@ -363,7 +369,7 @@ export class TemplateService {
         );
         
         const metaPayload = {
-          name: createTemplateData.name,
+          name: newTemplateName,
           category: createTemplateData.category.toUpperCase(),
           language: createTemplateData.language,
           components: sortedComponents
@@ -385,15 +391,16 @@ export class TemplateService {
         
         console.log('New template created on Meta:', response.data);
         
-        // Update database with new template ID
+        // Update database with new template ID and name
         const updatedTemplate = await tenantClient.messageTemplate.update({
           where: { id: template.id },
           data: {
             templateId: response.data.id,
-            name: createTemplateData.name,
+            name: newTemplateName, // Update to the new name
             category: createTemplateData.category,
             language: createTemplateData.language,
             components: JSON.stringify(createTemplateData.components),
+            sampleValues: updateTemplateDto.sampleValues ? JSON.stringify(updateTemplateDto.sampleValues) : template.sampleValues,
             status: TemplateStatus.IN_REVIEW,
             updatedAt: new Date(),
           },
@@ -402,8 +409,9 @@ export class TemplateService {
         return {
           success: true,
           template: updatedTemplate,
-          message: 'Template updated successfully on WhatsApp and local database',
-          newTemplateId: response.data.id
+          message: `Template updated successfully. New template name: ${newTemplateName}`,
+          newTemplateId: response.data.id,
+          newTemplateName: newTemplateName
         };
       } else {
         // Local template only - just update database
@@ -416,6 +424,7 @@ export class TemplateService {
             components: updateTemplateDto.components
               ? JSON.stringify(updateTemplateDto.components)
               : template.components,
+            sampleValues: updateTemplateDto.sampleValues ? JSON.stringify(updateTemplateDto.sampleValues) : template.sampleValues,
             status: TemplateStatus.IN_REVIEW,
             updatedAt: new Date(),
           },

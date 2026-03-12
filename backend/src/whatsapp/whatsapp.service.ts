@@ -1241,21 +1241,31 @@ export class WhatsappService {
         
         // Add body parameters if the template has variables
         try {
-          const template = await this.prisma.messageTemplate.findFirst({
-            where: { name: templateName }
+          // First try to find the actual template name from database
+          const dbTemplate = await this.prisma.messageTemplate.findFirst({
+            where: { 
+              OR: [
+                { name: templateName },
+                { name: { startsWith: templateName + '_v' } } // Handle versioned names
+              ]
+            },
+            orderBy: { updatedAt: 'desc' } // Get the most recent version
           });
           
-          if (template && template.components) {
-            const templateComponents = typeof template.components === 'string' 
-              ? JSON.parse(template.components) 
-              : template.components;
+          const actualTemplateName = dbTemplate?.name || templateName;
+          this.logger.log(`Using actual template name: ${actualTemplateName}`);
+          
+          if (dbTemplate && dbTemplate.components) {
+            const templateComponents = typeof dbTemplate.components === 'string' 
+              ? JSON.parse(dbTemplate.components) 
+              : dbTemplate.components;
             
             const bodyComponent = templateComponents.find((c: any) => c.type === 'BODY');
             if (bodyComponent && bodyComponent.text) {
               // Count variables in body text ({{1}}, {{2}}, etc.)
               const variables = bodyComponent.text.match(/{{\d+}}/g);
               if (variables && variables.length > 0) {
-                this.logger.log(`Template has ${variables.length} body parameters, using contact name: ${contact.name}`);
+                this.logger.log(`Template ${actualTemplateName} has ${variables.length} body parameters, using contact name: ${contact.name}`);
                 
                 // Create parameters array - use contact name for first parameter, repeat if more needed
                 const bodyParameters: Array<{ type: string; text: string }> = [];
@@ -1270,6 +1280,8 @@ export class WhatsappService {
                   type: 'body',
                   parameters: bodyParameters
                 });
+              } else {
+                this.logger.log(`Template ${actualTemplateName} has no body parameters`);
               }
             }
           }
@@ -1277,12 +1289,33 @@ export class WhatsappService {
           this.logger.warn('Could not determine template body parameters:', error.message);
         }
         
+        // Get the actual template name to use for sending
+        let actualTemplateName = templateName;
+        try {
+          const dbTemplate = await this.prisma.messageTemplate.findFirst({
+            where: { 
+              OR: [
+                { name: templateName },
+                { name: { startsWith: templateName + '_v' } }
+              ]
+            },
+            orderBy: { updatedAt: 'desc' }
+          });
+          
+          if (dbTemplate) {
+            actualTemplateName = dbTemplate.name;
+            this.logger.log(`Using actual template name for sending: ${actualTemplateName}`);
+          }
+        } catch (error) {
+          this.logger.warn('Could not find template in database, using original name:', templateName);
+        }
+        
         const requestBody = {
           messaging_product: 'whatsapp',
           to: formattedPhone,
           type: 'template',
           template: {
-            name: templateName,
+            name: actualTemplateName, // Use the actual template name
             language: { code: language },
             ...(components.length > 0 && { components })
           }

@@ -478,7 +478,7 @@ export class TemplateService {
     });
 
     let metaDeleteSuccess = false;
-    let metaError = null;
+    let metaError: string | null = null;
 
     try {
       // Delete from Meta API if it's a real template ID (not a local placeholder)
@@ -517,7 +517,7 @@ export class TemplateService {
       metaError = error.response?.data?.error?.message || error.message;
       
       // Check if template is in use
-      if (metaError?.includes('template in use') || metaError?.includes('Permissions error')) {
+      if (metaError && (metaError.includes('template in use') || metaError.includes('Permissions error'))) {
         throw new BadRequestException(
           `Cannot delete template '${template.name}' because it is currently in use in running campaigns or automation flows. ` +
           `Please stop all campaigns using this template before deleting it.`

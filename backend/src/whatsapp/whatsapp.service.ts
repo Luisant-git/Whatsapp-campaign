@@ -1239,6 +1239,44 @@ export class WhatsappService {
           });
         }
         
+        // Add body parameters if the template has variables
+        try {
+          const template = await this.prisma.messageTemplate.findFirst({
+            where: { name: templateName }
+          });
+          
+          if (template && template.components) {
+            const templateComponents = typeof template.components === 'string' 
+              ? JSON.parse(template.components) 
+              : template.components;
+            
+            const bodyComponent = templateComponents.find((c: any) => c.type === 'BODY');
+            if (bodyComponent && bodyComponent.text) {
+              // Count variables in body text ({{1}}, {{2}}, etc.)
+              const variables = bodyComponent.text.match(/{{\d+}}/g);
+              if (variables && variables.length > 0) {
+                this.logger.log(`Template has ${variables.length} body parameters, using contact name: ${contact.name}`);
+                
+                // Create parameters array - use contact name for first parameter, repeat if more needed
+                const bodyParameters: Array<{ type: string; text: string }> = [];
+                for (let i = 0; i < variables.length; i++) {
+                  bodyParameters.push({
+                    type: 'text',
+                    text: contact.name || 'Customer'
+                  });
+                }
+                
+                components.push({
+                  type: 'body',
+                  parameters: bodyParameters
+                });
+              }
+            }
+          }
+        } catch (error) {
+          this.logger.warn('Could not determine template body parameters:', error.message);
+        }
+        
         const requestBody = {
           messaging_product: 'whatsapp',
           to: formattedPhone,

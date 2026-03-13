@@ -11,6 +11,7 @@ export class TenantMiddleware implements NestMiddleware {
     const origin = req.get('origin') || req.get('referer');
     
     console.log('TenantMiddleware - Session ID:', session?.id);
+    console.log('TenantMiddleware - Cookies:', req.headers.cookie);
     console.log('TenantMiddleware - Session tenantId:', session?.tenantId);
     console.log('TenantMiddleware - Session userId:', session?.userId);
     console.log('TenantMiddleware - Origin:', origin);

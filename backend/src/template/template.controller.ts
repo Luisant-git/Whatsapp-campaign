@@ -41,8 +41,21 @@ export class TemplateController {
   }
 
   @Get('library')
-  async getTemplateLibrary() {
+  async getTemplateLibrary(@Query('category') category?: string) {
+    if (category) {
+      return this.templateService.getTemplatesByCategory(category);
+    }
     return this.templateService.getTemplateLibrary();
+  }
+
+  @Get('template-category/:templateName')
+  async getTemplateCategory(@Param('templateName') templateName: string) {
+    const category = this.templateService.getCurrentTemplateCategory(templateName);
+    return {
+      category: category,
+      categories: ['authentication', 'utility', 'marketing'],
+      languages: ['en', 'es', 'fr', 'de', 'pt', 'it']
+    };
   }
 
   @Post('preview')

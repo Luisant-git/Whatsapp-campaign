@@ -223,7 +223,7 @@
   box-sizing: border-box !important;
 }
 
-.delete-modal > div {
+.delete-modal>div {
   background: white !important;
 }
 
@@ -311,29 +311,29 @@
 /* WhatsApp Message Bubble */
 .wa-bubble-wrapper {
   max-width: 85%;
-  align-self: flex-end;
+  align-self: flex-start;
   display: flex;
   flex-direction: column;
 }
 
 .wa-bubble {
-  background: #dcf8c6;
-  border-radius: 8px 0 8px 8px;
+  background: white;
+  border-radius: 0 8px 8px 8px;
   padding: 8px 12px;
   position: relative;
   box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
   margin-bottom: 2px;
 }
 
-/* Bubble Tail */
+/* Bubble Tail (Received Style) */
 .wa-bubble::after {
   content: "";
   position: absolute;
   top: 0;
-  right: -8px;
+  left: -8px;
   width: 0;
   height: 0;
-  border-left: 10px solid #dcf8c6;
+  border-right: 10px solid white;
   border-bottom: 10px solid transparent;
 }
 
@@ -374,17 +374,23 @@
 
 .wa-button {
   background: white;
-  border-radius: 8px;
-  padding: 8px;
-  color: #008069;
-  font-size: 13px;
+  border-top: 1px solid #f0f2f5;
+  padding: 12px;
+  color: #00a5f4;
+  font-size: 14px;
   font-weight: 500;
   text-align: center;
-  box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   cursor: default;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.wa-button:first-child {
+  border-top: 1px solid #f0f2f5;
 }
 
 /* Form Elements */
@@ -547,6 +553,7 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -604,4 +611,187 @@
   align-items: center;
   justify-content: center;
   color: white;
+}
+
+/* Library Section Refinement */
+.library-section {
+  padding: 10px 0;
+}
+
+.library-category-group {
+  margin-bottom: 56px;
+}
+
+.category-header-main h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1c1e21;
+  margin: 0;
+}
+
+.category-header-main p {
+  font-size: 15px;
+  color: #606770;
+  margin: 4px 0 0 0;
+}
+
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+
+/* Standard Library Card */
+.library-card-premium {
+  background-color: #e5ddd5;
+  background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+  background-repeat: repeat;
+  background-size: 300px;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #dddfe2;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  position: relative;
+  transition: border-color 0.2s;
+}
+
+.library-card-premium:hover {
+  border-color: #008069;
+}
+
+
+.lib-template-details {
+  margin-bottom: 16px;
+}
+
+.lib-template-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1c1e21;
+  margin: 0 0 4px 0;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.lib-template-desc {
+  font-size: 14px;
+  color: #4b4f56;
+  margin: 0;
+  line-height: 1.4;
+  height: 40px;
+  overflow: hidden;
+}
+
+/* The WhatsApp Bubble Preview */
+.lib-wa-bubble {
+  background: white;
+  border-radius: 0 12px 12px 12px;
+  padding: 16px;
+  position: relative;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+/* Bubble Tail (WhatsApp Native Style) */
+.lib-wa-bubble::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -10px;
+  width: 12px;
+  height: 18px;
+  background: white;
+  clip-path: polygon(100% 0, 0 0, 100% 100%);
+}
+
+.lib-wa-header-text {
+  font-weight: 700;
+  font-size: 15px;
+  color: #1c1e21;
+  margin-bottom: 10px;
+}
+
+.lib-wa-body-text {
+  font-size: 14.5px;
+  color: #303030;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.lib-variable {
+  color: #25d366;
+  font-weight: 600;
+}
+
+.lib-wa-footer-meta {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.lib-wa-timestamp {
+  font-size: 11px;
+  color: #8d949e;
+}
+
+/* Internal Call to Action button (simulated) */
+.lib-wa-cta {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f2f5;
+  color: #00a5f4;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* External metadata (Features & Use Btn) */
+.lib-bottom-actions {
+  margin-top: auto;
+}
+
+
+.lib-card-footer-final {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.lib-cat-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #8d949e;
+  text-transform: capitalize;
+}
+
+.btn-use-lib-primary {
+  background: #008069;
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px rgba(0, 128, 105, 0.25);
+}
+
+.btn-use-lib-primary:hover {
+  background: #006654;
+  box-shadow: 0 6px 12px rgba(0, 128, 105, 0.35);
+  transform: scale(1.05);
+}
+
+.library-loading-state {
+  padding: 100px 0;
+  text-align: center;
+  color: #606770;
 }

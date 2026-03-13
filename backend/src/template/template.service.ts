@@ -16,21 +16,21 @@ export class TemplateService {
 
     try {
       console.log('Received template data:', JSON.stringify(createTemplateDto, null, 2));
-      
+
       // Validate that wabaId exists
       if (!masterConfig.wabaId) {
         throw new BadRequestException('WhatsApp Business Account ID (wabaId) is not configured. Please update your Master Config.');
       }
-      
+
       // Validate template content based on category
       this.validateTemplateByCategory(createTemplateDto);
-      
+
       // Validate template structure for Meta API requirements
       this.validateTemplateStructure(createTemplateDto);
 
       // Ensure template name is valid (lowercase, underscores only)
       const baseName = createTemplateDto.name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
-      
+
       // Check for existing template with same name and language
       const existingTemplate = await tenantClient.messageTemplate.findFirst({
         where: {
@@ -38,107 +38,107 @@ export class TemplateService {
           language: createTemplateDto.language
         }
       });
-      
+
       if (existingTemplate) {
         throw new BadRequestException(`Template with name '${baseName}' already exists in language '${createTemplateDto.language}'. Please use a different name.`);
       }
-      
+
       const validName = baseName;
-      
+
       // Process components to ensure proper format and add examples
       const processedComponents = await Promise.all(
         createTemplateDto.components.map(async (component) => {
-        console.log('Processing component:', JSON.stringify(component, null, 2));
-        
-        if (component.type === 'HEADER') {
-          if (component.text && !component.format) {
-            const processedComponent = { ...component, format: 'TEXT' };
-            // Add example if header has variables
-            if (component.text.includes('{{')) {
-              const variableCount = (component.text.match(/{{\d+}}/g) || []).length;
-              (processedComponent as any).example = {
-                header_text: [Array(variableCount).fill(0).map((_, i) => {
+          console.log('Processing component:', JSON.stringify(component, null, 2));
+
+          if (component.type === 'HEADER') {
+            if (component.text && !component.format) {
+              const processedComponent = { ...component, format: 'TEXT' };
+              // Add example if header has variables
+              if (component.text.includes('{{')) {
+                const variableCount = (component.text.match(/{{\d+}}/g) || []).length;
+                (processedComponent as any).example = {
+                  header_text: [Array(variableCount).fill(0).map((_, i) => {
+                    const sampleValue = createTemplateDto.sampleValues?.[i + 1];
+                    return sampleValue || `Sample ${i + 1}`;
+                  })]
+                };
+              }
+              return processedComponent;
+            }
+
+            // Handle media headers (IMAGE, VIDEO, DOCUMENT)  
+            if (component.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(component.format)) {
+              // For media headers, we need to upload and get asset handle
+              if (component.example && (component.example as any).header_handle) {
+                const localPath = (component.example as any).header_handle[0];
+
+                // Upload media to Meta and get the asset handle for template creation
+                const assetHandle = await this.uploadTemplateMedia(masterConfig, localPath);
+
+                return {
+                  type: 'HEADER',
+                  format: component.format,
+                  example: {
+                    header_handle: [assetHandle]
+                  }
+                };
+              }
+
+              throw new BadRequestException(`${component.format} header requires a sample media file`);
+            }
+          }
+
+          if (component.type === 'BODY' && component.text && component.text.includes('{{')) {
+            const variableCount = (component.text.match(/{{\d+}}/g) || []).length;
+            return {
+              ...component,
+              example: {
+                body_text: [[...Array(variableCount).fill(0).map((_, i) => {
                   const sampleValue = createTemplateDto.sampleValues?.[i + 1];
                   return sampleValue || `Sample ${i + 1}`;
-                })]
-              };
-            }
-            return processedComponent;
-          }
-          
-          // Handle media headers (IMAGE, VIDEO, DOCUMENT)  
-          if (component.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(component.format)) {
-            // For media headers, we need to upload and get asset handle
-            if (component.example && (component.example as any).header_handle) {
-              const localPath = (component.example as any).header_handle[0];
-              
-              // Upload media to Meta and get the asset handle for template creation
-              const assetHandle = await this.uploadTemplateMedia(masterConfig, localPath);
-              
-              return {
-                type: 'HEADER',
-                format: component.format,
-                example: {
-                  header_handle: [assetHandle]
-                }
-              };
-            }
-            
-            throw new BadRequestException(`${component.format} header requires a sample media file`);
-          }
-        }
-        
-        if (component.type === 'BODY' && component.text && component.text.includes('{{')) {
-          const variableCount = (component.text.match(/{{\d+}}/g) || []).length;
-          return {
-            ...component,
-            example: {
-              body_text: [[...Array(variableCount).fill(0).map((_, i) => {
-                const sampleValue = createTemplateDto.sampleValues?.[i + 1];
-                return sampleValue || `Sample ${i + 1}`;
-              })]]
-            }
-          };
-        }
-        
-        if (component.type === 'BUTTONS' && component.buttons) {
-          const processedButtons = component.buttons.map(button => {
-            if (button.type === 'URL') {
-              return {
-                type: 'URL',
-                text: button.text || 'Visit Website',
-                url: button.url || 'https://example.com'
-              };
-            }
-            if (button.type === 'PHONE_NUMBER') {
-              // Validate phone number format
-              if (!button.phone_number) {
-                throw new BadRequestException('Phone number is required for PHONE_NUMBER button type');
+                })]]
               }
-              // Ensure phone number starts with + and country code
-              const phoneNumber = button.phone_number.startsWith('+') 
-                ? button.phone_number 
-                : `+${button.phone_number}`;
-              
-              return {
-                type: 'PHONE_NUMBER',
-                text: button.text || 'Call Us',
-                phone_number: phoneNumber
-              };
-            }
-            return {
-              type: 'QUICK_REPLY',
-              text: button.text || 'Reply'
             };
-          });
-          return {
-            ...component,
-            buttons: processedButtons
-          };
-        }
-        
-        return component;
-      })
+          }
+
+          if (component.type === 'BUTTONS' && component.buttons) {
+            const processedButtons = component.buttons.map(button => {
+              if (button.type === 'URL') {
+                return {
+                  type: 'URL',
+                  text: button.text || 'Visit Website',
+                  url: button.url || 'https://example.com'
+                };
+              }
+              if (button.type === 'PHONE_NUMBER') {
+                // Validate phone number format
+                if (!button.phone_number) {
+                  throw new BadRequestException('Phone number is required for PHONE_NUMBER button type');
+                }
+                // Ensure phone number starts with + and country code
+                const phoneNumber = button.phone_number.startsWith('+')
+                  ? button.phone_number
+                  : `+${button.phone_number}`;
+
+                return {
+                  type: 'PHONE_NUMBER',
+                  text: button.text || 'Call Us',
+                  phone_number: phoneNumber
+                };
+              }
+              return {
+                type: 'QUICK_REPLY',
+                text: button.text || 'Reply'
+              };
+            });
+            return {
+              ...component,
+              buttons: processedButtons
+            };
+          }
+
+          return component;
+        })
       );
 
       // Reorder components: HEADER, BODY, FOOTER, BUTTONS (Meta requires this order)
@@ -205,7 +205,7 @@ export class TemplateService {
         not: TemplateStatus.ARCHIVED // Exclude archived templates by default
       }
     };
-    
+
     if (status) {
       if (status === TemplateStatus.ARCHIVED) {
         // If specifically requesting archived templates, show only archived
@@ -215,7 +215,7 @@ export class TemplateService {
         where.status = status;
       }
     }
-    
+
     if (category) where.category = category;
 
     return tenantClient.messageTemplate.findMany({
@@ -239,12 +239,12 @@ export class TemplateService {
 
   async updateTemplate(userId: number, templateId: string, updateTemplateDto: UpdateTemplateDto) {
     const { tenantClient, masterConfig } = await this.getTenantWithCredentials(userId);
-    
+
     // Try to find template by templateId first, then by database id
     let template = await tenantClient.messageTemplate.findFirst({
       where: { templateId },
     });
-    
+
     if (!template && !isNaN(Number(templateId))) {
       // Try finding by database id only if templateId is a valid number
       template = await tenantClient.messageTemplate.findFirst({
@@ -259,7 +259,7 @@ export class TemplateService {
     try {
       console.log('Updating template:', template.templateId);
       console.log('Update data:', JSON.stringify(updateTemplateDto, null, 2));
-      
+
       // Validate the update data if components are provided
       if (updateTemplateDto.components) {
         this.validateTemplateStructure({
@@ -269,7 +269,7 @@ export class TemplateService {
           components: updateTemplateDto.components
         });
       }
-      
+
       // For Meta templates, use delete-and-recreate method (Meta doesn't support direct updates)
       if (template.templateId && !template.templateId.startsWith('template_')) {
         console.log('Meta template update: Will create new versioned template instead of delete-and-recreate');
@@ -278,31 +278,31 @@ export class TemplateService {
           templateName: template.name,
           wabaId: masterConfig.wabaId
         });
-        
+
         // Step 1: Create new versioned template (don't delete old one to avoid Meta API conflicts)
         const originalName = template.name;
-        
+
         // Remove existing version suffix to get base name
         const baseName = originalName.replace(/_v\d+$/, '');
         console.log(`Original name: ${originalName}, Base name: ${baseName}`);
-        
+
         let newTemplateName;
         let createAttempt = 0;
         let templateCreated = false;
         let response;
-        
+
         const createTemplateData = {
           name: baseName, // Use base name for template data
           category: updateTemplateDto.category || template.category as TemplateCategory,
           language: updateTemplateDto.language || template.language,
           components: updateTemplateDto.components || JSON.parse(template.components || '[]')
         };
-        
+
         // Always create a new version to avoid Meta API conflicts
         const nextVersion = await this.getNextVersionNumber(tenantClient, baseName, createTemplateData.language);
         newTemplateName = `${baseName}_v${nextVersion}`;
         console.log(`Creating new versioned template: ${newTemplateName} (base: ${baseName}, version: ${nextVersion})`);
-        
+
         // Process components for Meta API
         const processedComponents = await Promise.all(
           createTemplateData.components.map(async (component: any) => {
@@ -320,12 +320,12 @@ export class TemplateService {
                 }
                 return processedComponent;
               }
-              
+
               if (component.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(component.format)) {
                 if (component.example && (component.example as any).header_handle) {
                   const localPath = (component.example as any).header_handle[0];
                   const assetHandle = await this.uploadTemplateMedia(masterConfig, localPath);
-                  
+
                   return {
                     type: 'HEADER',
                     format: component.format,
@@ -337,7 +337,7 @@ export class TemplateService {
                 throw new BadRequestException(`${component.format} header requires a sample media file`);
               }
             }
-            
+
             if (component.type === 'BODY' && component.text && component.text.includes('{{')) {
               const variableCount = (component.text.match(/{{\d+}}/g) || []).length;
               return {
@@ -350,7 +350,7 @@ export class TemplateService {
                 }
               };
             }
-            
+
             if (component.type === 'BUTTONS' && component.buttons) {
               const processedButtons = component.buttons.map((button: any) => {
                 if (button.type === 'URL') {
@@ -361,10 +361,10 @@ export class TemplateService {
                   };
                 }
                 if (button.type === 'PHONE_NUMBER') {
-                  const phoneNumber = button.phone_number?.startsWith('+') 
-                    ? button.phone_number 
+                  const phoneNumber = button.phone_number?.startsWith('+')
+                    ? button.phone_number
                     : `+${button.phone_number}`;
-                  
+
                   return {
                     type: 'PHONE_NUMBER',
                     text: button.text || 'Call Us',
@@ -381,17 +381,17 @@ export class TemplateService {
                 buttons: processedButtons
               };
             }
-            
+
             return component;
           })
         );
-        
+
         // Reorder components
         const order = ['HEADER', 'BODY', 'FOOTER', 'BUTTONS'];
         const sortedComponents = processedComponents.sort(
           (a, b) => order.indexOf(a.type) - order.indexOf(b.type)
         );
-        
+
         try {
           const metaPayload = {
             name: newTemplateName,
@@ -399,10 +399,10 @@ export class TemplateService {
             language: createTemplateData.language,
             components: sortedComponents
           };
-          
+
           console.log(`Creating new versioned template: ${newTemplateName}`);
           console.log('Sending to Meta API:', JSON.stringify(metaPayload, null, 2));
-          
+
           // Create new versioned template on Meta
           response = await axios.post(
             `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
@@ -414,19 +414,19 @@ export class TemplateService {
               },
             }
           );
-          
+
           console.log('New versioned template created successfully on Meta:', response.data);
           templateCreated = true;
-          
+
         } catch (createError) {
           console.error('Failed to create new versioned template:', createError.response?.data);
           throw createError;
         }
-        
+
         if (!templateCreated) {
           throw new BadRequestException('Failed to create new versioned template');
         }
-        
+
         // Step 2: Archive old template locally (don't delete from Meta to avoid API conflicts)
         await tenantClient.messageTemplate.update({
           where: { id: template.id },
@@ -435,7 +435,7 @@ export class TemplateService {
             updatedAt: new Date(),
           },
         });
-        
+
         // Step 3: Create new template record in database
         const newTemplate = await tenantClient.messageTemplate.create({
           data: {
@@ -449,7 +449,7 @@ export class TemplateService {
             createdAt: new Date(),
           },
         });
-        
+
         return {
           success: true,
           template: newTemplate,
@@ -476,7 +476,7 @@ export class TemplateService {
             updatedAt: new Date(),
           },
         });
-        
+
         return {
           success: true,
           template: updatedTemplate,
@@ -493,12 +493,12 @@ export class TemplateService {
 
   async deleteTemplate(userId: number, templateId: string) {
     const { tenantClient, masterConfig } = await this.getTenantWithCredentials(userId);
-    
+
     // Try to find template by templateId first, then by database id
     let template = await tenantClient.messageTemplate.findFirst({
       where: { templateId },
     });
-    
+
     if (!template && !isNaN(Number(templateId))) {
       // Try finding by database id only if templateId is a valid number
       template = await tenantClient.messageTemplate.findFirst({
@@ -521,7 +521,7 @@ export class TemplateService {
     if (isMalformedName) {
       console.log(`Detected malformed template name: ${template.name}. This is likely from old versioning logic.`);
       console.log('Skipping Meta API deletion and cleaning up database only.');
-      
+
       // Just delete from database - don't try to delete from Meta API
       try {
         await tenantClient.messageTemplate.delete({
@@ -529,8 +529,8 @@ export class TemplateService {
         });
 
         console.log('Malformed template cleaned up from database successfully');
-        
-        return { 
+
+        return {
           success: true,
           message: 'Malformed template cleaned up from local database (was not found on Meta servers)'
         };
@@ -550,7 +550,7 @@ export class TemplateService {
           wabaId: masterConfig.wabaId,
           templateName: template.name
         });
-        
+
         const response = await axios.delete(
           `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
           {
@@ -562,7 +562,7 @@ export class TemplateService {
             },
           }
         );
-        
+
         console.log('Meta API delete response:', response.data);
         metaDeleteSuccess = true;
       } else {
@@ -576,9 +576,9 @@ export class TemplateService {
         data: error.response?.data,
         message: error.message
       });
-      
+
       metaError = error.response?.data?.error?.message || error.message;
-      
+
       // Check if template is not found on Meta (common for malformed names)
       if (error.response?.data?.error?.error_user_title === 'Message template not found') {
         console.log('Template not found on Meta servers - likely a database-only template. Proceeding with database cleanup.');
@@ -607,14 +607,14 @@ export class TemplateService {
       });
 
       console.log('Template deleted successfully from both Meta and database');
-      
-      return { 
+
+      return {
         success: true,
         message: 'Template deleted successfully from WhatsApp and local database'
       };
     } catch (dbError) {
       console.error('Database delete error after successful Meta delete:', dbError);
-      
+
       // This is a critical situation - template deleted from Meta but not from DB
       throw new BadRequestException(
         'Template was deleted from WhatsApp but failed to delete from local database. ' +
@@ -676,7 +676,7 @@ export class TemplateService {
       if (!masterConfig.wabaId) {
         throw new BadRequestException('WhatsApp Business Account ID (wabaId) is not configured. Please update your Master Config.');
       }
-      
+
       // Fetch templates from Meta API
       const response = await axios.get(
         `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
@@ -736,135 +736,124 @@ export class TemplateService {
     }
   }
 
+  getCurrentTemplateCategory(templateName: string) {
+    const templates = this.getTemplateLibrary();
+    
+    console.log('Looking for template:', templateName);
+    
+    // Try exact name match first
+    for (const [category, categoryTemplates] of Object.entries(templates)) {
+      const found = categoryTemplates.find(t => t.name === templateName);
+      if (found) {
+        console.log(`Found template ${templateName} in category ${category}`);
+        return category;
+      }
+    }
+    
+    // Try partial match by description or name
+    for (const [category, categoryTemplates] of Object.entries(templates)) {
+      const found = categoryTemplates.find(t => 
+        t.description?.toLowerCase().includes(templateName.toLowerCase()) ||
+        templateName.toLowerCase().includes(t.name.toLowerCase())
+      );
+      if (found) {
+        console.log(`Found template by partial match: ${templateName} -> ${found.name} in category ${category}`);
+        return category;
+      }
+    }
+    
+    // Check if template name contains authentication-related keywords
+    const authKeywords = ['verification', 'login', 'otp', 'code', 'auth', 'password', 'reset', 'account'];
+    if (authKeywords.some(keyword => templateName.toLowerCase().includes(keyword))) {
+      console.log(`Template ${templateName} contains auth keywords, defaulting to authentication`);
+      return 'authentication';
+    }
+    
+    // Check if template name contains utility-related keywords
+    const utilityKeywords = ['order', 'shipping', 'payment', 'appointment', 'confirmation', 'update', 'reminder'];
+    if (utilityKeywords.some(keyword => templateName.toLowerCase().includes(keyword))) {
+      console.log(`Template ${templateName} contains utility keywords, defaulting to utility`);
+      return 'utility';
+    }
+    
+    console.log(`Template ${templateName} not found, defaulting to marketing`);
+    return 'marketing';
+  }
+
+  getTemplatesByCategory(category: string) {
+    const templates = this.getTemplateLibrary();
+    const categoryKey = category.toLowerCase();
+    return templates[categoryKey] || [];
+  }
+
   async getTemplateLibrary() {
-    // Return predefined templates based on Meta's official template library
     return {
       authentication: [
         {
           name: 'verification_code',
           description: 'Standard verification code template for OTP authentication',
-          components: [
-            {
-              type: 'BODY',
-              text: '{{1}} is your verification code.',
-              example: { body_text: [['123456']] },
-            },
-          ],
-          category: 'AUTHENTICATION',
-          language: 'en',
           features: ['OTP', 'Copy Code Button', 'One-tap Autofill (Android)'],
-          metaCompliant: true
+          components: [
+            { type: 'BODY', text: '{{1}} is your verification code.' }
+          ]
         },
         {
           name: 'login_code',
           description: 'Login verification code with security disclaimer',
-          components: [
-            {
-              type: 'BODY',
-              text: 'Your login code is {{1}}. Do not share this code.',
-              example: { body_text: [['987654']] },
-            },
-          ],
-          category: 'AUTHENTICATION',
-          language: 'en',
           features: ['OTP', 'Security Warning', 'Copy Code Button'],
-          metaCompliant: true
+          components: [
+            { type: 'BODY', text: 'Your login code is {{1}}. Do not share this code.' }
+          ]
         },
         {
           name: 'verification_code_with_security',
           description: 'Verification code with security recommendation',
-          components: [
-            {
-              type: 'BODY',
-              text: '{{1}} is your verification code. For your security, do not share this code.',
-              example: { body_text: [['456789']] },
-            },
-          ],
-          category: 'AUTHENTICATION',
-          language: 'en',
           features: ['OTP', 'Security Recommendation', 'Copy Code Button'],
-          metaCompliant: true
+          components: [
+            { type: 'BODY', text: '{{1}} is your verification code. For your security, do not share this code.' }
+          ]
         },
         {
           name: 'verification_code_with_expiry',
           description: 'Verification code with expiration warning',
-          components: [
-            {
-              type: 'BODY',
-              text: '{{1}} is your verification code. For your security, do not share this code.',
-              example: { body_text: [['789123']] },
-            },
-            {
-              type: 'FOOTER',
-              text: 'This code expires in 10 minutes.'
-            }
-          ],
-          category: 'AUTHENTICATION',
-          language: 'en',
           features: ['OTP', 'Security Recommendation', 'Expiration Warning', 'Copy Code Button'],
-          metaCompliant: true
+          components: [
+            { type: 'BODY', text: '{{1}} is your verification code. For your security, do not share this code. This code expires in 10 minutes.' }
+          ]
         },
         {
           name: 'password_reset_code',
           description: 'Password reset verification code',
-          components: [
-            {
-              type: 'BODY',
-              text: 'Your password reset code is {{1}}. Enter this code to reset your password.',
-              example: { body_text: [['321654']] },
-            },
-          ],
-          category: 'AUTHENTICATION',
-          language: 'en',
           features: ['OTP', 'Password Reset', 'Copy Code Button'],
-          metaCompliant: true
+          components: [
+            { type: 'BODY', text: 'Your password reset code is {{1}}. Enter this code to reset your password.' }
+          ]
         },
         {
           name: 'account_verification',
           description: 'Account verification code for new registrations',
-          components: [
-            {
-              type: 'BODY',
-              text: 'Welcome! Your account verification code is {{1}}. Please verify your account to continue.',
-              example: { body_text: [['654321']] },
-            },
-          ],
-          category: 'AUTHENTICATION',
-          language: 'en',
           features: ['OTP', 'Account Verification', 'Copy Code Button'],
-          metaCompliant: true
+          components: [
+            { type: 'BODY', text: 'Welcome! Your account verification code is {{1}}. Please verify your account to continue.' }
+          ]
         }
       ],
       utility: [
         {
           name: 'order_confirmation',
           description: 'Order confirmation with details',
-          components: [
-            {
-              type: 'BODY',
-              text: 'Hi {{1}}, your order #{{2}} has been confirmed. Total: ${{3}}. Expected delivery: {{4}}.',
-              example: { body_text: [['John', 'ORD123', '29.99', 'Dec 25, 2024']] },
-            },
-          ],
-          category: 'UTILITY',
-          language: 'en',
           features: ['Order Updates', 'Transactional'],
-          metaCompliant: true
+          components: [
+            { type: 'BODY', text: 'Hi {{1}}, your order #{{2}} has been confirmed. Total: ${{3}}. Expected delivery: {{4}}.' }
+          ]
         },
         {
           name: 'shipping_update',
           description: 'Shipping status update notification',
-          components: [
-            {
-              type: 'BODY',
-              text: 'Hi {{1}}, your order #{{2}} has been shipped! Track your package: {{3}}',
-              example: { body_text: [['Sarah', 'ORD456', 'TRK789123']] },
-            },
-          ],
-          category: 'UTILITY',
-          language: 'en',
           features: ['Shipping Updates', 'Tracking'],
-          metaCompliant: true
+          components: [
+            { type: 'BODY', text: 'Hi {{1}}, your order #{{2}} has been shipped! Track your package: {{3}}' }
+          ]
         },
         {
           name: 'appointment_reminder',
@@ -1019,20 +1008,20 @@ export class TemplateService {
 
   private validateTemplateStructure(template: CreateTemplateDto | TemplatePreviewDto) {
     const bodyComponent = template.components.find(c => c.type === 'BODY');
-    
+
     if (bodyComponent?.text) {
       const text = bodyComponent.text.trim();
-      
+
       // Check if variables are at start or end (support both numbered and named variables)
       if (text.match(/^\{\{[a-zA-Z0-9_]+\}\}/) || text.match(/\{\{[a-zA-Z0-9_]+\}\}$/)) {
         throw new BadRequestException('Variables cannot be at the start or end of the message. Add some text before/after the variable.');
       }
-      
+
       // Check for consecutive variables
       if (text.match(/\{\{[a-zA-Z0-9_]+\}\}\s*\{\{[a-zA-Z0-9_]+\}\}/)) {
         throw new BadRequestException('Variables cannot be consecutive. Add text between variables.');
       }
-      
+
       // Check variable numbering for numbered variables (must be sequential starting from 1)
       const numberedVariables = text.match(/\{\{(\d+)\}\}/g);
       if (numberedVariables) {
@@ -1046,7 +1035,7 @@ export class TemplateService {
           }
         }
       }
-      
+
       // Check all variables (both numbered and named)
       const allVariables = text.match(/\{\{[a-zA-Z0-9_]+\}\}/g);
       if (allVariables) {
@@ -1054,11 +1043,11 @@ export class TemplateService {
         const textWithoutVariables = text.replace(/\{\{[a-zA-Z0-9_]+\}\}/g, '');
         const variableCount = allVariables.length;
         const textLength = textWithoutVariables.length;
-        
+
         // Meta's approximate rule: For every 10-15 characters of text, you can have 1 variable
         // This is a conservative estimate based on Meta's validation
         const maxVariablesForLength = Math.floor(textLength / 10);
-        
+
         if (variableCount > maxVariablesForLength && textLength < 30) {
           throw new BadRequestException(
             `This template has too many variables for its length. ` +
@@ -1066,7 +1055,7 @@ export class TemplateService {
             `Variables can't be at the start or end of the template.`
           );
         }
-        
+
         // Additional check: minimum text between variables
         const parts = text.split(/\{\{[a-zA-Z0-9_]+\}\}/);
         for (let i = 1; i < parts.length - 1; i++) {
@@ -1074,7 +1063,7 @@ export class TemplateService {
             throw new BadRequestException('There must be at least 2 characters of text between variables.');
           }
         }
-        
+
         // Check first and last parts have sufficient text
         if (parts[0].trim().length < 2) {
           throw new BadRequestException('There must be at least 2 characters of text before the first variable.');
@@ -1084,32 +1073,32 @@ export class TemplateService {
         }
       }
     }
-    
+
     // Validate header component
     const headerComponent = template.components.find(c => c.type === 'HEADER');
     if (headerComponent?.text) {
       // Same rules apply to header text
       const text = headerComponent.text.trim();
-      
+
       if (text.match(/^\{\{[a-zA-Z0-9_]+\}\}/) || text.match(/\{\{[a-zA-Z0-9_]+\}\}$/)) {
         throw new BadRequestException('Header variables cannot be at the start or end. Add text before/after the variable.');
       }
-      
+
       if (text.match(/\{\{[a-zA-Z0-9_]+\}\}\s*\{\{[a-zA-Z0-9_]+\}\}/)) {
         throw new BadRequestException('Header variables cannot be consecutive. Add text between variables.');
       }
-      
+
       if (headerComponent.text.length > 60) {
         throw new BadRequestException('Header text cannot exceed 60 characters.');
       }
     }
-    
+
     // Validate footer component
     const footerComponent = template.components.find(c => c.type === 'FOOTER');
     if (footerComponent?.text && footerComponent.text.length > 60) {
       throw new BadRequestException('Footer text cannot exceed 60 characters.');
     }
-    
+
     // Validate body length
     if (bodyComponent?.text && bodyComponent.text.length > 1024) {
       throw new BadRequestException('Body text cannot exceed 1024 characters.');
@@ -1131,74 +1120,106 @@ export class TemplateService {
   }
 
   private validateAuthenticationTemplate(template: CreateTemplateDto | TemplatePreviewDto) {
+    // Authentication templates have very strict Meta requirements
+    
+    // 1. Check that body component exists
     const bodyComponent = template.components.find(c => c.type === 'BODY');
     if (!bodyComponent?.text) {
       throw new BadRequestException('Authentication templates must have a body text');
     }
 
-    // Check for OTP parameter pattern
+    // 2. Authentication templates use FIXED preset text - content cannot be customized
+    // Meta only allows: "{{1}} is your verification code."
+    const allowedBodyPatterns = [
+      '{{1}} is your verification code.',
+      '{{1}} is your login code.',
+      '{{1}} is your password reset code.',
+      '{{1}} is your account verification code.'
+    ];
+    
+    const bodyText = bodyComponent.text.trim();
+    const baseBodyText = bodyText.replace(/\s*For your security, do not share this code\.?\s*$/, '').trim();
+    
+    if (!allowedBodyPatterns.includes(baseBodyText)) {
+      throw new BadRequestException(
+        'Authentication templates must use Meta\'s preset text format. ' +
+        'Allowed formats: "{{1}} is your verification code.", "{{1}} is your login code.", ' +
+        '"{{1}} is your password reset code.", or "{{1}} is your account verification code."'
+      );
+    }
+
+    // 3. Must include {{1}} parameter for the verification code
     if (!bodyComponent.text.includes('{{1}}')) {
       throw new BadRequestException('Authentication templates must include {{1}} parameter for the verification code');
     }
 
-    // Validate that the template follows Meta's authentication format
-    const text = bodyComponent.text.toLowerCase();
-    const validPatterns = [
-      'is your verification code',
-      'is your login code', 
-      'is your password reset code',
-      'is your account verification code',
-      'verification code is',
-      'login code is',
-      'password reset code is'
-    ];
-    
-    const hasValidPattern = validPatterns.some(pattern => text.includes(pattern));
-    if (!hasValidPattern) {
-      console.warn('Authentication template may not follow Meta\'s recommended patterns:', text);
-    }
-
-    // Check for security disclaimer (recommended but not required)
-    const hasSecurityDisclaimer = text.includes('do not share') || text.includes('for your security');
-    if (!hasSecurityDisclaimer) {
-      console.info('Consider adding security disclaimer: "For your security, do not share this code."');
-    }
-
-    // Validate character limit for OTP parameter (15 chars max)
+    // 4. Validate OTP parameter length (15 characters max)
     const sampleValues = (template as CreateTemplateDto).sampleValues;
-    if (sampleValues && sampleValues['1'] && sampleValues['1'].length > 15) {
-      throw new BadRequestException('Authentication code parameter cannot exceed 15 characters');
+    if (sampleValues && sampleValues['1']) {
+      if (sampleValues['1'].length > 15) {
+        throw new BadRequestException('Authentication code parameter cannot exceed 15 characters');
+      }
+      
+      // OTP should be alphanumeric only
+      if (!/^[a-zA-Z0-9]+$/.test(sampleValues['1'])) {
+        throw new BadRequestException('Authentication code should contain only alphanumeric characters');
+      }
     }
 
-    // Check for prohibited content in authentication templates
-    const hasMedia = template.components.some(c => c.type === 'HEADER' && c.format && c.format !== 'TEXT');
+    // 5. NO MEDIA allowed (images, videos, documents)
+    const hasMedia = template.components.some(c => 
+      c.type === 'HEADER' && c.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(c.format)
+    );
     if (hasMedia) {
       throw new BadRequestException('Authentication templates cannot contain media (images, videos, documents)');
     }
 
-    // Check for URLs in authentication templates
-    const hasUrls = template.components.some(c => 
+    // 6. NO URLs allowed
+    const hasUrls = template.components.some(c =>
       c.type === 'BUTTONS' && c.buttons && c.buttons.some((btn: any) => btn.type === 'URL')
     );
     if (hasUrls) {
       throw new BadRequestException('Authentication templates cannot contain URL buttons');
     }
 
-    // Check for emojis (not allowed in authentication templates)
+    // 7. NO EMOJIS allowed
     const emojiRegex = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu;
-    const bodyText = bodyComponent.text;
-    const headerComponent = template.components.find(c => c.type === 'HEADER');
-    const footerComponent = template.components.find(c => c.type === 'FOOTER');
     
-    if (emojiRegex.test(bodyText) || 
-        (headerComponent?.text && emojiRegex.test(headerComponent.text)) ||
-        (footerComponent?.text && emojiRegex.test(footerComponent.text))) {
+    // Check body text for emojis
+    if (emojiRegex.test(bodyComponent.text)) {
       throw new BadRequestException('Authentication templates cannot contain emojis');
     }
+    
+    // Check header text for emojis (if exists)
+    const headerComponent = template.components.find(c => c.type === 'HEADER');
+    if (headerComponent?.text && emojiRegex.test(headerComponent.text)) {
+      throw new BadRequestException('Authentication templates cannot contain emojis in header');
+    }
+    
+    // Check footer text for emojis (if exists)
+    const footerComponent = template.components.find(c => c.type === 'FOOTER');
+    if (footerComponent?.text && emojiRegex.test(footerComponent.text)) {
+      throw new BadRequestException('Authentication templates cannot contain emojis in footer');
+    }
 
-    // Validate footer for expiration warning (if present)
+    // 8. Header restrictions (if present)
+    if (headerComponent) {
+      if (headerComponent.format && headerComponent.format !== 'TEXT') {
+        throw new BadRequestException('Authentication templates can only have TEXT headers, no media headers');
+      }
+      
+      if (headerComponent.text && headerComponent.text.length > 60) {
+        throw new BadRequestException('Authentication template header cannot exceed 60 characters');
+      }
+    }
+
+    // 9. Footer restrictions (if present)
     if (footerComponent?.text) {
-      const footerText = footerComponent.text.toLowerCase();
+      if (footerComponent.text.length > 60) {
+        throw new BadRequestException('Authentication template footer cannot exceed 60 characters');
+      }
+      
+      // Footer should typically be about expiration
       const validFooterPatterns = [
         'this code expires',
         'code expires in',
@@ -1206,20 +1227,65 @@ export class TemplateService {
         'valid for'
       ];
       
+      const footerText = footerComponent.text.toLowerCase();
       const hasValidFooter = validFooterPatterns.some(pattern => footerText.includes(pattern));
+      
       if (!hasValidFooter) {
         console.warn('Authentication template footer should indicate code expiration time');
       }
     }
 
-    // Check for proper button configuration (OTP buttons)
+    // 10. Button validation (if present)
     const buttonsComponent = template.components.find(c => c.type === 'BUTTONS');
     if (buttonsComponent?.buttons) {
-      const hasOtpButton = buttonsComponent.buttons.some((btn: any) => btn.type === 'OTP');
-      if (!hasOtpButton) {
-        console.info('Consider adding OTP button for better user experience (copy code or one-tap autofill)');
+      buttonsComponent.buttons.forEach((btn: any) => {
+        // Only OTP buttons allowed for authentication templates
+        if (!['OTP', 'QUICK_REPLY'].includes(btn.type)) {
+          throw new BadRequestException('Authentication templates can only have OTP or QUICK_REPLY buttons');
+        }
+        
+        // No phone number buttons
+        if (btn.type === 'PHONE_NUMBER') {
+          throw new BadRequestException('Authentication templates cannot contain phone number buttons');
+        }
+      });
+    }
+
+    // 11. Variable restrictions - only {{1}} allowed
+    const allVariables = bodyComponent.text.match(/\{\{(\d+)\}\}/g) || [];
+    const invalidVariables = allVariables.filter(v => v !== '{{1}}');
+    
+    if (invalidVariables.length > 0) {
+      throw new BadRequestException(
+        `Authentication templates can only use {{1}} parameter. Found invalid parameters: ${invalidVariables.join(', ')}`
+      );
+    }
+
+    // 12. No variables in header or footer for authentication templates
+    if (headerComponent?.text && headerComponent.text.includes('{{')) {
+      throw new BadRequestException('Authentication templates cannot have variables in header');
+    }
+    
+    if (footerComponent?.text && footerComponent.text.includes('{{')) {
+      throw new BadRequestException('Authentication templates cannot have variables in footer');
+    }
+
+    // 13. Body text length validation
+    if (bodyComponent.text.length > 1024) {
+      throw new BadRequestException('Authentication template body cannot exceed 1024 characters');
+    }
+
+    // 14. Validate security recommendation format (if present)
+    if (bodyComponent.text.includes('For your security, do not share this code')) {
+      const expectedWithSecurity = baseBodyText + ' For your security, do not share this code.';
+      if (bodyComponent.text.trim() !== expectedWithSecurity) {
+        throw new BadRequestException(
+          'Security recommendation must be exactly: "For your security, do not share this code." and placed at the end'
+        );
       }
     }
+
+    console.log('✅ Authentication template validation passed');
   }
 
   private validateUtilityTemplate(template: CreateTemplateDto | TemplatePreviewDto) {
@@ -1382,7 +1448,7 @@ export class TemplateService {
 
     try {
       console.log('Uploading media for template creation, localPath:', localPath);
-      
+
       // Validate that appId exists
       if (!masterConfig.appId) {
         throw new BadRequestException(
@@ -1390,9 +1456,9 @@ export class TemplateService {
           'You can find your App ID in Meta Developer Console.'
         );
       }
-      
+
       // Convert local path to full file path
-      const fullPath = localPath.startsWith('/uploads/') 
+      const fullPath = localPath.startsWith('/uploads/')
         ? path.join(process.cwd(), 'uploads', path.basename(localPath))
         : localPath;
 
@@ -1447,26 +1513,26 @@ export class TemplateService {
 
       // Step 3: Extract the handle (h) from response
       const assetHandle = uploadResponse.data.h;
-      
+
       if (!assetHandle) {
         console.error('No handle returned from upload. Response:', uploadResponse.data);
         throw new BadRequestException('Upload succeeded but no asset handle was returned');
       }
-      
+
       console.log('Asset handle retrieved:', assetHandle);
       return assetHandle;
-      
+
     } catch (error) {
       console.error('Template media upload error:');
       console.error('Error message:', error.message);
       console.error('Response data:', error.response?.data);
       console.error('Response status:', error.response?.status);
       console.error('Request URL:', error.config?.url);
-      
+
       // Provide helpful error message
       const errorMsg = error.response?.data?.error?.message || error.message;
       const errorDetails = error.response?.data?.error?.error_user_title || '';
-      
+
       throw new BadRequestException(
         `Template media upload failed: ${errorMsg}${errorDetails ? ' - ' + errorDetails : ''}. ` +
         `Make sure: 1) Your access token has 'whatsapp_business_management' permission, ` +
@@ -1483,9 +1549,9 @@ export class TemplateService {
 
     try {
       console.log('Uploading media for message sending, localPath:', localPath);
-      
+
       // Convert local path to full file path
-      const fullPath = localPath.startsWith('/uploads/') 
+      const fullPath = localPath.startsWith('/uploads/')
         ? path.join(process.cwd(), 'uploads', path.basename(localPath))
         : localPath;
 
@@ -1525,13 +1591,13 @@ export class TemplateService {
       const mediaId = uploadResponse.data.id;
       console.log('Media uploaded successfully, ID:', mediaId);
       return mediaId;
-      
+
     } catch (error) {
       console.error('Media upload error details:');
       console.error('Error message:', error.message);
       console.error('Response data:', error.response?.data);
       console.error('Response status:', error.response?.status);
-      
+
       throw new BadRequestException(`Media upload failed: ${error.response?.data?.error?.message || error.message}`);
     }
   }
@@ -1539,7 +1605,7 @@ export class TemplateService {
   private async getMediaUrl(masterConfig: any, mediaId: string): Promise<string> {
     try {
       console.log('Fetching media URL for ID:', mediaId);
-      
+
       // Get media URL from Meta API
       const response = await axios.get(
         `https://graph.facebook.com/v21.0/${mediaId}`,
@@ -1553,7 +1619,7 @@ export class TemplateService {
       const mediaUrl = response.data.url;
       console.log('Media URL retrieved:', mediaUrl);
       return mediaUrl;
-      
+
     } catch (error) {
       console.error('Get media URL error:', error.response?.data || error.message);
       throw new BadRequestException(`Failed to get media URL: ${error.response?.data?.error?.message || error.message}`);
@@ -1586,7 +1652,7 @@ export class TemplateService {
 
   private async getNextVersionNumber(tenantClient: any, baseName: string, language: string): Promise<number> {
     console.log(`Finding next version number for template: ${baseName} (language: ${language})`);
-    
+
     // Find all existing templates with the same base name and language
     const existingTemplates = await tenantClient.messageTemplate.findMany({
       where: {
@@ -1599,12 +1665,12 @@ export class TemplateService {
         name: true
       }
     });
-    
+
     console.log('Found existing templates:', existingTemplates.map(t => t.name));
-    
+
     // Extract version numbers from existing template names
     let maxVersion = 0;
-    
+
     for (const template of existingTemplates) {
       if (template.name === baseName) {
         // Original template without version (consider it as version 0)
@@ -1622,10 +1688,10 @@ export class TemplateService {
         }
       }
     }
-    
+
     const nextVersion = maxVersion + 1;
     console.log(`Next version number will be: ${nextVersion}`);
-    
+
     return nextVersion;
   }
 

@@ -18,7 +18,12 @@ import {
   Image as ImageIcon,
   Type,
   ExternalLink,
-  MousePointer2
+  MousePointer2,
+  ShieldCheck,
+  Settings as SettingsIcon,
+  Megaphone,
+  CheckCircle2,
+  Copy
 } from 'lucide-react';
 import '../styles/TemplateManager.css';
 import { API_BASE_URL } from '../api/config';
@@ -304,6 +309,126 @@ const TemplateManager = () => {
       return 'Template name is required';
     }
     
+    // Special validation for Authentication templates
+    if (formData.category === 'AUTHENTICATION') {
+      return validateAuthenticationTemplate(bodyComponent, headerComponent, components);
+    }
+    
+    // Regular validation for other template types
+    return validateRegularTemplate(bodyComponent, headerComponent, components);
+  };
+
+  const validateAuthenticationTemplate = (bodyComponent, headerComponent, components) => {
+    // 1. Body text is required
+    if (!bodyComponent?.text) {
+      return 'Authentication templates must have body text';
+    }
+
+    // 2. Must use Meta's preset text format
+    const allowedBodyPatterns = [
+      '{{1}} is your verification code.',
+      '{{1}} is your login code.',
+      '{{1}} is your password reset code.',
+      '{{1}} is your account verification code.'
+    ];
+    
+    const bodyText = bodyComponent.text.trim();
+    const baseBodyText = bodyText.replace(/\s*For your security, do not share this code\.?\s*$/, '').trim();
+    
+    if (!allowedBodyPatterns.includes(baseBodyText)) {
+      return 'Authentication templates must use Meta\'s preset format: "{{1}} is your verification code." (or login code, password reset code, account verification code)';
+    }
+
+    // 3. Must include {{1}} parameter
+    if (!bodyComponent.text.includes('{{1}}')) {
+      return 'Authentication templates must include {{1}} parameter for the verification code';
+    }
+
+    // 4. Validate OTP sample value (15 chars max, alphanumeric only)
+    const sampleValue = formData.sampleValues[1];
+    if (sampleValue) {
+      if (sampleValue.length > 15) {
+        return 'Authentication code cannot exceed 15 characters';
+      }
+      if (!/^[a-zA-Z0-9]+$/.test(sampleValue)) {
+        return 'Authentication code should contain only alphanumeric characters (no spaces or special characters)';
+      }
+    }
+
+    // 5. No media allowed
+    const hasMedia = components.some(c => 
+      c.type === 'HEADER' && c.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(c.format)
+    );
+    if (hasMedia) {
+      return 'Authentication templates cannot contain media (images, videos, documents)';
+    }
+
+    // 6. No URL buttons allowed
+    const hasUrls = components.some(c =>
+      c.type === 'BUTTONS' && c.buttons && c.buttons.some(btn => btn.type === 'URL')
+    );
+    if (hasUrls) {
+      return 'Authentication templates cannot contain URL buttons';
+    }
+
+    // 7. No emojis allowed
+    const emojiRegex = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu;
+    
+    if (emojiRegex.test(bodyComponent.text)) {
+      return 'Authentication templates cannot contain emojis';
+    }
+    
+    if (headerComponent?.text && emojiRegex.test(headerComponent.text)) {
+      return 'Authentication templates cannot contain emojis in header';
+    }
+    
+    const footerComponent = components.find(c => c.type === 'FOOTER');
+    if (footerComponent?.text && emojiRegex.test(footerComponent.text)) {
+      return 'Authentication templates cannot contain emojis in footer';
+    }
+
+    // 8. Header restrictions
+    if (headerComponent) {
+      if (headerComponent.format && headerComponent.format !== 'TEXT') {
+        return 'Authentication templates can only have TEXT headers';
+      }
+      if (headerComponent.text && headerComponent.text.length > 60) {
+        return 'Authentication template header cannot exceed 60 characters';
+      }
+      if (headerComponent.text && headerComponent.text.includes('{{')) {
+        return 'Authentication templates cannot have variables in header';
+      }
+    }
+
+    // 9. Footer restrictions
+    if (footerComponent?.text) {
+      if (footerComponent.text.length > 60) {
+        return 'Authentication template footer cannot exceed 60 characters';
+      }
+      if (footerComponent.text.includes('{{')) {
+        return 'Authentication templates cannot have variables in footer';
+      }
+    }
+
+    // 10. Only {{1}} variable allowed
+    const allVariables = bodyComponent.text.match(/\{\{(\d+)\}\}/g) || [];
+    const invalidVariables = allVariables.filter(v => v !== '{{1}}');
+    if (invalidVariables.length > 0) {
+      return `Authentication templates can only use {{1}} parameter. Found: ${invalidVariables.join(', ')}`;
+    }
+
+    // 11. Validate security recommendation format
+    if (bodyComponent.text.includes('For your security, do not share this code')) {
+      const expectedWithSecurity = baseBodyText + ' For your security, do not share this code.';
+      if (bodyComponent.text.trim() !== expectedWithSecurity) {
+        return 'Security recommendation must be exactly: "For your security, do not share this code." at the end';
+      }
+    }
+
+    return null; // No errors
+  };
+
+  const validateRegularTemplate = (bodyComponent, headerComponent, components) => {
     // Check if all variables have sample values
     const allVariables = getAllVariables();
     if (allVariables.length > 0) {
@@ -471,18 +596,46 @@ const TemplateManager = () => {
     }
   };
 
-  const handleUseLibraryTemplate = (libTemplate) => {
+  const handleUseLibraryTemplate = async (libTemplate) => {
     setDialogType('create');
     setCurrentTemplate(null);
     setUploadedFile(null);
     setValidationError(null);
     setShowValidationErrors(false);
     
-    const isAuthTemplate = libTemplate.category === 'AUTHENTICATION';
+    // Fetch the category automatically based on template name
+    let detectedCategory = 'MARKETING'; // default
+    try {
+      const response = await fetch(`${API_BASE_URL}/templates/template-category/${libTemplate.name}`, {
+        credentials: "include"
+      });
+      if (response.ok) {
+        const data = await response.json();
+        detectedCategory = data.category.toUpperCase();
+        console.log(`Auto-detected category for ${libTemplate.name}: ${detectedCategory}`);
+      }
+    } catch (error) {
+      console.error('Error fetching template category:', error);
+      // Fallback: try to detect from template name using keywords
+      const templateName = libTemplate.name.toLowerCase();
+      if (['verification_code', 'login_code', 'password_reset', 'account_verification'].includes(templateName) ||
+          templateName.includes('verification') || templateName.includes('login') || templateName.includes('otp') || 
+          templateName.includes('code') || templateName.includes('auth')) {
+        detectedCategory = 'AUTHENTICATION';
+      } else if (['order_confirmation', 'shipping_update', 'appointment_reminder', 'payment_confirmation'].includes(templateName) ||
+                 templateName.includes('order') || templateName.includes('shipping') || templateName.includes('payment') || 
+                 templateName.includes('appointment') || templateName.includes('confirmation')) {
+        detectedCategory = 'UTILITY';
+      } else {
+        detectedCategory = 'MARKETING';
+      }
+    }
+    
+    const isAuthTemplate = detectedCategory === 'AUTHENTICATION';
     
     setFormData({
       name: libTemplate.name,
-      category: libTemplate.category || 'MARKETING',
+      category: detectedCategory,
       language: 'en',
       components: libTemplate.components || [{ type: 'BODY', text: '' }],
       sampleValues: {},
@@ -491,7 +644,7 @@ const TemplateManager = () => {
       packageName: '',
       signatureHash: '',
       zeroTapAgreement: false,
-      addSecurityRecommendation: isAuthTemplate ? true : false, // Default to true for auth templates
+      addSecurityRecommendation: isAuthTemplate ? true : false,
       addExpiryTime: isAuthTemplate ? false : false,
       codeExpiryMinutes: 10,
       customValidityPeriod: false,
@@ -670,9 +823,6 @@ const TemplateManager = () => {
     const buttons = components.find(c => c.type === 'BUTTONS');
 
     const formatBody = (text) => {
-      if (!text) return '';
-      let formattedText = text;
-      
       // For authentication templates, show the standard format
       if (formData.category === 'AUTHENTICATION') {
         // Use Meta's standard authentication format
@@ -682,6 +832,7 @@ const TemplateManager = () => {
           authText += ' For your security, do not share this code.';
         }
         
+        let formattedText = authText;
         // Replace {{1}} with sample OTP if sample value exists, otherwise keep placeholder
         const sampleValue = formData.sampleValues[1];
         if (sampleValue && sampleValue.trim() !== '') {
@@ -693,6 +844,9 @@ const TemplateManager = () => {
         
         return formattedText;
       }
+
+      if (!text) return '';
+      let formattedText = text;
       
       // For non-auth templates, use the regular body text
       if (!text) return '';
@@ -802,10 +956,10 @@ const TemplateManager = () => {
             )
           )}
 
-          {/* Body - Always show for authentication templates */}
+          {/* Body - Always show for authentication templates or when body text exists */}
           {(body?.text || formData.category === 'AUTHENTICATION') && (
             <div className="wa-body" dangerouslySetInnerHTML={{ 
-              __html: formatBody(formData.category === 'AUTHENTICATION' ? null : body?.text) 
+              __html: formatBody(body?.text) 
             }} />
           )}
           
@@ -816,34 +970,41 @@ const TemplateManager = () => {
           
           <div className="wa-timestamp">
             12:45 PM
-            <svg viewBox="0 0 16 11" width="16" height="11" style={{marginLeft: 4, display: 'inline-block', verticalAlign: 'middle'}} fill="#4fc3f7">
+            <svg viewBox="0 0 16 11" width="16" height="11" style={{marginLeft: 4, display: 'none'}} fill="#4fc3f7">
               <path d="M15.01 1.98L14.03 1L6.05 7.98L2.97 4.9L1.99 5.88L6.05 9.94L15.01 1.98Z" />
               <path d="M11.01 1.98L10.03 1L6.05 4.5L2.97 1.4L1.99 2.38L6.05 6.44L11.01 1.98Z" />
             </svg>
           </div>
+          {/* Show authentication buttons or regular buttons inside the bubble */}
+          {formData.category === 'AUTHENTICATION' ? (
+            <div className="wa-buttons" style={{marginTop: 16, marginLeft: -12, marginRight: -12, marginBottom: -8}}>
+              <div className="wa-button">
+                {formData.otpType === 'COPY_CODE' ? (
+                  <>
+                    <Copy size={18} style={{marginRight: 4}} />
+                    <span>Copy code</span>
+                  </>
+                ) : (
+                  <>
+                    <Smartphone size={18} style={{marginRight: 4}} />
+                    <span>Autofill</span>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            buttons?.buttons && (
+              <div className="wa-buttons" style={{marginTop: 16, marginLeft: -12, marginRight: -12, marginBottom: -8}}>
+                {buttons.buttons.map((btn, i) => (
+                  <div key={i} className="wa-button">
+                    {btn.type === 'URL' && <ExternalLink size={16} style={{marginRight: 8}} />}
+                    {btn.text || 'Button Text'}
+                  </div>
+                ))}
+              </div>
+            )
+          )}
         </div>
-        
-        {/* Show authentication buttons or regular buttons */}
-        {formData.category === 'AUTHENTICATION' ? (
-          <div className="wa-buttons">
-            <div className="wa-button" style={{background: '#008069', color: 'white'}}>
-              {formData.otpType === 'ZERO_TAP' && '🚀 Auto-fill'}
-              {formData.otpType === 'ONE_TAP' && '📱 Autofill'}
-              {formData.otpType === 'COPY_CODE' && '📋 Copy code'}
-            </div>
-          </div>
-        ) : (
-          buttons?.buttons && (
-            <div className="wa-buttons">
-              {buttons.buttons.map((btn, i) => (
-                <div key={i} className="wa-button">
-                  {btn.type === 'URL' && <ExternalLink size={12} style={{marginRight: 4, display: 'inline'}} />}
-                  {btn.text || 'Button Text'}
-                </div>
-              ))}
-            </div>
-          )
-        )}
       </div>
     );
   };
@@ -992,152 +1153,93 @@ const TemplateManager = () => {
       {selectedTab === 1 && (
         <div className="library-section">
           {templateLibrary ? (
-            Object.keys(templateLibrary).map((catKey) => (
-              <div key={catKey} style={{marginBottom: 32}}>
-                <h2 style={{fontSize: 18, marginBottom: 16, textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: 8}}>
-                  {catKey === 'authentication' && <span style={{fontSize: 20}}>🔐</span>}
-                  {catKey === 'utility' && <span style={{fontSize: 20}}>⚙️</span>}
-                  {catKey === 'marketing' && <span style={{fontSize: 20}}>📢</span>}
-                  {catKey} Templates
-                  <span style={{fontSize: 12, background: '#e3f2fd', color: '#1976d2', padding: '2px 8px', borderRadius: 12, fontWeight: 600}}>
-                    {templateLibrary[catKey].length} templates
-                  </span>
-                </h2>
-                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 20}}>
-                  {templateLibrary[catKey].map((libTemplate, idx) => (
-                    <div key={idx} className="library-card" style={{
-                      background: 'white', 
-                      padding: 20, 
-                      borderRadius: 12, 
-                      border: '1px solid #ebedf0',
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                      position: 'relative'
-                    }}>
-                      {/* Meta Compliant Badge */}
-                      {libTemplate.metaCompliant && (
-                        <div style={{
-                          position: 'absolute',
-                          top: 12,
-                          right: 12,
-                          background: '#4caf50',
-                          color: 'white',
-                          fontSize: 10,
-                          padding: '2px 6px',
-                          borderRadius: 4,
-                          fontWeight: 600
-                        }}>
-                          ✓ META APPROVED
-                        </div>
-                      )}
+            <div className="library-categories">
+              {Object.entries({
+                authentication: { label: 'Authentication', color: '#1877f2', desc: 'Securely verify user identity' },
+                utility: { label: 'Utility', color: '#008069', desc: 'Send transactional and essential updates' },
+                marketing: { label: 'Marketing', color: '#fa3e3e', desc: 'Promote products and drive engagement' }
+              }).map(([key, config]) => (
+                <div key={key} className="library-category-group">
+                  <div className="category-header-main">
+                    <h2>{config.label} Templates</h2>
+                    <p>{config.desc} • {templateLibrary[key]?.length || 0} templates</p>
+                  </div>
+
+                  <div className="library-grid">
+                    {templateLibrary[key]?.map((libTemplate, idx) => {
+                      const bodyComp = libTemplate.components?.find(c => c.type === 'BODY');
+                      const buttonsComp = libTemplate.components?.find(c => c.type === 'BUTTONS');
                       
-                      <h3 style={{fontSize: 16, marginBottom: 8, paddingRight: 80}}>{libTemplate.name}</h3>
-                      
-                      {/* Description */}
-                      {libTemplate.description && (
-                        <p style={{fontSize: 12, color: '#8d949e', marginBottom: 12, fontStyle: 'italic'}}>
-                          {libTemplate.description}
-                        </p>
-                      )}
-                      
-                      {/* Template Preview */}
-                      <div style={{
-                        background: '#f9fafb',
-                        padding: 12,
-                        borderRadius: 8,
-                        marginBottom: 12,
-                        border: '1px solid #ebedf0'
-                      }}>
-                        {libTemplate.components?.map((comp, compIdx) => (
-                          <div key={compIdx} style={{marginBottom: compIdx < libTemplate.components.length - 1 ? 8 : 0}}>
-                            {comp.type === 'HEADER' && comp.text && (
-                              <div style={{fontWeight: 700, fontSize: 13, color: '#1c1e21', marginBottom: 4}}>
-                                {comp.text}
+                      return (
+                        <div key={idx} className="library-card-premium">
+                          <div className="lib-wa-bubble">
+                            {/* Header simulation - using description as header if appropriate or name */}
+                            <div className="lib-wa-header-text">
+                              {libTemplate.description.split(' with ')[0].split(' for ')[0]}
+                            </div>
+                            
+                            <div className="lib-wa-body-text">
+                              {bodyComp?.text.split(/(\{\{\d\}\})/).map((part, i) => 
+                                part.match(/\{\{\d\}\}/) ? 
+                                  <span key={i} className="lib-variable">{"{{text}}"}</span> : 
+                                  part
+                              )}
+                            </div>
+                            
+                            <div className="lib-wa-footer-meta">
+                              <span className="lib-wa-timestamp">11:24</span>
+                            </div>
+
+                            {buttonsComp?.buttons?.map((btn, bidx) => (
+                              <div key={bidx} className="lib-wa-cta">
+                                {btn.type === 'URL' && <ExternalLink size={14} />}
+                                {btn.text}
                               </div>
-                            )}
-                            {comp.type === 'BODY' && (
-                              <div style={{fontSize: 13, color: '#606770', lineHeight: 1.4}}>
-                                {comp.text || 'No preview available'}
-                              </div>
-                            )}
-                            {comp.type === 'FOOTER' && comp.text && (
-                              <div style={{fontSize: 11, color: '#8d949e', marginTop: 4, fontStyle: 'italic'}}>
-                                {comp.text}
-                              </div>
-                            )}
-                            {comp.type === 'BUTTONS' && comp.buttons && (
-                              <div style={{marginTop: 8}}>
-                                {comp.buttons.map((btn, btnIdx) => (
-                                  <div key={btnIdx} style={{
-                                    display: 'inline-block',
-                                    background: '#e3f2fd',
-                                    color: '#1976d2',
-                                    padding: '4px 8px',
-                                    borderRadius: 4,
-                                    fontSize: 11,
-                                    marginRight: 4,
-                                    marginTop: 4
-                                  }}>
-                                    📱 {btn.text}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      
-                      {/* Features */}
-                      {libTemplate.features && (
-                        <div style={{marginBottom: 12}}>
-                          <div style={{fontSize: 11, color: '#8d949e', marginBottom: 4, fontWeight: 600}}>FEATURES:</div>
-                          <div style={{display: 'flex', flexWrap: 'wrap', gap: 4}}>
-                            {libTemplate.features.map((feature, featureIdx) => (
-                              <span key={featureIdx} style={{
-                                background: catKey === 'authentication' ? '#fff3e0' : catKey === 'utility' ? '#e8f5e8' : '#fce4ec',
-                                color: catKey === 'authentication' ? '#f57c00' : catKey === 'utility' ? '#388e3c' : '#c2185b',
-                                fontSize: 10,
-                                padding: '2px 6px',
-                                borderRadius: 3,
-                                fontWeight: 500
-                              }}>
-                                {feature}
-                              </span>
                             ))}
+                            
+                            {/* Default button for authentication templates */}
+                            {key === 'authentication' && !buttonsComp && (
+                              <div className="lib-wa-cta">
+                                <ExternalLink size={14} />
+                                Verify Account
+                              </div>
+                            )}
+                          </div>
+
+                          <div style={{ fontSize: 13, color: '#1c1e21', fontWeight: 700, marginBottom: 20, textAlign: 'left' }}>
+                            {libTemplate.name}
+                          </div>
+
+                          <div className="lib-bottom-actions">
+                            <div className="lib-card-footer-final">
+                              <span className="lib-cat-label">{config.label}</span>
+                              <button 
+                                className="btn-use-lib-primary" 
+                                onClick={() => handleUseLibraryTemplate(libTemplate)}
+                              >
+                                Use Template
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      )}
-                      
-                      {/* Category Badge */}
-                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                        <span style={{
-                          background: catKey === 'authentication' ? '#fff3e0' : catKey === 'utility' ? '#e8f5e8' : '#fce4ec',
-                          color: catKey === 'authentication' ? '#f57c00' : catKey === 'utility' ? '#388e3c' : '#c2185b',
-                          fontSize: 10,
-                          padding: '3px 8px',
-                          borderRadius: 12,
-                          fontWeight: 600,
-                          textTransform: 'uppercase'
-                        }}>
-                          {libTemplate.category}
-                        </span>
-                        
-                        <button 
-                          className="btn-secondary" 
-                          onClick={() => handleUseLibraryTemplate(libTemplate)}
-                          style={{fontSize: 12, fontWeight: 600, padding: '6px 12px'}}
-                        >
-                          Use Template
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           ) : (
-            <div style={{padding: 40, textAlign: 'center', color: '#606770'}}>
-              <Clock size={48} style={{opacity: 0.2, marginBottom: 16, animation: 'spin 2s linear infinite'}} />
-              <p>Loading template library...</p>
+            <div className="library-loading-state">
+              <div className="loader-circle" style={{ 
+                width: 40, 
+                height: 40, 
+                border: '3px solid #f0f2f5', 
+                borderTopColor: '#008069', 
+                borderRadius: '50%', 
+                margin: '0 auto 16px',
+                animation: 'spin 1s linear infinite'
+              }}></div>
+              <p>Fetching from Meta's global library...</p>
             </div>
           )}
         </div>
@@ -1426,123 +1528,131 @@ const TemplateManager = () => {
 
                 {/* Authentication Template Special Handling */}
                 {formData.category === 'AUTHENTICATION' && (
-                  <div className="component-box" style={{background: '#fff3e0', border: '1px solid #f57c00'}}>
-                    <div style={{display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16}}>
-                      <span style={{fontSize: 20}}>🔐</span>
-                      <label style={{fontWeight: 700, color: '#f57c00'}}>Authentication Template Setup</label>
+                  <div className="auth-setup-container" style={{
+                    background: '#f8f9fa',
+                    border: '1px solid #ebedf0',
+                    borderRadius: 12,
+                    padding: 24,
+                    marginBottom: 24
+                  }}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20}}>
+                      <div style={{
+                        background: '#e7f3ef',
+                        width: 36,
+                        height: 36,
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 18
+                      }}>🔐</div>
+                      <label style={{fontSize: 17, fontWeight: 700, color: '#1c1e21'}}>Authentication Template Setup</label>
                     </div>
                     
-                    <div style={{background: '#fff', padding: 16, borderRadius: 8, marginBottom: 16}}>
-                      <div style={{fontSize: 13, color: '#f57c00', marginBottom: 8, fontWeight: 600}}>📋 CONTENT RESTRICTIONS</div>
-                      <div style={{fontSize: 12, color: '#8d949e', lineHeight: 1.4}}>
-                        • Content for authentication templates cannot be edited - Meta provides preset text<br/>
-                        • Template will use format: "{'{{'}1{'}}'}  is your verification code"<br/>
-                        • No media, URLs, or emojis allowed<br/>
-                        • OTP parameter limited to 15 characters
+                    <div style={{
+                      background: 'white',
+                      padding: 20,
+                      borderRadius: 10,
+                      border: '1px solid #ebedf0',
+                      marginBottom: 24,
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                    }}>
+                      <div style={{display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12}}>
+                        <span style={{fontSize: 16}}>📋</span>
+                        <div style={{fontSize: 13, color: '#1c1e21', fontWeight: 600}}>CONTENT RESTRICTIONS</div>
+                      </div>
+                      <div style={{fontSize: 13, color: '#606770', lineHeight: 1.6}}>
+                        <div style={{display: 'flex', gap: 8, marginBottom: 4}}>
+                          <span style={{color: '#8d949e'}}>•</span>
+                          <span>Content for authentication templates cannot be edited - Meta provides preset text</span>
+                        </div>
+                        <div style={{display: 'flex', gap: 8, marginBottom: 4}}>
+                          <span style={{color: '#8d949e'}}>•</span>
+                          <span>Template will use format: <strong>"{"{{1}}"} is your verification code"</strong></span>
+                        </div>
+                        <div style={{display: 'flex', gap: 8, marginBottom: 4}}>
+                          <span style={{color: '#8d949e'}}>•</span>
+                          <span>No media, URLs, or emojis allowed</span>
+                        </div>
+                        <div style={{display: 'flex', gap: 8}}>
+                          <span style={{color: '#8d949e'}}>•</span>
+                          <span>OTP parameter limited to 15 characters</span>
+                        </div>
                       </div>
                     </div>
 
                     {/* Code Delivery Setup */}
-                    <div className="field-group">
-                      <label style={{fontWeight: 700, marginBottom: 8}}>Code delivery setup</label>
-                      <div style={{fontSize: 12, color: '#8d949e', marginBottom: 12}}>
+                    <div className="field-group" style={{marginBottom: 28}}>
+                      <label style={{fontSize: 15, fontWeight: 700, color: '#1c1e21', display: 'block', marginBottom: 6}}>Code delivery setup</label>
+                      <div style={{fontSize: 13, color: '#606770', marginBottom: 16}}>
                         Choose how customers send the code from WhatsApp to your app
                       </div>
                       
                       <div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
-                        <label style={{
-                          display: 'flex', 
-                          alignItems: 'flex-start', 
-                          gap: 8, 
-                          cursor: 'pointer', 
-                          padding: 12, 
-                          border: formData.otpType === 'ZERO_TAP' ? '2px solid #008069' : '1px solid #dddfe2', 
-                          borderRadius: 8, 
-                          background: formData.otpType === 'ZERO_TAP' ? '#e7f3ef' : 'white'
-                        }}>
-                          <input 
-                            type="radio" 
-                            name="otpType" 
-                            value="ZERO_TAP"
-                            checked={formData.otpType === 'ZERO_TAP'}
-                            onChange={(e) => setFormData({...formData, otpType: e.target.value})}
-                            style={{marginTop: 2}}
-                          />
-                          <div>
-                            <div style={{fontWeight: 600, fontSize: 14, marginBottom: 4}}>Zero-tap auto-fill (Recommended)</div>
-                            <div style={{fontSize: 12, color: '#8d949e', lineHeight: 1.3}}>
-                              Automatically sends code without requiring customer to tap a button. 
-                              An auto-fill or copy code message will be sent if zero-tap isn't possible.
+                        {[
+                          { 
+                            id: 'ZERO_TAP', 
+                            title: 'Zero-tap auto-fill (Recommended)', 
+                            desc: 'Automatically sends code without requiring customer to tap a button. An auto-fill or copy code message will be sent if zero-tap isn\'t possible.' 
+                          },
+                          { 
+                            id: 'ONE_TAP', 
+                            title: 'One-tap auto-fill', 
+                            desc: 'Code sends to your app when customers tap the button. A copy code message will be sent if auto-fill isn\'t possible.' 
+                          },
+                          { 
+                            id: 'COPY_CODE', 
+                            title: 'Copy code', 
+                            desc: 'Basic authentication with quick setup. Customers copy and paste the code into your app.' 
+                          }
+                        ].map(option => (
+                          <label key={option.id} style={{
+                            display: 'flex', 
+                            alignItems: 'flex-start', 
+                            gap: 12, 
+                            cursor: 'pointer', 
+                            padding: 16, 
+                            border: formData.otpType === option.id ? '2px solid #008069' : '1px solid #ebedf0', 
+                            borderRadius: 10, 
+                            background: formData.otpType === option.id ? '#f0f9f6' : 'white',
+                            transition: 'all 0.2s'
+                          }}>
+                            <input 
+                              type="radio" 
+                              name="otpType" 
+                              value={option.id}
+                              checked={formData.otpType === option.id}
+                              onChange={(e) => setFormData({...formData, otpType: e.target.value})}
+                              style={{marginTop: 4, accentColor: '#008069'}}
+                            />
+                            <div>
+                              <div style={{fontWeight: 700, fontSize: 14, color: '#1c1e21', marginBottom: 4}}>{option.title}</div>
+                              <div style={{fontSize: 12.5, color: '#606770', lineHeight: 1.4}}>
+                                {option.desc}
+                              </div>
                             </div>
-                          </div>
-                        </label>
-                        
-                        <label style={{
-                          display: 'flex', 
-                          alignItems: 'flex-start', 
-                          gap: 8, 
-                          cursor: 'pointer', 
-                          padding: 12, 
-                          border: formData.otpType === 'ONE_TAP' ? '2px solid #008069' : '1px solid #dddfe2', 
-                          borderRadius: 8, 
-                          background: formData.otpType === 'ONE_TAP' ? '#e7f3ef' : 'white'
-                        }}>
-                          <input 
-                            type="radio" 
-                            name="otpType" 
-                            value="ONE_TAP"
-                            checked={formData.otpType === 'ONE_TAP'}
-                            onChange={(e) => setFormData({...formData, otpType: e.target.value})}
-                            style={{marginTop: 2}}
-                          />
-                          <div>
-                            <div style={{fontWeight: 600, fontSize: 14, marginBottom: 4}}>One-tap auto-fill</div>
-                            <div style={{fontSize: 12, color: '#8d949e', lineHeight: 1.3}}>
-                              Code sends to your app when customers tap the button. 
-                              A copy code message will be sent if auto-fill isn't possible.
-                            </div>
-                          </div>
-                        </label>
-                        
-                        <label style={{
-                          display: 'flex', 
-                          alignItems: 'flex-start', 
-                          gap: 8, 
-                          cursor: 'pointer', 
-                          padding: 12, 
-                          border: formData.otpType === 'COPY_CODE' ? '2px solid #008069' : '1px solid #dddfe2', 
-                          borderRadius: 8, 
-                          background: formData.otpType === 'COPY_CODE' ? '#e7f3ef' : 'white'
-                        }}>
-                          <input 
-                            type="radio" 
-                            name="otpType" 
-                            value="COPY_CODE"
-                            checked={formData.otpType === 'COPY_CODE'}
-                            onChange={(e) => setFormData({...formData, otpType: e.target.value})}
-                            style={{marginTop: 2}}
-                          />
-                          <div>
-                            <div style={{fontWeight: 600, fontSize: 14, marginBottom: 4}}>Copy code</div>
-                            <div style={{fontSize: 12, color: '#8d949e', lineHeight: 1.3}}>
-                              Basic authentication with quick setup. Customers copy and paste the code into your app.
-                            </div>
-                          </div>
-                        </label>
+                          </label>
+                        ))}
                       </div>
                     </div>
 
                     {/* App Setup for Zero-tap and One-tap */}
                     {(formData.otpType === 'ZERO_TAP' || formData.otpType === 'ONE_TAP') && (
-                      <div className="field-group">
-                        <label style={{fontWeight: 700, marginBottom: 8}}>App setup</label>
-                        <div style={{fontSize: 12, color: '#8d949e', marginBottom: 12}}>
+                      <div style={{
+                        background: 'white',
+                        padding: 20,
+                        borderRadius: 10,
+                        border: '1px solid #ebedf0',
+                        marginBottom: 28
+                      }}>
+                        <label style={{fontSize: 15, fontWeight: 700, color: '#1c1e21', display: 'block', marginBottom: 6}}>App setup</label>
+                        <div style={{fontSize: 13, color: '#606770', marginBottom: 16}}>
                           You can add up to 5 apps. Required for zero-tap and one-tap authentication.
                         </div>
                         
-                        <div style={{display: 'flex', gap: 12, marginBottom: 12}}>
-                          <div style={{flex: 1}}>
-                            <label style={{fontSize: 13, fontWeight: 600, marginBottom: 4, display: 'block'}}>Package name</label>
+                        <div style={{display: 'flex', gap: 16, marginBottom: 16}}>
+                          <div style={{flex: 1.5}}>
+                            <label style={{fontSize: 13, fontWeight: 600, color: '#4b4f56', marginBottom: 6, display: 'block'}}>Package name</label>
                             <input 
                               type="text" 
                               className="input-field"
@@ -1550,12 +1660,12 @@ const TemplateManager = () => {
                               value={formData.packageName || ''}
                               onChange={(e) => setFormData({...formData, packageName: e.target.value})}
                               maxLength={224}
-                              style={{fontSize: 13}}
+                              style={{fontSize: 13, padding: '10px 12px'}}
                             />
-                            <div style={{fontSize: 11, color: '#8d949e', marginTop: 2}}>{(formData.packageName || '').length}/224</div>
+                            <div style={{fontSize: 11, color: '#8d949e', marginTop: 4}}>{(formData.packageName || '').length}/224</div>
                           </div>
                           <div style={{flex: 1}}>
-                            <label style={{fontSize: 13, fontWeight: 600, marginBottom: 4, display: 'block'}}>App signature hash</label>
+                            <label style={{fontSize: 13, fontWeight: 600, color: '#4b4f56', marginBottom: 6, display: 'block'}}>App signature hash</label>
                             <input 
                               type="text" 
                               className="input-field"
@@ -1563,26 +1673,26 @@ const TemplateManager = () => {
                               value={formData.signatureHash || ''}
                               onChange={(e) => setFormData({...formData, signatureHash: e.target.value})}
                               maxLength={11}
-                              style={{fontSize: 13}}
+                              style={{fontSize: 13, padding: '10px 12px'}}
                             />
-                            <div style={{fontSize: 11, color: formData.signatureHash?.length === 11 ? '#008069' : '#fa3e3e', marginTop: 2}}>
+                            <div style={{fontSize: 11, color: formData.signatureHash?.length === 11 ? '#008069' : '#fa3e3e', marginTop: 4}}>
                               {formData.signatureHash?.length || 0}/11 {formData.signatureHash?.length !== 11 && '(must be 11 characters)'}
                             </div>
                           </div>
                         </div>
                         
                         {formData.otpType === 'ZERO_TAP' && (
-                          <div style={{background: '#fff8e1', padding: 12, borderRadius: 8, border: '1px solid #ffc107'}}>
-                            <div style={{display: 'flex', alignItems: 'flex-start', gap: 8}}>
+                          <div style={{background: '#fff8e1', padding: 14, borderRadius: 8, border: '1px solid #ffe082'}}>
+                            <div style={{display: 'flex', alignItems: 'flex-start', gap: 10}}>
                               <input 
                                 type="checkbox" 
                                 checked={formData.zeroTapAgreement || false}
                                 onChange={(e) => setFormData({...formData, zeroTapAgreement: e.target.checked})}
-                                style={{marginTop: 2}}
+                                style={{marginTop: 3, accentColor: '#f57c00'}}
                               />
-                              <div style={{fontSize: 12, lineHeight: 1.4}}>
+                              <div style={{fontSize: 12.5, color: '#5d4037', lineHeight: 1.5}}>
                                 By selecting zero-tap, I understand that <strong>your business</strong>'s use of zero-tap authentication is subject to the 
-                                <a href="#" style={{color: '#1976d2'}}> WhatsApp Business Terms of Service</a>. 
+                                <a href="#" style={{color: '#1976d2', textDecoration: 'none', marginLeft: 4}}>WhatsApp Business Terms of Service</a>. 
                                 It's your responsibility to ensure that customers expect the code will be automatically filled in on their behalf.
                               </div>
                             </div>
@@ -1592,36 +1702,45 @@ const TemplateManager = () => {
                     )}
 
                     {/* Additional Content Options */}
-                    <div className="field-group">
-                      <label style={{fontWeight: 700, marginBottom: 8}}>Additional content options</label>
+                    <div style={{marginBottom: 28}}>
+                      <label style={{fontSize: 15, fontWeight: 700, color: '#1c1e21', display: 'block', marginBottom: 12}}>Additional content options</label>
                       
-                      <div style={{display: 'flex', flexDirection: 'column', gap: 8}}>
-                        <label style={{display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer'}}>
+                      <div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
+                        <label style={{display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer'}}>
                           <input 
                             type="checkbox" 
                             checked={formData.addSecurityRecommendation || false}
                             onChange={(e) => setFormData({...formData, addSecurityRecommendation: e.target.checked})}
+                            style={{accentColor: '#008069'}}
                           />
-                          <span style={{fontSize: 14}}>Add security recommendation</span>
+                          <span style={{fontSize: 14, color: '#1c1e21'}}>Add security recommendation</span>
                         </label>
                         
-                        <label style={{display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer'}}>
+                        <label style={{display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: formData.addExpiryTime ? 8 : 0}}>
                           <input 
                             type="checkbox" 
                             checked={formData.addExpiryTime || false}
                             onChange={(e) => setFormData({...formData, addExpiryTime: e.target.checked})}
+                            style={{accentColor: '#008069'}}
                           />
-                          <span style={{fontSize: 14}}>Add expiry time for the code</span>
+                          <span style={{fontSize: 14, color: '#1c1e21'}}>Add expiry time for the code</span>
                         </label>
                         
                         {formData.addExpiryTime && (
-                          <div style={{marginLeft: 24, marginTop: 8}}>
-                            <label style={{fontSize: 13, fontWeight: 600, marginBottom: 4, display: 'block'}}>Code expires in (minutes)</label>
+                          <div style={{
+                            marginLeft: 26, 
+                            padding: '12px 16px', 
+                            background: 'white', 
+                            borderRadius: 8, 
+                            border: '1px solid #ebedf0',
+                            maxWidth: 240
+                          }}>
+                            <label style={{fontSize: 13, fontWeight: 600, color: '#4b4f56', marginBottom: 8, display: 'block'}}>Code expires in</label>
                             <select 
                               className="select-field"
                               value={formData.codeExpiryMinutes || 10}
                               onChange={(e) => setFormData({...formData, codeExpiryMinutes: parseInt(e.target.value)})}
-                              style={{width: 120, fontSize: 13}}
+                              style={{padding: '8px 10px', fontSize: 13, border: '1px solid #dddfe2'}}
                             >
                               <option value={1}>1 minute</option>
                               <option value={5}>5 minutes</option>
@@ -1631,7 +1750,7 @@ const TemplateManager = () => {
                               <option value={60}>60 minutes</option>
                               <option value={90}>90 minutes</option>
                             </select>
-                            <div style={{fontSize: 11, color: '#8d949e', marginTop: 4}}>
+                            <div style={{fontSize: 11, color: '#8d949e', marginTop: 8}}>
                               After expiry, the auto-fill button will be disabled
                             </div>
                           </div>
@@ -1640,29 +1759,30 @@ const TemplateManager = () => {
                     </div>
 
                     {/* Message Validity Period */}
-                    <div className="field-group">
-                      <label style={{fontWeight: 700, marginBottom: 8}}>Message validity period</label>
-                      <div style={{fontSize: 12, color: '#8d949e', marginBottom: 12}}>
+                    <div className="validity-period-section">
+                      <label style={{fontSize: 15, fontWeight: 700, color: '#1c1e21', display: 'block', marginBottom: 6}}>Message validity period</label>
+                      <div style={{fontSize: 13, color: '#606770', marginBottom: 16, lineHeight: 1.4}}>
                         Set a custom validity period that your authentication message must be delivered by before it expires.
                       </div>
                       
-                      <label style={{display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 8}}>
+                      <label style={{display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 12}}>
                         <input 
                           type="checkbox" 
                           checked={formData.customValidityPeriod || false}
                           onChange={(e) => setFormData({...formData, customValidityPeriod: e.target.checked})}
+                          style={{accentColor: '#008069'}}
                         />
-                        <span style={{fontSize: 14}}>Set custom validity period for your message</span>
+                        <span style={{fontSize: 14, color: '#1c1e21', fontWeight: 500}}>Set custom validity period for your message</span>
                       </label>
                       
-                      {formData.customValidityPeriod && (
-                        <div style={{marginLeft: 24}}>
-                          <label style={{fontSize: 13, fontWeight: 600, marginBottom: 4, display: 'block'}}>Validity period</label>
+                      {formData.customValidityPeriod ? (
+                        <div style={{marginLeft: 26, maxWidth: 220}}>
+                          <label style={{fontSize: 13, fontWeight: 600, color: '#4b4f56', marginBottom: 8, display: 'block'}}>Validity period</label>
                           <select 
                             className="select-field"
                             value={formData.validityPeriod || 10}
                             onChange={(e) => setFormData({...formData, validityPeriod: parseInt(e.target.value)})}
-                            style={{width: 150, fontSize: 13}}
+                            style={{padding: '8px 10px', fontSize: 13, border: '1px solid #dddfe2'}}
                           >
                             <option value={1}>1 minute</option>
                             <option value={5}>5 minutes</option>
@@ -1676,10 +1796,16 @@ const TemplateManager = () => {
                             <option value={1440}>24 hours</option>
                           </select>
                         </div>
-                      )}
-                      
-                      {!formData.customValidityPeriod && (
-                        <div style={{fontSize: 12, color: '#8d949e', fontStyle: 'italic'}}>
+                      ) : (
+                        <div style={{
+                          marginLeft: 26, 
+                          padding: '8px 12px', 
+                          background: '#f0f2f5', 
+                          borderRadius: 6, 
+                          fontSize: 12, 
+                          color: '#606770',
+                          display: 'inline-block'
+                        }}>
                           Standard 10 minutes WhatsApp message validity period will be applied
                         </div>
                       )}

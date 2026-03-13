@@ -1175,7 +1175,7 @@ const TemplateManager = () => {
                             <div className="lib-wa-body-text">
                               {bodyComp?.text.split(/(\{\{\d\}\})/).map((part, i) => 
                                 part.match(/\{\{\d\}\}/) ? 
-                                  <span key={i} className="lib-variable">{"{{text}}"}</span> : 
+                                  <span key={i} className="lib-variable">{part}</span> : 
                                   part
                               )}
                             </div>

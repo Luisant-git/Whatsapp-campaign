@@ -295,8 +295,23 @@ export class TemplateService {
       };
     } catch (error) {
       console.error('Template creation error:', error.response?.data || error.message);
+      
+      // Extract Meta API error details for frontend
+      const metaError = error.response?.data?.error;
+      if (metaError) {
+        throw new BadRequestException({
+          message: metaError.message || 'Failed to create template',
+          details: {
+            error_subcode: metaError.error_subcode,
+            error_user_title: metaError.error_user_title,
+            error_user_msg: metaError.error_user_msg,
+            is_transient: metaError.is_transient
+          }
+        });
+      }
+      
       throw new BadRequestException(
-        error.response?.data?.error?.message || error.message || 'Failed to create template'
+        error.message || 'Failed to create template'
       );
     }
   }
@@ -682,8 +697,23 @@ export class TemplateService {
       }
     } catch (error) {
       console.error('Template update error:', error.response?.data || error.message);
+      
+      // Extract Meta API error details for frontend
+      const metaError = error.response?.data?.error;
+      if (metaError) {
+        throw new BadRequestException({
+          message: metaError.message || 'Failed to update template',
+          details: {
+            error_subcode: metaError.error_subcode,
+            error_user_title: metaError.error_user_title,
+            error_user_msg: metaError.error_user_msg,
+            is_transient: metaError.is_transient
+          }
+        });
+      }
+      
       throw new BadRequestException(
-        error.response?.data?.error?.message || error.message || 'Failed to update template'
+        error.message || 'Failed to update template'
       );
     }
   }
@@ -1864,5 +1894,82 @@ export class TemplateService {
 
   private escapeRegex(string: string): string {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  private validateTemplateNameFormat(name: string): { valid: boolean; message?: string } {
+    if (!name || name.trim() === '') {
+      return { valid: false, message: 'Template name is required' };
+    }
+
+    // Check length
+    if (name.length > 512) {
+      return { valid: false, message: 'Template name cannot exceed 512 characters' };
+    }
+
+    // Check format: lowercase letters, numbers, and underscores only
+    if (!/^[a-z0-9_]+$/.test(name)) {
+      return { valid: false, message: 'Template name must contain only lowercase letters, numbers, and underscores' };
+    }
+
+    // Check that it doesn't start or end with underscore
+    if (name.startsWith('_') || name.endsWith('_')) {
+      return { valid: false, message: 'Template name cannot start or end with underscore' };
+    }
+
+    // Check for consecutive underscores
+    if (name.includes('__')) {
+      return { valid: false, message: 'Template name cannot contain consecutive underscores' };
+    }
+
+    return { valid: true };
+  }
+
+  private async validateTemplateNameWithMeta(masterConfig: any, name: string): Promise<{ valid: boolean; message?: string }> {
+    try {
+      // Validate that wabaId exists
+      if (!masterConfig.wabaId) {
+        return { valid: false, message: 'WhatsApp Business Account ID (wabaId) is not configured' };
+      }
+
+      // Check if template name already exists on Meta
+      const response = await axios.get(
+        `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
+        {
+          params: {
+            name: name,
+            limit: 1
+          },
+          headers: {
+            Authorization: `Bearer ${masterConfig.accessToken}`,
+          },
+        }
+      );
+
+      const existingTemplates = response.data.data || [];
+      
+      if (existingTemplates.length > 0) {
+        const existingTemplate = existingTemplates[0];
+        return { 
+          valid: false, 
+          message: `Template name "${name}" already exists on Meta (Status: ${existingTemplate.status}). Please choose a different name.` 
+        };
+      }
+
+      return { valid: true };
+    } catch (error) {
+      console.error('Meta template validation error:', error.response?.data || error.message);
+      
+      // Handle specific Meta API errors
+      if (error.response?.data?.error?.error_subcode === 2388023) {
+        return { 
+          valid: false, 
+          message: `Template name "${name}" cannot be used because it was recently deleted. Meta requires a 4-week waiting period before reusing template names. Please try a different name or wait 4 weeks.` 
+        };
+      }
+      
+      // For other errors, log but don't block template creation
+      console.warn('Could not validate template name with Meta API, proceeding with creation');
+      return { valid: true };
+    }
   }
 }

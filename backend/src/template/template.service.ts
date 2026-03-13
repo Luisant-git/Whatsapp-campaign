@@ -25,8 +25,8 @@ export class TemplateService {
       // Validate template content based on category
       this.validateTemplateByCategory(createTemplateDto);
 
-      // Validate template structure for Meta API requirements
-      this.validateTemplateStructure(createTemplateDto);
+      // Skip general template structure validation for Authentication templates
+      // as they have their own specific validation rules
 
       // Ensure template name is valid (lowercase, underscores only)
       const baseName = createTemplateDto.name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
@@ -262,12 +262,15 @@ export class TemplateService {
 
       // Validate the update data if components are provided
       if (updateTemplateDto.components) {
-        this.validateTemplateStructure({
+        const templateData = {
           name: updateTemplateDto.name || template.name,
           category: updateTemplateDto.category || template.category as TemplateCategory,
           language: updateTemplateDto.language || template.language,
           components: updateTemplateDto.components
-        });
+        };
+        
+        // Use category-specific validation
+        this.validateTemplateByCategory(templateData);
       }
 
       // For Meta templates, use delete-and-recreate method (Meta doesn't support direct updates)
@@ -1109,7 +1112,8 @@ export class TemplateService {
     switch (template.category) {
       case TemplateCategory.AUTHENTICATION:
         this.validateAuthenticationTemplate(template);
-        break;
+        // Skip general template structure validation for Authentication templates
+        return;
       case TemplateCategory.UTILITY:
         this.validateUtilityTemplate(template);
         break;
@@ -1117,6 +1121,9 @@ export class TemplateService {
         this.validateMarketingTemplate(template);
         break;
     }
+    
+    // Only run general structure validation for non-Authentication templates
+    this.validateTemplateStructure(template);
   }
 
   private validateAuthenticationTemplate(template: CreateTemplateDto | TemplatePreviewDto) {

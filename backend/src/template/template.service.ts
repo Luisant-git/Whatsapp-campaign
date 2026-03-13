@@ -59,11 +59,8 @@ export class TemplateService {
               add_security_recommendation: createTemplateDto.addSecurityRecommendation !== false
             };
 
-            // Add expiry time if specified
-            if (createTemplateDto.addExpiryTime) {
-              bodyComponent.code_expiration_minutes = createTemplateDto.codeExpiryMinutes || 10;
-            }
-
+            // Do NOT add code_expiration_minutes here - it goes at root level of payload
+            
             // No example needed for authentication templates - Meta handles this
             return bodyComponent;
           }
@@ -230,6 +227,13 @@ export class TemplateService {
         components: sortedComponents
       };
 
+      // Add authentication-specific fields at root level
+      if (createTemplateDto.category === TemplateCategory.AUTHENTICATION) {
+        if (createTemplateDto.addExpiryTime) {
+          (metaPayload as any).code_expiration_minutes = createTemplateDto.codeExpiryMinutes || 10;
+        }
+      }
+
       console.log('Sending to Meta API:', JSON.stringify(metaPayload, null, 2));
 
       // Create template via Meta API using correct format
@@ -392,10 +396,7 @@ export class TemplateService {
                 add_security_recommendation: updateTemplateDto.addSecurityRecommendation !== false
               };
 
-              // Add expiry time if specified
-              if (updateTemplateDto.addExpiryTime) {
-                bodyComponent.code_expiration_minutes = updateTemplateDto.codeExpiryMinutes || 10;
-              }
+              // Do NOT add code_expiration_minutes here - it goes at root level of payload
 
               // No example needed for authentication templates - Meta handles this
               return bodyComponent;
@@ -519,6 +520,13 @@ export class TemplateService {
             language: createTemplateData.language,
             components: sortedComponents
           };
+
+          // Add authentication-specific fields at root level
+          if (createTemplateData.category === TemplateCategory.AUTHENTICATION) {
+            if (updateTemplateDto.addExpiryTime) {
+              (metaPayload as any).code_expiration_minutes = updateTemplateDto.codeExpiryMinutes || 10;
+            }
+          }
 
           console.log(`Creating new versioned template: ${newTemplateName}`);
           console.log('Sending to Meta API:', JSON.stringify(metaPayload, null, 2));

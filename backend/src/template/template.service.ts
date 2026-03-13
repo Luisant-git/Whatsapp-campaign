@@ -52,11 +52,10 @@ export class TemplateService {
 
           // Special handling for Authentication templates
           if (createTemplateDto.category === TemplateCategory.AUTHENTICATION && component.type === 'BODY') {
-            // For authentication templates, Meta still expects the text field
-            // but with additional authentication-specific parameters
+            // For authentication templates, Meta automatically generates the OTP message
+            // The text field is NOT allowed - Meta will reject it
             const bodyComponent: any = {
               type: 'BODY',
-              text: component.text,
               add_security_recommendation: createTemplateDto.addSecurityRecommendation !== false
             };
 
@@ -65,13 +64,7 @@ export class TemplateService {
               bodyComponent.code_expiration_minutes = createTemplateDto.codeExpiryMinutes || 10;
             }
 
-            // Add example for the OTP parameter
-            if (component.text && component.text.includes('{{1}}')) {
-              bodyComponent.example = {
-                body_text: [['123456']]
-              };
-            }
-
+            // No example needed for authentication templates - Meta handles this
             return bodyComponent;
           }
 
@@ -128,6 +121,31 @@ export class TemplateService {
 
           if (component.type === 'BUTTONS' && component.buttons) {
             const processedButtons = component.buttons.map(button => {
+              // Handle OTP buttons for authentication templates
+              if (button.type === 'OTP' || (createTemplateDto.category === TemplateCategory.AUTHENTICATION && button.otp_type)) {
+                const otpButton: any = {
+                  type: 'OTP',
+                  otp_type: button.otp_type || createTemplateDto.otpType || 'COPY_CODE'
+                };
+
+                // Add app configuration for one_tap and zero_tap
+                if (['ONE_TAP', 'ZERO_TAP'].includes(otpButton.otp_type)) {
+                  if (createTemplateDto.packageName && createTemplateDto.signatureHash) {
+                    otpButton.supported_apps = [{
+                      package_name: createTemplateDto.packageName,
+                      signature_hash: createTemplateDto.signatureHash
+                    }];
+                  }
+                }
+
+                // Add zero-tap agreement if required
+                if (otpButton.otp_type === 'ZERO_TAP' && createTemplateDto.zeroTapAgreement) {
+                  otpButton.zero_tap_terms_accepted = true;
+                }
+
+                return otpButton;
+              }
+
               if (button.type === 'URL') {
                 return {
                   type: 'URL',
@@ -171,6 +189,37 @@ export class TemplateService {
       const sortedComponents = processedComponents.sort(
         (a, b) => order.indexOf(a.type) - order.indexOf(b.type)
       );
+
+      // For authentication templates, automatically add OTP button if not provided
+      if (createTemplateDto.category === TemplateCategory.AUTHENTICATION) {
+        const hasButtons = sortedComponents.some(c => c.type === 'BUTTONS');
+        if (!hasButtons) {
+          const otpButton: any = {
+            type: 'OTP',
+            otp_type: createTemplateDto.otpType || 'COPY_CODE'
+          };
+
+          // Add app configuration for one_tap and zero_tap
+          if (['ONE_TAP', 'ZERO_TAP'].includes(otpButton.otp_type)) {
+            if (createTemplateDto.packageName && createTemplateDto.signatureHash) {
+              otpButton.supported_apps = [{
+                package_name: createTemplateDto.packageName,
+                signature_hash: createTemplateDto.signatureHash
+              }];
+            }
+          }
+
+          // Add zero-tap agreement if required
+          if (otpButton.otp_type === 'ZERO_TAP' && createTemplateDto.zeroTapAgreement) {
+            otpButton.zero_tap_terms_accepted = true;
+          }
+
+          sortedComponents.push({
+            type: 'BUTTONS',
+            buttons: [otpButton]
+          });
+        }
+      }
 
       console.log('Final processed components:', JSON.stringify(sortedComponents, null, 2));
 
@@ -336,9 +385,10 @@ export class TemplateService {
           createTemplateData.components.map(async (component: any) => {
             // Special handling for Authentication templates
             if (createTemplateData.category === TemplateCategory.AUTHENTICATION && component.type === 'BODY') {
+              // For authentication templates, Meta automatically generates the OTP message
+              // The text field is NOT allowed - Meta will reject it
               const bodyComponent: any = {
                 type: 'BODY',
-                text: component.text,
                 add_security_recommendation: updateTemplateDto.addSecurityRecommendation !== false
               };
 
@@ -347,13 +397,7 @@ export class TemplateService {
                 bodyComponent.code_expiration_minutes = updateTemplateDto.codeExpiryMinutes || 10;
               }
 
-              // Add example for the OTP parameter
-              if (component.text && component.text.includes('{{1}}')) {
-                bodyComponent.example = {
-                  body_text: [['123456']]
-                };
-              }
-
+              // No example needed for authentication templates - Meta handles this
               return bodyComponent;
             }
 
@@ -404,6 +448,31 @@ export class TemplateService {
 
             if (component.type === 'BUTTONS' && component.buttons) {
               const processedButtons = component.buttons.map((button: any) => {
+                // Handle OTP buttons for authentication templates
+                if (button.type === 'OTP' || (createTemplateData.category === TemplateCategory.AUTHENTICATION && button.otp_type)) {
+                  const otpButton: any = {
+                    type: 'OTP',
+                    otp_type: button.otp_type || updateTemplateDto.otpType || 'COPY_CODE'
+                  };
+
+                  // Add app configuration for one_tap and zero_tap
+                  if (['ONE_TAP', 'ZERO_TAP'].includes(otpButton.otp_type)) {
+                    if (updateTemplateDto.packageName && updateTemplateDto.signatureHash) {
+                      otpButton.supported_apps = [{
+                        package_name: updateTemplateDto.packageName,
+                        signature_hash: updateTemplateDto.signatureHash
+                      }];
+                    }
+                  }
+
+                  // Add zero-tap agreement if required
+                  if (otpButton.otp_type === 'ZERO_TAP' && updateTemplateDto.zeroTapAgreement) {
+                    otpButton.zero_tap_terms_accepted = true;
+                  }
+
+                  return otpButton;
+                }
+
                 if (button.type === 'URL') {
                   return {
                     type: 'URL',

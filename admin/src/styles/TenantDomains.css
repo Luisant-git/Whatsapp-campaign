@@ -256,10 +256,17 @@
   font-weight: 500;
   cursor: pointer;
   transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .btn-edit:hover {
   color: #1d4ed8;
+}
+
+.btn-edit svg {
+  flex-shrink: 0;
 }
 
 .btn-remove {
@@ -270,10 +277,17 @@
   font-weight: 500;
   cursor: pointer;
   transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .btn-remove:hover {
   color: #b91c1c;
+}
+
+.btn-remove svg {
+  flex-shrink: 0;
 }
 
 .info-panel {

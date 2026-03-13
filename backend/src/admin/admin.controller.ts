@@ -227,6 +227,40 @@ async updateSubUser(
     return this.adminService.updateMenuPermissions(tenantId, body.permission);
   }
 
+  @Put('tenants/:tenantId/domain')
+  @ApiOperation({ summary: 'Update tenant domain' })
+  async updateTenantDomain(
+    @Param('tenantId', ParseIntPipe) tenantId: number,
+    @Body() body: { domain: string },
+    @Session() session: Record<string, any>
+  ) {
+    if (!session?.adminId) {
+      throw new UnauthorizedException('Admin authentication required');
+    }
+    return this.adminService.updateTenantDomain(tenantId, body.domain);
+  }
+
+  @Delete('tenants/:tenantId/domain')
+  @ApiOperation({ summary: 'Remove tenant domain' })
+  async removeTenantDomain(
+    @Param('tenantId', ParseIntPipe) tenantId: number,
+    @Session() session: Record<string, any>
+  ) {
+    if (!session?.adminId) {
+      throw new UnauthorizedException('Admin authentication required');
+    }
+    return this.adminService.removeTenantDomain(tenantId);
+  }
+
+  @Get('tenants/domains')
+  @ApiOperation({ summary: 'Get all tenant domains' })
+  async getTenantDomains(@Session() session: Record<string, any>) {
+    if (!session?.adminId) {
+      throw new UnauthorizedException('Admin authentication required');
+    }
+    return this.adminService.getTenantDomains();
+  }
+
   @Post('users/:id/subscription')
   @ApiOperation({ summary: 'Create subscription for user' })
   async createUserSubscription(

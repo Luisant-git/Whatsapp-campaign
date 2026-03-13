@@ -17,6 +17,7 @@ import { GroupModule } from './group/group.module';
 import { TenantModule } from './tenant/tenant.module';
 import { TestModule } from './test/test.module';
 import { TenantMiddleware } from './tenant/tenant.middleware';
+// import { DomainTenantMiddleware } from './tenant/domain-tenant.middleware';
 import { TestController } from './test.controller';
 import { EcommerceModule } from './ecommerce/ecommerce.module';
 import { MenuPermissionModule } from './menu-permission/menu-permission.module';
@@ -62,6 +63,7 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(TenantMiddleware)
+      // .apply(DomainTenantMiddleware)
       .exclude(
         'admin/(.*)',
         'user/login',

@@ -32,6 +32,7 @@ model Tenant {
   country     String?
   password    String
   isActive    Boolean  @default(true)
+  domain      String?  @unique
   dbName      String   @unique
   dbHost      String   @default("localhost")
   

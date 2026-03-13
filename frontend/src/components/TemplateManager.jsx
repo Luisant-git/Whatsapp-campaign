@@ -425,7 +425,12 @@ const TemplateManager = () => {
       }
     }
 
-    return null; // No errors
+    // 12. Check if sample value is provided for {{1}}
+    if (!formData.sampleValues[1] || formData.sampleValues[1].trim() === '') {
+      return 'Please provide a sample value for {{1}} (the verification code). This is required for Meta template review.';
+    }
+
+    return null; // No errors - Authentication template is valid!
   };
 
   const validateRegularTemplate = (bodyComponent, headerComponent, components) => {
@@ -823,33 +828,8 @@ const TemplateManager = () => {
     const buttons = components.find(c => c.type === 'BUTTONS');
 
     const formatBody = (text) => {
-      // For authentication templates, show the standard format
-      if (formData.category === 'AUTHENTICATION') {
-        // Use Meta's standard authentication format
-        let authText = '{{1}} is your verification code.';
-        
-        if (formData.addSecurityRecommendation) {
-          authText += ' For your security, do not share this code.';
-        }
-        
-        let formattedText = authText;
-        // Replace {{1}} with sample OTP if sample value exists, otherwise keep placeholder
-        const sampleValue = formData.sampleValues[1];
-        if (sampleValue && sampleValue.trim() !== '') {
-          formattedText = authText.replace(/\{\{1\}\}/g, sampleValue);
-        } else {
-          // Show with placeholder styling for {{1}}
-          formattedText = authText.replace(/\{\{1\}\}/g, '<span style="color: #008069; background: #e7f3ef; padding: 0 4px; border-radius: 4px; font-weight: 600;">{{1}}</span>');
-        }
-        
-        return formattedText;
-      }
-
       if (!text) return '';
       let formattedText = text;
-      
-      // For non-auth templates, use the regular body text
-      if (!text) return '';
       
       // Replace variables with sample values if available, otherwise keep the variable placeholder
       const variables = getVariablesFromText(text);
@@ -959,7 +939,9 @@ const TemplateManager = () => {
           {/* Body - Always show for authentication templates or when body text exists */}
           {(body?.text || formData.category === 'AUTHENTICATION') && (
             <div className="wa-body" dangerouslySetInnerHTML={{ 
-              __html: formatBody(body?.text) 
+              __html: formData.category === 'AUTHENTICATION' ? 
+                formatBody('{{1}} is your verification code.' + (formData.addSecurityRecommendation ? ' For your security, do not share this code.' : '')) :
+                formatBody(body?.text) 
             }} />
           )}
           

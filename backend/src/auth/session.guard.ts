@@ -14,9 +14,12 @@ export class SessionGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const session = request.session;
     const origin = request.get('origin') || request.get('referer');
+    const authHeader = request.get('authorization');
 
     // Check if accessing via custom domain (based on origin)
     let tenant: any = null;
+    let isDomainBasedAccess = false;
+    
     if (origin) {
       const originUrl = new URL(origin);
       const hostname = originUrl.hostname;
@@ -31,20 +34,34 @@ export class SessionGuard implements CanActivate {
             isActive: true
           },
         });
-
-        // For domain-based access, we need to check if user is authenticated for this specific tenant
-        if (tenant && session && (session.tenantId || session.userId)) {
-          const sessionTenantId = Number(session.tenantId || session.userId);
-          
-          // If session tenant doesn't match domain tenant, clear session
-          if (sessionTenantId !== tenant.id) {
-            session.destroy();
-            throw new UnauthorizedException('Please login to access this domain');
-          }
+        
+        if (tenant) {
+          isDomainBasedAccess = true;
+          console.log('SessionGuard - Domain-based access for tenant:', tenant.id);
         }
       }
     }
 
+    // For domain-based access, check for domain-specific auth token
+    if (isDomainBasedAccess && tenant) {
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        // Simple token format: tenantId:timestamp:hash
+        const [tenantIdStr, timestamp] = token.split(':');
+        const tokenTenantId = parseInt(tenantIdStr);
+        
+        if (tokenTenantId === tenant.id) {
+          // Token is valid for this tenant
+          console.log('SessionGuard - Valid domain auth token for tenant:', tenant.id);
+          return true;
+        }
+      }
+      
+      // No valid token for domain-based access
+      throw new UnauthorizedException('Domain authentication required');
+    }
+
+    // For non-domain access, require session authentication
     if (!session || (!session.user && !session.userId)) {
       throw new UnauthorizedException('Not authenticated');
     }

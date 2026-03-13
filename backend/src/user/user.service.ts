@@ -169,7 +169,14 @@ export class UserService {
       tenantId: session.tenantId
     });
     
-    return { message: 'Login successful', user: session.user };
+    // Generate domain-specific auth token for cross-domain access
+    const domainAuthToken = `${tenant.id}:${Date.now()}:${tenant.email}`;
+    
+    return { 
+      message: 'Login successful', 
+      user: session.user,
+      domainAuthToken // Include token for domain-based access
+    };
   }
   async logout(session: any) {
     return new Promise((resolve, reject) => {
@@ -183,7 +190,92 @@ export class UserService {
     });
   }
 
-  async getCurrentUser(session: any) {
+  async getCurrentUser(session: any, req?: any) {
+    const origin = req?.get('origin') || req?.get('referer');
+    let isDomainBasedAccess = false;
+    let domainTenant: any = null;
+
+    // Check if this is domain-based access
+    if (origin) {
+      try {
+        const originUrl = new URL(origin);
+        const hostname = originUrl.hostname;
+        
+        if (hostname !== 'whatsapp.luisant.cloud' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+          domainTenant = await this.centralPrisma.tenant.findFirst({
+            where: { 
+              domain: {
+                contains: hostname,
+                mode: 'insensitive'
+              },
+              isActive: true
+            },
+            include: {
+              subscription: true,
+            },
+          });
+          
+          if (domainTenant) {
+            isDomainBasedAccess = true;
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing origin URL:', error);
+      }
+    }
+
+    // For domain-based access, return tenant info directly
+    if (isDomainBasedAccess && domainTenant) {
+      // Fetch tenant config
+      let tenantConfig: any = {};
+      try {
+        const tenantDbUrl = `postgresql://${domainTenant.dbUser}:${domainTenant.dbPassword}@${domainTenant.dbHost}:${domainTenant.dbPort}/${domainTenant.dbName}`;
+        const tenantPrisma = new TenantPrisma({
+          datasources: { db: { url: tenantDbUrl } },
+        });
+        await tenantPrisma.$connect();
+        tenantConfig = (await tenantPrisma.tenantConfig.findFirst()) || {};
+        await tenantPrisma.$disconnect();
+      } catch (err) {
+        console.error('Error fetching tenant config:', err);
+      }
+
+      // Get menu permissions from subscription plan
+      let menuPermission: any = {};
+      if (domainTenant.subscription?.menuPermissions) {
+        menuPermission = domainTenant.subscription.menuPermissions.reduce((acc, key) => {
+          acc[key] = true;
+          return acc;
+        }, {});
+      }
+
+      return {
+        message: 'Current user retrieved successfully',
+        user: {
+          id: domainTenant.id,
+          tenantId: domainTenant.id,
+          email: domainTenant.email,
+          name: domainTenant.name,
+          isActive: domainTenant.isActive,
+          companyName: domainTenant.companyName,
+          contactPersonName: domainTenant.contactPersonName,
+          phoneNumber: domainTenant.phoneNumber,
+          companyAddress: domainTenant.companyAddress,
+          city: domainTenant.city,
+          pincode: domainTenant.pincode,
+          state: domainTenant.state,
+          country: domainTenant.country,
+          subscriptionId: domainTenant.subscriptionId,
+          aiChatbotEnabled: tenantConfig.aiChatbotEnabled || false,
+          useQuickReply: tenantConfig.useQuickReply !== false,
+        },
+        role: 'owner',
+        userType: 'tenant',
+        menuPermission,
+      };
+    }
+
+    // Original session-based logic for non-domain access
     const tenantId = session.tenantId;
     const userId = session.userId;
     const userType = session.userType || 'tenant';
@@ -195,7 +287,7 @@ export class UserService {
     const tenant = await this.centralPrisma.tenant.findUnique({
       where: { id: tenantId },
       include: {
-        subscription: true,  // Include subscription plan
+        subscription: true,
       },
     });
     if (!tenant) {
@@ -234,10 +326,9 @@ export class UserService {
       console.error('Error fetching tenant config:', err);
     }
   
-    // ✅ Get menu permissions from subscription plan's menuPermissions array
+    // Get menu permissions from subscription plan's menuPermissions array
     let menuPermission: any = {};
     if (tenant.subscription?.menuPermissions) {
-      // Convert array to object: ['key1', 'key2'] => {key1: true, key2: true}
       menuPermission = tenant.subscription.menuPermissions.reduce((acc, key) => {
         acc[key] = true;
         return acc;
@@ -280,7 +371,7 @@ export class UserService {
       },
       role: userType === 'subuser' ? subUserDetails.role : 'owner',
       userType,
-      menuPermission,  // now from subscription plan's menuPermissions
+      menuPermission,
     };
   }
 

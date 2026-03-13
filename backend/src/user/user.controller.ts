@@ -44,9 +44,9 @@ export class UserController {
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, description: 'User profile retrieved' })
   @ApiResponse({ status: 401, description: 'Not authenticated' })
-  async getCurrentUser(@Session() session: Record<string, any>) {
-    // Pass the session object to the service
-    return this.userService.getCurrentUser(session);
+  async getCurrentUser(@Session() session: Record<string, any>, @Req() req: any) {
+    // Pass the session object and request to the service
+    return this.userService.getCurrentUser(session, req);
   }
 
   @Put('update-name')

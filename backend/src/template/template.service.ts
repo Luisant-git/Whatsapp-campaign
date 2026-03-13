@@ -222,6 +222,17 @@ export class TemplateService {
             buttons: [otpButton]
           });
         }
+
+        // Add FOOTER component for expiration text if enabled
+        if (createTemplateDto.addExpiryTime && createTemplateDto.codeExpiryMinutes) {
+          const hasFooter = sortedComponents.some(c => c.type === 'FOOTER');
+          if (!hasFooter) {
+            sortedComponents.push({
+              type: 'FOOTER',
+              code_expiration_minutes: createTemplateDto.codeExpiryMinutes
+            });
+          }
+        }
       }
 
       console.log('Final processed components:', JSON.stringify(sortedComponents, null, 2));
@@ -233,13 +244,8 @@ export class TemplateService {
         components: sortedComponents
       };
 
-      // Add authentication-specific fields at root level
-      if (createTemplateDto.category === TemplateCategory.AUTHENTICATION) {
-        // Add expiry time if enabled
-        if (createTemplateDto.addExpiryTime && createTemplateDto.codeExpiryMinutes) {
-          (metaPayload as any).code_expiration_minutes = createTemplateDto.codeExpiryMinutes;
-        }
-      }
+      // Authentication templates don't need root-level code_expiration_minutes
+      // It should be in the FOOTER component instead
 
       console.log('Sending to Meta API:', JSON.stringify(metaPayload, null, 2));
 
@@ -555,6 +561,17 @@ export class TemplateService {
               buttons: [otpButton]
             });
           }
+
+          // Add FOOTER component for expiration text if enabled
+          if (updateTemplateDto.addExpiryTime && updateTemplateDto.codeExpiryMinutes) {
+            const hasFooter = sortedComponents.some(c => c.type === 'FOOTER');
+            if (!hasFooter) {
+              sortedComponents.push({
+                type: 'FOOTER',
+                code_expiration_minutes: updateTemplateDto.codeExpiryMinutes
+              });
+            }
+          }
         }
 
         try {
@@ -565,13 +582,8 @@ export class TemplateService {
             components: sortedComponents
           };
 
-          // Add authentication-specific fields at root level
-          if (createTemplateData.category === TemplateCategory.AUTHENTICATION) {
-            // Add expiry time if enabled
-            if (updateTemplateDto.addExpiryTime && updateTemplateDto.codeExpiryMinutes) {
-              (metaPayload as any).code_expiration_minutes = updateTemplateDto.codeExpiryMinutes;
-            }
-          }
+          // Authentication templates don't need root-level code_expiration_minutes
+          // It should be in the FOOTER component instead
 
           console.log(`Creating new versioned template: ${newTemplateName}`);
           console.log('Sending to Meta API:', JSON.stringify(metaPayload, null, 2));

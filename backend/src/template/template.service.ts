@@ -45,10 +45,35 @@ export class TemplateService {
 
       const validName = baseName;
 
-      // Process components to ensure proper format and add examples
+      // Process components based on template category
       const processedComponents = await Promise.all(
         createTemplateDto.components.map(async (component) => {
           console.log('Processing component:', JSON.stringify(component, null, 2));
+
+          // Special handling for Authentication templates
+          if (createTemplateDto.category === TemplateCategory.AUTHENTICATION && component.type === 'BODY') {
+            // For authentication templates, Meta still expects the text field
+            // but with additional authentication-specific parameters
+            const bodyComponent: any = {
+              type: 'BODY',
+              text: component.text,
+              add_security_recommendation: createTemplateDto.addSecurityRecommendation !== false
+            };
+
+            // Add expiry time if specified
+            if (createTemplateDto.addExpiryTime) {
+              bodyComponent.code_expiration_minutes = createTemplateDto.codeExpiryMinutes || 10;
+            }
+
+            // Add example for the OTP parameter
+            if (component.text && component.text.includes('{{1}}')) {
+              bodyComponent.example = {
+                body_text: [['123456']]
+              };
+            }
+
+            return bodyComponent;
+          }
 
           if (component.type === 'HEADER') {
             if (component.text && !component.format) {
@@ -309,6 +334,29 @@ export class TemplateService {
         // Process components for Meta API
         const processedComponents = await Promise.all(
           createTemplateData.components.map(async (component: any) => {
+            // Special handling for Authentication templates
+            if (createTemplateData.category === TemplateCategory.AUTHENTICATION && component.type === 'BODY') {
+              const bodyComponent: any = {
+                type: 'BODY',
+                text: component.text,
+                add_security_recommendation: updateTemplateDto.addSecurityRecommendation !== false
+              };
+
+              // Add expiry time if specified
+              if (updateTemplateDto.addExpiryTime) {
+                bodyComponent.code_expiration_minutes = updateTemplateDto.codeExpiryMinutes || 10;
+              }
+
+              // Add example for the OTP parameter
+              if (component.text && component.text.includes('{{1}}')) {
+                bodyComponent.example = {
+                  body_text: [['123456']]
+                };
+              }
+
+              return bodyComponent;
+            }
+
             if (component.type === 'HEADER') {
               if (component.text && !component.format) {
                 const processedComponent = { ...component, format: 'TEXT' };

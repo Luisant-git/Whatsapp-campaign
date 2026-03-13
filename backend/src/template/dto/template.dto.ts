@@ -57,6 +57,41 @@ export class CreateTemplateDto {
 
   @IsOptional()
   sampleValues?: { [key: string]: string };
+
+  // Authentication template specific fields
+  @IsOptional()
+  @IsString()
+  otpType?: string;
+
+  @IsOptional()
+  @IsString()
+  packageName?: string;
+
+  @IsOptional()
+  @IsString()
+  signatureHash?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  zeroTapAgreement?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  addSecurityRecommendation?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  addExpiryTime?: boolean;
+
+  @IsOptional()
+  codeExpiryMinutes?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  customValidityPeriod?: boolean;
+
+  @IsOptional()
+  validityPeriod?: number;
 }
 
 export class UpdateTemplateDto {
@@ -81,6 +116,41 @@ export class UpdateTemplateDto {
 
   @IsOptional()
   sampleValues?: { [key: string]: string };
+
+  // Authentication template specific fields
+  @IsOptional()
+  @IsString()
+  otpType?: string;
+
+  @IsOptional()
+  @IsString()
+  packageName?: string;
+
+  @IsOptional()
+  @IsString()
+  signatureHash?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  zeroTapAgreement?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  addSecurityRecommendation?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  addExpiryTime?: boolean;
+
+  @IsOptional()
+  codeExpiryMinutes?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  customValidityPeriod?: boolean;
+
+  @IsOptional()
+  validityPeriod?: number;
 }
 
 export class TemplatePreviewDto {

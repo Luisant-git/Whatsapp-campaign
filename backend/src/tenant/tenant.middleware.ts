@@ -10,7 +10,7 @@ export class TenantMiddleware implements NestMiddleware {
     const session: any = (req as any).session;
     const host = req.get('host') || req.hostname;
 
-    let tenant = null;
+    let tenant: any = null;
 
     // First, try to identify tenant by custom domain
     if (host && host !== 'whatsapp.luisant.cloud' && host !== 'localhost:3010') {

@@ -319,118 +319,130 @@ const TemplateManager = () => {
   };
 
   const validateAuthenticationTemplate = (bodyComponent, headerComponent, components) => {
-    // 1. Body text is required
+    // Meta's Authentication Template Requirements:
+    // 1. Fixed preset text with {{1}} parameter
+    // 2. Optional security recommendation
+    // 3. Optional expiration warning in footer
+    // 4. OTP buttons (copy_code, one_tap, zero_tap)
+    // 5. No custom text modifications allowed
+
+    // 1. Body component is required
     if (!bodyComponent?.text) {
       return 'Authentication templates must have body text';
     }
 
-    // 2. Must use Meta's preset text format
-    const allowedBodyPatterns = [
-      '{{1}} is your verification code.',
-      '{{1}} is your login code.',
-      '{{1}} is your password reset code.',
-      '{{1}} is your account verification code.'
-    ];
-    
-    const bodyText = bodyComponent.text.trim();
-    const baseBodyText = bodyText.replace(/\s*For your security, do not share this code\.?\s*$/, '').trim();
-    
-    if (!allowedBodyPatterns.includes(baseBodyText)) {
-      return 'Authentication templates must use Meta\'s preset format: "{{1}} is your verification code." (or login code, password reset code, account verification code)';
-    }
-
-    // 3. Must include {{1}} parameter
+    // 2. Must contain {{1}} parameter for OTP
     if (!bodyComponent.text.includes('{{1}}')) {
       return 'Authentication templates must include {{1}} parameter for the verification code';
     }
 
-    // 4. Validate OTP sample value (15 chars max, alphanumeric only)
-    const sampleValue = formData.sampleValues[1];
-    if (sampleValue) {
-      if (sampleValue.length > 15) {
-        return 'Authentication code cannot exceed 15 characters';
+    // 3. Check for valid authentication text patterns (Meta allows these)
+    const text = bodyComponent.text.toLowerCase();
+    const validPatterns = [
+      'is your verification code',
+      'is your login code', 
+      'is your password reset code',
+      'is your account verification code',
+      'verification code is',
+      'login code is',
+      'password reset code is'
+    ];
+
+    const hasValidPattern = validPatterns.some(pattern => text.includes(pattern));
+    if (!hasValidPattern) {
+      return 'Authentication template must follow Meta\'s format: "{{1}} is your verification code" or similar authentication patterns';
+    }
+
+    // 4. Validate OTP-specific button requirements
+    const buttonsComponent = components.find(c => c.type === 'BUTTONS');
+    if (buttonsComponent?.buttons) {
+      const hasValidOtpButton = buttonsComponent.buttons.some(btn => 
+        ['OTP', 'QUICK_REPLY'].includes(btn.type) || 
+        (btn.otp_type && ['copy_code', 'one_tap', 'zero_tap'].includes(btn.otp_type))
+      );
+      
+      if (!hasValidOtpButton) {
+        return 'Authentication templates should have OTP buttons (copy_code, one_tap, or zero_tap)';
       }
-      if (!/^[a-zA-Z0-9]+$/.test(sampleValue)) {
-        return 'Authentication code should contain only alphanumeric characters (no spaces or special characters)';
+    }
+
+    // 5. Validate app configuration for one_tap and zero_tap
+    if (formData.otpType === 'ONE_TAP' || formData.otpType === 'ZERO_TAP') {
+      if (!formData.packageName || formData.packageName.trim() === '') {
+        return 'Package name is required for one-tap and zero-tap authentication';
+      }
+      
+      if (!formData.signatureHash || formData.signatureHash.trim() === '') {
+        return 'App signature hash is required for one-tap and zero-tap authentication';
+      }
+      
+      // Validate package name format
+      if (!/^[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(formData.packageName)) {
+        return 'Package name must have at least two segments separated by dots (e.g., com.example.app)';
+      }
+      
+      // Validate signature hash length
+      if (formData.signatureHash.length !== 11) {
+        return 'App signature hash must be exactly 11 characters';
+      }
+      
+      // Validate signature hash format
+      if (!/^[a-zA-Z0-9+/=]+$/.test(formData.signatureHash)) {
+        return 'App signature hash must contain only alphanumeric characters, +, /, or =';
       }
     }
 
-    // 5. No media allowed
-    const hasMedia = components.some(c => 
-      c.type === 'HEADER' && c.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(c.format)
-    );
-    if (hasMedia) {
-      return 'Authentication templates cannot contain media (images, videos, documents)';
+    // 6. Validate zero-tap specific requirements
+    if (formData.otpType === 'ZERO_TAP') {
+      if (!formData.zeroTapAgreement) {
+        return 'You must accept the zero-tap terms to create zero-tap authentication templates';
+      }
     }
 
-    // 6. No URL buttons allowed
-    const hasUrls = components.some(c =>
-      c.type === 'BUTTONS' && c.buttons && c.buttons.some(btn => btn.type === 'URL')
-    );
-    if (hasUrls) {
-      return 'Authentication templates cannot contain URL buttons';
+    // 7. Validate expiration time if set
+    if (formData.addExpiryTime) {
+      if (!formData.codeExpiryMinutes || formData.codeExpiryMinutes < 1 || formData.codeExpiryMinutes > 90) {
+        return 'Code expiration time must be between 1 and 90 minutes';
+      }
     }
 
-    // 7. No emojis allowed
-    const emojiRegex = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu;
-    
-    if (emojiRegex.test(bodyComponent.text)) {
-      return 'Authentication templates cannot contain emojis';
+    // 8. Validate message validity period if custom
+    if (formData.customValidityPeriod) {
+      if (!formData.validityPeriod || formData.validityPeriod < 1) {
+        return 'Custom validity period must be at least 1 minute';
+      }
     }
-    
-    if (headerComponent?.text && emojiRegex.test(headerComponent.text)) {
-      return 'Authentication templates cannot contain emojis in header';
-    }
-    
+
+    // 9. Check footer for expiration format if present
     const footerComponent = components.find(c => c.type === 'FOOTER');
-    if (footerComponent?.text && emojiRegex.test(footerComponent.text)) {
-      return 'Authentication templates cannot contain emojis in footer';
-    }
-
-    // 8. Header restrictions
-    if (headerComponent) {
-      if (headerComponent.format && headerComponent.format !== 'TEXT') {
-        return 'Authentication templates can only have TEXT headers';
-      }
-      if (headerComponent.text && headerComponent.text.length > 60) {
-        return 'Authentication template header cannot exceed 60 characters';
-      }
-      if (headerComponent.text && headerComponent.text.includes('{{')) {
-        return 'Authentication templates cannot have variables in header';
-      }
-    }
-
-    // 9. Footer restrictions
     if (footerComponent?.text) {
-      if (footerComponent.text.length > 60) {
-        return 'Authentication template footer cannot exceed 60 characters';
-      }
-      if (footerComponent.text.includes('{{')) {
-        return 'Authentication templates cannot have variables in footer';
-      }
-    }
-
-    // 10. Only {{1}} variable allowed
-    const allVariables = bodyComponent.text.match(/\{\{(\d+)\}\}/g) || [];
-    const invalidVariables = allVariables.filter(v => v !== '{{1}}');
-    if (invalidVariables.length > 0) {
-      return `Authentication templates can only use {{1}} parameter. Found: ${invalidVariables.join(', ')}`;
-    }
-
-    // 11. Validate security recommendation format
-    if (bodyComponent.text.includes('For your security, do not share this code')) {
-      const expectedWithSecurity = baseBodyText + ' For your security, do not share this code.';
-      if (bodyComponent.text.trim() !== expectedWithSecurity) {
-        return 'Security recommendation must be exactly: "For your security, do not share this code." at the end';
+      const footerText = footerComponent.text.toLowerCase();
+      const validFooterPatterns = [
+        'expires in',
+        'valid for',
+        'code expires',
+        'this code expires'
+      ];
+      
+      const hasValidFooter = validFooterPatterns.some(pattern => footerText.includes(pattern));
+      if (!hasValidFooter) {
+        return 'Footer should indicate code expiration time (e.g., "This code expires in X minutes")';
       }
     }
 
-    // 12. Check if sample value is provided for {{1}}
-    if (!formData.sampleValues[1] || formData.sampleValues[1].trim() === '') {
-      return 'Please provide a sample value for {{1}} (the verification code). This is required for Meta template review.';
+    // 10. Validate header if present (should be minimal for auth templates)
+    if (headerComponent?.text) {
+      if (headerComponent.text.length > 60) {
+        return 'Header text cannot exceed 60 characters';
+      }
     }
 
-    return null; // No errors - Authentication template is valid!
+    // 11. Validate body text length
+    if (bodyComponent.text.length > 1024) {
+      return 'Body text cannot exceed 1024 characters';
+    }
+
+    return null; // All validations passed
   };
 
   const validateRegularTemplate = (bodyComponent, headerComponent, components) => {

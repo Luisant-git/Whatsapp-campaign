@@ -659,14 +659,19 @@ async getSubUserById(id: number) {
         id: true,
         name: true,
         email: true,
-        domain: true,
         isActive: true,
       },
       orderBy: { id: 'asc' },
     });
 
+    // Add domain: null to each tenant since domain field is not yet available
+    const tenantsWithDomain = tenants.map(tenant => ({
+      ...tenant,
+      domain: null // Placeholder until domain field is properly added
+    }));
+
     return {
-      tenants,
+      tenants: tenantsWithDomain,
       primaryDomain: 'whatsapp.luisant.cloud',
     };
   }

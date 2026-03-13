@@ -654,7 +654,7 @@ const TemplateManager = () => {
     const templateComponents = libTemplate.components || [{ type: 'BODY', text: '' }];
     
     setFormData({
-      name: libTemplate.name,
+      name: '', // Keep name empty so user can enter their own
       category: detectedCategory,
       language: 'en',
       components: templateComponents, // Use exact components from library template

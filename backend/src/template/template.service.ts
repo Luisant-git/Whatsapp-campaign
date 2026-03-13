@@ -507,11 +507,42 @@ export class TemplateService {
           })
         );
 
-        // Reorder components
+        // Reorder components: HEADER, BODY, FOOTER, BUTTONS (Meta requires this order)
         const order = ['HEADER', 'BODY', 'FOOTER', 'BUTTONS'];
         const sortedComponents = processedComponents.sort(
           (a, b) => order.indexOf(a.type) - order.indexOf(b.type)
         );
+
+        // For authentication templates, automatically add OTP button if not provided
+        if (createTemplateData.category === TemplateCategory.AUTHENTICATION) {
+          const hasButtons = sortedComponents.some(c => c.type === 'BUTTONS');
+          if (!hasButtons) {
+            const otpButton: any = {
+              type: 'OTP',
+              otp_type: updateTemplateDto.otpType || 'COPY_CODE'
+            };
+
+            // Add app configuration for one_tap and zero_tap
+            if (['ONE_TAP', 'ZERO_TAP'].includes(otpButton.otp_type)) {
+              if (updateTemplateDto.packageName && updateTemplateDto.signatureHash) {
+                otpButton.supported_apps = [{
+                  package_name: updateTemplateDto.packageName,
+                  signature_hash: updateTemplateDto.signatureHash
+                }];
+              }
+            }
+
+            // Add zero-tap agreement if required
+            if (otpButton.otp_type === 'ZERO_TAP' && updateTemplateDto.zeroTapAgreement) {
+              otpButton.zero_tap_terms_accepted = true;
+            }
+
+            sortedComponents.push({
+              type: 'BUTTONS',
+              buttons: [otpButton]
+            });
+          }
+        }
 
         try {
           const metaPayload = {

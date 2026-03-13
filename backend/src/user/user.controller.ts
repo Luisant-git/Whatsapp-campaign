@@ -28,8 +28,9 @@ export class UserController {
   login(
     @Body() loginUserDto: LoginUserDto,
     @Session() session: Record<string, any>,
+    @Req() req: any,
   ) {
-    return this.userService.login(loginUserDto, session);
+    return this.userService.login(loginUserDto, session, req);
   }
   @Post('logout')
   @ApiOperation({ summary: 'Logout user' })

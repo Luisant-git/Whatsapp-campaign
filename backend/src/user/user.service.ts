@@ -66,11 +66,26 @@ export class UserService {
 };
   }
 
-  async login(loginUserDto: LoginUserDto, session: any) {
+  async login(loginUserDto: LoginUserDto, session: any, req?: any) {
     const { email, password } = loginUserDto;
+    const host = req?.get('host') || req?.hostname;
   
     let tenant = await this.centralPrisma.tenant.findUnique({ where: { email } });
     let subUser: any = null;
+    let domainTenant: any = null;
+
+    // Check if accessing via custom domain
+    if (host && host !== 'whatsapp.luisant.cloud' && host !== 'localhost:3010') {
+      domainTenant = await this.centralPrisma.tenant.findFirst({
+        where: { 
+          domain: {
+            contains: host,
+            mode: 'insensitive'
+          },
+          isActive: true
+        },
+      });
+    }
   
     if (!tenant) {
       subUser = await this.centralPrisma.subUser.findUnique({ where: { email } });
@@ -88,6 +103,11 @@ export class UserService {
       const valid = await bcrypt.compare(password, tenant.password);
       if (!valid) throw new UnauthorizedException('Invalid credentials');
       if (!tenant.isActive) throw new UnauthorizedException('Account is deactivated');
+    }
+
+    // If accessing via custom domain, validate that user belongs to that domain's tenant
+    if (domainTenant && tenant.id !== domainTenant.id) {
+      throw new UnauthorizedException('Invalid credentials for this domain');
     }
   
     // Check subscription

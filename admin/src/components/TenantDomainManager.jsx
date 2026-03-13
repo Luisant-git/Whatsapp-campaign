@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import '../styles/TenantDomains.css';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3010';
 
 const TenantDomainManager = () => {
   const [tenants, setTenants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editingTenant, setEditingTenant] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [modalTenant, setModalTenant] = useState(null);
   const [newDomain, setNewDomain] = useState('');
   const [message, setMessage] = useState('');
 
@@ -18,15 +21,30 @@ const TenantDomainManager = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get('/api/admin/tenants/domains');
-      console.log('API Response:', response.data);
+      console.log('Fetching tenant domains from:', `${API_URL}/admin/tenants/domains`);
+      
+      const response = await fetch(`${API_URL}/admin/tenants/domains`, {
+        credentials: 'include',
+      });
+      
+      console.log('API Response Status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('API Response Data:', data);
       
       // Handle different response structures
-      const tenantsData = response.data?.tenants || response.data || [];
+      const tenantsData = data?.tenants || data || [];
+      console.log('Processed tenants data:', tenantsData);
+      console.log('Is array?', Array.isArray(tenantsData));
+      
       setTenants(Array.isArray(tenantsData) ? tenantsData : []);
     } catch (error) {
       console.error('Error fetching tenant domains:', error);
-      setError(error.response?.data?.message || 'Failed to fetch tenant domains');
+      setError(error.message || 'Failed to fetch tenant domains');
       setTenants([]); // Set empty array as fallback
     } finally {
       setLoading(false);
@@ -35,14 +53,25 @@ const TenantDomainManager = () => {
 
   const updateTenantDomain = async (tenantId, domain) => {
     try {
-      await axios.put(`/api/admin/tenants/${tenantId}/domain`, { domain });
+      const response = await fetch(`${API_URL}/admin/tenants/${tenantId}/domain`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update domain');
+      }
+      
       setMessage('Domain updated successfully');
       setEditingTenant(null);
       setNewDomain('');
       fetchTenantDomains();
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
-      setMessage(error.response?.data?.message || 'Error updating domain');
+      setMessage(error.message || 'Error updating domain');
       setTimeout(() => setMessage(''), 3000);
     }
   };
@@ -51,29 +80,43 @@ const TenantDomainManager = () => {
     if (!window.confirm('Are you sure you want to remove this domain?')) return;
     
     try {
-      await axios.delete(`/api/admin/tenants/${tenantId}/domain`);
+      const response = await fetch(`${API_URL}/admin/tenants/${tenantId}/domain`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to remove domain');
+      }
+      
       setMessage('Domain removed successfully');
       fetchTenantDomains();
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
-      setMessage(error.response?.data?.message || 'Error removing domain');
+      setMessage(error.message || 'Error removing domain');
       setTimeout(() => setMessage(''), 3000);
     }
   };
 
   const handleEditClick = (tenant) => {
-    setEditingTenant(tenant.id);
+    setModalTenant(tenant);
     setNewDomain(tenant.domain || '');
+    setShowModal(true);
   };
 
-  const handleSave = (tenantId) => {
-    if (newDomain.trim()) {
-      updateTenantDomain(tenantId, newDomain.trim());
+  const handleSave = async () => {
+    if (newDomain.trim() && modalTenant) {
+      await updateTenantDomain(modalTenant.id, newDomain.trim());
+      setShowModal(false);
+      setModalTenant(null);
+      setNewDomain('');
     }
   };
 
   const handleCancel = () => {
-    setEditingTenant(null);
+    setShowModal(false);
+    setModalTenant(null);
     setNewDomain('');
   };
 
@@ -144,35 +187,11 @@ const TenantDomainManager = () => {
                   <td className="tenant-name">{tenant.name || 'N/A'}</td>
                   <td className="tenant-email">{tenant.email}</td>
                   <td>
-                    {editingTenant === tenant.id ? (
-                      <div className="domain-edit-container">
-                        <input
-                          type="text"
-                          value={newDomain}
-                          onChange={(e) => setNewDomain(e.target.value)}
-                          placeholder="e.g., crm.luisant.in"
-                          className="domain-input"
-                        />
-                        <button
-                          onClick={() => handleSave(tenant.id)}
-                          className="btn-save"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={handleCancel}
-                          className="btn-cancel"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <span className={`domain-display ${
-                        tenant.domain ? 'domain-active' : 'domain-inactive'
-                      }`}>
-                        {tenant.domain || 'No custom domain'}
-                      </span>
-                    )}
+                    <span className={`domain-display ${
+                      tenant.domain ? 'domain-active' : 'domain-inactive'
+                    }`}>
+                      {tenant.domain || 'No custom domain'}
+                    </span>
                   </td>
                   <td>
                     <span className={`status-badge ${
@@ -182,24 +201,22 @@ const TenantDomainManager = () => {
                     </span>
                   </td>
                   <td>
-                    {editingTenant === tenant.id ? null : (
-                      <div className="actions-container">
+                    <div className="actions-container">
+                      <button
+                        onClick={() => handleEditClick(tenant)}
+                        className="btn-edit"
+                      >
+                        {tenant.domain ? 'Edit' : 'Add Domain'}
+                      </button>
+                      {tenant.domain && (
                         <button
-                          onClick={() => handleEditClick(tenant)}
-                          className="btn-edit"
+                          onClick={() => removeTenantDomain(tenant.id)}
+                          className="btn-remove"
                         >
-                          {tenant.domain ? 'Edit' : 'Add Domain'}
+                          Remove
                         </button>
-                        {tenant.domain && (
-                          <button
-                            onClick={() => removeTenantDomain(tenant.id)}
-                            className="btn-remove"
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -217,6 +234,55 @@ const TenantDomainManager = () => {
           <li>• <strong>Access:</strong> Only admin can assign/remove custom domains</li>
         </ul>
       </div> */}
+
+      {/* Domain Modal */}
+      {showModal && (
+        <div className="modal-overlay" onClick={handleCancel}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{modalTenant?.domain ? 'Edit Domain' : 'Add Domain'}</h2>
+              <button onClick={handleCancel} className="close-btn">
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="tenant-info">
+                <p><strong>Company:</strong> {modalTenant?.name || 'N/A'}</p>
+                <p><strong>Email:</strong> {modalTenant?.email}</p>
+                <p><strong>Current Domain:</strong> {modalTenant?.domain || 'None'}</p>
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="domain-input">Custom Domain</label>
+                <input
+                  id="domain-input"
+                  type="text"
+                  value={newDomain}
+                  onChange={(e) => setNewDomain(e.target.value)}
+                  placeholder="e.g., crm.luisant.in"
+                  className="domain-modal-input"
+                  autoFocus
+                />
+                <small className="input-help">
+                  Enter the custom domain for this company. Make sure the domain points to your server.
+                </small>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button onClick={handleCancel} className="btn-modal-cancel">
+                Cancel
+              </button>
+              <button 
+                onClick={handleSave} 
+                className="btn-modal-save"
+                disabled={!newDomain.trim()}
+              >
+                {modalTenant?.domain ? 'Update Domain' : 'Add Domain'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

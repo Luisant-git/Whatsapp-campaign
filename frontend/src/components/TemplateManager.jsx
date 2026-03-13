@@ -600,7 +600,30 @@ const TemplateManager = () => {
         fetchTemplates();
       } else {
         const err = await response.json();
-        setValidationError(`Error: ${err.message || 'Failed to save template'}`);
+        
+        // Handle specific Meta API errors with user-friendly messages
+        let errorMessage = err.message || 'Failed to save template';
+        
+        if (err.details && err.details.error_subcode) {
+          switch (err.details.error_subcode) {
+            case 2388023:
+              errorMessage = `Template name "${formData.name}" cannot be used because it was recently deleted. Meta requires a 4-week waiting period before reusing template names. Please try a different name or wait 4 weeks.`;
+              break;
+            case 2388003:
+              errorMessage = `Template name "${formData.name}" already exists. Please choose a different name.`;
+              break;
+            case 2388042:
+              errorMessage = 'Template components have validation errors. Please check your header, body, footer, and button configurations.';
+              break;
+            case 2388148:
+              errorMessage = 'Button configuration is invalid. Please check your button types, URLs, and phone numbers.';
+              break;
+            default:
+              errorMessage = err.details.error_user_msg || err.message || 'Failed to save template';
+          }
+        }
+        
+        setValidationError(errorMessage);
       }
     } catch (error) {
       console.error('Error submitting template:', error);

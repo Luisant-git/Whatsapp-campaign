@@ -295,63 +295,8 @@ export class TemplateService {
       };
     } catch (error) {
       console.error('Template creation error:', error.response?.data || error.message);
-      
-      // Handle specific Meta API errors with user-friendly messages
-      const metaError = error.response?.data?.error;
-      if (metaError) {
-        // Handle "language being deleted" error
-        if (metaError.error_subcode === 2388023) {
-          throw new BadRequestException(
-            `Cannot create template '${createTemplateDto.name}': This template name was recently deleted and is still being processed by Meta. ` +
-            `You must wait 4 weeks before reusing this name, or choose a different template name. ` +
-            `Meta's message: ${metaError.error_user_msg || metaError.message}`
-          );
-        }
-        
-        // Handle template name already exists
-        if (metaError.error_subcode === 2388003 || metaError.message?.includes('already exists')) {
-          throw new BadRequestException(
-            `Template name '${createTemplateDto.name}' already exists in your WhatsApp Business Account. ` +
-            `Please choose a different name. Meta's message: ${metaError.error_user_msg || metaError.message}`
-          );
-        }
-        
-        // Handle invalid template name format
-        if (metaError.error_subcode === 2388001 || metaError.message?.includes('Invalid template name')) {
-          throw new BadRequestException(
-            `Invalid template name '${createTemplateDto.name}'. ` +
-            `Template names must contain only lowercase letters, numbers, and underscores. ` +
-            `Meta's message: ${metaError.error_user_msg || metaError.message}`
-          );
-        }
-        
-        // Handle component validation errors
-        if (metaError.error_subcode === 2388042 || metaError.message?.includes('unexpected field')) {
-          throw new BadRequestException(
-            `Template component error: ${metaError.error_user_msg || metaError.message}. ` +
-            `Please check your template structure and try again.`
-          );
-        }
-        
-        // Handle button configuration errors
-        if (metaError.error_subcode === 2388148 || metaError.message?.includes('button configuration')) {
-          throw new BadRequestException(
-            `Template button error: ${metaError.error_user_msg || metaError.message}. ` +
-            `Authentication templates must have exactly one OTP button.`
-          );
-        }
-        
-        // Handle other Meta API errors with user-friendly message
-        throw new BadRequestException(
-          `WhatsApp API Error: ${metaError.error_user_msg || metaError.message}. ` +
-          `Error Code: ${metaError.error_subcode || metaError.code}. ` +
-          `Please check your template configuration and try again.`
-        );
-      }
-      
-      // Handle non-Meta API errors
       throw new BadRequestException(
-        error.message || 'Failed to create template. Please check your configuration and try again.'
+        error.response?.data?.error?.message || error.message || 'Failed to create template'
       );
     }
   }
@@ -737,54 +682,8 @@ export class TemplateService {
       }
     } catch (error) {
       console.error('Template update error:', error.response?.data || error.message);
-      
-      // Handle specific Meta API errors with user-friendly messages
-      const metaError = error.response?.data?.error;
-      if (metaError) {
-        // Handle "language being deleted" error
-        if (metaError.error_subcode === 2388023) {
-          throw new BadRequestException(
-            `Cannot update template: The template name was recently deleted and is still being processed by Meta. ` +
-            `You must wait 4 weeks before reusing this name, or choose a different template name. ` +
-            `Meta's message: ${metaError.error_user_msg || metaError.message}`
-          );
-        }
-        
-        // Handle template name already exists
-        if (metaError.error_subcode === 2388003 || metaError.message?.includes('already exists')) {
-          throw new BadRequestException(
-            `Template name already exists in your WhatsApp Business Account. ` +
-            `Please choose a different name. Meta's message: ${metaError.error_user_msg || metaError.message}`
-          );
-        }
-        
-        // Handle component validation errors
-        if (metaError.error_subcode === 2388042 || metaError.message?.includes('unexpected field')) {
-          throw new BadRequestException(
-            `Template component error: ${metaError.error_user_msg || metaError.message}. ` +
-            `Please check your template structure and try again.`
-          );
-        }
-        
-        // Handle button configuration errors
-        if (metaError.error_subcode === 2388148 || metaError.message?.includes('button configuration')) {
-          throw new BadRequestException(
-            `Template button error: ${metaError.error_user_msg || metaError.message}. ` +
-            `Authentication templates must have exactly one OTP button.`
-          );
-        }
-        
-        // Handle other Meta API errors
-        throw new BadRequestException(
-          `WhatsApp API Error: ${metaError.error_user_msg || metaError.message}. ` +
-          `Error Code: ${metaError.error_subcode || metaError.code}. ` +
-          `Please check your template configuration and try again.`
-        );
-      }
-      
-      // Handle non-Meta API errors
       throw new BadRequestException(
-        error.message || 'Failed to update template. Please check your configuration and try again.'
+        error.response?.data?.error?.message || error.message || 'Failed to update template'
       );
     }
   }
@@ -1965,103 +1864,5 @@ export class TemplateService {
 
   private escapeRegex(string: string): string {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-
-  private validateTemplateNameFormat(name: string): { valid: boolean; message?: string } {
-    // Check if name is provided
-    if (!name || name.trim() === '') {
-      return {
-        valid: false,
-        message: 'Template name is required'
-      };
-    }
-
-    // Check length
-    if (name.length > 512) {
-      return {
-        valid: false,
-        message: 'Template name cannot exceed 512 characters'
-      };
-    }
-
-    // Check format - only lowercase letters, numbers, and underscores
-    const regex = /^[a-z0-9_]+$/;
-    if (!regex.test(name)) {
-      return {
-        valid: false,
-        message: 'Template name must contain only lowercase letters, numbers, and underscores. No spaces, hyphens, or special characters allowed.'
-      };
-    }
-
-    // Check if name starts with underscore (not recommended)
-    if (name.startsWith('_')) {
-      return {
-        valid: false,
-        message: 'Template name should not start with an underscore'
-      };
-    }
-
-    // Check if name ends with underscore (not recommended)
-    if (name.endsWith('_')) {
-      return {
-        valid: false,
-        message: 'Template name should not end with an underscore'
-      };
-    }
-
-    // Check for consecutive underscores
-    if (name.includes('__')) {
-      return {
-        valid: false,
-        message: 'Template name should not contain consecutive underscores'
-      };
-    }
-
-    return { valid: true };
-  }
-
-  private async validateTemplateNameWithMeta(masterConfig: any, templateName: string): Promise<{ valid: boolean; message?: string }> {
-    try {
-      console.log(`Validating template name '${templateName}' with Meta API...`);
-      
-      // Fetch all existing templates from Meta
-      const response = await axios.get(
-        `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
-        {
-          headers: {
-            Authorization: `Bearer ${masterConfig.accessToken}`,
-          },
-        }
-      );
-
-      const existingTemplates = response.data.data || [];
-      console.log(`Found ${existingTemplates.length} existing templates in Meta`);
-
-      // Check if template name already exists (case-insensitive)
-      const nameExists = existingTemplates.some(
-        (template: any) => template.name.toLowerCase() === templateName.toLowerCase()
-      );
-
-      if (nameExists) {
-        return {
-          valid: false,
-          message: `Template name '${templateName}' already exists in Meta WhatsApp Business API. Please choose a different name.`
-        };
-      }
-
-      console.log(`✅ Template name '${templateName}' is available in Meta`);
-      return { valid: true };
-
-    } catch (error) {
-      console.error('Meta API validation error:', error.response?.data || error.message);
-      
-      // If Meta API is down or there's an authentication issue, log but don't block creation
-      // The actual creation will fail with a proper error if there's a real issue
-      console.warn('⚠️ Could not validate template name with Meta API, proceeding with creation...');
-      
-      return { 
-        valid: true // Allow creation to proceed, Meta will give proper error if needed
-      };
-    }
   }
 }

@@ -68,23 +68,32 @@ export class UserService {
 
   async login(loginUserDto: LoginUserDto, session: any, req?: any) {
     const { email, password } = loginUserDto;
-    const host = req?.get('host') || req?.hostname;
+    const origin = req?.get('origin') || req?.get('referer');
   
     let tenant = await this.centralPrisma.tenant.findUnique({ where: { email } });
     let subUser: any = null;
     let domainTenant: any = null;
 
-    // Check if accessing via custom domain
-    if (host && host !== 'whatsapp.luisant.cloud' && host !== 'localhost:3010') {
-      domainTenant = await this.centralPrisma.tenant.findFirst({
-        where: { 
-          domain: {
-            contains: host,
-            mode: 'insensitive'
-          },
-          isActive: true
-        },
-      });
+    // Check if accessing via custom domain (based on origin)
+    if (origin) {
+      try {
+        const originUrl = new URL(origin);
+        const hostname = originUrl.hostname;
+        
+        if (hostname !== 'whatsapp.luisant.cloud' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+          domainTenant = await this.centralPrisma.tenant.findFirst({
+            where: { 
+              domain: {
+                contains: hostname,
+                mode: 'insensitive'
+              },
+              isActive: true
+            },
+          });
+        }
+      } catch (error) {
+        console.error('Error parsing origin URL:', error);
+      }
     }
   
     if (!tenant) {

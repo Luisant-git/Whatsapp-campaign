@@ -9,9 +9,10 @@ export const loginUser = async (email, password, role = 'tenant') => {
   });
 
   if (!response.ok) {
+    const data = await response.json();
     const error = new Error(data.message || "Login failed");
-    error.status = response.status;   // ✅ attach status
-    error.data = data;                // ✅ attach full backend data
+    error.status = response.status;
+    error.data = data;
     throw error;
   }
   return await response.json();

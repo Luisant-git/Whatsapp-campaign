@@ -8,24 +8,29 @@ export class TenantMiddleware implements NestMiddleware {
 
   async use(req: Request, res: Response, next: NextFunction) {
     const session: any = (req as any).session;
-    const host = req.get('host') || req.hostname;
-
+    const origin = req.get('origin') || req.get('referer');
+    
     let tenant: any = null;
 
-    // First, try to identify tenant by custom domain
-    if (host && host !== 'whatsapp.luisant.cloud' && host !== 'localhost:3010') {
-      tenant = await this.centralPrisma.tenant.findFirst({
-        where: { 
-          domain: {
-            contains: host,
-            mode: 'insensitive'
+    // First, try to identify tenant by the origin domain (where the request came from)
+    if (origin) {
+      const originUrl = new URL(origin);
+      const hostname = originUrl.hostname;
+      
+      if (hostname !== 'whatsapp.luisant.cloud' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+        tenant = await this.centralPrisma.tenant.findFirst({
+          where: { 
+            domain: {
+              contains: hostname,
+              mode: 'insensitive'
+            },
+            isActive: true
           },
-          isActive: true
-        },
-      });
+        });
+      }
     }
 
-    // If no tenant found by domain, try session-based identification
+    // If no tenant found by origin, try session-based identification
     if (!tenant) {
       const tenantIdRaw = session?.tenantId ?? session?.userId;
       const tenantId = Number(tenantIdRaw);

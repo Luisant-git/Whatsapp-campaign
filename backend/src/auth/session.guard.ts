@@ -13,29 +13,34 @@ export class SessionGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const session = request.session;
-    const host = request.get('host') || request.hostname;
+    const origin = request.get('origin') || request.get('referer');
 
-    // Check if accessing via custom domain
+    // Check if accessing via custom domain (based on origin)
     let tenant: any = null;
-    if (host && host !== 'whatsapp.luisant.cloud' && host !== 'localhost:3010') {
-      tenant = await this.prisma.tenant.findFirst({
-        where: { 
-          domain: {
-            contains: host,
-            mode: 'insensitive'
+    if (origin) {
+      const originUrl = new URL(origin);
+      const hostname = originUrl.hostname;
+      
+      if (hostname !== 'whatsapp.luisant.cloud' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+        tenant = await this.prisma.tenant.findFirst({
+          where: { 
+            domain: {
+              contains: hostname,
+              mode: 'insensitive'
+            },
+            isActive: true
           },
-          isActive: true
-        },
-      });
+        });
 
-      // For domain-based access, we need to check if user is authenticated for this specific tenant
-      if (tenant && session && (session.tenantId || session.userId)) {
-        const sessionTenantId = Number(session.tenantId || session.userId);
-        
-        // If session tenant doesn't match domain tenant, clear session
-        if (sessionTenantId !== tenant.id) {
-          session.destroy();
-          throw new UnauthorizedException('Please login to access this domain');
+        // For domain-based access, we need to check if user is authenticated for this specific tenant
+        if (tenant && session && (session.tenantId || session.userId)) {
+          const sessionTenantId = Number(session.tenantId || session.userId);
+          
+          // If session tenant doesn't match domain tenant, clear session
+          if (sessionTenantId !== tenant.id) {
+            session.destroy();
+            throw new UnauthorizedException('Please login to access this domain');
+          }
         }
       }
     }

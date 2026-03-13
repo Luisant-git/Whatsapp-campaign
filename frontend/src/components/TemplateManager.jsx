@@ -278,6 +278,42 @@ const TemplateManager = () => {
       }
     }
     
+    // Extract authentication template settings from components
+    const bodyComponent = components.find(c => c.type === 'BODY');
+    const footerComponent = components.find(c => c.type === 'FOOTER');
+    const buttonsComponent = components.find(c => c.type === 'BUTTONS');
+    
+    // Determine OTP type from existing buttons
+    let otpType = 'COPY_CODE'; // default
+    let packageName = '';
+    let signatureHash = '';
+    let zeroTapAgreement = false;
+    
+    if (buttonsComponent?.buttons) {
+      const otpButton = buttonsComponent.buttons.find(btn => btn.type === 'OTP');
+      if (otpButton) {
+        otpType = otpButton.otp_type || 'COPY_CODE';
+        
+        // Extract app configuration if present
+        if (otpButton.supported_apps && otpButton.supported_apps.length > 0) {
+          packageName = otpButton.supported_apps[0].package_name || '';
+          signatureHash = otpButton.supported_apps[0].signature_hash || '';
+        }
+        
+        // Check zero-tap agreement
+        if (otpButton.zero_tap_terms_accepted) {
+          zeroTapAgreement = true;
+        }
+      }
+    }
+    
+    // Determine if security recommendation is enabled
+    const addSecurityRecommendation = bodyComponent?.add_security_recommendation === true;
+    
+    // Determine if expiry time is enabled and get minutes
+    const addExpiryTime = footerComponent?.code_expiration_minutes !== undefined;
+    const codeExpiryMinutes = footerComponent?.code_expiration_minutes || 10;
+    
     setFormData({
       name: template.name,
       category: template.category,
@@ -295,7 +331,17 @@ const TemplateManager = () => {
           console.error('Error parsing sampleValues:', error);
           return {};
         }
-      })()
+      })(),
+      // Authentication template specific fields
+      otpType,
+      packageName,
+      signatureHash,
+      zeroTapAgreement,
+      addSecurityRecommendation,
+      addExpiryTime,
+      codeExpiryMinutes,
+      customValidityPeriod: false,
+      validityPeriod: 10
     });
     setOpenDialog(true);
   };

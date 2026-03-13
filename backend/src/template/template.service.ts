@@ -22,6 +22,18 @@ export class TemplateService {
         throw new BadRequestException('WhatsApp Business Account ID (wabaId) is not configured. Please update your Master Config.');
       }
 
+      // Validate template name format
+      const formatValidation = this.validateTemplateNameFormat(createTemplateDto.name);
+      if (!formatValidation.valid) {
+        throw new BadRequestException(formatValidation.message);
+      }
+
+      // Validate template name against Meta API (check for existing/recently deleted templates)
+      const metaValidation = await this.validateTemplateNameWithMeta(masterConfig, createTemplateDto.name);
+      if (!metaValidation.valid) {
+        throw new BadRequestException(metaValidation.message);
+      }
+
       // Validate template content based on category
       this.validateTemplateByCategory(createTemplateDto);
 
@@ -31,7 +43,7 @@ export class TemplateService {
       // Ensure template name is valid (lowercase, underscores only)
       const baseName = createTemplateDto.name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
 
-      // Check for existing template with same name and language
+      // Check for existing template with same name and language in local database
       const existingTemplate = await tenantClient.messageTemplate.findFirst({
         where: {
           name: baseName,
@@ -1852,5 +1864,103 @@ export class TemplateService {
 
   private escapeRegex(string: string): string {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  private validateTemplateNameFormat(name: string): { valid: boolean; message?: string } {
+    // Check if name is provided
+    if (!name || name.trim() === '') {
+      return {
+        valid: false,
+        message: 'Template name is required'
+      };
+    }
+
+    // Check length
+    if (name.length > 512) {
+      return {
+        valid: false,
+        message: 'Template name cannot exceed 512 characters'
+      };
+    }
+
+    // Check format - only lowercase letters, numbers, and underscores
+    const regex = /^[a-z0-9_]+$/;
+    if (!regex.test(name)) {
+      return {
+        valid: false,
+        message: 'Template name must contain only lowercase letters, numbers, and underscores. No spaces, hyphens, or special characters allowed.'
+      };
+    }
+
+    // Check if name starts with underscore (not recommended)
+    if (name.startsWith('_')) {
+      return {
+        valid: false,
+        message: 'Template name should not start with an underscore'
+      };
+    }
+
+    // Check if name ends with underscore (not recommended)
+    if (name.endsWith('_')) {
+      return {
+        valid: false,
+        message: 'Template name should not end with an underscore'
+      };
+    }
+
+    // Check for consecutive underscores
+    if (name.includes('__')) {
+      return {
+        valid: false,
+        message: 'Template name should not contain consecutive underscores'
+      };
+    }
+
+    return { valid: true };
+  }
+
+  private async validateTemplateNameWithMeta(masterConfig: any, templateName: string): Promise<{ valid: boolean; message?: string }> {
+    try {
+      console.log(`Validating template name '${templateName}' with Meta API...`);
+      
+      // Fetch all existing templates from Meta
+      const response = await axios.get(
+        `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
+        {
+          headers: {
+            Authorization: `Bearer ${masterConfig.accessToken}`,
+          },
+        }
+      );
+
+      const existingTemplates = response.data.data || [];
+      console.log(`Found ${existingTemplates.length} existing templates in Meta`);
+
+      // Check if template name already exists (case-insensitive)
+      const nameExists = existingTemplates.some(
+        (template: any) => template.name.toLowerCase() === templateName.toLowerCase()
+      );
+
+      if (nameExists) {
+        return {
+          valid: false,
+          message: `Template name '${templateName}' already exists in Meta WhatsApp Business API. Please choose a different name.`
+        };
+      }
+
+      console.log(`✅ Template name '${templateName}' is available in Meta`);
+      return { valid: true };
+
+    } catch (error) {
+      console.error('Meta API validation error:', error.response?.data || error.message);
+      
+      // If Meta API is down or there's an authentication issue, log but don't block creation
+      // The actual creation will fail with a proper error if there's a real issue
+      console.warn('⚠️ Could not validate template name with Meta API, proceeding with creation...');
+      
+      return { 
+        valid: true // Allow creation to proceed, Meta will give proper error if needed
+      };
+    }
   }
 }

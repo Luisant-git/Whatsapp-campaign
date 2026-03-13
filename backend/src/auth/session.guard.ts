@@ -24,7 +24,7 @@ export class SessionGuard implements CanActivate {
       const originUrl = new URL(origin);
       const hostname = originUrl.hostname;
       
-      if (hostname !== 'whatsapp.luisant.cloud' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      if (hostname !== 'whatsapp.luisant.cloud' && hostname !== 'crm.luisant.in' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
         tenant = await this.prisma.tenant.findFirst({
           where: { 
             domain: {

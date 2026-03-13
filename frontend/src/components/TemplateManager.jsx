@@ -1164,6 +1164,15 @@ const TemplateManager = () => {
                       const bodyComp = libTemplate.components?.find(c => c.type === 'BODY');
                       const buttonsComp = libTemplate.components?.find(c => c.type === 'BUTTONS');
                       
+                      // Debug logging to see template structure
+                      if (key === 'authentication') {
+                        console.log(`Template ${libTemplate.name}:`, {
+                          bodyComp,
+                          bodyText: bodyComp?.text,
+                          components: libTemplate.components
+                        });
+                      }
+                      
                       return (
                         <div key={idx} className="library-card-premium">
                           <div className="lib-wa-bubble">
@@ -1173,10 +1182,14 @@ const TemplateManager = () => {
                             </div>
                             
                             <div className="lib-wa-body-text">
-                              {bodyComp?.text.split(/(\{\{\d\}\})/).map((part, i) => 
-                                part.match(/\{\{\d\}\}/) ? 
-                                  <span key={i} className="lib-variable">{part}</span> : 
-                                  part
+                              {bodyComp?.text ? (
+                                bodyComp.text.split(/(\{\{\d\}\})/).map((part, i) => 
+                                  part.match(/\{\{\d\}\}/) ? 
+                                    <span key={i} className="lib-variable">123456</span> : 
+                                    part
+                                )
+                              ) : (
+                                <span>Loading template...</span>
                               )}
                             </div>
                             

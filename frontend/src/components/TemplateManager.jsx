@@ -650,11 +650,14 @@ const TemplateManager = () => {
     
     const isAuthTemplate = detectedCategory === 'AUTHENTICATION';
     
+    // Use the exact components from the selected library template
+    const templateComponents = libTemplate.components || [{ type: 'BODY', text: '' }];
+    
     setFormData({
       name: libTemplate.name,
       category: detectedCategory,
       language: 'en',
-      components: libTemplate.components || [{ type: 'BODY', text: '' }],
+      components: templateComponents, // Use exact components from library template
       sampleValues: {},
       // Authentication template specific fields
       otpType: isAuthTemplate ? 'COPY_CODE' : 'COPY_CODE',
@@ -951,9 +954,7 @@ const TemplateManager = () => {
           {/* Body - Always show for authentication templates or when body text exists */}
           {(body?.text || formData.category === 'AUTHENTICATION') && (
             <div className="wa-body" dangerouslySetInnerHTML={{ 
-              __html: formData.category === 'AUTHENTICATION' ? 
-                formatBody('{{1}} is your verification code.' + (formData.addSecurityRecommendation ? ' For your security, do not share this code.' : '')) :
-                formatBody(body?.text) 
+              __html: body?.text ? formatBody(body.text) : formatBody('{{1}} is your verification code.')
             }} />
           )}
           
@@ -1185,7 +1186,7 @@ const TemplateManager = () => {
                               {bodyComp?.text ? (
                                 bodyComp.text.split(/(\{\{\d\}\})/).map((part, i) => 
                                   part.match(/\{\{\d\}\}/) ? 
-                                    <span key={i} className="lib-variable">123456</span> : 
+                                    <span key={i} className="lib-variable">{part}</span> : 
                                     part
                                 )
                               ) : (

@@ -53,15 +53,21 @@ export class TemplateService {
           // Special handling for Authentication templates
           if (createTemplateDto.category === TemplateCategory.AUTHENTICATION && component.type === 'BODY') {
             // For authentication templates, Meta automatically generates the OTP message
-            // The text field is NOT allowed - Meta will reject it
+            // NO text field allowed - Meta will reject it
+            // Meta generates message based on these flags:
+            // - add_security_recommendation: adds "For your security, do not share this code."
+            // - code_expiration_minutes (at root): adds "This code expires in X minutes."
             const bodyComponent: any = {
-              type: 'BODY',
-              add_security_recommendation: createTemplateDto.addSecurityRecommendation !== false
+              type: 'BODY'
+              // Only include add_security_recommendation if explicitly enabled
             };
 
-            // Do NOT add code_expiration_minutes here - it goes at root level of payload
-            
-            // No example needed for authentication templates - Meta handles this
+            // Add security recommendation if enabled
+            if (createTemplateDto.addSecurityRecommendation) {
+              bodyComponent.add_security_recommendation = true;
+            }
+
+            // No text field, no example - Meta handles everything automatically
             return bodyComponent;
           }
 
@@ -229,8 +235,9 @@ export class TemplateService {
 
       // Add authentication-specific fields at root level
       if (createTemplateDto.category === TemplateCategory.AUTHENTICATION) {
-        if (createTemplateDto.addExpiryTime) {
-          (metaPayload as any).code_expiration_minutes = createTemplateDto.codeExpiryMinutes || 10;
+        // Add expiry time if enabled
+        if (createTemplateDto.addExpiryTime && createTemplateDto.codeExpiryMinutes) {
+          (metaPayload as any).code_expiration_minutes = createTemplateDto.codeExpiryMinutes;
         }
       }
 
@@ -390,15 +397,21 @@ export class TemplateService {
             // Special handling for Authentication templates
             if (createTemplateData.category === TemplateCategory.AUTHENTICATION && component.type === 'BODY') {
               // For authentication templates, Meta automatically generates the OTP message
-              // The text field is NOT allowed - Meta will reject it
+              // NO text field allowed - Meta will reject it
+              // Meta generates message based on these flags:
+              // - add_security_recommendation: adds "For your security, do not share this code."
+              // - code_expiration_minutes (at root): adds "This code expires in X minutes."
               const bodyComponent: any = {
-                type: 'BODY',
-                add_security_recommendation: updateTemplateDto.addSecurityRecommendation !== false
+                type: 'BODY'
+                // Only include add_security_recommendation if explicitly enabled
               };
 
-              // Do NOT add code_expiration_minutes here - it goes at root level of payload
+              // Add security recommendation if enabled
+              if (updateTemplateDto.addSecurityRecommendation) {
+                bodyComponent.add_security_recommendation = true;
+              }
 
-              // No example needed for authentication templates - Meta handles this
+              // No text field, no example - Meta handles everything automatically
               return bodyComponent;
             }
 
@@ -554,8 +567,9 @@ export class TemplateService {
 
           // Add authentication-specific fields at root level
           if (createTemplateData.category === TemplateCategory.AUTHENTICATION) {
-            if (updateTemplateDto.addExpiryTime) {
-              (metaPayload as any).code_expiration_minutes = updateTemplateDto.codeExpiryMinutes || 10;
+            // Add expiry time if enabled
+            if (updateTemplateDto.addExpiryTime && updateTemplateDto.codeExpiryMinutes) {
+              (metaPayload as any).code_expiration_minutes = updateTemplateDto.codeExpiryMinutes;
             }
           }
 

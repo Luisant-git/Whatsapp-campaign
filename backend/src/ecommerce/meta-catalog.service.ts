@@ -473,16 +473,16 @@ export class MetaCatalogService {
             customerPhone: phone,
             customerAddress: fullAddress,
             totalAmount,
-            paymentMethod: method,
-            paymentStatus: method === 'cod' ? 'cod' : 'pending',
-            status: method === 'cod' ? 'placed' : 'pending',
+            paymentMethod: paymentMethod,
+            paymentStatus: paymentMethod === 'cod' ? 'cod' : 'pending',
+            status: paymentMethod === 'cod' ? 'placed' : 'pending',
             items: orderItems
           }, userId);
           
           console.log(`[Meta Catalog] Single order created:`, { orderId: order.id, itemCount: orderItems.length });
           orders.push(order);
           
-          if (method === 'razorpay') {
+          if (paymentMethod === 'razorpay') {
             try {
               const items = cartProducts.map(p => ({
                 name: p.name,

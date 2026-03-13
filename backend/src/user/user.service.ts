@@ -132,6 +132,7 @@ export class UserService {
       throw new UnauthorizedException('No active subscription found');
   
     // ✅ CRITICAL: Store tenantId separately from userId
+    console.log('Login - Before setting session data');
     session.userId = subUser ? subUser.id : tenant.id;
     session.tenantId = tenant.id;           // ← ALWAYS the tenant's ID
     session.userType = subUser ? 'subuser' : 'tenant';  // ← NEW
@@ -143,15 +144,31 @@ export class UserService {
       role: subUser ? subUser.role : 'owner',
       userType: subUser ? 'subuser' : 'tenant',  // ← ADD THIS
     };
+    
+    console.log('Login - Session data set:', {
+      userId: session.userId,
+      tenantId: session.tenantId,
+      userType: session.userType
+    });
+    
     await new Promise<void>((resolve, reject) => {
       session.save((err: any) => {
         if (err) {
           console.error('Session save error:', err);
           reject(err);
+        } else {
+          console.log('Login - Session saved successfully');
         }
         resolve();
       });
     });
+    
+    console.log('Login - Final session check:', {
+      sessionId: session.id,
+      userId: session.userId,
+      tenantId: session.tenantId
+    });
+    
     return { message: 'Login successful', user: session.user };
   }
   async logout(session: any) {

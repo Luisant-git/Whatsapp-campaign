@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import '../styles/Users.css';
-import { Eye } from 'lucide-react';
+import { Edit2, Eye } from 'lucide-react';
 import {
   createAdminUser,
   getActiveSubscriptions,
   getAdminUsers,
   toggleCompanyStatus,
+  updateAdminUser,
 } from '../api/Company';
 import { useToast } from '../contexts/ToastContext'
+
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -18,6 +20,7 @@ export default function Users() {
   const [showModal, setShowModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const [editingCompany, setEditingCompany] = useState(null);
 
   // Create form data
   const [formData, setFormData] = useState({
@@ -35,6 +38,26 @@ export default function Users() {
     subscriptionId: '',
   });
 
+  //for editing company
+  const openEditModal = (user) => {
+    setEditingCompany(user);
+    setError('');
+    setFormData({
+      name: user.name || '',
+      email: user.email || '',
+      password: '',
+      companyName: user.companyName || '',
+      contactPersonName: user.contactPersonName || '',
+      phoneNumber: user.phoneNumber || '',
+      companyAddress: user.companyAddress || '',
+      city: user.city || '',
+      pincode: user.pincode || '',
+      state: user.state || '',
+      country: user.country || '',
+      subscriptionId: user.subscriptionId ? String(user.subscriptionId) : '',
+    });
+    setShowModal(true);
+  };
   // View modal
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [viewUser, setViewUser] = useState(null);
@@ -76,9 +99,18 @@ export default function Users() {
     e.preventDefault();
     setError('');
     setCreating(true);
+
     try {
-      await createAdminUser(formData);
+      if (editingCompany) {
+        await updateAdminUser(editingCompany.id, formData);
+        showToast('Company updated successfully', 'success');
+      } else {
+        await createAdminUser(formData);
+        showToast('Company created successfully', 'success');
+      }
+
       setShowModal(false);
+      setEditingCompany(null);
       setFormData({
         name: '',
         email: '',
@@ -93,11 +125,13 @@ export default function Users() {
         country: '',
         subscriptionId: '',
       });
-      showToast('Company created successfully', 'success');
+
       fetchUsers();
     } catch (err) {
       console.error(err);
-      const msg = err.message || 'Error creating company';
+      const msg =
+        err.message ||
+        (editingCompany ? 'Error updating company' : 'Error creating company');
       setError(msg);
       showToast(msg, 'error');
     } finally {
@@ -159,7 +193,7 @@ export default function Users() {
               <th>Subscription</th>
               <th>Status</th>
               <th>Created At</th>
-              <th>Action</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -171,9 +205,8 @@ export default function Users() {
                 <td>{getSubscriptionName(user)}</td>
                 <td>
                   <span
-                    className={`status-badge ${
-                      user.isActive ? 'active' : 'inactive'
-                    }`}
+                    className={`status-badge ${user.isActive ? 'active' : 'inactive'
+                      }`}
                     onClick={() => handleToggleActive(user)}
                     style={{ cursor: 'pointer' }}
                     title="Click to toggle status"
@@ -183,15 +216,25 @@ export default function Users() {
                 </td>
                 <td>{new Date(user.createdAt).toLocaleDateString()}</td>
                 <td>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    onClick={() => openViewModal(user)}
-                    title="View"
-                  >
-                    <Eye size={18} />
-                  </button>
-                  {/* Edit removed */}
+                  <div className="action-buttons">
+                    <button
+                      type="button"
+                      className="action-icon view-icon"
+                      onClick={() => openViewModal(user)}
+                      title="View"
+                    >
+                      <Eye size={16} />
+                    </button>
+
+                    <button
+                      type="button"
+                      className="action-icon edit-icon"
+                      onClick={() => openEditModal(user)}
+                      title="Edit"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -203,14 +246,17 @@ export default function Users() {
       {showModal && (
         <div
           className="modal-overlay"
-          onClick={() => setShowModal(false)}
+          onClick={() => {
+            setShowModal(false);
+            setEditingCompany(null);
+          }}
         >
           <div
             className="modal-content"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
-              <h2>Create New Company</h2>
+              <h2>{editingCompany ? 'Update Company' : 'Create New Company'}</h2>
               <button
                 className="close-btn"
                 onClick={() => setShowModal(false)}
@@ -379,7 +425,9 @@ export default function Users() {
                 />
               </div>
               <div className="form-group">
-                <label>Admin Password</label>
+                <label>
+                  Admin Password {editingCompany ? '(Optional)' : ''}
+                </label>
                 <input
                   type="password"
                   value={formData.password}
@@ -389,7 +437,8 @@ export default function Users() {
                       password: e.target.value,
                     })
                   }
-                  required
+                  placeholder={editingCompany ? '••••••••' : 'Enter password'}
+                  required={!editingCompany}
                   minLength="6"
                 />
               </div>
@@ -398,7 +447,10 @@ export default function Users() {
                 <button
                   type="button"
                   className="btn-cancel"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    setShowModal(false);
+                    setEditingCompany(null);
+                  }}
                 >
                   Cancel
                 </button>
@@ -407,7 +459,13 @@ export default function Users() {
                   className="btn-submit"
                   disabled={creating}
                 >
-                  {creating ? 'Creating...' : 'Create Company'}
+                  {creating
+                    ? editingCompany
+                      ? 'Updating...'
+                      : 'Creating...'
+                    : editingCompany
+                      ? 'Update Company'
+                      : 'Create Company'}
                 </button>
               </div>
             </form>
@@ -471,16 +529,16 @@ export default function Users() {
                 <strong>Start Date:</strong>{' '}
                 {viewUser.subscriptionStartDate
                   ? new Date(
-                      viewUser.subscriptionStartDate,
-                    ).toLocaleDateString()
+                    viewUser.subscriptionStartDate,
+                  ).toLocaleDateString()
                   : '-'}
               </p>
               <p>
                 <strong>End Date:</strong>{' '}
                 {viewUser.subscriptionEndDate
                   ? new Date(
-                      viewUser.subscriptionEndDate,
-                    ).toLocaleDateString()
+                    viewUser.subscriptionEndDate,
+                  ).toLocaleDateString()
                   : '-'}
               </p>
               {viewUser.subscription && (

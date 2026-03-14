@@ -99,6 +99,13 @@ const WhatsAppChat = () => {
   const [subUsers, setSubUsers] = useState([]);
   const [phoneUserId, setPhoneUserId] = useState({});
 
+  const [userType, setUserType] = useState("tenant"); //for subuser hide icon label, grp, user
+
+useEffect(() => {
+  const storedUserType = localStorage.getItem("userType") || "tenant";
+  setUserType(storedUserType);
+}, []);
+
   const UNREAD_TAB = "__unread__";
 
   const fetchGroups = async () => {
@@ -1043,140 +1050,139 @@ const WhatsAppChat = () => {
 
 
               {/* ACTIONS (Group + Label on same row, top-right) */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: 15,
-                  right: 10,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div style={{ position: "relative" }}>
-                  <button
-                    className="label-menu-btn user-menu-btn"
-                    title="Assign User"
-                    style={{ top: -5, right: 60 }}
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      const phone = chat.phone;
-                      if (showUserMenu === phone) {
-                        setShowUserMenu(null);
-                        return;
-                      }
-                      setShowUserMenu(phone);
-                      if (subUsers.length === 0) {
-                        await fetchSubUsersForAssignment();
-                      }
-                      await preloadAssignedUser(phone);
-                    }}
-                  >
-                    <UserCheck size={18} />
-                  </button>
+              {userType !== "subuser" && (
+  <div
+    style={{
+      position: "absolute",
+      top: 15,
+      right: 10,
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+    }}
+    onClick={(e) => e.stopPropagation()}
+  >
+    <div style={{ position: "relative" }}>
+      <button
+        className="label-menu-btn user-menu-btn"
+        title="Assign User"
+        style={{ top: -5, right: 60 }}
+        onClick={async (e) => {
+          e.stopPropagation();
+          const phone = chat.phone;
+          if (showUserMenu === phone) {
+            setShowUserMenu(null);
+            return;
+          }
+          setShowUserMenu(phone);
+          if (subUsers.length === 0) {
+            await fetchSubUsersForAssignment();
+          }
+          await preloadAssignedUser(phone);
+        }}
+      >
+        <UserCheck size={18} />
+      </button>
 
-                  {showUserMenu === chat.phone && (
-                    <div className="label-menu user-menu" onClick={(e) => e.stopPropagation()}>
-                      {subUsers.length === 0 ? (
-                        <div className="label-option" style={{ fontSize: 13, color: "#6b7280" }}>
-                          No users
-                        </div>
-                      ) : (
-                        subUsers.map((u) => (
-                          <div key={u.id} className="label-option">
-                            <input
-                              type="checkbox"
-                              checked={(phoneUserId[chat.phone] || "") === u.id}
-                              onChange={() => handleToggleUserForPhone(chat.phone, u.id)}
-                            />
-                            <span>{u.email}</span>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
-                {/* GROUP BUTTON + DROPDOWN */}
-                <div style={{ position: "relative" }}>
-
-                  <button
-                    className="group-menu-btn label-menu-btn"
-                    title="Set group"
-                    style={{ right: 35, top: -5 }}  // test overrides
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      const phone = chat.phone;
-                      if (showGroupMenu === phone) {
-                        setShowGroupMenu(null);
-                        return;
-                      }
-                      setShowGroupMenu(phone);
-                      await preloadGroupForPhone(phone);
-                    }}
-                  >
-                    <Users size={18} />
-                  </button>
-
-
-                  {showGroupMenu === chat.phone && (
-                    <div
-                      className="group-menu label-menu"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {groups.length === 0 ? (
-                        <div className="label-option" style={{ fontSize: 13, color: "#6b7280" }}>
-                          No groups
-                        </div>
-                      ) : (
-                        groups.map((g) => (
-                          <div key={g.id} className="label-option">
-                            <input
-                              type="checkbox"
-                              checked={(phoneGroupId[chat.phone] || "") === g.id}
-                              onChange={() => handleToggleGroupForPhone(chat.phone, g.id)}
-                            />
-                            <span>{g.name}</span>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* LABEL BUTTON + DROPDOWN */}
-                <div style={{ position: "relative" }}>
-                  <button
-                    className="label-menu-btn"
-                    style={{ top: -5 }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowLabelMenu(showLabelMenu === chat.phone ? null : chat.phone);
-                    }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z" />
-                    </svg>
-                  </button>
-
-                  {showLabelMenu === chat.phone && (
-                    <div className="label-menu" onClick={(e) => e.stopPropagation()}>
-                      {availableLabels.map(label => (
-                        <div key={label} className="label-option">
-                          <input
-                            type="checkbox"
-                            checked={chatLabels[chat.phone]?.includes(label) || false}
-                            onChange={() => toggleLabel(chat.phone, label)}
-                          />
-                          <span style={{ color: labelColors[label] || '#9e9e9e' }}>
-                            {label}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+      {showUserMenu === chat.phone && (
+        <div className="label-menu user-menu" onClick={(e) => e.stopPropagation()}>
+          {subUsers.length === 0 ? (
+            <div className="label-option" style={{ fontSize: 13, color: "#6b7280" }}>
+              No users
+            </div>
+          ) : (
+            subUsers.map((u) => (
+              <div key={u.id} className="label-option">
+                <input
+                  type="checkbox"
+                  checked={(phoneUserId[chat.phone] || "") === u.id}
+                  onChange={() => handleToggleUserForPhone(chat.phone, u.id)}
+                />
+                <span>{u.email}</span>
               </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+
+    <div style={{ position: "relative" }}>
+      <button
+        className="group-menu-btn label-menu-btn"
+        title="Set group"
+        style={{ right: 35, top: -5 }}
+        onClick={async (e) => {
+          e.stopPropagation();
+          const phone = chat.phone;
+          if (showGroupMenu === phone) {
+            setShowGroupMenu(null);
+            return;
+          }
+          setShowGroupMenu(phone);
+          await preloadGroupForPhone(phone);
+        }}
+      >
+        <Users size={18} />
+      </button>
+
+      {showGroupMenu === chat.phone && (
+        <div
+          className="group-menu label-menu"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {groups.length === 0 ? (
+            <div className="label-option" style={{ fontSize: 13, color: "#6b7280" }}>
+              No groups
+            </div>
+          ) : (
+            groups.map((g) => (
+              <div key={g.id} className="label-option">
+                <input
+                  type="checkbox"
+                  checked={(phoneGroupId[chat.phone] || "") === g.id}
+                  onChange={() => handleToggleGroupForPhone(chat.phone, g.id)}
+                />
+                <span>{g.name}</span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+
+    <div style={{ position: "relative" }}>
+      <button
+        className="label-menu-btn"
+        style={{ top: -5 }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowLabelMenu(showLabelMenu === chat.phone ? null : chat.phone);
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z" />
+        </svg>
+      </button>
+
+      {showLabelMenu === chat.phone && (
+        <div className="label-menu" onClick={(e) => e.stopPropagation()}>
+          {availableLabels.map((label) => (
+            <div key={label} className="label-option">
+              <input
+                type="checkbox"
+                checked={chatLabels[chat.phone]?.includes(label) || false}
+                onChange={() => toggleLabel(chat.phone, label)}
+              />
+              <span style={{ color: labelColors[label] || "#9e9e9e" }}>
+                {label}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
 
 

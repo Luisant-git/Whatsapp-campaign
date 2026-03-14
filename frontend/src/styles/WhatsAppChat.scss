@@ -1871,3 +1871,38 @@
     transform: translateY(0);
   }
 }
+
+// Delete message styles
+.message {
+  &.selection-mode {
+    padding-left: 35px;
+    padding-right: 35px;
+    transition: all 0.2s;
+  }
+
+  &.selected .message-bubble {
+    background: #e3f2fd !important;
+    box-shadow: 0 0 0 2px #2196f3;
+  }
+
+  .message-delete-btn {
+    &:hover {
+      opacity: 1 !important;
+    }
+  }
+}
+
+.delete-btn {
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.icon-btn.delete-btn {
+  color: #ea4335;
+  
+  &:hover {
+    background: #fce8e6;
+  }
+}

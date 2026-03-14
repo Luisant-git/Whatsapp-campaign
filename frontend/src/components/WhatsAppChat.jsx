@@ -85,6 +85,11 @@ const WhatsAppChat = () => {
   const [businessNumbers, setBusinessNumbers] = useState({}); // Store business number per chat
   const [selectedBusinessNumber, setSelectedBusinessNumber] = useState('all'); // Filter by business number
   
+  // Delete message states
+  const [selectedMessages, setSelectedMessages] = useState(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
 const [showGroupMenu, setShowGroupMenu] = useState(null); // which phone's group menu is open
 const [groups, setGroups] = useState([]);                 // all contact groups
 const [phoneGroupId, setPhoneGroupId] = useState({});     // phone -> current groupId
@@ -713,6 +718,79 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
       return chat.businessNumber === selectedBusinessNumber;
     });
 
+  // Delete message functions
+  const toggleMessageSelection = (messageId) => {
+    setSelectedMessages(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
+      } else {
+        newSet.add(messageId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllMessages = () => {
+    const allMessageIds = new Set(filteredMessages.map(msg => msg.id));
+    setSelectedMessages(allMessageIds);
+  };
+
+  const deselectAllMessages = () => {
+    setSelectedMessages(new Set());
+  };
+
+  const handleDeleteMessages = async () => {
+    if (selectedMessages.size === 0) return;
+
+    try {
+      const messageIds = Array.from(selectedMessages);
+      
+      // Call API to delete messages
+      const response = await fetch(`${API_BASE_URL}/whatsapp/messages/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ messageIds })
+      });
+
+      if (response.ok) {
+        // Remove deleted messages from state
+        setMessages(prev => prev.filter(msg => !selectedMessages.has(msg.id)));
+        toast.success(`${selectedMessages.size} message(s) deleted successfully`);
+        setSelectedMessages(new Set());
+        setIsSelectionMode(false);
+        setShowDeleteConfirm(false);
+      } else {
+        throw new Error('Failed to delete messages');
+      }
+    } catch (error) {
+      console.error('Error deleting messages:', error);
+      toast.error('Failed to delete messages');
+    }
+  };
+
+  const handleSingleDelete = async (messageId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/whatsapp/messages/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ messageIds: [messageId] })
+      });
+
+      if (response.ok) {
+        setMessages(prev => prev.filter(msg => msg.id !== messageId));
+        toast.success('Message deleted successfully');
+      } else {
+        throw new Error('Failed to delete message');
+      }
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      toast.error('Failed to delete message');
+    }
+  };
+
   return (
     <div className="whatsapp-chat">
       <div className={`chat-sidebar ${selectedChat ? 'hide-mobile' : ''}`}>
@@ -997,12 +1075,71 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
                 )}
               </div>
               <div className="header-actions">
-                <button className="icon-btn search-btn" onClick={() => setShowMobileSearchModal(true)}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.35-4.35" />
-                  </svg>
-                </button>
+                {/* Delete Mode Toggle */}
+                {!isSelectionMode ? (
+                  <>
+                    <button 
+                      className="icon-btn delete-btn" 
+                      onClick={() => setIsSelectionMode(true)}
+                      title="Select messages to delete"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        <line x1="10" y1="11" x2="10" y2="17" />
+                        <line x1="14" y1="11" x2="14" y2="17" />
+                      </svg>
+                    </button>
+                    <button className="icon-btn search-btn" onClick={() => setShowMobileSearchModal(true)}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.35-4.35" />
+                      </svg>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: '14px', fontWeight: '500', marginRight: '10px' }}>
+                      {selectedMessages.size} selected
+                    </span>
+                    <button 
+                      className="icon-btn" 
+                      onClick={selectedMessages.size === filteredMessages.length ? deselectAllMessages : selectAllMessages}
+                      title={selectedMessages.size === filteredMessages.length ? "Deselect all" : "Select all"}
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="9 11 12 14 22 4" />
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                      </svg>
+                    </button>
+                    <button 
+                      className="icon-btn delete-btn" 
+                      onClick={() => setShowDeleteConfirm(true)}
+                      disabled={selectedMessages.size === 0}
+                      title="Delete selected"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        <line x1="10" y1="11" x2="10" y2="17" />
+                        <line x1="14" y1="11" x2="14" y2="17" />
+                      </svg>
+                    </button>
+                    <button 
+                      className="icon-btn" 
+                      onClick={() => {
+                        setIsSelectionMode(false);
+                        setSelectedMessages(new Set());
+                      }}
+                      title="Cancel"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </>
+                )}
                 <button className="icon-btn filter-btn" onClick={() => setShowMobileDateModal(true)}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
@@ -1143,7 +1280,70 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
                     <span>{getDateLabel(date)}</span>
                   </div>
                   {msgs.map(msg => (
-                    <div key={msg.id} className={`message ${msg.direction}`}>
+                    <div 
+                      key={msg.id} 
+                      className={`message ${msg.direction} ${isSelectionMode ? 'selection-mode' : ''} ${selectedMessages.has(msg.id) ? 'selected' : ''}`}
+                      onClick={() => isSelectionMode && toggleMessageSelection(msg.id)}
+                      style={{ cursor: isSelectionMode ? 'pointer' : 'default', position: 'relative' }}
+                    >
+                      {isSelectionMode && (
+                        <div className="message-checkbox" style={{
+                          position: 'absolute',
+                          left: msg.direction === 'incoming' ? '-30px' : 'auto',
+                          right: msg.direction === 'outgoing' ? '-30px' : 'auto',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          zIndex: 10
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedMessages.has(msg.id)}
+                            onChange={() => toggleMessageSelection(msg.id)}
+                            style={{
+                              width: '18px',
+                              height: '18px',
+                              cursor: 'pointer',
+                              accentColor: '#00a884'
+                            }}
+                          />
+                        </div>
+                      )}
+                      {!isSelectionMode && (
+                        <button
+                          className="message-delete-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm('Delete this message?')) {
+                              handleSingleDelete(msg.id);
+                            }
+                          }}
+                          style={{
+                            position: 'absolute',
+                            top: '5px',
+                            right: msg.direction === 'outgoing' ? '5px' : 'auto',
+                            left: msg.direction === 'incoming' ? '5px' : 'auto',
+                            background: 'rgba(0,0,0,0.5)',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: '24px',
+                            height: '24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            opacity: 0,
+                            transition: 'opacity 0.2s',
+                            zIndex: 10
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                          onMouseLeave={(e) => e.currentTarget.style.opacity = '0'}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          </svg>
+                        </button>
+                      )}
                       <div className="message-bubble">
                         {msg.mediaType === 'image' && msg.mediaUrl && (
                           <img src={msg.mediaUrl} alt="media" className="message-media" onError={(e) => {
@@ -1250,6 +1450,71 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
               ))}
               <div ref={messagesEndRef} />
             </div>
+            
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && (
+              <div className="delete-confirm-overlay" style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000
+              }}>
+                <div className="delete-confirm-modal" style={{
+                  background: 'white',
+                  borderRadius: '12px',
+                  padding: '24px',
+                  maxWidth: '400px',
+                  width: '90%',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+                }}>
+                  <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '600' }}>
+                    Delete Messages
+                  </h3>
+                  <p style={{ margin: '0 0 24px 0', color: '#667781', fontSize: '14px' }}>
+                    Are you sure you want to delete {selectedMessages.size} message(s)? This action cannot be undone.
+                  </p>
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => setShowDeleteConfirm(false)}
+                      style={{
+                        padding: '10px 20px',
+                        borderRadius: '8px',
+                        border: '1px solid #d1d7db',
+                        background: 'white',
+                        color: '#3b4a54',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleDeleteMessages}
+                      style={{
+                        padding: '10px 20px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: '#ea4335',
+                        color: 'white',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="chat-input">
               <input
                 type="file"

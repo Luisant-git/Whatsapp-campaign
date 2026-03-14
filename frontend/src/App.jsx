@@ -21,12 +21,9 @@ import {
   Zap,
   Workflow,
   Calendar,
-<<<<<<< HEAD
   ClipboardList,
   UserCheck,
-=======
   Layout,
->>>>>>> 97bfbb6294d157f963b0dec44735f677df2011fe
 } from "lucide-react";
 
 import { MENU_CONFIG } from "./config/menuconfig.js"

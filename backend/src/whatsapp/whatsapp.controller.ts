@@ -321,6 +321,14 @@ export class WhatsappController {
       session.userType || 'tenant',
     );
   }
+
+  @Post('messages/delete')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Delete WhatsApp messages' })
+  @ApiResponse({ status: 200, description: 'Messages deleted successfully' })
+  async deleteMessages(@Body() body: { messageIds: number[] }) {
+    return this.whatsappService.deleteMessages(body.messageIds);
+  }
  
   @Post('send-message')
   @UseGuards(SessionGuard)

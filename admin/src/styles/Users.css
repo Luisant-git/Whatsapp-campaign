@@ -326,3 +326,48 @@ input:checked + .slider:before {
   font-weight: 600;
   color: #111827;
 }
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.action-icon {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #f8fafc;
+  transition: all 0.2s ease;
+}
+
+.action-icon svg {
+  transition: transform 0.2s ease;
+}
+
+.action-icon:hover svg {
+  transform: scale(1.05);
+}
+
+.view-icon {
+  color: #0ea5e9;
+  background: #f0f9ff;
+}
+
+.view-icon:hover {
+  background: #e0f2fe;
+}
+
+.edit-icon {
+  color: #22c55e;
+  background: #f0fdf4;
+}
+
+.edit-icon:hover {
+  background: #dcfce7;
+}

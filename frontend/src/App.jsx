@@ -139,6 +139,16 @@ const CHILD_ICON_MAP = {
   eye: List,
 };
 
+
+function normalizePermissionMap(raw) {
+  if (!raw || typeof raw !== "object") return {};
+  const out = {};
+  for (const [key, value] of Object.entries(raw)) {
+    out[key] = value === true || value === "true";
+  }
+  return out;
+}
+
 function App() {
   const [activeView, setActiveView] = useState("chats");
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -243,14 +253,22 @@ function App() {
         setIsLoggedIn(true);
   
         const userType = profileData.userType || "tenant";
-        const permissionMap = profileData.menuPermission?.permission || null;
   
-        if (userType === "subuser" && permissionMap) {
-          // Subuser: set menuPerms from /user/me
-          setMenuPerms(permissionMap);
-        } else {
-          // Tenant/admin: load from subscription
-          await refreshMenuPermissions();
+        try {
+          const permissionMap = normalizePermissionMap(
+            profileData.menuPermission?.permission ||
+              profileData.menuPermission ||
+              {}
+          );
+  
+          if (userType === "subuser") {
+            setMenuPerms(permissionMap);
+          } else {
+            await refreshMenuPermissions();
+          }
+        } catch (permError) {
+          console.error("Menu permission load failed:", permError);
+          setMenuPerms({});
         }
       } catch (error) {
         console.log("Not logged in");
@@ -267,19 +285,25 @@ function App() {
     setUser(user);
     setUseQuickReply(user?.useQuickReply !== false);
     setIsLoggedIn(true);
-  
-    // reset default view on each login
     setActiveView("analytics");
   
     const userType = profile.userType || "tenant";
-    const permissionMap = profile.menuPermission?.permission || null;
   
-    if (userType === "subuser" && permissionMap) {
-      // Subuser: use menuPermission from /user/me
-      setMenuPerms(permissionMap);
-    } else {
-      // Tenant/owner: use subscription-based permissions
-      refreshMenuPermissions();
+    try {
+      const permissionMap = normalizePermissionMap(
+        profile.menuPermission?.permission ||
+          profile.menuPermission ||
+          {}
+      );
+  
+      if (userType === "subuser") {
+        setMenuPerms(permissionMap);
+      } else {
+        refreshMenuPermissions();
+      }
+    } catch (err) {
+      console.error("Failed to process menu permissions:", err);
+      setMenuPerms({});
     }
   };
   
@@ -321,24 +345,29 @@ function App() {
 
   const renderSidebar = () => (
     <nav className="sidebar-nav">
-      {MENU_CONFIG.filter((menu) => isAllowed(menu.key)).map((menu) => {
+      {MENU_CONFIG.filter((menu) => {
+        if (menu.children?.length) {
+          return menu.children.some((child) => isAllowed(child.key));
+        }
+        return isAllowed(menu.key);
+      }).map((menu) => {
         const hasChildren = menu.children && menu.children.length > 0;
         const IconComp = ICON_MAP[menu.icon] || Settings;
-
+  
         if (hasChildren) {
           const isContacts = menu.key === "contacts";
           const isCampaigns = menu.key === "campaigns";
           const isEcommerce = menu.key === "ecommerce";
           const isSettingsGroup = menu.key === "settings";
           const isTemplates = menu.key === "templates";
-
+  
           const isOpen =
             (isContacts && contactsOpen) ||
             (isCampaigns && campaignsOpen) ||
             (isEcommerce && ecommerceOpen) ||
             (isSettingsGroup && settingsOpen) ||
             (isTemplates && templatesOpen);
-
+  
           const toggleOpen = () => {
             if (isContacts) setContactsOpen((prev) => !prev);
             if (isCampaigns) setCampaignsOpen((prev) => !prev);
@@ -346,16 +375,15 @@ function App() {
             if (isSettingsGroup) setSettingsOpen((prev) => !prev);
             if (isTemplates) setTemplatesOpen((prev) => !prev);
           };
-
+  
           const allowedChildren = (menu.children || []).filter((child) =>
-            isAllowed(child.key),
+            isAllowed(child.key)
           );
-
+  
           if (allowedChildren.length === 0) {
-            // parent is allowed but no children allowed → hide group
             return null;
           }
-
+  
           return (
             <div className="nav-item-group" key={menu.key}>
               <button
@@ -365,15 +393,16 @@ function App() {
                 <IconComp size={18} />
                 <span>{menu.label}</span>
               </button>
+  
               {isOpen && (
                 <div className="nav-submenu">
                   {allowedChildren.map((child) => {
                     const viewKey = MENU_TO_VIEW[child.key];
                     if (!viewKey) return null;
-
+  
                     const ChildIcon =
                       (child.icon && CHILD_ICON_MAP[child.icon]) || null;
-
+  
                     return (
                       <button
                         key={child.key}
@@ -394,16 +423,14 @@ function App() {
             </div>
           );
         }
-
+  
         const viewKey = MENU_TO_VIEW[menu.key];
         if (!viewKey) return null;
-
+  
         return (
           <button
             key={menu.key}
-            className={`nav-item ${
-              activeView === viewKey ? "active" : ""
-            }`}
+            className={`nav-item ${activeView === viewKey ? "active" : ""}`}
             onClick={() => handleMenuClick(viewKey)}
           >
             <IconComp size={18} />

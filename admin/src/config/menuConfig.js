@@ -16,7 +16,7 @@ export const MENU_CONFIG = [
       children: [
         { key: "contacts.all", label: "All Contacts" },
         { key: "contacts.blacklist", label: "Blacklist" },
-        { key: "contacts.ungrouped", label: "Ungrouped Contacts" },
+        // { key: "contacts.ungrouped", label: "Ungrouped Contacts" },
       ],
     },
     {
@@ -26,6 +26,7 @@ export const MENU_CONFIG = [
       children: [
         { key: "campaigns.bulk", label: "Compose Campaign" },
         { key: "campaigns.reports", label: "Campaign Reports" },
+        { key: "automation.logs", label: "Automation Logs", icon: "clipboardList" }
       ],
     },
     {
@@ -49,6 +50,8 @@ export const MENU_CONFIG = [
       label: "Flow Appointments",
       icon: "calendar",
     },
+
+   
     {
       key: "ecommerce",
       label: "E-Commerce",
@@ -79,9 +82,12 @@ export const MENU_CONFIG = [
       icon: "settings",
       children: [
         { key: "settings.master-config", label: "WhatsApp Setup" },
+        { key: "automation.templates", label: "Automation Templates", icon: "layoutTemplate" },
         { key: "settings.templates", label: "Templates" },
         { key: "settings.labels", label: "Labels" },
         { key: "settings.createuser", label: "Create User" },
+        { key: "settings.assignedcontact", label: "Assigned Contacts", icon: "usercheck" }
+     
       ],
     },
     {

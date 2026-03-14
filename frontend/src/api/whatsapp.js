@@ -160,3 +160,54 @@ export const deleteCustomLabel = async (label) => {
 
   return await response.json();
 };
+
+// assign user
+export const getChatAssignment = async (phone) => {
+  const response = await fetch(`${API_BASE_URL}/whatsapp/chat-assignment/${phone}`, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch chat assignment');
+  }
+
+  return await response.json();
+};
+export const getAllChatAssignments = async () => {
+  const response = await fetch(`${API_BASE_URL}/whatsapp/chat-assignments`, {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch chat assignments");
+  }
+
+  return await response.json();
+};
+export const assignChatToSubUser = async (phone, subUserId) => {
+  const response = await fetch(`${API_BASE_URL}/whatsapp/chat-assignment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ phone, subUserId }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to assign chat');
+  }
+
+  return await response.json();
+};
+
+export const removeChatAssignment = async (phone) => {
+  const response = await fetch(`${API_BASE_URL}/whatsapp/chat-assignment/${phone}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to remove assignment');
+  }
+
+  return await response.json();
+};

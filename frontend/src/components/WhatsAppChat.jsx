@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '../api/config';
-import { getMessages, sendMessage, sendMediaMessage, getLabels, updateLabels, getCustomLabels, addCustomLabel as addCustomLabelAPI, deleteCustomLabel as deleteCustomLabelAPI } from '../api/whatsapp';
-import { useLabelsSocket } from '../hooks/useLabelsSocket';
-import { MoreVertical } from 'lucide-react';
+import { getMessages, sendMessage, sendMediaMessage, getLabels, updateLabels, getCustomLabels, addCustomLabel as addCustomLabelAPI, deleteCustomLabel as deleteCustomLabelAPI, getChatAssignment, removeChatAssignment, assignChatToSubUser } from '../api/whatsapp';
 import '../styles/WhatsAppChat.scss';
 import { contactAPI } from '../api/contact';
 import { groupAPI } from '../api/group';
-import { Users } from 'lucide-react';
+import { Users, UserPlus, UserRoundCheck, UserCheck } from 'lucide-react';
+import { getTenantSubUsers } from "../api/subuser";
 
 // Simple play/pause icons
 const PlayIcon = () => (
@@ -90,15 +89,20 @@ const WhatsAppChat = () => {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
-const [showGroupMenu, setShowGroupMenu] = useState(null); // which phone's group menu is open
-const [groups, setGroups] = useState([]);                 // all contact groups
-const [phoneGroupId, setPhoneGroupId] = useState({});     // phone -> current groupId
+  const [showGroupMenu, setShowGroupMenu] = useState(null); // which phone's group menu is open
+  const [groups, setGroups] = useState([]);                 // all contact groups
+  const [phoneGroupId, setPhoneGroupId] = useState({});     // phone -> current groupId
 
-  useLabelsSocket(
-    userId,
-    (phone, labels) => setChatLabels(prev => ({ ...prev, [phone]: labels })),
-    (phone) => setManuallyEditedPhones(prev => ({ ...prev, [phone]: true }))
-  );
+
+  const [showNotesModal, setShowNotesModal] = useState(false);
+  const [noteTitle, setNoteTitle] = useState("");
+  const [noteDescription, setNoteDescription] = useState("");
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [currentChatNotes, setCurrentChatNotes] = useState([]);
+
+  const [showUserMenu, setShowUserMenu] = useState(null);  //subuser assign
+  const [subUsers, setSubUsers] = useState([]);
+  const [phoneUserId, setPhoneUserId] = useState({});
 
   const UNREAD_TAB = "__unread__";
 
@@ -113,6 +117,26 @@ const [phoneGroupId, setPhoneGroupId] = useState({});     // phone -> current gr
     }
   };
 
+
+  //chat notif count
+  useEffect(() => {
+    const loadNotesCount = async () => {
+      if (!selectedChat) {
+        setCurrentChatNotes([]);
+        return;
+      }
+
+      try {
+        const resp = await contactAPI.getNotes(selectedChat);
+        setCurrentChatNotes(resp.data || []);
+      } catch (err) {
+        console.error("Failed to load note count", err);
+      }
+    };
+
+    loadNotesCount();
+  }, [selectedChat]);
+
   useEffect(() => {
     if (!API_BASE_URL) return;
 
@@ -120,12 +144,12 @@ const [phoneGroupId, setPhoneGroupId] = useState({});     // phone -> current gr
     const init = async () => {
       await fetchManuallyEdited();
       await fetchLabels();
-      fetchMessages(true); 
+      fetchMessages(true);
       // Skip auto-labeling on initial load
     };
     init();
     fetchCustomLabels();
-    fetchGroups();  
+    fetchGroups();
 
     // Optional polling every 15 seconds (adjust as needed)
     const interval = setInterval(() => {
@@ -139,67 +163,67 @@ const [phoneGroupId, setPhoneGroupId] = useState({});     // phone -> current gr
 
 
   // Find existing contact by phone or create if missing
-const getOrCreateContactByPhone = async (phone) => {
-  if (!API_BASE_URL || !phone) return null;
+  const getOrCreateContactByPhone = async (phone) => {
+    if (!API_BASE_URL || !phone) return null;
 
-  try {
-    const resp = await contactAPI.getAll(1, 1, phone, "");
-    let list = resp?.data?.data || resp?.data || [];
-    if (!Array.isArray(list)) list = [list].filter(Boolean);
+    try {
+      const resp = await contactAPI.getAll(1, 1, phone, "");
+      let list = resp?.data?.data || resp?.data || [];
+      if (!Array.isArray(list)) list = [list].filter(Boolean);
 
-    if (list.length > 0) return list[0];
+      if (list.length > 0) return list[0];
 
-    const createResp = await contactAPI.create({ name: phone, phone });
-    return createResp.data?.data || createResp.data;
-  } catch (err) {
-    console.error("Error getOrCreateContactByPhone", err);
-    throw err;
-  }
-};
-
-// Load current groupId for this phone
-const preloadGroupForPhone = async (phone) => {
-  try {
-    const contact = await getOrCreateContactByPhone(phone);
-    if (!contact) return;
-    const currentGroupId = contact.group?.id || contact.groupId || "";
-    setPhoneGroupId((prev) => ({
-      ...prev,
-      [phone]: currentGroupId || "",
-    }));
-  } catch (err) {
-    console.error("Failed to preload group for phone", phone, err);
-  }
-};
-
-// Toggle group checkbox: assign / unassign group
-const handleToggleGroupForPhone = async (phone, groupId) => {
-  try {
-    const contact = await getOrCreateContactByPhone(phone);
-    if (!contact) {
-      toast.error("Unable to find or create contact for this number");
-      return;
+      const createResp = await contactAPI.create({ name: phone, phone });
+      return createResp.data?.data || createResp.data;
+    } catch (err) {
+      console.error("Error getOrCreateContactByPhone", err);
+      throw err;
     }
+  };
 
-    const current =
-      phoneGroupId[phone] || contact.group?.id || contact.groupId || "";
-    const newGroupId = current === groupId ? null : groupId;
+  // Load current groupId for this phone
+  const preloadGroupForPhone = async (phone) => {
+    try {
+      const contact = await getOrCreateContactByPhone(phone);
+      if (!contact) return;
+      const currentGroupId = contact.group?.id || contact.groupId || "";
+      setPhoneGroupId((prev) => ({
+        ...prev,
+        [phone]: currentGroupId || "",
+      }));
+    } catch (err) {
+      console.error("Failed to preload group for phone", phone, err);
+    }
+  };
 
-    await contactAPI.update(contact.id, {
-      name: contact.name || phone,
-      phone: contact.phone || phone,
-      groupId: newGroupId,
-    });
+  // Toggle group checkbox: assign / unassign group
+  const handleToggleGroupForPhone = async (phone, groupId) => {
+    try {
+      const contact = await getOrCreateContactByPhone(phone);
+      if (!contact) {
+        toast.error("Unable to find or create contact for this number");
+        return;
+      }
 
-    setPhoneGroupId((prev) => ({
-      ...prev,
-      [phone]: newGroupId || "",
-    }));
-  } catch (err) {
-    console.error("Failed to update group", err);
-    toast.error("Failed to update group");
-  }
-};
+      const current =
+        phoneGroupId[phone] || contact.group?.id || contact.groupId || "";
+      const newGroupId = current === groupId ? null : groupId;
+
+      await contactAPI.update(contact.id, {
+        name: contact.name || phone,
+        phone: contact.phone || phone,
+        groupId: newGroupId,
+      });
+
+      setPhoneGroupId((prev) => ({
+        ...prev,
+        [phone]: newGroupId || "",
+      }));
+    } catch (err) {
+      console.error("Failed to update group", err);
+      toast.error("Failed to update group");
+    }
+  };
   const fetchUserId = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/profile`, { credentials: 'include' });
@@ -224,7 +248,6 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // close label menu
       if (
         showLabelMenu &&
         !event.target.closest('.label-menu') &&
@@ -232,7 +255,7 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
       ) {
         setShowLabelMenu(null);
       }
-      // close group menu
+
       if (
         showGroupMenu &&
         !event.target.closest('.group-menu') &&
@@ -240,10 +263,19 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
       ) {
         setShowGroupMenu(null);
       }
+
+      if (
+        showUserMenu &&
+        !event.target.closest('.user-menu') &&
+        !event.target.closest('.user-menu-btn')
+      ) {
+        setShowUserMenu(null);
+      }
     };
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showLabelMenu, showGroupMenu]);
+  }, [showLabelMenu, showGroupMenu, showUserMenu]);
 
   // Mark chat as read whenever it is opened
   useEffect(() => {
@@ -609,10 +641,10 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
 
   const filteredMessages = selectedChat
     ? filterMessagesByDate(messages.filter(m => {
-        if (m.from !== selectedChat) return false;
-        if (selectedBusinessNumber === 'all') return true;
-        return m.displayPhoneNumber === selectedBusinessNumber;
-      }))
+      if (m.from !== selectedChat) return false;
+      if (selectedBusinessNumber === 'all') return true;
+      return m.displayPhoneNumber === selectedBusinessNumber;
+    }))
       .filter(msg =>
         messageSearchQuery === '' ||
         (msg.message && msg.message.toLowerCase().includes(messageSearchQuery.toLowerCase()))
@@ -791,6 +823,142 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
     }
   };
 
+  const resolveMediaUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return `${API_BASE_URL}${url.startsWith('/') ? url : `/${url}`}`;
+  };
+
+
+  //chatnote function
+
+  const openNotesModal = async () => {
+    if (!selectedChat) return;
+
+    try {
+      const resp = await contactAPI.getNotes(selectedChat);
+      setCurrentChatNotes(resp.data || []);
+      setNoteTitle("");
+      setNoteDescription("");
+      setEditingNoteId(null);
+      setShowNotesModal(true);
+    } catch (err) {
+      console.error("Failed to load notes", err);
+      toast.error("Failed to load notes");
+    }
+  };
+
+  const handleAddOrUpdateNote = async () => {
+    if (!selectedChat || !noteTitle.trim() || !noteDescription.trim()) {
+      toast.error("Please enter title and description");
+      return;
+    }
+
+    try {
+      if (editingNoteId) {
+        const resp = await contactAPI.updateNote(editingNoteId, {
+          title: noteTitle.trim(),
+          description: noteDescription.trim(),
+        });
+
+        setCurrentChatNotes((prev) =>
+          prev.map((note) => (note.id === editingNoteId ? resp.data : note))
+        );
+
+        toast.success("Note updated");
+      } else {
+        const resp = await contactAPI.createNote(selectedChat, {
+          title: noteTitle.trim(),
+          description: noteDescription.trim(),
+        });
+
+        setCurrentChatNotes((prev) => [resp.data, ...prev]);
+        toast.success("Note added");
+      }
+
+      setNoteTitle("");
+      setNoteDescription("");
+      setEditingNoteId(null);
+    } catch (err) {
+      console.error("Failed to save note", err);
+      toast.error("Failed to save note");
+    }
+  };
+
+  const handleEditNote = (note) => {
+    setEditingNoteId(note.id);
+    setNoteTitle(note.title || "");
+    setNoteDescription(note.description || "");
+  };
+
+  const handleDeleteNote = async (noteId) => {
+    try {
+      await contactAPI.deleteNote(noteId);
+      setCurrentChatNotes((prev) => prev.filter((note) => note.id !== noteId));
+      toast.success("Note deleted");
+    } catch (err) {
+      console.error("Failed to delete note", err);
+      toast.error("Failed to delete note");
+    }
+  };
+
+  const formatNoteDate = (date) => {
+    return new Date(date).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+    });
+  };
+  const notesCount = currentChatNotes.length;
+
+  //subuser assign
+  const fetchSubUsersForAssignment = async () => {
+    try {
+      const tenantId = Number(localStorage.getItem("tenantId"));
+      if (!tenantId) return;
+
+      const list = await getTenantSubUsers(tenantId);
+      setSubUsers(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.error("Failed to fetch subusers", err);
+      toast.error("Failed to load users");
+    }
+  };
+
+  const preloadAssignedUser = async (phone) => {
+    try {
+      const assigned = await getChatAssignment(phone);
+      setPhoneUserId((prev) => ({
+        ...prev,
+        [phone]: assigned?.subUserId || "",
+      }));
+    } catch (err) {
+      console.error("Failed to load assigned user", err);
+    }
+  };
+
+  const handleToggleUserForPhone = async (phone, userId) => {
+    try {
+      const current = phoneUserId[phone] || "";
+      const newUserId = current === userId ? "" : userId;
+
+      if (!newUserId) {
+        await removeChatAssignment(phone);
+      } else {
+        await assignChatToSubUser(phone, newUserId);
+      }
+
+      setPhoneUserId((prev) => ({
+        ...prev,
+        [phone]: newUserId,
+      }));
+
+      toast.success(newUserId ? "User assigned" : "User unassigned");
+    } catch (err) {
+      console.error("Failed to assign user", err);
+      toast.error("Failed to assign user");
+    }
+  };
+
   return (
     <div className="whatsapp-chat">
       <div className={`chat-sidebar ${selectedChat ? 'hide-mobile' : ''}`}>
@@ -901,152 +1069,197 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
         {filteredChats.map(chat => {
           const chatKey = `${chat.phone}_${chat.businessNumber || 'unknown'}`;
           return (
-          <div
-            key={chatKey}
-            className={`chat-item ${selectedChat === chat.phone ? 'active' : ''} ${chat.unreadCount > 0 ? 'unread' : ''}`}
-            onClick={() => {
-              setSelectedChat(chat.phone);
-              if (chat.unreadCount > 0) {
-                const newReadMessages = { ...readMessages, [chat.phone]: new Date().toISOString() };
-                setReadMessages(newReadMessages);
-                localStorage.setItem('readMessages', JSON.stringify(newReadMessages));
-              }
-              setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 100);
-            }}
-          >
-            <div className="chat-avatar">{chat.phone.slice(-4)}</div>
-            <div className="chat-info">
-              <div className="chat-phone">
-                {chat.phone}
-                {chat.unreadCount > 0 && <span className="unread-badge">{chat.unreadCount}</span>}
+            <div
+              key={chatKey}
+              className={`chat-item ${selectedChat === chat.phone ? 'active' : ''} ${chat.unreadCount > 0 ? 'unread' : ''}`}
+              onClick={() => {
+                setSelectedChat(chat.phone);
+                if (chat.unreadCount > 0) {
+                  const newReadMessages = { ...readMessages, [chat.phone]: new Date().toISOString() };
+                  setReadMessages(newReadMessages);
+                  localStorage.setItem('readMessages', JSON.stringify(newReadMessages));
+                }
+                setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 100);
+              }}
+            >
+              <div className="chat-avatar">{chat.phone.slice(-4)}</div>
+              <div className="chat-info">
+                <div className="chat-phone">
+                  {chat.phone}
+                  {chat.unreadCount > 0 && <span className="unread-badge">{chat.unreadCount}</span>}
+                </div>
+                {chat.businessNumber && (
+                  <div style={{
+                    fontSize: '11px',
+                    color: '#00a884',
+                    fontWeight: '500',
+                    marginTop: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '3px'
+                  }}>
+                    <span>{chat.businessNumber}</span>
+                  </div>
+                )}
+                <div className="chat-last-msg">{chat.lastMessage}</div>
+                {chatLabels[chat.phone]?.length > 0 && (
+                  <div className="chat-labels">
+                    {chatLabels[chat.phone].map(label => (
+                      <span
+                        key={label}
+                        className="label-tag"
+                        style={{ backgroundColor: labelColors[label] || '#9e9e9e' }}
+                      >
+                        {label}
+                      </span>
+                    ))}
+
+                  </div>
+                )}
               </div>
-              {chat.businessNumber && (
-                <div style={{
-                  fontSize: '11px',
-                  color: '#00a884',
-                  fontWeight: '500',
-                  marginTop: '2px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '3px'
-                }}>
-                  <span>{chat.businessNumber}</span>
+
+
+              {/* ACTIONS (Group + Label on same row, top-right) */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: 15,
+                  right: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ position: "relative" }}>
+                  <button
+                    className="label-menu-btn user-menu-btn"
+                    title="Assign User"
+                    style={{ top: -5, right: 60 }}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      const phone = chat.phone;
+                      if (showUserMenu === phone) {
+                        setShowUserMenu(null);
+                        return;
+                      }
+                      setShowUserMenu(phone);
+                      if (subUsers.length === 0) {
+                        await fetchSubUsersForAssignment();
+                      }
+                      await preloadAssignedUser(phone);
+                    }}
+                  >
+                    <UserCheck size={18} />
+                  </button>
+
+                  {showUserMenu === chat.phone && (
+                    <div className="label-menu user-menu" onClick={(e) => e.stopPropagation()}>
+                      {subUsers.length === 0 ? (
+                        <div className="label-option" style={{ fontSize: 13, color: "#6b7280" }}>
+                          No users
+                        </div>
+                      ) : (
+                        subUsers.map((u) => (
+                          <div key={u.id} className="label-option">
+                            <input
+                              type="checkbox"
+                              checked={(phoneUserId[chat.phone] || "") === u.id}
+                              onChange={() => handleToggleUserForPhone(chat.phone, u.id)}
+                            />
+                            <span>{u.email}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
-              )}
-              <div className="chat-last-msg">{chat.lastMessage}</div>
-              {chatLabels[chat.phone]?.length > 0 && (
-                <div className="chat-labels">
-                  {chatLabels[chat.phone].map(label => (
-                    <span
-                      key={label}
-                      className="label-tag"
-                      style={{ backgroundColor: labelColors[label] || '#9e9e9e' }}
+                {/* GROUP BUTTON + DROPDOWN */}
+                <div style={{ position: "relative" }}>
+
+                  <button
+                    className="group-menu-btn label-menu-btn"
+                    title="Set group"
+                    style={{ right: 35, top: -5 }}  // test overrides
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      const phone = chat.phone;
+                      if (showGroupMenu === phone) {
+                        setShowGroupMenu(null);
+                        return;
+                      }
+                      setShowGroupMenu(phone);
+                      await preloadGroupForPhone(phone);
+                    }}
+                  >
+                    <Users size={18} />
+                  </button>
+
+
+                  {showGroupMenu === chat.phone && (
+                    <div
+                      className="group-menu label-menu"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      {label}
-                    </span>
-                  ))}
-
+                      {groups.length === 0 ? (
+                        <div className="label-option" style={{ fontSize: 13, color: "#6b7280" }}>
+                          No groups
+                        </div>
+                      ) : (
+                        groups.map((g) => (
+                          <div key={g.id} className="label-option">
+                            <input
+                              type="checkbox"
+                              checked={(phoneGroupId[chat.phone] || "") === g.id}
+                              onChange={() => handleToggleGroupForPhone(chat.phone, g.id)}
+                            />
+                            <span>{g.name}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
-              )}
+
+                {/* LABEL BUTTON + DROPDOWN */}
+                <div style={{ position: "relative" }}>
+                  <button
+                    className="label-menu-btn"
+                    style={{ top: -5 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowLabelMenu(showLabelMenu === chat.phone ? null : chat.phone);
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z" />
+                    </svg>
+                  </button>
+
+                  {showLabelMenu === chat.phone && (
+                    <div className="label-menu" onClick={(e) => e.stopPropagation()}>
+                      {availableLabels.map(label => (
+                        <div key={label} className="label-option">
+                          <input
+                            type="checkbox"
+                            checked={chatLabels[chat.phone]?.includes(label) || false}
+                            onChange={() => toggleLabel(chat.phone, label)}
+                          />
+                          <span style={{ color: labelColors[label] || '#9e9e9e' }}>
+                            {label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+
+
             </div>
-            {/* GROUP Menu */}
-            
-{/* ACTIONS (Group + Label on same row, top-right) */}
-<div
-  style={{
-    position: "absolute",
-    top: 15,
-    right: 10,
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-  }}
-  onClick={(e) => e.stopPropagation()}
->
-  {/* GROUP BUTTON + DROPDOWN */}
-  <div style={{ position: "relative" }}>
-  <button
-    className="group-menu-btn label-menu-btn"
-    title="Set group"
-    style={{ right: 35, top:-5 }}  // test overrides
-    onClick={async (e) => {
-      e.stopPropagation();
-      const phone = chat.phone;
-      if (showGroupMenu === phone) {
-        setShowGroupMenu(null);
-        return;
-      }
-      setShowGroupMenu(phone);
-      await preloadGroupForPhone(phone);
-    }}
-  >
-    <Users size={18} />
-  </button>
-
-
-    {showGroupMenu === chat.phone && (
-      <div
-        className="group-menu label-menu"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {groups.length === 0 ? (
-          <div className="label-option" style={{ fontSize: 13, color: "#6b7280" }}>
-            No groups
-          </div>
-        ) : (
-          groups.map((g) => (
-            <div key={g.id} className="label-option">
-              <input
-                type="checkbox"
-                checked={(phoneGroupId[chat.phone] || "") === g.id}
-                onChange={() => handleToggleGroupForPhone(chat.phone, g.id)}
-              />
-              <span>{g.name}</span>
-            </div>
-          ))
-        )}
-      </div>
-    )}
-  </div>
-
-  {/* LABEL BUTTON + DROPDOWN */}
-  <div style={{ position: "relative" }}>
-    <button
-      className="label-menu-btn"
-      style={{ top:-5 }} 
-      onClick={(e) => {
-        e.stopPropagation();
-        setShowLabelMenu(showLabelMenu === chat.phone ? null : chat.phone);
-      }}
-    >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z" />
-      </svg>
-    </button>
-
-    {showLabelMenu === chat.phone && (
-      <div className="label-menu" onClick={(e) => e.stopPropagation()}>
-        {availableLabels.map(label => (
-          <div key={label} className="label-option">
-            <input
-              type="checkbox"
-              checked={chatLabels[chat.phone]?.includes(label) || false}
-              onChange={() => toggleLabel(chat.phone, label)}
-            />
-            <span style={{ color: labelColors[label] || '#9e9e9e' }}>
-              {label}
-            </span>
-          </div>
-        ))}
-      </div>
-    )}
-  </div>
-</div>
-            
-            
-
-          </div>
-        );})}
+          );
+        })}
       </div>
 
       <div className={`chat-main ${selectedChat ? 'show-mobile' : ''}`}>
@@ -1140,6 +1353,33 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
                     </button>
                   </>
                 )}
+                <button
+                  type="button"
+                  className="icon-btn notes-btn notes-btn-with-count"
+                  onClick={openNotesModal}
+                  title="Notes"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M4 4h16v12H8l-4 4V4z" />
+                    <path d="M8 8h8" />
+                    <path d="M8 12h5" />
+                  </svg>
+
+                  {notesCount > 0 && (
+                    <span className="notes-count-badge">
+                      {notesCount > 99 ? "99+" : notesCount}
+                    </span>
+                  )}
+                </button>
                 <button className="icon-btn filter-btn" onClick={() => setShowMobileDateModal(true)}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
@@ -1150,6 +1390,8 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
                     <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z" />
                   </svg>
                 </button>
+
+
                 <div className="message-search desktop-only">
                   <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="11" cy="11" r="8" />
@@ -1259,7 +1501,69 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
                 </div>
               </div>
             )}
+            {showNotesModal && (
+              <div className="notes-drawer-overlay" onClick={() => setShowNotesModal(false)}>
+                <div className="notes-drawer" onClick={(e) => e.stopPropagation()}>
+                  <div className="notes-drawer-header">
+                    <div>
+                      <h3>Notes</h3>
+                      <p>{selectedChat}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="notes-drawer-close"
+                      onClick={() => setShowNotesModal(false)}
+                    >
+                      ×
+                    </button>
+                  </div>
 
+                  <div className="notes-drawer-add">
+                    <input
+                      type="text"
+                      value={noteTitle}
+                      onChange={(e) => setNoteTitle(e.target.value)}
+                      placeholder="Title"
+                    />
+                    <textarea
+                      value={noteDescription}
+                      onChange={(e) => setNoteDescription(e.target.value)}
+                      placeholder="Take a note..."
+                      rows={3}
+                    />
+                    <button type="button" onClick={handleAddOrUpdateNote}>
+                      {editingNoteId ? "Update" : "Add Note"}
+                    </button>
+                  </div>
+
+                  <div className="notes-drawer-list">
+                    {currentChatNotes.length === 0 ? (
+                      <div className="notes-empty">No notes yet</div>
+                    ) : (
+                      currentChatNotes.map((note) => (
+                        <div key={note.id} className="note-card">
+                          <div className="note-card-date">
+                            {formatNoteDate(note.createdAt)}
+                          </div>
+
+                          {note.title && <div className="note-card-title">{note.title}</div>}
+                          <div className="note-card-text">{note.description}</div>
+
+                          <div className="note-card-actions">
+                            <button type="button" onClick={() => handleEditNote(note)}>
+                              Edit
+                            </button>
+                            <button type="button" onClick={() => handleDeleteNote(note.id)}>
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             {showMobileCalendarModal && (
               <div className="mobile-calendar-modal" onClick={() => setShowMobileCalendarModal(false)}>
                 <div className="calendar-modal-content" onClick={(e) => e.stopPropagation()}>
@@ -1346,16 +1650,26 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
                       )}
                       <div className="message-bubble">
                         {msg.mediaType === 'image' && msg.mediaUrl && (
-                          <img src={msg.mediaUrl} alt="media" className="message-media" onError={(e) => {
-                            console.error('Image load error:', msg.mediaUrl);
-                            e.target.style.display = 'none';
-                          }} />
+                          <img
+                            src={resolveMediaUrl(msg.mediaUrl)}
+                            alt="media"
+                            className="message-media"
+                            onError={(e) => {
+                              console.error('Image load error:', resolveMediaUrl(msg.mediaUrl));
+                              e.target.style.display = 'none';
+                            }}
+                          />
                         )}
                         {msg.mediaType === 'video' && msg.mediaUrl && (
-                          <video src={msg.mediaUrl} controls className="message-media" onError={(e) => {
-                            console.error('Video load error:', msg.mediaUrl);
-                            e.target.style.display = 'none';
-                          }} />
+                          <video
+                            src={resolveMediaUrl(msg.mediaUrl)}
+                            controls
+                            className="message-media"
+                            onError={(e) => {
+                              console.error('Video load error:', resolveMediaUrl(msg.mediaUrl));
+                              e.target.style.display = 'none';
+                            }}
+                          />
                         )}
                         {msg.mediaType === 'audio' && msg.mediaUrl && (() => {
                           const audioId = `audio-${msg.id}`;
@@ -1398,7 +1712,7 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
                                     audioRefs.current[audioId] = el;
                                   }
                                 }}
-                                src={msg.mediaUrl}
+                                src={resolveMediaUrl(msg.mediaUrl)}
                                 onLoadedMetadata={(e) => handleAudioLoadedMetadata(audioId, e.target)}
                                 onTimeUpdate={(e) => handleAudioTimeUpdate(audioId, e.target)}
                                 onEnded={() => handleAudioEnded(audioId)}
@@ -1416,7 +1730,7 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
                                   {msg.mediaUrl ? (msg.mediaUrl.split('/').pop()?.replace(/\.[^/.]+$/, '') || msg.fileName || 'Document') : (msg.fileName || 'Document')}
                                 </div>
                                 <a
-                                  href={msg.mediaUrl}
+                                  href={resolveMediaUrl(msg.mediaUrl)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="document-download-btn"
@@ -1551,6 +1865,7 @@ const handleToggleGroupForPhone = async (phone, groupId) => {
             Select a chat to start messaging
           </div>
         )}
+
       </div>
     </div>
   );

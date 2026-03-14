@@ -87,7 +87,12 @@ export class PrismaService {
     }
     return this.client.whatsAppMessage;
   }
-
+  get chatAssignment() {
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.chatAssignment;
+  }
   get masterConfig() {
     if (!this.client) {
       throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');

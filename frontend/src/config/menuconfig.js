@@ -1,56 +1,56 @@
 export const MENU_CONFIG = [
-    {
-      key: "analytics",
-      label: "Dashboard",
-      icon: "chart",
-    },
-    {
-      key: "chats",
-      label: "WhatsApp Chats",
-      icon: "chat",
-    },
-    {
-      key: "contacts",
-      label: "Contacts",
-      icon: "users",
-      children: [
-        { key: "contacts.all", label: "All Contacts", icon: "users" },
-        { key: "contacts.blacklist", label: "Blacklist", icon: "x" },
-        { key: "contacts.ungrouped", label: "Ungrouped Contacts", icon: "userPlus" },
-      ],
-    },
-    {
-      key: "campaigns",
-      label: "Campaigns",
-      icon: "mail",
-      children: [
-        { key: "campaigns.bulk", label: "Compose Campaign", icon: "mail" },
-        { key: "campaigns.reports", label: "Campaign Reports", icon: "list" },
-      ],
-    },
-    {
-      key: "chatbot",
-      label: "AI Chatbot",
-      icon: "bot",
-    },
+  {
+    key: "analytics",
+    label: "Dashboard",
+    icon: "chart",
+  },
+  {
+    key: "chats",
+    label: "WhatsApp Chats",
+    icon: "chat",
+  },
+  {
+    key: "contacts",
+    label: "Contacts",
+    icon: "users",
+    children: [
+      { key: "contacts.all", label: "All Contacts", icon: "users" },
+      { key: "contacts.blacklist", label: "Blacklist", icon: "x" },
+      // { key: "contacts.ungrouped", label: "Ungrouped Contacts", icon: "userPlus" },
+    ],
+  },
+  {
+    key: "campaigns",
+    label: "Campaigns",
+    icon: "mail",
+    children: [
+      { key: "campaigns.bulk", label: "Compose Campaign", icon: "mail" },
+      { key: "campaigns.reports", label: "Campaign Reports", icon: "list" },
+      { key: "campaigns.logs", label: "Run Automation Logs", icon: "activity" },
+      { key: "automation.logs", label: "Automation Logs", icon: "clipboardList" }
+    ],
+  },
+  {
+    key: "chatbot",
+    label: "AI Chatbot",
+    icon: "bot",
+  },
 
-    {
-      key: "quick-reply",
-      label: "Quick Reply",
-      icon: "zap",
-    },
-    {
-      key: "flow-manager",
-      label: "Flow Manager",
-      icon: "workflow",
-    },
-    {
-      key: "flow-appointments",
-      label: "Flow Appointments",
-      icon: "calendar",
-    },
-
-    
+  {
+    key: "quick-reply",
+    label: "Quick Reply",
+    icon: "zap",
+  },
+  {
+    key: "flow-manager",
+    label: "Flow Manager",
+    icon: "workflow",
+  },
+  {
+    key: "flow-appointments",
+    label: "Flow Appointments",
+    icon: "calendar",
+  },
 
 
     {
@@ -81,9 +81,11 @@ export const MENU_CONFIG = [
       icon: "settings",
       children: [
         { key: "settings.master-config", label: "WhatsApp Setup", icon: "sliders" },
+        { key: "automation.templates", label: "Automation Templates", icon: "layoutTemplate" },
         { key: "settings.templates", label: "Templates", icon: "layoutTemplate" },
         { key: "settings.labels", label: "Labels", icon: "tag" },
         { key: "settings.createuser", label: "User", icon: "user" },
+        { key: "settings.assignedcontact", label: "Assigned Contacts", icon: "usercheck" }
       ],
     },
     {

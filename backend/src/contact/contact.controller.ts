@@ -38,7 +38,7 @@ export class UpdateContactDto {
 @Controller('contact')
 @UseGuards(SessionGuard)
 export class ContactController {
-  constructor(private readonly contactService: ContactService) {}
+  constructor(private readonly contactService: ContactService) { }
 
   @Post()
   create(
@@ -72,12 +72,12 @@ export class ContactController {
   ) {
     return this.contactService.getContactsByGroup(+groupId, tenantContext);
   }
-  
+
   @Get('trash')
   getTrash(@TenantContext() tenantContext: TenantContextType) {
     return this.contactService.findTrash(tenantContext);
   }
-  
+
   @Patch(':id/restore')
   restore(
     @Param('id') id: string,
@@ -85,6 +85,7 @@ export class ContactController {
   ) {
     return this.contactService.restore(+id, tenantContext);
   }
+
 
   @Patch('delivery-status')
   updateDeliveryStatus(
@@ -94,6 +95,7 @@ export class ContactController {
       status: string;
       campaignName: string;
       name?: string;
+      phoneNumberId?: string;
     },
     @TenantContext() tenantContext: TenantContextType,
   ) {
@@ -101,8 +103,9 @@ export class ContactController {
       body.phone,
       body.status,
       body.campaignName,
-      body.name || body.phone,
+      body.name?.trim() || body.phone,
       tenantContext,
+      body.phoneNumberId,
     );
   }
 
@@ -133,21 +136,21 @@ export class ContactController {
     return this.contactService.getCustomLabels(tenantContext);
   }
 
-//for ungrouped contactincoming new contact
-@Get('new')
-getNewContacts(
-  @TenantContext() tenantContext: TenantContextType,
-  @Query('page') page?: string,
-  @Query('limit') limit?: string,
-  @Query('search') search?: string,
-) {
-  return this.contactService.getNewContacts(
-    tenantContext,
-    page ? parseInt(page) : 1,
-    limit ? parseInt(limit) : 10,
-    search,
-  );
-}
+  //for ungrouped contactincoming new contact
+  @Get('new')
+  getNewContacts(
+    @TenantContext() tenantContext: TenantContextType,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.contactService.getNewContacts(
+      tenantContext,
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 10,
+      search,
+    );
+  }
 
   @Post('labels/custom')
   async updateCustomLabels(
@@ -192,21 +195,56 @@ getNewContacts(
   }
 
   @Delete('labels/custom/:label')
-async deleteCustomLabel(
-  @Param('label') label: string,
-  @TenantContext() tenantContext: TenantContextType,
-) {
-  const existing = await this.contactService.getCustomLabels(tenantContext);
+  async deleteCustomLabel(
+    @Param('label') label: string,
+    @TenantContext() tenantContext: TenantContextType,
+  ) {
+    const existing = await this.contactService.getCustomLabels(tenantContext);
 
-  const updated = Array.isArray(existing)
-    ? existing.filter(
+    const updated = Array.isArray(existing)
+      ? existing.filter(
         (l) => l.toLowerCase() !== label.toLowerCase(),
       )
-    : [];
+      : [];
 
-  return this.contactService.updateCustomLabels(
-    tenantContext,
-    updated,
-  );
-}
+    return this.contactService.updateCustomLabels(
+      tenantContext,
+      updated,
+    );
+  }
+
+  //chatnote
+  @Get('notes/:phone')
+  getNotesByPhone(
+    @Param('phone') phone: string,
+    @TenantContext() tenantContext: TenantContextType,
+  ) {
+    return this.contactService.getNotesByPhone(phone, tenantContext);
+  }
+
+  @Post('notes/:phone')
+  createNoteByPhone(
+    @Param('phone') phone: string,
+    @Body() body: { title: string; description: string },
+    @TenantContext() tenantContext: TenantContextType,
+  ) {
+    return this.contactService.createNoteByPhone(phone, body, tenantContext);
+  }
+
+  @Patch('notes/item/:id')
+  updateNote(
+    @Param('id') id: string,
+    @Body() body: { title?: string; description?: string },
+    @TenantContext() tenantContext: TenantContextType,
+  ) {
+    return this.contactService.updateNote(+id, body, tenantContext);
+  }
+
+  @Delete('notes/item/:id')
+  deleteNote(
+    @Param('id') id: string,
+    @TenantContext() tenantContext: TenantContextType,
+  ) {
+    return this.contactService.deleteNote(+id, tenantContext);
+  }
 }

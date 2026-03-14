@@ -67,6 +67,9 @@ model WhatsAppSettings {
   campaigns     Campaign[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  runDailyAutomation   RunDailyAutomation[]
+  runDailyAutomationLogs RunDailyAutomationLog[] 
 }
 
 model Campaign {
@@ -90,6 +93,62 @@ model Campaign {
   
   contacts     CampaignContact[]
   messages     CampaignMessage[]
+}
+
+enum AutomationEventType {
+  DOB
+  ANNIVERSARY
+}
+
+model RunDailyAutomation {
+  id                 Int @id @default(autoincrement())
+
+  whatsAppSettingsId Int
+  whatsAppSettings   WhatsAppSettings @relation(fields:[whatsAppSettingsId], references:[id])
+
+  contactId          Int
+  contact            Contact @relation(fields:[contactId], references:[id])
+
+  eventType          AutomationEventType   // ✅ NEW
+  dayBefore          Int                   // ✅ allow negative too (after-week)
+
+  dob                DateTime?
+  anniversary        DateTime?
+
+  runDailyAutomationLogs RunDailyAutomationLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([contactId, whatsAppSettingsId, eventType, dayBefore])  // ✅ NEW
+}
+
+
+model RunDailyAutomationLog {
+  id                   Int @id @default(autoincrement())
+
+  runDailyAutomationId Int
+  runDailyAutomation   RunDailyAutomation @relation(fields: [runDailyAutomationId], references: [id], onDelete: Cascade)
+
+  contactId            Int
+  contact              Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  whatsAppSettingsId   Int
+  whatsAppSettings     WhatsAppSettings @relation(fields: [whatsAppSettingsId], references: [id])
+
+  templateName         String
+  status               String   // 'sent' | 'failed'
+  error                String?
+  messageId            String?
+
+  sentAt               DateTime @default(now())
+
+  // ✅ dedupe key: one run row should not send twice in same IST day
+  sentDate             DateTime
+
+  @@unique([runDailyAutomationId, sentDate])
+  @@index([sentAt])
+  @@index([contactId])
 }
 
 model CampaignContact {
@@ -160,23 +219,44 @@ model QuickReply {
 }
 
 model Contact {
-  id               Int      @id @default(autoincrement())
-  name             String
-  email            String?
-  phone            String
-  place            String?
-  lastMessageDate  DateTime?
-  dob             DateTime?
-  anniversary     DateTime?
-  isActive         Boolean ? @default(true)
-  phoneNumberId    String?
-  groupId           Int?
-  group             Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  
+  id                      Int      @id @default(autoincrement())
+  name                    String
+  email                   String?
+  phone                   String
+  place                   String?
+  lastMessageDate         DateTime?
+  dob                     DateTime?
+  anniversary             DateTime?
+  isActive                Boolean ? @default(true)
+  phoneNumberId            String?
+  groupId                   Int?
+  group                     Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  runDailyAutomation         RunDailyAutomation[]
+  runDailyAutomationLogs      RunDailyAutomationLog[] 
+  chatNotes                 ChatNote[]
   @@unique([phone, phoneNumberId])
   @@index([phoneNumberId])
+
+  
+}
+
+
+model ChatNote {
+  id          Int      @id @default(autoincrement())
+  phone       String
+  title       String
+  description String
+
+  contactId   Int?
+  contact     Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([phone])
+  @@index([contactId])
 }
 
 model Group {
@@ -187,6 +267,17 @@ model Group {
   contact         Contact[]
   campaign          Campaign[]
 }
+
+model ChatAssignment {
+  id        Int      @id @default(autoincrement())
+  phone     String   @unique
+  subUserId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([subUserId])
+}
+
 
 model ChatLabel {
   id        Int      @id @default(autoincrement())

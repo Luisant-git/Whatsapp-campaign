@@ -348,6 +348,57 @@ export class WhatsappService {
     }
   }
 
+  async downloadMediaDirect(mediaId: string, accessToken: string, apiUrl: string): Promise<string | null> {
+    try {
+      this.logger.log(`Downloading media directly: ${mediaId}`);
+  
+      const mediaInfoResponse = await axios.get(`${apiUrl}/${mediaId}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+  
+      this.logger.log('Direct media info:', mediaInfoResponse.data);
+  
+      const mediaUrl = mediaInfoResponse.data.url;
+      if (!mediaUrl) {
+        this.logger.error('No media URL found');
+        return null;
+      }
+  
+      const mediaDataResponse = await axios.get(mediaUrl, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        responseType: 'arraybuffer',
+      });
+  
+      const fs = require('fs');
+      const path = require('path');
+      const crypto = require('crypto');
+  
+      const uploadsDir = path.join(process.cwd(), 'uploads');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+  
+      const mimeType = mediaInfoResponse.data.mime_type || 'application/octet-stream';
+      const ext = mimeType.split('/')[1] || 'bin';
+      const filename = `${crypto.randomBytes(16).toString('hex')}.${ext}`;
+      const filepath = path.join(uploadsDir, filename);
+  
+      fs.writeFileSync(filepath, mediaDataResponse.data);
+  
+      const finalUrl = `${process.env.UPLOAD_URL}/${filename}`;
+      this.logger.log(`Media saved: ${finalUrl}`);
+  
+      return finalUrl;
+    } catch (error) {
+      this.logger.error('Direct media download error:', error.response?.data || error.message);
+      return null;
+    }
+  }
+
   async sendButtonsMessage(to: string, text: string, buttons: string[], userId: number) {
     try {
       const settings = await this.getSettings(userId);
@@ -647,42 +698,100 @@ export class WhatsappService {
     }
   }
 
-  async getMessages(userId: number, phoneNumber?: string) {
+  // async getMessages(userId: number, phoneNumber?: string) {
+  //   const messages = await this.prisma.whatsAppMessage.findMany({
+  //     where: { ...(phoneNumber && { from: phoneNumber }) },
+  //     orderBy: { createdAt: 'asc' },
+  //   });
+
+  //   // Enrich messages with display phone number from master config
+  //   const enrichedMessages = await Promise.all(
+  //     messages.map(async (msg) => {
+  //       let displayPhoneNumber: string | null = null;
+  //       if (msg.phoneNumberId) {
+  //         // First try to find master config
+  //         const masterConfig = await this.prisma.masterConfig.findFirst({
+  //           where: { phoneNumberId: msg.phoneNumberId },
+  //           select: { name: true, phoneNumberId: true }
+  //         });
+          
+  //         if (masterConfig) {
+  //           displayPhoneNumber = `${masterConfig.name} - ${masterConfig.phoneNumberId}`;
+  //         } else {
+  //           // Fallback to settings name
+  //           const settings = await this.prisma.whatsAppSettings.findFirst({
+  //             where: { phoneNumberId: msg.phoneNumberId },
+  //             select: { name: true, phoneNumberId: true }
+  //           });
+  //           displayPhoneNumber = settings?.name || msg.phoneNumberId || null;
+  //         }
+  //       }
+  //       return {
+  //         ...msg,
+  //         displayPhoneNumber,
+  //         businessPhoneNumberId: msg.phoneNumberId
+  //       };
+  //     })
+  //   );
+
+  //   return enrichedMessages;
+  // }
+  async getMessages(
+    userId: number,
+    phoneNumber?: string,
+    userType: 'tenant' | 'subuser' = 'tenant',
+  ) {
+    let allowedPhones: string[] | undefined;
+  
+    if (userType === 'subuser') {
+      const assignments = await this.prisma.chatAssignment.findMany({
+        where: { subUserId: userId },
+        select: { phone: true },
+      });
+  
+      allowedPhones = assignments.map((a) => a.phone);
+  
+      if (allowedPhones.length === 0) {
+        return [];
+      }
+    }
+  
     const messages = await this.prisma.whatsAppMessage.findMany({
-      where: { ...(phoneNumber && { from: phoneNumber }) },
+      where: {
+        ...(phoneNumber && { from: phoneNumber }),
+        ...(allowedPhones ? { from: { in: allowedPhones } } : {}),
+      },
       orderBy: { createdAt: 'asc' },
     });
-
-    // Enrich messages with display phone number from master config
+  
     const enrichedMessages = await Promise.all(
       messages.map(async (msg) => {
         let displayPhoneNumber: string | null = null;
         if (msg.phoneNumberId) {
-          // First try to find master config
           const masterConfig = await this.prisma.masterConfig.findFirst({
             where: { phoneNumberId: msg.phoneNumberId },
-            select: { name: true, phoneNumberId: true }
+            select: { name: true, phoneNumberId: true },
           });
-          
+  
           if (masterConfig) {
             displayPhoneNumber = `${masterConfig.name} - ${masterConfig.phoneNumberId}`;
           } else {
-            // Fallback to settings name
             const settings = await this.prisma.whatsAppSettings.findFirst({
               where: { phoneNumberId: msg.phoneNumberId },
-              select: { name: true, phoneNumberId: true }
+              select: { name: true, phoneNumberId: true },
             });
             displayPhoneNumber = settings?.name || msg.phoneNumberId || null;
           }
         }
+  
         return {
           ...msg,
           displayPhoneNumber,
-          businessPhoneNumberId: msg.phoneNumberId
+          businessPhoneNumberId: msg.phoneNumberId,
         };
-      })
+      }),
     );
-
+  
     return enrichedMessages;
   }
 
@@ -728,83 +837,326 @@ export class WhatsappService {
     }
   }
 
+  // private async processMessageForTenant(message: any, phoneNumberId: string, tenantId: number, settingsId: number) {
+  //   const dbUrl = await this.getTenantDbUrl(tenantId);
+  //   const tenantClient = this.tenantPrisma.getTenantClient(tenantId.toString(), dbUrl);
+    
+  //   const from = message.from;
+  //   const messageId = message.id;
+  //   let text = message.text?.body;
+    
+  //   // 🔥 ROUTE BASED ON PHONE NUMBER ID
+  //   const routing = await this.phoneRouter.routeMessage(phoneNumberId, message, settingsId, tenantClient, tenantId);
+  //   this.logger.log(`📍 Routing: ${routing.route} for phone ${phoneNumberId}`);
+    
+  //   // Handle Meta Catalog order messages
+  //   if (message.type === 'order') {
+  //     const order = message.order;
+  //     this.logger.log('🛒 Meta Catalog order received:', JSON.stringify(order, null, 2));
+      
+  //     const whatsappSettings = await tenantClient.whatsAppSettings.findFirst();
+  //     if (whatsappSettings) {
+  //       const metaCatalogService = this.ecommerceService['metaCatalogService'];
+  //       if (metaCatalogService) {
+  //         await metaCatalogService.handleOrderMessage(from, whatsappSettings.phoneNumberId, order, tenantId);
+  //         this.logger.log('✅ Order message handled');
+  //       }
+  //     }
+  //     return;
+  //   }
+    
+  //   if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
+  //     text = message.interactive.button_reply.id;
+  //   }
+    
+  //   if (message.type === 'interactive' && message.interactive?.type === 'list_reply') {
+  //     text = message.interactive.list_reply.id;
+  //   }
+    
+  //   // Quick duplicate check
+  //   const existingMessage = await tenantClient.whatsAppMessage.findUnique({ where: { messageId } });
+  //   if (existingMessage) {
+  //     this.logger.log(`Message ${messageId} already exists, skipping`);
+  //     return;
+  //   }
+    
+  //   // Store message with phoneNumberId
+  //   tenantClient.whatsAppMessage.create({
+  //     data: {
+  //       messageId,
+  //       to: from,
+  //       from,
+  //       message: text || 'media message',
+  //       direction: 'incoming',
+  //       status: 'received',
+  //       phoneNumberId,
+  //     }
+  //   }).catch(e => this.logger.error('Message store error:', e.message));
+    
+  //   this.logger.log(`✓ Message stored successfully`);
+    
+  //   // Process immediately
+  //   if (text) {
+  //     const lowerText = text.toLowerCase().trim();
+      
+  //     // Get settings once
+  //     const whatsappSettings = await tenantClient.whatsAppSettings.findFirst({
+  //       where: { phoneNumberId }
+  //     });
+  //     if (!whatsappSettings) return;
+      
+  //     // 🔥 CAMPAIGNS-ONLY NUMBER: Block incoming messages
+  //     if (routing.route === 'campaigns-only') {
+  //       this.logger.log('⛔ Campaigns-only number - ignoring incoming message');
+  //       return;
+  //     }
+
+  //     // Check for flow triggers first
+  //     try {
+  //       const flowResult = await this.flowTriggerService.checkAndSendFlowWithClient(text, from, tenantClient, whatsappSettings.accessToken, whatsappSettings.phoneNumberId);
+  //       if (flowResult?.success) {
+  //         this.logger.log(`✅ Flow triggered: ${flowResult.trigger.name}`);
+  //         return;
+  //       }
+  //     } catch (error) {
+  //       this.logger.error('Flow trigger error:', error);
+  //     }
+      
+  //     // 🔥 ECOMMERCE NUMBER: Route to catalog
+  //     if (routing.route === 'ecommerce') {
+  //       await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantId);
+  //       return;
+  //     }
+      
+  //     // Check for ecommerce keywords first (before routing to AI bot)
+  //     if (['shop', 'catalog', 'products', 'buy'].includes(lowerText) || 
+  //         lowerText.startsWith('cat:') || 
+  //         lowerText.startsWith('sub:') || 
+  //         lowerText.startsWith('prod:') ||
+  //         lowerText.startsWith('buy:') ||
+  //         lowerText === 'cod') {
+  //       await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantId);
+  //       this.logger.log(`✅ Ecommerce keyword handled`);
+  //       return;
+  //     }
+      
+  //     // 🔥 AI BOT NUMBER: Route to chatbot
+  //     if (routing.route === 'ai-bot') {
+  //       const chatResponse = await this.chatbotService.processMessage(tenantId, { message: text, phone: from });
+  //       if (chatResponse.response) {
+  //         await this.sendMessageDirect(from, chatResponse.response, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+  //       }
+  //       return;
+  //     }
+      
+  //     // 🔥 QUICK REPLY NUMBER: Route to session service
+  //     if (routing.route === 'quick-reply') {
+  //       await this.sessionService.handleInteractiveMenu(from, text, settingsId, 
+  //         async (to, msg, imageUrl) => {
+  //           if (imageUrl) {
+  //             return this.sendMediaMessageDirect(to, imageUrl, 'image', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient, msg);
+  //           }
+  //           return this.sendMessageDirect(to, msg, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+  //         },
+  //         async (to, msg, buttons) => {
+  //           return this.sendButtonsMessageDirect(to, msg, buttons, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+  //         }
+  //       );
+  //       return;
+  //     }
+      
+  //     // Check if user is in Meta Catalog order flow first
+  //     const metaCatalogService = this.ecommerceService['metaCatalogService'];
+  //     if (metaCatalogService) {
+  //       const handled = await metaCatalogService.handleCustomerResponse(from, whatsappSettings.phoneNumberId, text, tenantId);
+  //       if (handled) {
+  //         this.logger.log('✅ Meta Catalog order flow handled');
+  //         return;
+  //       }
+  //     }
+      
+  //     // Check for ecommerce keywords
+  //     if (['shop', 'catalog', 'products', 'buy'].includes(lowerText) || 
+  //         lowerText.startsWith('cat:') || 
+  //         lowerText.startsWith('sub:') || 
+  //         lowerText.startsWith('prod:') ||
+  //         lowerText.startsWith('buy:') ||
+  //         lowerText === 'cod') {
+  //       await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantId);
+  //       this.logger.log(`✅ Ecommerce keyword handled`);
+  //       return;
+  //     }
+      
+  //     // Check if user is in order flow
+  //     const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, tenantId);
+  //     if (orderResult === 'awaiting_address') {
+  //       await this.sendMessageDirect(from, 'Thank you! Now please provide your complete delivery address:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+  //       return;
+  //     } else if (orderResult === 'awaiting_city') {
+  //       await this.sendMessageDirect(from, 'Thank you! Now please provide your city:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+  //       return;
+  //     } else if (orderResult === 'awaiting_pincode') {
+  //       await this.sendMessageDirect(from, 'Thank you! Finally, please provide your pincode:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+  //       return;
+  //     } else if (orderResult === true) {
+  //       await this.sendMessageDirect(from, '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+  //       return;
+  //     }
+      
+  //     // Try session service for auto-reply/quick-reply
+  //     const sessionHandled = await this.sessionService.handleInteractiveMenu(from, text, settingsId, 
+  //       async (to, msg, imageUrl) => {
+  //         if (imageUrl) {
+  //           return this.sendMediaMessageDirect(to, imageUrl, 'image', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient, msg);
+  //         }
+  //         return this.sendMessageDirect(to, msg, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+  //       },
+  //       async (to, msg, buttons) => {
+  //         return this.sendButtonsMessageDirect(to, msg, buttons, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+  //       }
+  //     ).catch(e => { this.logger.error('Session error:', e); return false; });
+  //   }
+  // }
+
   private async processMessageForTenant(message: any, phoneNumberId: string, tenantId: number, settingsId: number) {
     const dbUrl = await this.getTenantDbUrl(tenantId);
     const tenantClient = this.tenantPrisma.getTenantClient(tenantId.toString(), dbUrl);
-    
+  
     const from = message.from;
     const messageId = message.id;
     let text = message.text?.body;
+  
+    const image = message.image;
+    const video = message.video;
+    const document = message.document;
+    const audio = message.audio;
+  
+    let mediaType: string | null = null;
+    let mediaUrl: string | null = null;
+  
+    this.logger.log(`📨 Webhook received - Phone: ${from}, Type: ${message.type}, Text: ${text || 'N/A'}`);
+    this.logger.log(`Incoming media debug: image=${!!image}, video=${!!video}, document=${!!document}, audio=${!!audio}`);
+  
+    // Get settings early because media download needs token
+    const whatsappSettings = await tenantClient.whatsAppSettings.findFirst({
+      where: { phoneNumberId }
+    });
+  
+    if (!whatsappSettings) {
+      this.logger.warn(`No WhatsApp settings found for phoneNumberId: ${phoneNumberId}`);
+      return;
+    }
+  
+    // Download media if incoming message contains media
+    const apiUrl = process.env.WHATSAPP_API_URL;
+
+    if (!apiUrl) {
+      throw new Error("WHATSAPP_API_URL is missing in env");
+    }
     
+    if (image) {
+      mediaType = 'image';
+      mediaUrl = await this.downloadMediaDirect(
+        image.id,
+        whatsappSettings.accessToken,
+        apiUrl
+      );
+    } else if (video) {
+      mediaType = 'video';
+      mediaUrl = await this.downloadMediaDirect(
+        video.id,
+        whatsappSettings.accessToken,
+        apiUrl
+      );
+    } else if (document) {
+      mediaType = 'document';
+      mediaUrl = await this.downloadMediaDirect(
+        document.id,
+        whatsappSettings.accessToken,
+        apiUrl
+      );
+    } else if (audio) {
+      mediaType = 'audio';
+      mediaUrl = await this.downloadMediaDirect(
+        audio.id,
+        whatsappSettings.accessToken,
+        apiUrl
+      );
+    }
+    
+    this.logger.log(`Resolved media => type=${mediaType}, url=${mediaUrl}`);
     // 🔥 ROUTE BASED ON PHONE NUMBER ID
     const routing = await this.phoneRouter.routeMessage(phoneNumberId, message, settingsId, tenantClient, tenantId);
     this.logger.log(`📍 Routing: ${routing.route} for phone ${phoneNumberId}`);
-    
+  
     // Handle Meta Catalog order messages
     if (message.type === 'order') {
       const order = message.order;
       this.logger.log('🛒 Meta Catalog order received:', JSON.stringify(order, null, 2));
-      
-      const whatsappSettings = await tenantClient.whatsAppSettings.findFirst();
-      if (whatsappSettings) {
-        const metaCatalogService = this.ecommerceService['metaCatalogService'];
-        if (metaCatalogService) {
-          await metaCatalogService.handleOrderMessage(from, whatsappSettings.phoneNumberId, order, tenantId);
-          this.logger.log('✅ Order message handled');
-        }
+  
+      const metaCatalogService = this.ecommerceService['metaCatalogService'];
+      if (metaCatalogService) {
+        await metaCatalogService.handleOrderMessage(from, whatsappSettings.phoneNumberId, order, tenantId);
+        this.logger.log('✅ Order message handled');
       }
       return;
     }
-    
+  
     if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
       text = message.interactive.button_reply.id;
     }
-    
+  
     if (message.type === 'interactive' && message.interactive?.type === 'list_reply') {
       text = message.interactive.list_reply.id;
     }
-    
+  
     // Quick duplicate check
-    const existingMessage = await tenantClient.whatsAppMessage.findUnique({ where: { messageId } });
+    const existingMessage = await tenantClient.whatsAppMessage.findUnique({
+      where: { messageId }
+    });
+  
     if (existingMessage) {
       this.logger.log(`Message ${messageId} already exists, skipping`);
       return;
     }
-    
-    // Store message with phoneNumberId
-    tenantClient.whatsAppMessage.create({
+  
+    // Store message WITH media fields
+    await tenantClient.whatsAppMessage.create({
       data: {
         messageId,
         to: from,
         from,
-        message: text || 'media message',
+        message: text || (mediaType ? `${mediaType} file` : 'media message'),
+        mediaType,
+        mediaUrl,
         direction: 'incoming',
         status: 'received',
         phoneNumberId,
       }
-    }).catch(e => this.logger.error('Message store error:', e.message));
-    
+    });
+  
     this.logger.log(`✓ Message stored successfully`);
-    
-    // Process immediately
+  
+    // Only process text messages in chatbot/ecommerce/session flow
     if (text) {
       const lowerText = text.toLowerCase().trim();
-      
-      // Get settings once
-      const whatsappSettings = await tenantClient.whatsAppSettings.findFirst({
-        where: { phoneNumberId }
-      });
-      if (!whatsappSettings) return;
-      
+  
       // 🔥 CAMPAIGNS-ONLY NUMBER: Block incoming messages
       if (routing.route === 'campaigns-only') {
         this.logger.log('⛔ Campaigns-only number - ignoring incoming message');
         return;
       }
-
+  
       // Check for flow triggers first
       try {
-        const flowResult = await this.flowTriggerService.checkAndSendFlowWithClient(text, from, tenantClient, whatsappSettings.accessToken, whatsappSettings.phoneNumberId);
+        const flowResult = await this.flowTriggerService.checkAndSendFlowWithClient(
+          text,
+          from,
+          tenantClient,
+          whatsappSettings.accessToken,
+          whatsappSettings.phoneNumberId
+        );
+  
         if (flowResult?.success) {
           this.logger.log(`✅ Flow triggered: ${flowResult.trigger.name}`);
           return;
@@ -812,100 +1164,214 @@ export class WhatsappService {
       } catch (error) {
         this.logger.error('Flow trigger error:', error);
       }
-      
+  
       // 🔥 ECOMMERCE NUMBER: Route to catalog
       if (routing.route === 'ecommerce') {
-        await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantId);
+        await this.ecommerceService.handleIncomingMessage(
+          from,
+          text,
+          whatsappSettings.accessToken,
+          whatsappSettings.phoneNumberId,
+          tenantId
+        );
         return;
       }
-      
-      // Check for ecommerce keywords first (before routing to AI bot)
-      if (['shop', 'catalog', 'products', 'buy'].includes(lowerText) || 
-          lowerText.startsWith('cat:') || 
-          lowerText.startsWith('sub:') || 
-          lowerText.startsWith('prod:') ||
-          lowerText.startsWith('buy:') ||
-          lowerText === 'cod') {
-        await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantId);
+  
+      // Check for ecommerce keywords first
+      if (
+        ['shop', 'catalog', 'products', 'buy'].includes(lowerText) ||
+        lowerText.startsWith('cat:') ||
+        lowerText.startsWith('sub:') ||
+        lowerText.startsWith('prod:') ||
+        lowerText.startsWith('buy:') ||
+        lowerText === 'cod'
+      ) {
+        await this.ecommerceService.handleIncomingMessage(
+          from,
+          text,
+          whatsappSettings.accessToken,
+          whatsappSettings.phoneNumberId,
+          tenantId
+        );
         this.logger.log(`✅ Ecommerce keyword handled`);
         return;
       }
-      
+  
       // 🔥 AI BOT NUMBER: Route to chatbot
       if (routing.route === 'ai-bot') {
-        const chatResponse = await this.chatbotService.processMessage(tenantId, { message: text, phone: from });
+        const chatResponse = await this.chatbotService.processMessage(tenantId, {
+          message: text,
+          phone: from
+        });
+  
         if (chatResponse.response) {
-          await this.sendMessageDirect(from, chatResponse.response, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+          await this.sendMessageDirect(
+            from,
+            chatResponse.response,
+            whatsappSettings.accessToken,
+            whatsappSettings.phoneNumberId,
+            tenantClient
+          );
         }
         return;
       }
-      
+  
       // 🔥 QUICK REPLY NUMBER: Route to session service
       if (routing.route === 'quick-reply') {
-        await this.sessionService.handleInteractiveMenu(from, text, settingsId, 
+        await this.sessionService.handleInteractiveMenu(
+          from,
+          text,
+          settingsId,
           async (to, msg, imageUrl) => {
             if (imageUrl) {
-              return this.sendMediaMessageDirect(to, imageUrl, 'image', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient, msg);
+              return this.sendMediaMessageDirect(
+                to,
+                imageUrl,
+                'image',
+                whatsappSettings.accessToken,
+                whatsappSettings.phoneNumberId,
+                tenantClient,
+                msg
+              );
             }
-            return this.sendMessageDirect(to, msg, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+            return this.sendMessageDirect(
+              to,
+              msg,
+              whatsappSettings.accessToken,
+              whatsappSettings.phoneNumberId,
+              tenantClient
+            );
           },
           async (to, msg, buttons) => {
-            return this.sendButtonsMessageDirect(to, msg, buttons, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+            return this.sendButtonsMessageDirect(
+              to,
+              msg,
+              buttons,
+              whatsappSettings.accessToken,
+              whatsappSettings.phoneNumberId,
+              tenantClient
+            );
           }
         );
         return;
       }
-      
+  
       // Check if user is in Meta Catalog order flow first
       const metaCatalogService = this.ecommerceService['metaCatalogService'];
       if (metaCatalogService) {
-        const handled = await metaCatalogService.handleCustomerResponse(from, whatsappSettings.phoneNumberId, text, tenantId);
+        const handled = await metaCatalogService.handleCustomerResponse(
+          from,
+          whatsappSettings.phoneNumberId,
+          text,
+          tenantId
+        );
+  
         if (handled) {
           this.logger.log('✅ Meta Catalog order flow handled');
           return;
         }
       }
-      
+  
       // Check for ecommerce keywords
-      if (['shop', 'catalog', 'products', 'buy'].includes(lowerText) || 
-          lowerText.startsWith('cat:') || 
-          lowerText.startsWith('sub:') || 
-          lowerText.startsWith('prod:') ||
-          lowerText.startsWith('buy:') ||
-          lowerText === 'cod') {
-        await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantId);
+      if (
+        ['shop', 'catalog', 'products', 'buy'].includes(lowerText) ||
+        lowerText.startsWith('cat:') ||
+        lowerText.startsWith('sub:') ||
+        lowerText.startsWith('prod:') ||
+        lowerText.startsWith('buy:') ||
+        lowerText === 'cod'
+      ) {
+        await this.ecommerceService.handleIncomingMessage(
+          from,
+          text,
+          whatsappSettings.accessToken,
+          whatsappSettings.phoneNumberId,
+          tenantId
+        );
         this.logger.log(`✅ Ecommerce keyword handled`);
         return;
       }
-      
+  
       // Check if user is in order flow
       const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, tenantId);
+  
       if (orderResult === 'awaiting_address') {
-        await this.sendMessageDirect(from, 'Thank you! Now please provide your complete delivery address:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+        await this.sendMessageDirect(
+          from,
+          'Thank you! Now please provide your complete delivery address:',
+          whatsappSettings.accessToken,
+          whatsappSettings.phoneNumberId,
+          tenantClient
+        );
         return;
       } else if (orderResult === 'awaiting_city') {
-        await this.sendMessageDirect(from, 'Thank you! Now please provide your city:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+        await this.sendMessageDirect(
+          from,
+          'Thank you! Now please provide your city:',
+          whatsappSettings.accessToken,
+          whatsappSettings.phoneNumberId,
+          tenantClient
+        );
         return;
       } else if (orderResult === 'awaiting_pincode') {
-        await this.sendMessageDirect(from, 'Thank you! Finally, please provide your pincode:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+        await this.sendMessageDirect(
+          from,
+          'Thank you! Finally, please provide your pincode:',
+          whatsappSettings.accessToken,
+          whatsappSettings.phoneNumberId,
+          tenantClient
+        );
         return;
       } else if (orderResult === true) {
-        await this.sendMessageDirect(from, '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+        await this.sendMessageDirect(
+          from,
+          '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!',
+          whatsappSettings.accessToken,
+          whatsappSettings.phoneNumberId,
+          tenantClient
+        );
         return;
       }
-      
+  
       // Try session service for auto-reply/quick-reply
-      const sessionHandled = await this.sessionService.handleInteractiveMenu(from, text, settingsId, 
+      await this.sessionService.handleInteractiveMenu(
+        from,
+        text,
+        settingsId,
         async (to, msg, imageUrl) => {
           if (imageUrl) {
-            return this.sendMediaMessageDirect(to, imageUrl, 'image', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient, msg);
+            return this.sendMediaMessageDirect(
+              to,
+              imageUrl,
+              'image',
+              whatsappSettings.accessToken,
+              whatsappSettings.phoneNumberId,
+              tenantClient,
+              msg
+            );
           }
-          return this.sendMessageDirect(to, msg, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+          return this.sendMessageDirect(
+            to,
+            msg,
+            whatsappSettings.accessToken,
+            whatsappSettings.phoneNumberId,
+            tenantClient
+          );
         },
         async (to, msg, buttons) => {
-          return this.sendButtonsMessageDirect(to, msg, buttons, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+          return this.sendButtonsMessageDirect(
+            to,
+            msg,
+            buttons,
+            whatsappSettings.accessToken,
+            whatsappSettings.phoneNumberId,
+            tenantClient
+          );
         }
-      ).catch(e => { this.logger.error('Session error:', e); return false; });
+      ).catch(e => {
+        this.logger.error('Session error:', e);
+        return false;
+      });
     }
   }
 
@@ -1319,5 +1785,75 @@ export class WhatsappService {
       this.logger.error('WhatsApp API Error:', error.response?.data || error.message);
       return { success: false, error: error.message };
     }
+  }
+
+  //assign subuser 
+  
+  
+  async assignChatToSubUser(phone: string, subUserId: number) {
+    const formattedPhone = this.formatPhoneNumber(phone);
+  
+    return this.prisma.chatAssignment.upsert({
+      where: { phone: formattedPhone },
+      update: { subUserId },
+      create: {
+        phone: formattedPhone,
+        subUserId,
+      },
+    });
+  }
+  
+  async getChatAssignment(phone: string) {
+    const formattedPhone = this.formatPhoneNumber(phone);
+  
+    return this.prisma.chatAssignment.findUnique({
+      where: { phone: formattedPhone },
+    });
+  }
+  async getAllChatAssignments() {
+    const assignments = await this.prisma.chatAssignment.findMany({
+      orderBy: { updatedAt: 'desc' },
+    });
+  
+    const enriched = await Promise.all(
+      assignments.map(async (a) => {
+        const subUser = await this.centralPrisma.subUser.findUnique({
+          where: { id: a.subUserId },
+          select: {
+            id: true,
+            email: true,
+            designation: true,
+          },
+        });
+  
+        const contact = await this.prisma.contact.findFirst({
+          where: { phone: a.phone },
+          include: {
+            group: true,
+          },
+        });
+  
+        return {
+          id: a.id,
+          phone: a.phone,
+          subUserId: a.subUserId,
+          subUserEmail: subUser?.email || "",
+          subUserName: subUser?.designation || "",
+          contactName: contact?.name || "",
+          groupName: contact?.group?.name || "",
+          createdAt: a.createdAt,
+          updatedAt: a.updatedAt,
+        };
+      })
+    );
+  
+    return enriched;
+  }
+  async removeChatAssignment(phone: string) {
+    const formattedPhone = this.formatPhoneNumber(phone);
+  
+    return this.prisma.chatAssignment.deleteMany({
+      where: { phone: formattedPhone },
+    });
   }
 }

@@ -21,6 +21,8 @@ import {
   Zap,
   Workflow,
   Calendar,
+  ClipboardList,
+  UserCheck,
 } from "lucide-react";
 
 import { MENU_CONFIG } from "./config/menuconfig.js"
@@ -56,6 +58,9 @@ import "./styles/Settings.css";
 import "./styles/Profile.css";
 import { getCurrentPlan } from "./api/subscription";
 import { logoutUser, getProfile } from "./api/auth";
+import AutomationTemplatesSettings from "./components/AutomationTemplatesSettings.jsx";
+import RunAutomationLogs from "./components/RunAutomationLogs.jsx";
+import AssignedContacts from "./components/AssignedContact.jsx";
 
 // Icon map for MENU_CONFIG.icon
 const ICON_MAP = {
@@ -70,6 +75,7 @@ const ICON_MAP = {
   zap: Zap,
   workflow: Workflow,
   calendar: Calendar,
+  
 };
 
 // Map MENU_CONFIG keys to activeView values
@@ -89,6 +95,9 @@ const MENU_TO_VIEW = {
   "flow-manager": "flow-manager",
   "flow-appointments": "flow-appointments",
 
+  "automation.templates": "automationtemplate",
+  "automation.logs": "RunAutomationLogs",
+
   "ecommerce.categories": "categories",
   "ecommerce.products": "products",
   "ecommerce.orders": "orders",
@@ -98,6 +107,8 @@ const MENU_TO_VIEW = {
   "settings.templates": "settings",
   "settings.labels": "labels",
   "settings.createuser": "createuser",
+  "settings.assignedcontact":"assignedcontact",
+  
 
   subscription: "subscription",
 };
@@ -115,6 +126,8 @@ const CHILD_ICON_MAP = {
   layoutTemplate: LayoutTemplate,
   sliders: Sliders,
   user: Users,
+  usercheck:UserCheck,
+  clipboardList: ClipboardList,
 };
 
 function App() {
@@ -128,6 +141,7 @@ function App() {
   const [contactsOpen, setContactsOpen] = useState(false);
   const [ecommerceOpen, setEcommerceOpen] = useState(false);
   const [campaignsOpen, setCampaignsOpen] = useState(false);
+  
 
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
 
@@ -307,11 +321,12 @@ function App() {
           const isCampaigns = menu.key === "campaigns";
           const isEcommerce = menu.key === "ecommerce";
           const isSettingsGroup = menu.key === "settings";
-
+          
           const isOpen =
             (isContacts && contactsOpen) ||
             (isCampaigns && campaignsOpen) ||
             (isEcommerce && ecommerceOpen) ||
+           
             (isSettingsGroup && settingsOpen);
 
           const toggleOpen = () => {
@@ -319,6 +334,7 @@ function App() {
             if (isCampaigns) setCampaignsOpen((prev) => !prev);
             if (isEcommerce) setEcommerceOpen((prev) => !prev);
             if (isSettingsGroup) setSettingsOpen((prev) => !prev);
+         
           };
 
           const allowedChildren = (menu.children || []).filter((child) =>
@@ -466,10 +482,14 @@ function App() {
             {activeView === "chats" && <WhatsAppChat />}
             {activeView === "bulk" && <BulkWhatsApp />}
             {activeView === "contacts" && <Contact />}
+            {activeView === "assignedcontact" && <AssignedContacts/>}
             {activeView === "blacklist" && <Blacklist />}
             {activeView === "ungroupedcontact" && <UngroupedContact />}
             {activeView === "labels" && <Labels />}
             {activeView === "createuser" && <CreateUser />}
+            {activeView === "automationtemplate" && <AutomationTemplatesSettings />}
+            {activeView === "RunAutomationLogs" && <RunAutomationLogs/>}
+            
             {activeView === "campaigns" && <Campaigns />}
             {activeView === "categories" && <Categories />}
             {activeView === "products" && <Products />}

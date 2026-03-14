@@ -25,10 +25,13 @@ import { MetaFlowModule } from './meta-flow/meta-flow.module';
 import { FlowMessageModule } from './flow-message/flow-message.module';
 import { FlowAppointmentModule } from './flow-appointment/flow-appointment.module';
 import { SubuserMenuPermissionModule } from './subuser-menu-permission/subuser-menu-permission.module';
+import { CronModule } from './cron/cron.module';
+import { RunDailyAutomationModule } from './run-daily-automation/run-daily-automation.module';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
+    CronModule,
     TenantModule,
     AdminModule,
     UserModule,
@@ -54,6 +57,8 @@ import { SubuserMenuPermissionModule } from './subuser-menu-permission/subuser-m
     FlowMessageModule,
     FlowAppointmentModule,
     SubuserMenuPermissionModule,
+   
+    RunDailyAutomationModule,
   ],
   controllers: [AppController, TestController],
   providers: [AppService],

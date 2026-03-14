@@ -3,7 +3,7 @@ import { API_BASE_URL } from './config';
 
 export const contactAPI = {
   /* -------------------- CONTACTS -------------------- */
-  
+
   getAll: (page, limit, search, groupId) =>
     axios.get(`${API_BASE_URL}/contact`, {
       withCredentials: true,
@@ -11,17 +11,17 @@ export const contactAPI = {
     }),
 
 
-   
-     // ✅ use API_BASE_URL + withCredentials
-getNewContacts: (page = 1, limit = 10, search = "") =>
-  axios.get(`${API_BASE_URL}/contact/new`, {
-    withCredentials: true,
-    params: { page, limit, search },
-  }),
-    
-    getContacts: (id) =>
-      axios.get(`${API_BASE_URL}/contact/group/${id}/contacts`, { withCredentials: true }),
-    
+
+  // ✅ use API_BASE_URL + withCredentials
+  getNewContacts: (page = 1, limit = 10, search = "") =>
+    axios.get(`${API_BASE_URL}/contact/new`, {
+      withCredentials: true,
+      params: { page, limit, search },
+    }),
+
+  getContacts: (id) =>
+    axios.get(`${API_BASE_URL}/contact/group/${id}/contacts`, { withCredentials: true }),
+
   getOne: (id) =>
     axios.get(`${API_BASE_URL}/contact/${id}`, { withCredentials: true }),
 
@@ -33,10 +33,10 @@ getNewContacts: (page = 1, limit = 10, search = "") =>
 
   delete: (id) =>
     axios.delete(`${API_BASE_URL}/contact/${id}`, { withCredentials: true }),
-  
+
   getTrash: () =>
     axios.get(`${API_BASE_URL}/contact/trash`, { withCredentials: true }),
-  
+
   restore: (id) =>
     axios.patch(`${API_BASE_URL}/contact/${id}/restore`, {}, { withCredentials: true }),
   /* -------------------- DELIVERY -------------------- */
@@ -81,14 +81,37 @@ getNewContacts: (page = 1, limit = 10, search = "") =>
     ),
 
   /* -------------------- BLOCKLIST -------------------- */
-getBlocked: () =>
-  axios.get(`${API_BASE_URL}/contact/blocklist`, { withCredentials: true }),
+  getBlocked: () =>
+    axios.get(`${API_BASE_URL}/contact/blocklist`, { withCredentials: true }),
 
-removeLabel: (phone, label) =>
-  axios.post(
-    `${API_BASE_URL}/contact/remove-label`,
-    { phone, label },
-    { withCredentials: true }
-  ),
+  removeLabel: (phone, label) =>
+    axios.post(
+      `${API_BASE_URL}/contact/remove-label`,
+      { phone, label },
+      { withCredentials: true }
+    ),
+
+
+  //chatnote
+
+  getNotes: (phone) =>
+    axios.get(`${API_BASE_URL}/contact/notes/${phone}`, {
+      withCredentials: true,
+    }),
+
+  createNote: (phone, data) =>
+    axios.post(`${API_BASE_URL}/contact/notes/${phone}`, data, {
+      withCredentials: true,
+    }),
+
+  updateNote: (id, data) =>
+    axios.patch(`${API_BASE_URL}/contact/notes/item/${id}`, data, {
+      withCredentials: true,
+    }),
+
+  deleteNote: (id) =>
+    axios.delete(`${API_BASE_URL}/contact/notes/item/${id}`, {
+      withCredentials: true,
+    }),
 };
 

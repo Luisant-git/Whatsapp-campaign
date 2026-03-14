@@ -315,7 +315,11 @@ export class WhatsappController {
   @ApiQuery({ name: 'phone', required: false, description: 'Filter by phone number' })
   @ApiResponse({ status: 200, description: 'Messages retrieved successfully', type: [WhatsAppMessageDto] })
   async getMessages(@Session() session: any, @Query('phone') phone?: string) {
-    return this.whatsappService.getMessages(session.user.id, phone);
+    return this.whatsappService.getMessages(
+      session.user.id,
+      phone,
+      session.userType || 'tenant',
+    );
   }
  
   @Post('send-message')
@@ -637,5 +641,32 @@ export class WhatsappController {
     res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
     res.send(result.data);
   }
+
+  //assign user
+  @Get('chat-assignment/:phone')
+@UseGuards(SessionGuard)
+async getChatAssignment(@Param('phone') phone: string) {
+  return this.whatsappService.getChatAssignment(phone);
+}
+
+
+@Get('chat-assignments')
+@UseGuards(SessionGuard)
+async getAllChatAssignments() {
+  return this.whatsappService.getAllChatAssignments();
+}
+@Post('chat-assignment')
+@UseGuards(SessionGuard)
+async assignChatToSubUser(
+  @Body() body: { phone: string; subUserId: number },
+) {
+  return this.whatsappService.assignChatToSubUser(body.phone, body.subUserId);
+}
+
+@Delete('chat-assignment/:phone')
+@UseGuards(SessionGuard)
+async removeChatAssignment(@Param('phone') phone: string) {
+  return this.whatsappService.removeChatAssignment(phone);
+}
  
 }

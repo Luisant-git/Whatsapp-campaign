@@ -594,7 +594,84 @@ async getSubUserById(id: number) {
 
 
 
-async deactivateSubUser(id: number, tenantId?: number) {
+  async updateMenuPermissions(tenantId: number, permission: Record<string, any>) {
+    return this.prisma.menuPermission.upsert({
+      where: { tenantId },
+      update: { permission },
+      create: {
+        tenantId,
+        permission,
+      },
+    });
+  }
+
+  async updateTenantDomain(tenantId: number, domain: string) {
+    // Check if domain is already assigned to another tenant
+    const existingTenant = await this.prisma.tenant.findFirst({
+      where: {
+        domain,
+        id: { not: tenantId },
+      },
+    });
+
+    if (existingTenant) {
+      throw new ConflictException(`Domain ${domain} is already assigned to another tenant`);
+    }
+
+    const tenant = await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: { domain },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        domain: true,
+      },
+    });
+
+    return {
+      message: 'Tenant domain updated successfully',
+      tenant,
+    };
+  }
+
+  async removeTenantDomain(tenantId: number) {
+    const tenant = await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: { domain: null },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        domain: true,
+      },
+    });
+
+    return {
+      message: 'Tenant domain removed successfully',
+      tenant,
+    };
+  }
+
+  async getTenantDomains() {
+    const tenants = await this.prisma.tenant.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        isActive: true,
+        domain: true,
+      },
+      orderBy: { id: 'asc' },
+    });
+
+    return {
+      tenants,
+      primaryDomain: 'whatsapp.luisant.cloud',
+    };
+  }
+
+  async deactivateSubUser(id: number, tenantId?: number) {
   const subUser = await this.prisma.subUser.findUnique({ where: { id } });
   if (!subUser) throw new NotFoundException('Sub-user not found');
 

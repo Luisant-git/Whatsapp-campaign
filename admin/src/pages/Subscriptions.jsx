@@ -228,17 +228,33 @@ const Subscriptions = () => {
             {children.length > 0 && (
               <div className="subs-perm-group-children">
                 {children.map((child) => (
-                  <label key={child.key} className="subs-perm-child-row">
-                    <input
-                      type="checkbox"
-                      checked={hasMenuPerm(child.key)}
-                      onChange={() =>
-                        toggleMenuPermChild(menu.key, child.key)
-                      }
-                      disabled={!parentChecked}
-                    />
-                    <span>{child.label}</span>
-                  </label>
+                  <div key={child.key}>
+                    <label className="subs-perm-child-row">
+                      <input
+                        type="checkbox"
+                        checked={hasMenuPerm(child.key)}
+                        onChange={() => toggleMenuPermChild(menu.key, child.key)}
+                        disabled={!parentChecked}
+                      />
+                      <span>{child.label}</span>
+                    </label>
+                    
+                    {child.children && child.children.length > 0 && (
+                      <div className="subs-perm-nested-children" style={{ marginLeft: '20px' }}>
+                        {child.children.map((nestedChild) => (
+                          <label key={nestedChild.key} className="subs-perm-child-row">
+                            <input
+                              type="checkbox"
+                              checked={hasMenuPerm(nestedChild.key)}
+                              onChange={() => toggleMenuPermChild(child.key, nestedChild.key)}
+                              disabled={!hasMenuPerm(child.key)}
+                            />
+                            <span>{nestedChild.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             )}

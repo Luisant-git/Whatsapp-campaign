@@ -21,8 +21,12 @@ import {
   Zap,
   Workflow,
   Calendar,
+<<<<<<< HEAD
   ClipboardList,
   UserCheck,
+=======
+  Layout,
+>>>>>>> 97bfbb6294d157f963b0dec44735f677df2011fe
 } from "lucide-react";
 
 import { MENU_CONFIG } from "./config/menuconfig.js"
@@ -50,7 +54,7 @@ import Blacklist from "./components/BlackList";
 import CreateUser from "./components/CreateUser";
 import UngroupedContact from "./components/UngroupedContact";
 import FlowManager from "./components/FlowManager";
-import FlowAppointments from "./components/FlowAppointments";
+import TemplateManager from "./components/TemplateManager";
 
 import "./App.css";
 import "./styles/Analytics.css";
@@ -75,7 +79,7 @@ const ICON_MAP = {
   zap: Zap,
   workflow: Workflow,
   calendar: Calendar,
-  
+  layout: Layout,
 };
 
 // Map MENU_CONFIG keys to activeView values
@@ -103,6 +107,11 @@ const MENU_TO_VIEW = {
   "ecommerce.orders": "orders",
   "ecommerce.customers": "customers",
 
+  "templates.create": "templates",
+  "templates.manage": "templates",
+  "templates.library": "templates",
+  "templates.review": "templates",
+
   "settings.master-config": "master-config",
   "settings.templates": "settings",
   "settings.labels": "labels",
@@ -128,6 +137,9 @@ const CHILD_ICON_MAP = {
   user: Users,
   usercheck:UserCheck,
   clipboardList: ClipboardList,
+  plus: UserPlus2,
+  book: Package,
+  eye: List,
 };
 
 function App() {
@@ -141,7 +153,7 @@ function App() {
   const [contactsOpen, setContactsOpen] = useState(false);
   const [ecommerceOpen, setEcommerceOpen] = useState(false);
   const [campaignsOpen, setCampaignsOpen] = useState(false);
-  
+  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
 
@@ -321,20 +333,21 @@ function App() {
           const isCampaigns = menu.key === "campaigns";
           const isEcommerce = menu.key === "ecommerce";
           const isSettingsGroup = menu.key === "settings";
-          
+          const isTemplates = menu.key === "templates";
+
           const isOpen =
             (isContacts && contactsOpen) ||
             (isCampaigns && campaignsOpen) ||
             (isEcommerce && ecommerceOpen) ||
-           
-            (isSettingsGroup && settingsOpen);
+            (isSettingsGroup && settingsOpen) ||
+            (isTemplates && templatesOpen);
 
           const toggleOpen = () => {
             if (isContacts) setContactsOpen((prev) => !prev);
             if (isCampaigns) setCampaignsOpen((prev) => !prev);
             if (isEcommerce) setEcommerceOpen((prev) => !prev);
             if (isSettingsGroup) setSettingsOpen((prev) => !prev);
-         
+            if (isTemplates) setTemplatesOpen((prev) => !prev);
           };
 
           const allowedChildren = (menu.children || []).filter((child) =>
@@ -500,6 +513,7 @@ function App() {
             {activeView === "chatbot" && <Chatbot />}
             {activeView === "flow-manager" && <FlowManager />}
             {activeView === "flow-appointments" && <FlowAppointments />}
+            {activeView === "templates" && <TemplateManager />}
             {activeView === "analytics" && <Analytics />}
             {activeView === "settings" && (
               <SettingsPanel onNavigate={setActiveView} />

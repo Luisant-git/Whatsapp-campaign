@@ -1,6 +1,7 @@
-// Products.jsx
 import { useState, useEffect } from 'react';
 import { ecommerceApi } from '../api/ecommerce';
+import { getProfile } from '../api/auth';
+import { API_BASE_URL } from '../api/config';
 import { Pencil, Trash2, Upload, Search, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import '../styles/Ecommerce.css';
 
@@ -8,6 +9,7 @@ export default function Products() {
   const [subCategories, setSubCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [hasMetaCatalogPermission, setHasMetaCatalogPermission] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [showMetaModal, setShowMetaModal] = useState(false);
@@ -73,7 +75,20 @@ export default function Products() {
 
   useEffect(() => {
     loadData();
+    checkMetaCatalogPermission();
   }, []);
+
+  const checkMetaCatalogPermission = async () => {
+    try {
+      const data = await getProfile();
+      const permissions = data.menuPermission || {};
+      const hasPermission = permissions['ecommerce.products.metacatalog'] === true;
+      setHasMetaCatalogPermission(hasPermission);
+    } catch (error) {
+      console.error('Error checking Meta Catalog permission:', error);
+      setHasMetaCatalogPermission(false);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -94,7 +109,7 @@ export default function Products() {
   const getImageUrl = (url) => {
     if (!url) return null;
     if (url.startsWith('http')) return url;
-    return `http://localhost:3010${url}`;
+    return `${API_BASE_URL}${url}`;
   };
 
   // Toggle expanded row
@@ -582,6 +597,11 @@ export default function Products() {
       p.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.subCategory?.name?.toLowerCase().includes(searchQuery.toLowerCase());
 
+    // Filter based on Meta Catalog permission
+    if (!hasMetaCatalogPermission && p.metaProductId) {
+      return false; // Hide meta catalog products if permission is disabled
+    }
+
     if (filterType === 'normal') return matchesSearch && !p.metaProductId;
     if (filterType === 'uploaded') return matchesSearch && p.metaProductId && p.source !== 'meta';
     if (filterType === 'synced') return matchesSearch && p.source === 'meta';
@@ -625,42 +645,46 @@ export default function Products() {
           <button onClick={openAddProductModal} className="btn-primary">
             <Plus size={18} /> Add Product
           </button>
-          <button
-            onClick={openMetaModal}
-            style={{
-              background: '#25d366',
-              color: 'white',
-              border: 'none',
-              padding: '10px 20px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: '500',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontSize: '14px',
-            }}
-          >
-            <Upload size={18} /> Add to Meta Catalog
-          </button>
-          <button
-            onClick={handleSyncFromMeta}
-            style={{
-              background: '#0084ff',
-              color: 'white',
-              border: 'none',
-              padding: '10px 20px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: '500',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontSize: '14px',
-            }}
-          >
-            <Upload size={18} style={{ transform: 'rotate(180deg)' }} /> Sync from Meta
-          </button>
+          {hasMetaCatalogPermission && (
+            <>
+              <button
+                onClick={openMetaModal}
+                style={{
+                  background: '#25d366',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '14px',
+                }}
+              >
+                <Upload size={18} /> Add to Meta Catalog
+              </button>
+              <button
+                onClick={handleSyncFromMeta}
+                style={{
+                  background: '#0084ff',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '14px',
+                }}
+              >
+                <Upload size={18} style={{ transform: 'rotate(180deg)' }} /> Sync from Meta
+              </button>
+            </>
+          )}
         </div>
       </div>
 

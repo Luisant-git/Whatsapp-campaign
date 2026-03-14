@@ -92,10 +92,38 @@ export class EcommerceService {
     return product;
   }
 
-  async getProducts(subCategoryId?: number, userId?: number) {
+  async getProducts(subCategoryId?: number, userId?: number, excludeMetaProducts?: boolean) {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
+    
+    // Check Meta Catalog permission
+    let hasMetaCatalogPermission = true;
+    if (userId) {
+      try {
+        const tenant = await this.centralPrisma.tenant.findUnique({
+          where: { id: userId },
+          include: { subscription: true }
+        });
+        
+        if (tenant?.subscription?.menuPermissions) {
+          hasMetaCatalogPermission = tenant.subscription.menuPermissions.includes('ecommerce.products.metacatalog');
+        }
+      } catch (error) {
+        console.error('Error checking Meta Catalog permission:', error);
+      }
+    }
+    
+    const whereClause: any = { 
+      isActive: true, 
+      ...(subCategoryId && { subCategoryId })
+    };
+    
+    // If Meta Catalog permission is disabled, exclude products with metaProductId
+    if (!hasMetaCatalogPermission) {
+      whereClause.metaProductId = null;
+    }
+    
     return client.product.findMany({
-      where: { isActive: true, ...(subCategoryId && { subCategoryId }) },
+      where: whereClause,
       include: { 
         subCategory: { include: { category: true } },
         variants: {

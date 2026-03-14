@@ -16,6 +16,8 @@ const MasterConfig = () => {
   const [currentConfig, setCurrentConfig] = useState({
     name: "",
     phoneNumberId: "",
+    wabaId: "",
+    appId: "",
     accessToken: "",
     verifyToken: "",
   });
@@ -118,7 +120,7 @@ const MasterConfig = () => {
   };
 
   const resetForm = () => {
-    setCurrentConfig({ name: "", phoneNumberId: "", accessToken: "", verifyToken: "" });
+    setCurrentConfig({ name: "", phoneNumberId: "", wabaId: "", accessToken: "", verifyToken: "" });
     setEditingId(null);
     setShowForm(false);
   };
@@ -152,6 +154,8 @@ const MasterConfig = () => {
     setCurrentConfig({
       name: config.name,
       phoneNumberId: config.phoneNumberId,
+      wabaId: config.wabaId || "",
+      appId: config.appId || "",
       accessToken: config.accessToken,
       verifyToken: config.verifyToken,
     });
@@ -411,6 +415,30 @@ const MasterConfig = () => {
                 />
               </div>
               <div className="form-group">
+                <label>WABA ID *</label>
+                <input
+                  type="text"
+                  placeholder="Enter WhatsApp Business Account ID"
+                  value={currentConfig.wabaId}
+                  onChange={(e) => setCurrentConfig({...currentConfig, wabaId: e.target.value})}
+                />
+                <small style={{color: '#666', fontSize: '12px', display: 'block', marginTop: '4px'}}>
+                  Used for creating templates
+                </small>
+              </div>
+              <div className="form-group">
+                <label>App ID *</label>
+                <input
+                  type="text"
+                  placeholder="Enter Meta App ID"
+                  value={currentConfig.appId}
+                  onChange={(e) => setCurrentConfig({...currentConfig, appId: e.target.value})}
+                />
+                <small style={{color: '#666', fontSize: '12px', display: 'block', marginTop: '4px'}}>
+                  Required for uploading template media. Find it in <a href="https://developers.facebook.com/apps/" target="_blank" rel="noopener noreferrer" style={{color: '#25d366'}}>Meta Developer Console</a>
+                </small>
+              </div>
+              <div className="form-group">
                 <label>Access Token *</label>
                 <div className="input-with-icon">
                   <input
@@ -478,6 +506,18 @@ const MasterConfig = () => {
                 <label>Phone Number ID</label>
                 <p style={{padding: '12px', background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '4px', margin: '8px 0'}}>
                   {selectedConfig.phoneNumberId}
+                </p>
+              </div>
+              <div className="form-group">
+                <label>WABA ID</label>
+                <p style={{padding: '12px', background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '4px', margin: '8px 0'}}>
+                  {selectedConfig.wabaId || 'Not configured'}
+                </p>
+              </div>
+              <div className="form-group">
+                <label>App ID</label>
+                <p style={{padding: '12px', background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '4px', margin: '8px 0'}}>
+                  {selectedConfig.appId || 'Not configured'}
                 </p>
               </div>
               <div className="form-group">

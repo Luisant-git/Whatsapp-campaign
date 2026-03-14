@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Session, HttpCode, HttpStatus, UnauthorizedException, ParseIntPipe, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Patch, Param, Delete, Session, HttpCode, HttpStatus, UnauthorizedException, ParseIntPipe, ForbiddenException } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { LoginAdminDto } from './dto/login-admin.dto';
@@ -212,6 +212,53 @@ async updateSubUser(
     const result = await this.adminService.toggleUserQuickReply(+id);
     await this.adminService.updateUserSession(+id, session.store);
     return result;
+  }
+
+  @Put('menu-permissions/:tenantId')
+  @ApiOperation({ summary: 'Update menu permissions for tenant' })
+  async updateMenuPermissions(
+    @Param('tenantId', ParseIntPipe) tenantId: number,
+    @Body() body: { permission: Record<string, any> },
+    @Session() session: Record<string, any>
+  ) {
+    if (!session?.adminId) {
+      throw new UnauthorizedException('Admin authentication required');
+    }
+    return this.adminService.updateMenuPermissions(tenantId, body.permission);
+  }
+
+  @Put('tenants/:tenantId/domain')
+  @ApiOperation({ summary: 'Update tenant domain' })
+  async updateTenantDomain(
+    @Param('tenantId', ParseIntPipe) tenantId: number,
+    @Body() body: { domain: string },
+    @Session() session: Record<string, any>
+  ) {
+    if (!session?.adminId) {
+      throw new UnauthorizedException('Admin authentication required');
+    }
+    return this.adminService.updateTenantDomain(tenantId, body.domain);
+  }
+
+  @Delete('tenants/:tenantId/domain')
+  @ApiOperation({ summary: 'Remove tenant domain' })
+  async removeTenantDomain(
+    @Param('tenantId', ParseIntPipe) tenantId: number,
+    @Session() session: Record<string, any>
+  ) {
+    if (!session?.adminId) {
+      throw new UnauthorizedException('Admin authentication required');
+    }
+    return this.adminService.removeTenantDomain(tenantId);
+  }
+
+  @Get('tenants/domains')
+  @ApiOperation({ summary: 'Get all tenant domains' })
+  async getTenantDomains(@Session() session: Record<string, any>) {
+    if (!session?.adminId) {
+      throw new UnauthorizedException('Admin authentication required');
+    }
+    return this.adminService.getTenantDomains();
   }
 
   @Post('users/:id/subscription')

@@ -58,9 +58,22 @@ export const MENU_CONFIG = [
       icon: "store",
       children: [
         { key: "ecommerce.categories", label: "Categories" },
-        { key: "ecommerce.products", label: "Products" },
+        { key: "ecommerce.products", label: "Products", children: [
+          { key: "ecommerce.products.metacatalog", label: "Meta Catalog" }
+        ]},
         { key: "ecommerce.orders", label: "Orders" },
         { key: "ecommerce.customers", label: "Customers" },
+      ],
+    },
+    {
+      key: "templates",
+      label: "Template Manager",
+      icon: "template",
+      children: [
+        { key: "templates.create", label: "Create Template" },
+        { key: "templates.manage", label: "Manage Templates" },
+        { key: "templates.library", label: "Template Library" },
+        { key: "templates.review", label: "Review Requests" },
       ],
     },
     {

@@ -1,35 +1,39 @@
-// Quick test to set Menu Permissions for tenant 1
-const API_BASE_URL = 'http://localhost:3000'; // Adjust if different
+const { PrismaClient } = require('./backend/node_modules/@prisma/client-central');
 
-async function setMenuPermission() {
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.CENTRAL_DATABASE_URL || 'postgresql://postgres:password@localhost:5432/whatsapp_central'
+    }
+  }
+});
+
+async function checkPermissions() {
   try {
-    const response = await fetch(`${API_BASE_URL}/menu-permission/1`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        permission: {
-          dashboard: true,
-          contacts: true,
-          campaigns: true,
-          chatbot: false,  // Disable chatbot
-          quickReply: true,
-          whatsappChat: true
+    // Get all menu permissions to see the structure
+    const permissions = await prisma.menuPermission.findMany({
+      include: {
+        tenant: {
+          select: {
+            id: true,
+            email: true,
+            companyName: true
+          }
         }
-      })
+      }
     });
 
-    if (response.ok) {
-      const result = await response.json();
-      console.log('Menu permission set successfully:', result);
-    } else {
-      console.error('Failed to set menu permission:', response.status, await response.text());
-    }
+    console.log('All Menu Permissions:');
+    permissions.forEach(perm => {
+      console.log(`\nTenant: ${perm.tenant.email} (ID: ${perm.tenantId})`);
+      console.log('Permissions:', JSON.stringify(perm.permission, null, 2));
+    });
+
   } catch (error) {
     console.error('Error:', error);
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
-setMenuPermission();
+checkPermissions();

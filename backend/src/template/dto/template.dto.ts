@@ -1,0 +1,184 @@
+import { IsString, IsEnum, IsOptional, IsArray, ValidateNested, IsBoolean, MaxLength } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export enum TemplateCategory {
+  MARKETING = 'MARKETING',
+  UTILITY = 'UTILITY',
+  AUTHENTICATION = 'AUTHENTICATION',
+}
+
+export enum TemplateStatus {
+  IN_REVIEW = 'IN_REVIEW',
+  REJECTED = 'REJECTED',
+  ACTIVE = 'ACTIVE',
+  ARCHIVED = 'ARCHIVED'
+}
+
+export class TemplateComponentDto {
+  @IsEnum(['HEADER', 'BODY', 'FOOTER', 'BUTTONS'])
+  type: string;
+
+  @IsOptional()
+  @IsString()
+  format?: string;
+
+  @IsOptional()
+  @IsString()
+  text?: string;
+
+  @IsOptional()
+  @IsArray()
+  example?: any[];
+
+  @IsOptional()
+  @IsArray()
+  buttons?: any[];
+}
+
+export class CreateTemplateDto {
+  @IsString()
+  @MaxLength(512)
+  name: string;
+
+  @IsEnum(TemplateCategory)
+  category: TemplateCategory;
+
+  @IsString()
+  language: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TemplateComponentDto)
+  components: TemplateComponentDto[];
+
+  @IsOptional()
+  @IsBoolean()
+  allowCategoryChange?: boolean;
+
+  @IsOptional()
+  sampleValues?: { [key: string]: string };
+
+  // Authentication template specific fields
+  @IsOptional()
+  @IsString()
+  otpType?: string;
+
+  @IsOptional()
+  @IsString()
+  packageName?: string;
+
+  @IsOptional()
+  @IsString()
+  signatureHash?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  zeroTapAgreement?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  addSecurityRecommendation?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  addExpiryTime?: boolean;
+
+  @IsOptional()
+  codeExpiryMinutes?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  customValidityPeriod?: boolean;
+
+  @IsOptional()
+  validityPeriod?: number;
+}
+
+export class UpdateTemplateDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  name?: string;
+
+  @IsOptional()
+  @IsEnum(TemplateCategory)
+  category?: TemplateCategory;
+
+  @IsOptional()
+  @IsString()
+  language?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TemplateComponentDto)
+  components?: TemplateComponentDto[];
+
+  @IsOptional()
+  sampleValues?: { [key: string]: string };
+
+  // Authentication template specific fields
+  @IsOptional()
+  @IsString()
+  otpType?: string;
+
+  @IsOptional()
+  @IsString()
+  packageName?: string;
+
+  @IsOptional()
+  @IsString()
+  signatureHash?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  zeroTapAgreement?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  addSecurityRecommendation?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  addExpiryTime?: boolean;
+
+  @IsOptional()
+  codeExpiryMinutes?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  customValidityPeriod?: boolean;
+
+  @IsOptional()
+  validityPeriod?: number;
+}
+
+export class TemplatePreviewDto {
+  @IsString()
+  name: string;
+
+  @IsEnum(TemplateCategory)
+  category: TemplateCategory;
+
+  @IsString()
+  language: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TemplateComponentDto)
+  components: TemplateComponentDto[];
+
+  @IsOptional()
+  @IsArray()
+  sampleValues?: string[];
+}
+
+export class RequestReviewDto {
+  @IsArray()
+  @IsString({ each: true })
+  templateIds: string[];
+
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}

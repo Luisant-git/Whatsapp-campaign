@@ -17,6 +17,7 @@ import { GroupModule } from './group/group.module';
 import { TenantModule } from './tenant/tenant.module';
 import { TestModule } from './test/test.module';
 import { TenantMiddleware } from './tenant/tenant.middleware';
+// import { DomainTenantMiddleware } from './tenant/domain-tenant.middleware';
 import { TestController } from './test.controller';
 import { EcommerceModule } from './ecommerce/ecommerce.module';
 import { MenuPermissionModule } from './menu-permission/menu-permission.module';
@@ -27,6 +28,8 @@ import { FlowAppointmentModule } from './flow-appointment/flow-appointment.modul
 import { SubuserMenuPermissionModule } from './subuser-menu-permission/subuser-menu-permission.module';
 import { CronModule } from './cron/cron.module';
 import { RunDailyAutomationModule } from './run-daily-automation/run-daily-automation.module';
+import { TemplateModule } from './template/template.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -47,11 +50,7 @@ import { RunDailyAutomationModule } from './run-daily-automation/run-daily-autom
     GroupModule,
     TestModule,
     EcommerceModule,
-   
-   
-   
     MenuPermissionModule,
-   
     AdminAnalyticsModule,
     MetaFlowModule,
     FlowMessageModule,
@@ -59,6 +58,8 @@ import { RunDailyAutomationModule } from './run-daily-automation/run-daily-autom
     SubuserMenuPermissionModule,
    
     RunDailyAutomationModule,
+    TemplateModule,
+    UploadModule,
   ],
   controllers: [AppController, TestController],
   providers: [AppService],
@@ -67,6 +68,7 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(TenantMiddleware)
+      // .apply(DomainTenantMiddleware)
       .exclude(
         'admin/(.*)',
         'user/login',

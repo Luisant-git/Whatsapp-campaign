@@ -66,11 +66,35 @@ export class UserService {
 };
   }
 
-  async login(loginUserDto: LoginUserDto, session: any) {
+  async login(loginUserDto: LoginUserDto, session: any, req?: any) {
     const { email, password } = loginUserDto;
+    const origin = req?.get('origin') || req?.get('referer');
   
     let tenant = await this.centralPrisma.tenant.findUnique({ where: { email } });
     let subUser: any = null;
+    let domainTenant: any = null;
+
+    // Check if accessing via custom domain (based on origin)
+    if (origin) {
+      try {
+        const originUrl = new URL(origin);
+        const hostname = originUrl.hostname;
+        
+        if (hostname !== 'whatsapp.luisant.cloud' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+          domainTenant = await this.centralPrisma.tenant.findFirst({
+            where: { 
+              domain: {
+                contains: hostname,
+                mode: 'insensitive'
+              },
+              isActive: true
+            },
+          });
+        }
+      } catch (error) {
+        console.error('Error parsing origin URL:', error);
+      }
+    }
   
     if (!tenant) {
       subUser = await this.centralPrisma.subUser.findUnique({ where: { email } });
@@ -89,6 +113,11 @@ export class UserService {
       if (!valid) throw new UnauthorizedException('Invalid credentials');
       if (!tenant.isActive) throw new UnauthorizedException('Account is deactivated');
     }
+
+    // If accessing via custom domain, validate that user belongs to that domain's tenant
+    if (domainTenant && tenant.id !== domainTenant.id) {
+      throw new UnauthorizedException('Invalid credentials for this domain');
+    }
   
     // Check subscription
     const activeSubscription = await this.centralPrisma.subscriptionOrder.findFirst({
@@ -103,6 +132,7 @@ export class UserService {
       throw new UnauthorizedException('No active subscription found');
   
     // ✅ CRITICAL: Store tenantId separately from userId
+    console.log('Login - Before setting session data');
     session.userId = subUser ? subUser.id : tenant.id;
     session.tenantId = tenant.id;           // ← ALWAYS the tenant's ID
     session.userType = subUser ? 'subuser' : 'tenant';  // ← NEW
@@ -114,16 +144,39 @@ export class UserService {
       role: subUser ? subUser.role : 'owner',
       userType: subUser ? 'subuser' : 'tenant',  // ← ADD THIS
     };
+    
+    console.log('Login - Session data set:', {
+      userId: session.userId,
+      tenantId: session.tenantId,
+      userType: session.userType
+    });
+    
     await new Promise<void>((resolve, reject) => {
       session.save((err: any) => {
         if (err) {
           console.error('Session save error:', err);
           reject(err);
+        } else {
+          console.log('Login - Session saved successfully');
         }
         resolve();
       });
     });
-    return { message: 'Login successful', user: session.user };
+    
+    console.log('Login - Final session check:', {
+      sessionId: session.id,
+      userId: session.userId,
+      tenantId: session.tenantId
+    });
+    
+    // Generate domain-specific auth token for cross-domain access
+    const domainAuthToken = `${tenant.id}:${Date.now()}:${tenant.email}`;
+    
+    return { 
+      message: 'Login successful', 
+      user: session.user,
+      domainAuthToken // Include token for domain-based access
+    };
   }
   async logout(session: any) {
     return new Promise((resolve, reject) => {
@@ -137,7 +190,92 @@ export class UserService {
     });
   }
 
-  async getCurrentUser(session: any) {
+  async getCurrentUser(session: any, req?: any) {
+    const origin = req?.get('origin') || req?.get('referer');
+    let isDomainBasedAccess = false;
+    let domainTenant: any = null;
+
+    // Check if this is domain-based access
+    if (origin) {
+      try {
+        const originUrl = new URL(origin);
+        const hostname = originUrl.hostname;
+        
+        if (hostname !== 'whatsapp.luisant.cloud' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+          domainTenant = await this.centralPrisma.tenant.findFirst({
+            where: { 
+              domain: {
+                contains: hostname,
+                mode: 'insensitive'
+              },
+              isActive: true
+            },
+            include: {
+              subscription: true,
+            },
+          });
+          
+          if (domainTenant) {
+            isDomainBasedAccess = true;
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing origin URL:', error);
+      }
+    }
+
+    // For domain-based access, return tenant info directly
+    if (isDomainBasedAccess && domainTenant) {
+      // Fetch tenant config
+      let tenantConfig: any = {};
+      try {
+        const tenantDbUrl = `postgresql://${domainTenant.dbUser}:${domainTenant.dbPassword}@${domainTenant.dbHost}:${domainTenant.dbPort}/${domainTenant.dbName}`;
+        const tenantPrisma = new TenantPrisma({
+          datasources: { db: { url: tenantDbUrl } },
+        });
+        await tenantPrisma.$connect();
+        tenantConfig = (await tenantPrisma.tenantConfig.findFirst()) || {};
+        await tenantPrisma.$disconnect();
+      } catch (err) {
+        console.error('Error fetching tenant config:', err);
+      }
+
+      // Get menu permissions from subscription plan
+      let menuPermission: any = {};
+      if (domainTenant.subscription?.menuPermissions) {
+        menuPermission = domainTenant.subscription.menuPermissions.reduce((acc, key) => {
+          acc[key] = true;
+          return acc;
+        }, {});
+      }
+
+      return {
+        message: 'Current user retrieved successfully',
+        user: {
+          id: domainTenant.id,
+          tenantId: domainTenant.id,
+          email: domainTenant.email,
+          name: domainTenant.name,
+          isActive: domainTenant.isActive,
+          companyName: domainTenant.companyName,
+          contactPersonName: domainTenant.contactPersonName,
+          phoneNumber: domainTenant.phoneNumber,
+          companyAddress: domainTenant.companyAddress,
+          city: domainTenant.city,
+          pincode: domainTenant.pincode,
+          state: domainTenant.state,
+          country: domainTenant.country,
+          subscriptionId: domainTenant.subscriptionId,
+          aiChatbotEnabled: tenantConfig.aiChatbotEnabled || false,
+          useQuickReply: tenantConfig.useQuickReply !== false,
+        },
+        role: 'owner',
+        userType: 'tenant',
+        menuPermission,
+      };
+    }
+
+    // Original session-based logic for non-domain access
     const tenantId = session.tenantId;
     const userId = session.userId;
     const userType = session.userType || 'tenant';
@@ -148,6 +286,9 @@ export class UserService {
   
     const tenant = await this.centralPrisma.tenant.findUnique({
       where: { id: tenantId },
+      include: {
+        subscription: true,
+      },
     });
     if (!tenant) {
       throw new UnauthorizedException('Tenant not found');
@@ -185,22 +326,27 @@ export class UserService {
       console.error('Error fetching tenant config:', err);
     }
   
-    // ✅ Fetch menu permissions differently for tenant vs subuser
-    let menuPermission: any = null;
-    try {
-      if (userType === 'subuser') {
-        // IMPORTANT: subuser-specific permission
-        menuPermission = await this.centralPrisma.subUserMenuPermission.findUnique({
+    // Get menu permissions from subscription plan's menuPermissions array
+    let menuPermission: any = {};
+    if (tenant.subscription?.menuPermissions) {
+      menuPermission = tenant.subscription.menuPermissions.reduce((acc, key) => {
+        acc[key] = true;
+        return acc;
+      }, {});
+    }
+    
+    // For subusers, check their specific permissions
+    if (userType === 'subuser') {
+      try {
+        const subUserPerm = await this.centralPrisma.subUserMenuPermission.findUnique({
           where: { subUserId: userId },
         });
-      } else {
-        // Tenant/owner permission (what you already had)
-        menuPermission = await this.centralPrisma.menuPermission.findUnique({
-          where: { tenantId: tenant.id },
-        });
+        if (subUserPerm?.permission) {
+          menuPermission = subUserPerm.permission;
+        }
+      } catch (err) {
+        console.error('Error fetching subuser menu permissions:', err);
       }
-    } catch (err) {
-      console.error('Error fetching menu permissions:', err);
     }
   
     return {
@@ -225,7 +371,7 @@ export class UserService {
       },
       role: userType === 'subuser' ? subUserDetails.role : 'owner',
       userType,
-      menuPermission,  // now tenant or subuser specific
+      menuPermission,
     };
   }
 

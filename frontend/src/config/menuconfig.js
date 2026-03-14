@@ -53,37 +53,44 @@ export const MENU_CONFIG = [
   },
 
 
-
-
-  {
-    key: "ecommerce",
-    label: "E-Commerce",
-    icon: "store",
-    children: [
-      { key: "ecommerce.categories", label: "Categories", icon: "layers" },
-      { key: "ecommerce.products", label: "Products", icon: "package" },
-      { key: "ecommerce.orders", label: "Orders", icon: "shoppingCart" },
-      { key: "ecommerce.customers", label: "Customers", icon: "users" },
-    ],
-  },
-  {
-    key: "settings",
-    label: "Settings",
-    icon: "settings",
-    children: [
-      { key: "settings.master-config", label: "WhatsApp Setup", icon: "sliders" },
-      { key: "automation.templates", label: "Automation Templates", icon: "layoutTemplate" },
-      { key: "settings.templates", label: "Templates", icon: "layoutTemplate" },
-      { key: "settings.labels", label: "Labels", icon: "tag" },
-      { key: "settings.createuser", label: "User", icon: "user" },
-      { key: "settings.assignedcontact", label: "Assigned Contacts", icon: "usercheck" }
-
-
-    ],
-  },
-  {
-    key: "subscription",
-    label: "Subscription",
-    icon: "credit",
-  },
-];
+    {
+      key: "ecommerce",
+      label: "E-Commerce",
+      icon: "store",
+      children: [
+        { key: "ecommerce.categories", label: "Categories", icon: "layers" },
+        { key: "ecommerce.products", label: "Products", icon: "package" },
+        { key: "ecommerce.orders", label: "Orders", icon: "shoppingCart" },
+        { key: "ecommerce.customers", label: "Customers", icon: "users" },
+      ],
+    },
+    {
+      key: "templates",
+      label: "Template Manager",
+      icon: "layout",
+      children: [
+        { key: "templates.create", label: "Create Template", icon: "plus" },
+        // { key: "templates.manage", label: "Manage Templates", icon: "list" },
+        // { key: "templates.library", label: "Template Library", icon: "book" },
+        // { key: "templates.review", label: "Review Requests", icon: "eye" },
+      ],
+    },
+    {
+      key: "settings",
+      label: "Settings",
+      icon: "settings",
+      children: [
+        { key: "settings.master-config", label: "WhatsApp Setup", icon: "sliders" },
+        { key: "automation.templates", label: "Automation Templates", icon: "layoutTemplate" },
+        { key: "settings.templates", label: "Templates", icon: "layoutTemplate" },
+        { key: "settings.labels", label: "Labels", icon: "tag" },
+        { key: "settings.createuser", label: "User", icon: "user" },
+        { key: "settings.assignedcontact", label: "Assigned Contacts", icon: "usercheck" }
+      ],
+    },
+    {
+      key: "subscription",
+      label: "Subscription",
+      icon: "credit",
+    },
+  ];

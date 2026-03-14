@@ -9,12 +9,21 @@ export const loginUser = async (email, password, role = 'tenant') => {
   });
 
   if (!response.ok) {
+    const data = await response.json();
     const error = new Error(data.message || "Login failed");
-    error.status = response.status;   // ✅ attach status
-    error.data = data;                // ✅ attach full backend data
+    error.status = response.status;
+    error.data = data;
     throw error;
   }
-  return await response.json();
+  
+  const data = await response.json();
+  
+  // Store domain auth token for cross-domain requests
+  if (data.domainAuthToken) {
+    localStorage.setItem('domainAuthToken', data.domainAuthToken);
+  }
+  
+  return data;
 };
 
 export const logoutUser = async () => {
@@ -38,8 +47,17 @@ export const logoutUser = async () => {
 };
 
 export const getProfile = async () => {
+  const headers = { 'Content-Type': 'application/json' };
+  
+  // Add domain auth token for cross-domain requests
+  const domainAuthToken = localStorage.getItem('domainAuthToken');
+  if (domainAuthToken) {
+    headers['Authorization'] = `Bearer ${domainAuthToken}`;
+  }
+  
   const response = await fetch(`${API_BASE_URL}/user/me`, {
     credentials: "include",
+    headers,
   });
 
   if (!response.ok) throw new Error("Failed to fetch profile");

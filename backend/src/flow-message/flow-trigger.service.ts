@@ -133,28 +133,17 @@ export class FlowTriggerService {
 
   // Send flow message via WhatsApp API
   private async sendFlowMessage(phoneNumber: string, trigger: any, accessToken: string, phoneNumberId: string) {
-    // Get tenant ID from phone number ID
+    // Get tenant ID from phone number ID for session tracking
     const tenant = await this.centralPrisma.tenant.findFirst({
       where: { phoneNumberId: phoneNumberId }
     });
     
     if (!tenant) {
-      throw new Error(`Tenant not found for phone number ID: ${phoneNumberId}`);
+      console.warn(`Tenant not found for phone number ID: ${phoneNumberId}, proceeding without session`);
     }
 
-    // Get flow info and create session
-    const flow = await this.flowManager.getFlowById(trigger.flowId, tenant.id.toString());
-    if (!flow) {
-      throw new Error(`Flow not found: ${trigger.flowId}`);
-    }
-
-    // Create flow session
-    const flowToken = await this.flowManager.createFlowSession(
-      trigger.flowId,
-      phoneNumber,
-      tenant.id.toString(),
-      flow.purpose
-    );
+    // Create flow token for session tracking
+    const flowToken = `flow_${Date.now()}_${tenant?.id || 'unknown'}_${Math.random().toString(36).substr(2, 9)}`;
 
     const actionParams: any = {
       flow_message_version: '3',
@@ -163,15 +152,33 @@ export class FlowTriggerService {
       flow_cta: trigger.ctaText,
     };
 
-    // Get initial data based on flow purpose
-    try {
-      const initialData = await this.flowManager.getFlowInitialData(flow.purpose);
-      actionParams.flow_action_data = initialData;
-    } catch (error) {
-      console.error('Error getting initial data:', error);
-      // Fallback to empty data
-      actionParams.flow_action_data = {};
+    // Add navigation if screen is specified
+    if (trigger.screenName && trigger.screenName !== 'SCREEN') {
+      actionParams.flow_action = 'navigate';
+      actionParams.flow_action_payload = {
+        screen: trigger.screenName
+      };
     }
+
+    // Always provide dropdown data for appointment flows
+    if (trigger.screenName === 'APPOINTMENT') {
+      try {
+        const appointmentData = await this.getAppointmentData();
+        actionParams.flow_action_data = appointmentData;
+        console.log('[FlowTrigger] Added appointment data:', Object.keys(appointmentData));
+      } catch (error) {
+        console.error('Error getting appointment data:', error);
+        actionParams.flow_action_data = this.getDefaultAppointmentData();
+        console.log('[FlowTrigger] Using default appointment data');
+      }
+    } else if (trigger.screenData && Object.keys(trigger.screenData).length > 0) {
+      // Use custom screen data if provided for other flow types
+      actionParams.flow_action_data = trigger.screenData;
+      console.log('[FlowTrigger] Added custom screen data:', Object.keys(trigger.screenData));
+    }
+
+    console.log('[FlowTrigger] Flow token:', flowToken);
+    console.log('[FlowTrigger] Action params keys:', Object.keys(actionParams));
 
     const interactive: any = {
       type: 'flow',

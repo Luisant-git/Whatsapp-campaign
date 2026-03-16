@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { FlowAppointmentService } from '../flow-appointment/flow-appointment.service';
+import { FlowDataService } from './flow-data.service';
 
 @Injectable()
 export class MetaFlowService {
@@ -34,7 +35,10 @@ sxEK+yx6I1EkGaK+/KWEpai7
 -----END PRIVATE KEY-----`;
   private readonly appSecret = process.env.META_APP_SECRET || '';
 
-  constructor(private flowAppointmentService: FlowAppointmentService) {}
+  constructor(
+    private flowAppointmentService: FlowAppointmentService,
+    private flowDataService: FlowDataService
+  ) {}
 
   verifySignature(payload: string, signature: string): boolean {
     if (!signature || !this.appSecret) return false;
@@ -129,31 +133,15 @@ sxEK+yx6I1EkGaK+/KWEpai7
     }
     
     if (action === 'data_exchange') {
-      if (screen === 'APPOINTMENT') {
-        const trigger = data?.trigger;
-        console.log('📤 APPOINTMENT trigger:', trigger);
-        
-        // Fetch dynamic data from database
-        const departments = await this.flowAppointmentService.getDepartments();
-        const locations = await this.flowAppointmentService.getLocations();
-        const timeSlots = await this.flowAppointmentService.getTimeSlots();
-        const dates = this.generateDates(7); // Next 7 days
-        
-        const response = {
-          version: '3.0',
-          data: {
-            department: departments,
-            location: locations,
-            is_location_enabled: true,
-            date: dates,
-            is_date_enabled: true,
-            time: timeSlots,
-            is_time_enabled: true
-          }
-        };
-        console.log('📤 Sending APPOINTMENT response with dynamic data');
-        return response;
-      }
+      // Use the flexible data service to handle any screen type
+      const screenData = await this.flowDataService.getScreenData(screen, data);
+      
+      console.log(`📤 ${screen} screen - providing data:`, screenData);
+      
+      return {
+        version: '3.0',
+        data: screenData
+      };
       
       if (screen === 'DETAILS') {
         console.log('📤 DETAILS screen - navigating to SUMMARY');

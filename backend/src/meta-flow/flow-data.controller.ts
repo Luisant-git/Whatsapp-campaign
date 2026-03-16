@@ -62,9 +62,10 @@ sxEK+yx6I1EkGaK+/KWEpai7
 
       let response;
 
-      // Handle different actions
+      // Handle different screens and actions
       if (decryptedData.action === 'ping') {
         response = {
+          screen: 'APPOINTMENT',
           data: {
             status: 'active'
           }
@@ -75,9 +76,9 @@ sxEK+yx6I1EkGaK+/KWEpai7
           screen: 'APPOINTMENT',
           data: {
             department: [
-              { id: '1', title: 'Sales' },
-              { id: '2', title: 'Support' },
-              { id: '3', title: 'Technical' }
+              { id: 'sales', title: 'Sales' },
+              { id: 'support', title: 'Support' },
+              { id: 'technical', title: 'Technical' }
             ],
             location: [
               { id: '1', title: 'New York' },
@@ -94,11 +95,40 @@ sxEK+yx6I1EkGaK+/KWEpai7
             ]
           }
         };
-      } else {
+      } else if (decryptedData.screen === 'DETAILS') {
+        console.log('📝 Processing appointment details...');
+        const data = decryptedData.data || {};
+        response = {
+          screen: 'SUMMARY',
+          data: {
+            summary: `${data.department} appointment at ${data.location} on ${data.date} at ${data.time}\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}`,
+            ...data
+          }
+        };
+      } else if (decryptedData.screen === 'SUMMARY') {
+        console.log('💾 Saving appointment...');
         response = {
           screen: 'SUCCESS',
           data: {
-            message: 'Flow completed successfully'
+            message: 'Appointment booked successfully!'
+          }
+        };
+      } else {
+        response = {
+          screen: 'APPOINTMENT',
+          data: {
+            department: [
+              { id: 'sales', title: 'Sales' }
+            ],
+            location: [
+              { id: '1', title: 'New York' }
+            ],
+            date: [
+              { id: '2026-03-17', title: 'Mon Mar 17 2026' }
+            ],
+            time: [
+              { id: '10:30', title: '10:30 AM' }
+            ]
           }
         };
       }

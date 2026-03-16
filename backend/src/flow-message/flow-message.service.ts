@@ -30,8 +30,8 @@ export class FlowMessageService {
       const flowsWithDetails = await Promise.all(
         response.data.data.map(async (flow: any) => {
           try {
-            const detailResponse = await axios.get(
-              `https://graph.facebook.com/${this.apiVersion}/${flow.id}`,
+            const assetsResponse = await axios.get(
+              `https://graph.facebook.com/${this.apiVersion}/${flow.id}/assets`,
               {
                 headers: {
                   'Authorization': `Bearer ${this.accessToken}`,
@@ -39,13 +39,22 @@ export class FlowMessageService {
               }
             );
             
+            let firstScreen = 'SCREEN';
+            const asset = assetsResponse.data?.data?.find((a: any) => a.asset_type === 'FLOW_JSON');
+            if (asset?.download_url) {
+              try {
+                const jsonResponse = await axios.get(asset.download_url);
+                firstScreen = jsonResponse.data?.screens?.[0]?.id || 'SCREEN';
+              } catch (_) {}
+            }
+            
             return {
               id: flow.id,
               name: flow.name,
               description: flow.status,
               status: flow.status,
               updatedAt: flow.updated_time,
-              firstScreen: detailResponse.data.json_version?.screens?.[0]?.id || 'SCREEN'
+              firstScreen,
             };
           } catch (error) {
             return {

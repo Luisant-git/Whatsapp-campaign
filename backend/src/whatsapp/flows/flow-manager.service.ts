@@ -90,7 +90,7 @@ export class FlowManagerService {
     // Update session with current screen
     await this.updateFlowSession(flowToken, tenantId, {
       currentScreen: screen,
-      sessionData: { ...session.sessionData, ...data }
+      sessionData: { ...(session.sessionData as object || {}), ...data }
     });
 
     return handler.handleDataExchange(screen, data, session);
@@ -140,7 +140,8 @@ export class FlowManagerService {
   }
 
   private async getTenantClient(tenantId: number) {
-    // This should use your existing tenant client logic
-    return this.tenantPrisma.getTenantClient(tenantId.toString(), '');
+    // Use your existing tenant client logic
+    const dbUrl = `postgresql://user:pass@localhost:5432/tenant_${tenantId}`;
+    return this.tenantPrisma.getTenantClient(tenantId.toString(), dbUrl);
   }
 }

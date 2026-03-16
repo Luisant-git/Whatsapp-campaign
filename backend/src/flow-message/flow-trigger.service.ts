@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { TenantPrismaService } from '../tenant-prisma.service';
 import { CentralPrismaService } from '../central-prisma.service';
-import { FlowManagerService } from './flows/flow-manager.service';
+import { FlowManagerService } from '../whatsapp/flows/flow-manager.service';
 import axios from 'axios';
 
 @Injectable()

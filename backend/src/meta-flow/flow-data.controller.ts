@@ -39,39 +39,35 @@ sxEK+yx6I1EkGaK+/KWEpai7
   @HttpCode(200)
   async getFlowData(@Body() body: any, @Headers() headers: any) {
     console.log('🔥 FLOW DATA REQUEST RECEIVED!');
-    console.log('=== ENCRYPTED FLOW DATA REQUEST ===');
-    console.log('Body keys:', Object.keys(body));
-    console.log('Has encrypted_flow_data:', !!body.encrypted_flow_data);
-    console.log('Has encrypted_aes_key:', !!body.encrypted_aes_key);
-    console.log('Has initial_vector:', !!body.initial_vector);
-    console.log('================================');
+    console.log('Body:', JSON.stringify(body, null, 2));
 
     try {
-      // Decrypt the request
-      const { data: decryptedData, aesKey, iv } = this.decryptRequest(
-        body.encrypted_flow_data || '',
-        body.encrypted_aes_key || '',
-        body.initial_vector || ''
-      );
+      let screen = 'APPOINTMENT';
+      let data = {};
 
-      console.log('📋 Decrypted request:');
-      console.log('Screen:', decryptedData.screen);
-      console.log('Action:', decryptedData.action);
-      console.log('Flow Token:', decryptedData.flow_token);
-      console.log('Data:', JSON.stringify(decryptedData.data, null, 2));
+      // Try to decrypt if encrypted
+      if (body.encrypted_flow_data && body.encrypted_aes_key && body.initial_vector) {
+        console.log('🔐 Decrypting request...');
+        const { data: decryptedData, aesKey, iv } = this.decryptRequest(
+          body.encrypted_flow_data,
+          body.encrypted_aes_key,
+          body.initial_vector
+        );
+        screen = decryptedData.screen || 'APPOINTMENT';
+        data = decryptedData.data || {};
+        console.log('📋 Decrypted - Screen:', screen, 'Data:', data);
+      } else {
+        // Handle unencrypted request
+        screen = body.screen || 'APPOINTMENT';
+        data = body.data || {};
+        console.log('📋 Unencrypted - Screen:', screen, 'Data:', data);
+      }
 
       let response;
 
-      // Handle different screens and actions
-      if (decryptedData.action === 'ping') {
-        response = {
-          screen: 'APPOINTMENT',
-          data: {
-            status: 'active'
-          }
-        };
-      } else if (decryptedData.action === 'INIT' || decryptedData.screen === 'APPOINTMENT') {
-        console.log('📅 Providing appointment data...');
+      // Handle different screens
+      if (screen === 'APPOINTMENT') {
+        console.log('📅 Providing appointment dropdown data...');
         response = {
           screen: 'APPOINTMENT',
           data: {
@@ -95,9 +91,8 @@ sxEK+yx6I1EkGaK+/KWEpai7
             ]
           }
         };
-      } else if (decryptedData.screen === 'DETAILS') {
+      } else if (screen === 'DETAILS') {
         console.log('📝 Processing appointment details...');
-        const data = decryptedData.data || {};
         response = {
           screen: 'SUMMARY',
           data: {
@@ -105,7 +100,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
             ...data
           }
         };
-      } else if (decryptedData.screen === 'SUMMARY') {
+      } else if (screen === 'SUMMARY') {
         console.log('💾 Saving appointment...');
         response = {
           screen: 'SUCCESS',
@@ -114,62 +109,48 @@ sxEK+yx6I1EkGaK+/KWEpai7
           }
         };
       } else {
+        // Default fallback
         response = {
           screen: 'APPOINTMENT',
           data: {
-            department: [
-              { id: 'sales', title: 'Sales' }
-            ],
-            location: [
-              { id: '1', title: 'New York' }
-            ],
-            date: [
-              { id: '2026-03-17', title: 'Mon Mar 17 2026' }
-            ],
-            time: [
-              { id: '10:30', title: '10:30 AM' }
-            ]
+            department: [{ id: 'sales', title: 'Sales' }],
+            location: [{ id: '1', title: 'New York' }],
+            date: [{ id: '2026-03-17', title: 'Mon Mar 17 2026' }],
+            time: [{ id: '10:30', title: '10:30 AM' }]
           }
         };
       }
 
       console.log('📤 Sending response:', JSON.stringify(response, null, 2));
 
-      // Encrypt and return response
-      const encryptedResponse = this.encryptResponse(response, aesKey, iv);
-      return encryptedResponse;
+      // Encrypt response if request was encrypted
+      if (body.encrypted_flow_data && body.encrypted_aes_key && body.initial_vector) {
+        const { aesKey, iv } = this.decryptRequest(
+          body.encrypted_flow_data,
+          body.encrypted_aes_key,
+          body.initial_vector
+        );
+        const encryptedResponse = this.encryptResponse(response, aesKey, iv);
+        return encryptedResponse;
+      }
+
+      return response;
 
     } catch (error) {
       console.error('❌ Flow data error:', error.message);
-      console.error('Stack:', error.stack);
       
-      // Return encrypted error response
+      // Always return correct format even for errors
       const errorResponse = {
         screen: 'APPOINTMENT',
         data: {
-          department: [
-            { id: '1', title: 'Sales' },
-            { id: '2', title: 'Support' }
-          ],
-          location: [
-            { id: '1', title: 'New York' }
-          ],
-          date: [
-            { id: '2026-03-17', title: 'Mon Mar 17 2026' }
-          ],
-          time: [
-            { id: '10:30', title: '10:30 AM' }
-          ]
+          department: [{ id: 'sales', title: 'Sales' }],
+          location: [{ id: '1', title: 'New York' }],
+          date: [{ id: '2026-03-17', title: 'Mon Mar 17 2026' }],
+          time: [{ id: '10:30', title: '10:30 AM' }]
         }
       };
       
-      // Try to encrypt error response if we have keys
-      try {
-        const { aesKey, iv } = this.decryptRequest('', body.encrypted_aes_key || '', body.initial_vector || '');
-        return this.encryptResponse(errorResponse, aesKey, iv);
-      } catch {
-        return errorResponse;
-      }
+      return errorResponse;
     }
   }
 
@@ -284,7 +265,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
     
     if (!encryptedFlowData) {
       return {
-        data: { action: 'INIT', version: '3.0' },
+        data: { action: 'INIT', screen: 'APPOINTMENT' },
         aesKey,
         iv
       };

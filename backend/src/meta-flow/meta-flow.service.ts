@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { FlowAppointmentService } from '../flow-appointment/flow-appointment.service';
 import { FlowManagerService } from '../whatsapp/flows/flow-manager.service';
+import { CentralPrismaService } from '../central-prisma.service';
 
 @Injectable()
 export class MetaFlowService {
@@ -37,7 +38,8 @@ sxEK+yx6I1EkGaK+/KWEpai7
 
   constructor(
     private flowAppointmentService: FlowAppointmentService,
-    private flowManager: FlowManagerService
+    private flowManager: FlowManagerService,
+    private centralPrisma: CentralPrismaService
   ) {}
 
   verifySignature(payload: string, signature: string): boolean {
@@ -119,12 +121,14 @@ sxEK+yx6I1EkGaK+/KWEpai7
     };
   }
 
-  async processFlow(decryptedData: any): Promise<any> {
-    const { screen, data, version, action } = decryptedData;
+  async processFlow(decryptedData: any, phoneNumberId?: string): Promise<any> {
+    const { screen, data, version, action, flow_token } = decryptedData;
 
     console.log('=== FLOW REQUEST ===');
     console.log('Screen:', screen);
     console.log('Action:', action);
+    console.log('Flow Token:', flow_token);
+    console.log('Phone Number ID:', phoneNumberId);
     console.log('Data:', JSON.stringify(data, null, 2));
     console.log('==================');
 
@@ -133,15 +137,46 @@ sxEK+yx6I1EkGaK+/KWEpai7
     }
     
     if (action === 'data_exchange') {
-      // Extract flow token and tenant info
-      const flowToken = decryptedData.flow_token;
-      const tenantId = '1'; // Extract from request context
+      // Resolve tenant from phone_number_id or flow_token
+      let tenantId: string;
       
-      console.log(`📤 Processing ${screen} screen for token: ${flowToken}`);
+      if (phoneNumberId) {
+        const tenant = await this.centralPrisma.tenant.findFirst({
+          where: { phoneNumberId: phoneNumberId }
+        });
+        
+        if (!tenant) {
+          console.error(`❌ Tenant not found for phone_number_id: ${phoneNumberId}`);
+          return {
+            version: '3.0',
+            data: { error: 'Tenant not found' }
+          };
+        }
+        
+        tenantId = tenant.id.toString();
+        console.log(`✅ Resolved tenant: ${tenantId} from phone_number_id: ${phoneNumberId}`);
+      } else if (flow_token) {
+        // Extract tenant from flow token pattern: purpose_timestamp_tenantId_random
+        const tokenParts = flow_token.split('_');
+        if (tokenParts.length >= 3) {
+          tenantId = tokenParts[2] || '1';
+        } else {
+          tenantId = '1'; // fallback
+        }
+        console.log(`✅ Extracted tenant: ${tenantId} from flow_token: ${flow_token}`);
+      } else {
+        console.error('❌ No phone_number_id or flow_token provided for tenant resolution');
+        return {
+          version: '3.0',
+          data: { error: 'Cannot resolve tenant' }
+        };
+      }
+      
+      console.log(`📤 Processing ${screen} screen for tenant: ${tenantId}`);
       
       try {
         const response = await this.flowManager.handleFlowDataExchange(
-          flowToken,
+          flow_token,
           screen,
           data,
           tenantId

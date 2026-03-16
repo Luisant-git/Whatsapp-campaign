@@ -133,8 +133,17 @@ export class FlowTriggerService {
 
   // Send flow message via WhatsApp API
   private async sendFlowMessage(phoneNumber: string, trigger: any, accessToken: string, phoneNumberId: string) {
+    // Get tenant ID from phone number ID
+    const tenant = await this.centralPrisma.tenant.findFirst({
+      where: { phoneNumberId: phoneNumberId }
+    });
+    
+    if (!tenant) {
+      throw new Error(`Tenant not found for phone number ID: ${phoneNumberId}`);
+    }
+
     // Get flow info and create session
-    const flow = await this.flowManager.getFlowById(trigger.flowId, '1'); // Replace with actual tenant ID
+    const flow = await this.flowManager.getFlowById(trigger.flowId, tenant.id.toString());
     if (!flow) {
       throw new Error(`Flow not found: ${trigger.flowId}`);
     }
@@ -143,7 +152,7 @@ export class FlowTriggerService {
     const flowToken = await this.flowManager.createFlowSession(
       trigger.flowId,
       phoneNumber,
-      '1', // Replace with actual tenant ID
+      tenant.id.toString(),
       flow.purpose
     );
 

@@ -25,7 +25,7 @@ export class FlowManagerService {
 
   // Create flow session when flow starts
   async createFlowSession(flowId: string, contactPhone: string, tenantId: string, purpose: string): Promise<string> {
-    const flowToken = `${purpose}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const flowToken = `${purpose}_${Date.now()}_${tenantId}_${Math.random().toString(36).substr(2, 9)}`;
     
     const prisma = await this.getTenantClient(parseInt(tenantId));
     

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { TenantPrismaService } from '../tenant-prisma.service';
 import { CentralPrismaService } from '../central-prisma.service';
+import { FlowManagerService } from './flows/flow-manager.service';
 import axios from 'axios';
 
 @Injectable()
@@ -11,6 +12,7 @@ export class FlowTriggerService {
   constructor(
     private tenantPrisma: TenantPrismaService,
     private centralPrisma: CentralPrismaService,
+    private flowManager: FlowManagerService,
   ) {}
 
   // Create a new flow trigger
@@ -131,20 +133,35 @@ export class FlowTriggerService {
 
   // Send flow message via WhatsApp API
   private async sendFlowMessage(phoneNumber: string, trigger: any, accessToken: string, phoneNumberId: string) {
+    // Get flow info and create session
+    const flow = await this.flowManager.getFlowById(trigger.flowId, '1'); // Replace with actual tenant ID
+    if (!flow) {
+      throw new Error(`Flow not found: ${trigger.flowId}`);
+    }
+
+    // Create flow session
+    const flowToken = await this.flowManager.createFlowSession(
+      trigger.flowId,
+      phoneNumber,
+      '1', // Replace with actual tenant ID
+      flow.purpose
+    );
+
     const actionParams: any = {
       flow_message_version: '3',
-      flow_token: `flow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      flow_token: flowToken,
       flow_id: trigger.flowId,
       flow_cta: trigger.ctaText,
     };
 
-    // Only add navigation if screenData is provided
-    if (trigger.screenData && Object.keys(trigger.screenData).length > 0) {
-      actionParams.flow_action = 'navigate';
-      actionParams.flow_action_payload = {
-        screen: trigger.screenName,
-        data: trigger.screenData
-      };
+    // Get initial data based on flow purpose
+    try {
+      const initialData = await this.flowManager.getFlowInitialData(flow.purpose);
+      actionParams.flow_action_data = initialData;
+    } catch (error) {
+      console.error('Error getting initial data:', error);
+      // Fallback to empty data
+      actionParams.flow_action_data = {};
     }
 
     const interactive: any = {
@@ -191,8 +208,69 @@ export class FlowTriggerService {
     );
   }
   
-  private async getDefaultAppointmentData() {
-    // Fetch from database or return default data
+  private async getAppointmentData() {
+    // Get dynamic data from database
+    try {
+      // You should replace this with actual database calls
+      const departments = [
+        { id: 'shopping', title: 'Shopping & Groceries' },
+        { id: 'clothing', title: 'Clothing & Apparel' },
+        { id: 'beauty', title: 'Beauty & Personal Care' }
+      ];
+      
+      const locations = [
+        { id: '1', title: "King's Cross, London" },
+        { id: '2', title: 'Oxford Street, London' }
+      ];
+      
+      const dates = this.generateDates(7);
+      
+      const timeSlots = [
+        { id: '10:30', title: '10:30 AM' },
+        { id: '11:30', title: '11:30 AM' },
+        { id: '12:30', title: '12:30 PM' },
+        { id: '14:30', title: '2:30 PM' },
+        { id: '16:30', title: '4:30 PM' }
+      ];
+      
+      return {
+        department: departments,
+        location: locations,
+        date: dates,
+        time: timeSlots
+      };
+    } catch (error) {
+      console.error('Error fetching appointment data:', error);
+      return this.getDefaultAppointmentData();
+    }
+  }
+  
+  private generateDates(days: number): Array<{id: string, title: string}> {
+    const dates: Array<{id: string, title: string}> = [];
+    const today = new Date();
+    
+    for (let i = 0; i < days; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      
+      const dateStr = date.toISOString().split('T')[0];
+      const dateTitle = date.toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        month: 'short', 
+        day: '2-digit', 
+        year: 'numeric' 
+      });
+      
+      dates.push({
+        id: dateStr,
+        title: dateTitle
+      });
+    }
+    
+    return dates;
+  }
+  
+  private getDefaultAppointmentData() {
     return {
       department: [
         { id: 'shopping', title: 'Shopping & Groceries' },

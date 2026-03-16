@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 import { MetaFlowController } from './meta-flow.controller';
 import { MetaFlowService } from './meta-flow.service';
-import { FlowDataService } from './flow-data.service';
 import { FlowAppointmentModule } from '../flow-appointment/flow-appointment.module';
+import { FlowsModule } from '../whatsapp/flows/flows.module';
 
 @Module({
-  imports: [FlowAppointmentModule],
+  imports: [FlowAppointmentModule, FlowsModule],
   controllers: [MetaFlowController],
-  providers: [MetaFlowService, FlowDataService],
+  providers: [MetaFlowService],
 })
 export class MetaFlowModule {}

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { FlowAppointmentService } from '../flow-appointment/flow-appointment.service';
-import { FlowDataService } from './flow-data.service';
+import { FlowManagerService } from '../whatsapp/flows/flow-manager.service';
 
 @Injectable()
 export class MetaFlowService {
@@ -37,7 +37,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
 
   constructor(
     private flowAppointmentService: FlowAppointmentService,
-    private flowDataService: FlowDataService
+    private flowManager: FlowManagerService
   ) {}
 
   verifySignature(payload: string, signature: string): boolean {
@@ -133,15 +133,29 @@ sxEK+yx6I1EkGaK+/KWEpai7
     }
     
     if (action === 'data_exchange') {
-      // Use the flexible data service to handle any screen type
-      const screenData = await this.flowDataService.getScreenData(screen, data);
+      // Extract flow token and tenant info
+      const flowToken = decryptedData.flow_token;
+      const tenantId = '1'; // Extract from request context
       
-      console.log(`📤 ${screen} screen - providing data:`, screenData);
+      console.log(`📤 Processing ${screen} screen for token: ${flowToken}`);
       
-      return {
-        version: '3.0',
-        data: screenData
-      };
+      try {
+        const response = await this.flowManager.handleFlowDataExchange(
+          flowToken,
+          screen,
+          data,
+          tenantId
+        );
+        
+        console.log('📤 Flow response:', response);
+        return response;
+      } catch (error) {
+        console.error('❌ Flow data exchange error:', error.message);
+        return {
+          version: '3.0',
+          data: { error: 'Failed to process request' }
+        };
+      }
       
       if (screen === 'DETAILS') {
         console.log('📤 DETAILS screen - navigating to SUMMARY');

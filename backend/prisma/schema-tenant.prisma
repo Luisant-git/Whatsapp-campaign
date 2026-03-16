@@ -424,6 +424,42 @@ model FeatureAssignment {
   updatedAt    DateTime @updatedAt
 }
 
+model WhatsappFlow {
+  id            Int      @id @default(autoincrement())
+  name          String
+  flowId        String   @unique // Meta flow id
+  purpose       String   // appointment, feedback, lead, support
+  description   String?
+  firstScreen   String   @default("SCREEN")
+  triggerWords  String[] @default([])
+  isActive      Boolean  @default(true)
+  sessions      FlowSession[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([purpose])
+  @@index([flowId])
+}
+
+model FlowSession {
+  id            Int      @id @default(autoincrement())
+  flowToken     String   @unique
+  flowId        String
+  contactPhone  String
+  tenantId      String
+  purpose       String
+  currentScreen String?
+  sessionData   Json     @default("{}")
+  status        String   @default("active") // active, completed, abandoned
+  flow          WhatsappFlow @relation(fields: [flowId], references: [flowId])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([flowToken])
+  @@index([contactPhone])
+  @@index([tenantId])
+}
+
 model FlowTrigger {
   id          Int      @id @default(autoincrement())
   name        String

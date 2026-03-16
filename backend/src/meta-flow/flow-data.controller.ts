@@ -39,15 +39,16 @@ sxEK+yx6I1EkGaK+/KWEpai7
   @HttpCode(200)
   async getFlowData(@Body() body: any, @Headers() headers: any) {
     console.log('🔥 FLOW DATA REQUEST RECEIVED!');
-    console.log('Body:', JSON.stringify(body, null, 2));
+    console.log('Body keys:', Object.keys(body));
+    console.log('Is encrypted request:', this.isEncryptedRequest(body));
 
     try {
       let screen = 'APPOINTMENT';
       let data = {};
 
-      // Try to decrypt if encrypted
-      if (body.encrypted_flow_data && body.encrypted_aes_key && body.initial_vector) {
-        console.log('🔐 Decrypting request...');
+      // Handle encrypted vs unencrypted requests
+      if (this.isEncryptedRequest(body)) {
+        console.log('🔐 Processing encrypted request (PRODUCTION MODE)...');
         const { data: decryptedData, aesKey, iv } = this.decryptRequest(
           body.encrypted_flow_data,
           body.encrypted_aes_key,
@@ -55,20 +56,64 @@ sxEK+yx6I1EkGaK+/KWEpai7
         );
         screen = decryptedData.screen || 'APPOINTMENT';
         data = decryptedData.data || {};
-        console.log('📋 Decrypted - Screen:', screen, 'Data:', data);
+        console.log('📋 Decrypted - Screen:', screen, 'Data:', JSON.stringify(data, null, 2));
+        
+        // Process request and generate response
+        const response = this.routeByScreen(screen, data);
+        console.log('📤 Sending encrypted response:', JSON.stringify(response, null, 2));
+        
+        // Encrypt and return response
+        return this.encryptResponse(response, aesKey, iv);
       } else {
-        // Handle unencrypted request
+        console.log('🔓 Processing unencrypted request (TEST MODE)...');
         screen = body.screen || 'APPOINTMENT';
         data = body.data || {};
-        console.log('📋 Unencrypted - Screen:', screen, 'Data:', data);
+        console.log('📋 Unencrypted - Screen:', screen, 'Data:', JSON.stringify(data, null, 2));
+        
+        // Process request and return unencrypted response
+        const response = this.routeByScreen(screen, data);
+        console.log('📤 Sending unencrypted response:', JSON.stringify(response, null, 2));
+        
+        return response;
       }
 
-      let response;
+    } catch (error) {
+      console.error('❌ Flow data error:', error.message);
+      console.error('Stack:', error.stack);
+      
+      // Always return correct format even for errors
+      const errorResponse = this.getErrorResponse();
+      
+      // If it was an encrypted request, try to encrypt the error response
+      if (this.isEncryptedRequest(body)) {
+        try {
+          const { aesKey, iv } = this.decryptRequest(
+            body.encrypted_flow_data || '',
+            body.encrypted_aes_key,
+            body.initial_vector
+          );
+          return this.encryptResponse(errorResponse, aesKey, iv);
+        } catch (encryptError) {
+          console.error('❌ Failed to encrypt error response:', encryptError.message);
+          return errorResponse;
+        }
+      }
+      
+      return errorResponse;
+    }
+  }
 
-      // Handle different screens
-      if (screen === 'APPOINTMENT') {
+  private isEncryptedRequest(body: any): boolean {
+    return !!(body.encrypted_flow_data && body.encrypted_aes_key && body.initial_vector);
+  }
+
+  private routeByScreen(screen: string, data: any): { screen: string; data: any } {
+    console.log(`🎯 Routing screen: ${screen}`);
+    
+    switch (screen) {
+      case 'APPOINTMENT':
         console.log('📅 Providing appointment dropdown data...');
-        response = {
+        return {
           screen: 'APPOINTMENT',
           data: {
             department: [
@@ -91,67 +136,43 @@ sxEK+yx6I1EkGaK+/KWEpai7
             ]
           }
         };
-      } else if (screen === 'DETAILS') {
+
+      case 'DETAILS':
         console.log('📝 Processing appointment details...');
-        response = {
+        return {
           screen: 'SUMMARY',
           data: {
             summary: `${data.department} appointment at ${data.location} on ${data.date} at ${data.time}\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}`,
             ...data
           }
         };
-      } else if (screen === 'SUMMARY') {
+
+      case 'SUMMARY':
         console.log('💾 Saving appointment...');
-        response = {
+        // Here you would save to database
+        return {
           screen: 'SUCCESS',
           data: {
             message: 'Appointment booked successfully!'
           }
         };
-      } else {
-        // Default fallback
-        response = {
-          screen: 'APPOINTMENT',
-          data: {
-            department: [{ id: 'sales', title: 'Sales' }],
-            location: [{ id: '1', title: 'New York' }],
-            date: [{ id: '2026-03-17', title: 'Mon Mar 17 2026' }],
-            time: [{ id: '10:30', title: '10:30 AM' }]
-          }
-        };
-      }
 
-      console.log('📤 Sending response:', JSON.stringify(response, null, 2));
-
-      // Encrypt response if request was encrypted
-      if (body.encrypted_flow_data && body.encrypted_aes_key && body.initial_vector) {
-        const { aesKey, iv } = this.decryptRequest(
-          body.encrypted_flow_data,
-          body.encrypted_aes_key,
-          body.initial_vector
-        );
-        const encryptedResponse = this.encryptResponse(response, aesKey, iv);
-        return encryptedResponse;
-      }
-
-      return response;
-
-    } catch (error) {
-      console.error('❌ Flow data error:', error.message);
-      
-      // Always return correct format even for errors
-      const errorResponse = {
-        screen: 'APPOINTMENT',
-        data: {
-          department: [{ id: 'sales', title: 'Sales' }],
-          location: [{ id: '1', title: 'New York' }],
-          date: [{ id: '2026-03-17', title: 'Mon Mar 17 2026' }],
-          time: [{ id: '10:30', title: '10:30 AM' }]
-        }
-      };
-      
-      return errorResponse;
+      default:
+        console.log('❓ Unknown screen, defaulting to APPOINTMENT');
+        return this.getErrorResponse();
     }
+  }
+
+  private getErrorResponse(): { screen: string; data: any } {
+    return {
+      screen: 'APPOINTMENT',
+      data: {
+        department: [{ id: 'sales', title: 'Sales' }],
+        location: [{ id: '1', title: 'New York' }],
+        date: [{ id: '2026-03-17', title: 'Mon Mar 17 2026' }],
+        time: [{ id: '10:30', title: '10:30 AM' }]
+      }
+    };
   }
 
   @Get('flows')

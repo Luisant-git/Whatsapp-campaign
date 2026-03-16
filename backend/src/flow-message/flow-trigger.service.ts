@@ -136,15 +136,16 @@ export class FlowTriggerService {
       flow_token: `flow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       flow_id: trigger.flowId,
       flow_cta: trigger.ctaText,
-      flow_action: 'navigate',
     };
 
-    actionParams.flow_action_payload = {
-      screen: trigger.screenName,
-      data: trigger.screenData && Object.keys(trigger.screenData).length > 0
-        ? trigger.screenData
-        : {}
-    };
+    // Only add navigation if screenData is provided
+    if (trigger.screenData && Object.keys(trigger.screenData).length > 0) {
+      actionParams.flow_action = 'navigate';
+      actionParams.flow_action_payload = {
+        screen: trigger.screenName,
+        data: trigger.screenData
+      };
+    }
 
     const interactive: any = {
       type: 'flow',

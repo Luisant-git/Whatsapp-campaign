@@ -152,32 +152,44 @@ export class FlowTriggerService {
       flow_cta: trigger.ctaText,
     };
 
-    // Add navigation if screen is specified
+    // Add navigation with data if screen is specified
     if (trigger.screenName && trigger.screenName !== 'SCREEN') {
       actionParams.flow_action = 'navigate';
-      actionParams.flow_action_payload = {
-        screen: trigger.screenName
-      };
-    }
-
-    // Always provide dropdown data for appointment flows
-    if (trigger.screenName === 'APPOINTMENT') {
-      try {
-        const appointmentData = await this.getAppointmentData();
-        actionParams.flow_action_data = appointmentData;
-        console.log('[FlowTrigger] Added appointment data:', Object.keys(appointmentData));
-      } catch (error) {
-        console.error('Error getting appointment data:', error);
-        actionParams.flow_action_data = this.getDefaultAppointmentData();
-        console.log('[FlowTrigger] Using default appointment data');
+      
+      // Get dropdown data for appointment flows
+      if (trigger.screenName === 'APPOINTMENT') {
+        try {
+          const appointmentData = await this.getAppointmentData();
+          actionParams.flow_action_payload = {
+            screen: trigger.screenName,
+            data: appointmentData
+          };
+          console.log(`[FlowTrigger] Added appointment data: departments:${appointmentData.department?.length} locations:${appointmentData.location?.length} dates:${appointmentData.date?.length} times:${appointmentData.time?.length}`);
+        } catch (error) {
+          console.error('Error getting appointment data:', error);
+          const defaultData = this.getDefaultAppointmentData();
+          actionParams.flow_action_payload = {
+            screen: trigger.screenName,
+            data: defaultData
+          };
+          console.log('[FlowTrigger] Using default appointment data');
+        }
+      } else if (trigger.screenData && Object.keys(trigger.screenData).length > 0) {
+        // Use custom screen data for other flow types
+        actionParams.flow_action_payload = {
+          screen: trigger.screenName,
+          data: trigger.screenData
+        };
+        console.log('[FlowTrigger] Added custom screen data');
+      } else {
+        // Just navigation without data
+        actionParams.flow_action_payload = {
+          screen: trigger.screenName
+        };
       }
-    } else if (trigger.screenData && Object.keys(trigger.screenData).length > 0) {
-      // Use custom screen data if provided for other flow types
-      actionParams.flow_action_data = trigger.screenData;
-      console.log('[FlowTrigger] Added custom screen data:', Object.keys(trigger.screenData));
     }
 
-    console.log('[FlowTrigger] Flow token:', flowToken);
+    console.log(`[FlowTrigger] Flow sent → flowId:${trigger.flowId} screen:${trigger.screenName} token:${flowToken}`);
     console.log('[FlowTrigger] Action params keys:', Object.keys(actionParams));
 
     const interactive: any = {

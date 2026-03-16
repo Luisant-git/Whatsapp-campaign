@@ -1,11 +1,11 @@
 import { Controller, Post, Body, HttpCode, Headers } from '@nestjs/common';
 import { FlowAppointmentService } from '../flow-appointment/flow-appointment.service';
 
-@Controller('meta/flow')
+@Controller('meta')
 export class FlowDataController {
   constructor(private flowAppointmentService: FlowAppointmentService) {}
 
-  @Post('data')
+  @Post('flows')
   @HttpCode(200)
   async getFlowData(@Body() body: any, @Headers() headers: any) {
     console.log('=== FLOW DATA REQUEST ===');

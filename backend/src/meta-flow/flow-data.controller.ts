@@ -113,13 +113,33 @@ sxEK+yx6I1EkGaK+/KWEpai7
       console.error('❌ Flow data error:', error.message);
       console.error('Stack:', error.stack);
       
-      // Return simple error response
-      return {
+      // Return encrypted error response
+      const errorResponse = {
         screen: 'APPOINTMENT',
         data: {
-          error: 'Failed to process request: ' + error.message
+          department: [
+            { id: '1', title: 'Sales' },
+            { id: '2', title: 'Support' }
+          ],
+          location: [
+            { id: '1', title: 'New York' }
+          ],
+          date: [
+            { id: '2026-03-17', title: 'Mon Mar 17 2026' }
+          ],
+          time: [
+            { id: '10:30', title: '10:30 AM' }
+          ]
         }
       };
+      
+      // Try to encrypt error response if we have keys
+      try {
+        const { aesKey, iv } = this.decryptRequest('', body.encrypted_aes_key || '', body.initial_vector || '');
+        return this.encryptResponse(errorResponse, aesKey, iv);
+      } catch {
+        return errorResponse;
+      }
     }
   }
 

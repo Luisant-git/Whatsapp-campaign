@@ -142,7 +142,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
         return {
           screen: 'SUMMARY',
           data: {
-            summary: `${data.department} appointment at ${data.location} on ${data.date} at ${data.time}\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}`,
+            summary: `${data?.department || 'Unknown'} appointment at ${data?.location || 'Unknown'} on ${data?.date || 'Unknown'} at ${data?.time || 'Unknown'}\n\nName: ${data?.name || 'Unknown'}\nEmail: ${data?.email || 'Unknown'}\nPhone: ${data?.phone || 'Unknown'}`,
             ...data
           }
         };
@@ -273,16 +273,19 @@ sxEK+yx6I1EkGaK+/KWEpai7
   }
 
   private decryptRequest(encryptedFlowData: string, encryptedAesKey: string, initialVector: string): { data: any; aesKey: Buffer; iv: Buffer } {
+    console.log('🔐 Decrypting request...');
+    
+    // Decrypt AES key using RSA private key
     const aesKey = crypto.privateDecrypt(
       { 
         key: this.privateKey, 
-        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-        oaepHash: 'sha256'
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
       },
       Buffer.from(encryptedAesKey, 'base64')
     );
     
     const iv = Buffer.from(initialVector, 'base64');
+    console.log('🔑 AES Key length:', aesKey.length, 'IV length:', iv.length);
     
     if (!encryptedFlowData) {
       return {
@@ -292,21 +295,14 @@ sxEK+yx6I1EkGaK+/KWEpai7
       };
     }
     
-    const encryptedData = Buffer.from(encryptedFlowData, 'base64');
+    // Decrypt flow data using AES-256-CBC
+    const decipher = crypto.createDecipheriv('aes-256-cbc', aesKey, iv);
     
-    const TAG_LENGTH = 16;
-    const encryptedDataBody = encryptedData.subarray(0, -TAG_LENGTH);
-    const authTag = encryptedData.subarray(-TAG_LENGTH);
+    let decrypted = decipher.update(encryptedFlowData, 'base64', 'utf8');
+    decrypted += decipher.final('utf8');
     
-    const algorithm = aesKey.length === 16 ? 'aes-128-gcm' : 'aes-256-gcm';
-    
-    const decipher = crypto.createDecipheriv(algorithm, aesKey, iv);
-    decipher.setAuthTag(authTag);
-    
-    let decrypted = decipher.update(encryptedDataBody);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    
-    const parsed = JSON.parse(decrypted.toString());
+    const parsed = JSON.parse(decrypted);
+    console.log('📋 Decrypted data:', JSON.stringify(parsed, null, 2));
     
     return {
       data: parsed,
@@ -316,17 +312,16 @@ sxEK+yx6I1EkGaK+/KWEpai7
   }
 
   private encryptResponse(response: any, aesKey: Buffer, iv: Buffer): string {
-    // Flip the initialization vector
-    const flippedIV = Buffer.from(iv.map(byte => byte ^ 0xFF));
+    console.log('🔒 Encrypting response...');
+    console.log('📤 Response to encrypt:', JSON.stringify(response, null, 2));
     
-    const algorithm = aesKey.length === 16 ? 'aes-128-gcm' : 'aes-256-gcm';
-    const cipher = crypto.createCipheriv(algorithm, aesKey, flippedIV);
+    // Encrypt response using AES-256-CBC with same IV
+    const cipher = crypto.createCipheriv('aes-256-cbc', aesKey, iv);
     
-    let encrypted = cipher.update(JSON.stringify(response), 'utf8');
-    encrypted = Buffer.concat([encrypted, cipher.final()]);
-    const authTag = cipher.getAuthTag();
-    const finalEncrypted = Buffer.concat([encrypted, authTag]);
+    let encrypted = cipher.update(JSON.stringify(response), 'utf8', 'base64');
+    encrypted += cipher.final('base64');
     
-    return finalEncrypted.toString('base64');
+    console.log('🔒 Encrypted response length:', encrypted.length);
+    return encrypted;
   }
 }

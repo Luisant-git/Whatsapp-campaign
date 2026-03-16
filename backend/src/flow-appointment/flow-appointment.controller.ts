@@ -24,12 +24,12 @@ export class FlowAppointmentController {
     
     console.log('Flow exchange received:', JSON.stringify(body, null, 2));
     
-    const { screen, data, version, action, flow_token } = body;
+    const { screen, data, action, flow_token } = body;
     
     // Handle ping request
     if (action === 'ping') {
       return res.status(200).json({
-        version: '3.0',
+        screen: 'APPOINTMENT',
         data: {}
       });
     }
@@ -39,15 +39,12 @@ export class FlowAppointmentController {
         await this.flowAppointmentService.saveAppointmentFromFlow(data);
         
         return res.status(200).json({
-          version: '3.0',
           screen: 'SUCCESS',
-          data: {},
-          ...(flow_token && { flow_token })
+          data: {}
         });
       } catch (error) {
         console.error('Error saving appointment:', error);
         return res.status(200).json({
-          version: '3.0',
           screen: 'SUMMARY',
           data: {
             error_message: 'Sorry, we couldn\'t book your appointment. Please try again.'
@@ -56,6 +53,6 @@ export class FlowAppointmentController {
       }
     }
     
-    return res.status(200).json({ version: '3.0', screen, data });
+    return res.status(200).json({ screen, data });
   }
 }

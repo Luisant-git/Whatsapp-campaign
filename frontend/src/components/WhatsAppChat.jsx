@@ -107,6 +107,7 @@ const WhatsAppChat = () => {
   const [phoneUserId, setPhoneUserId] = useState({});
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [showSearchBar, setShowSearchBar] = useState(false);
+  const [showCustomCalendar, setShowCustomCalendar] = useState(false);
 
   const UNREAD_TAB = "__unread__";
 
@@ -301,11 +302,19 @@ const WhatsAppChat = () => {
       ) {
         setShowDatePicker(false);
       }
+
+      if (
+        showCustomCalendar &&
+        !event.target.closest('[style*="position: fixed"]') &&
+        !event.target.closest('.icon-btn')
+      ) {
+        setShowCustomCalendar(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showLabelMenu, showGroupMenu, showUserMenu, showMessageMenu, showHeaderMenu, showDatePicker]);
+  }, [showLabelMenu, showGroupMenu, showUserMenu, showMessageMenu, showHeaderMenu, showDatePicker, showCustomCalendar]);
 
   // Mark chat as read whenever it is opened
   useEffect(() => {
@@ -507,6 +516,7 @@ const WhatsAppChat = () => {
     setSelectedDate(date);
     setDateFilter('custom');
     setShowDatePicker(false);
+    setShowCustomCalendar(false);
   };
   useEffect(() => {
     if (!customLabels.length) return;
@@ -529,27 +539,40 @@ const WhatsAppChat = () => {
   const filterMessagesByDate = (messages) => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     const lastWeek = new Date(today);
     lastWeek.setDate(lastWeek.getDate() - 7);
     const lastMonth = new Date(today);
     lastMonth.setMonth(lastMonth.getMonth() - 1);
-
+    
     return messages.filter(msg => {
       const msgDate = new Date(msg.createdAt);
-      if (dateFilter === 'today') return msgDate >= today;
-      if (dateFilter === 'yesterday') return msgDate >= yesterday && msgDate < today;
-      if (dateFilter === 'week') return msgDate >= lastWeek;
-      if (dateFilter === 'month') return msgDate >= lastMonth;
-      if (dateFilter === 'custom' && selectedDate) {
-        const selected = new Date(selectedDate);
-        const selectedStart = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate());
-        const selectedEnd = new Date(selectedStart);
-        selectedEnd.setDate(selectedEnd.getDate() + 1);
-        return msgDate >= selectedStart && msgDate < selectedEnd;
+      
+      switch(dateFilter) {
+        case 'today':
+          return msgDate >= today && msgDate < tomorrow;
+        case 'yesterday':
+          return msgDate >= yesterday && msgDate < today;
+        case 'week':
+          return msgDate >= lastWeek && msgDate < tomorrow;
+        case 'month':
+          return msgDate >= lastMonth && msgDate < tomorrow;
+        case 'custom':
+          if (selectedDate) {
+            const selected = new Date(selectedDate + 'T00:00:00');
+            const selectedStart = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate());
+            const selectedEnd = new Date(selectedStart);
+            selectedEnd.setDate(selectedEnd.getDate() + 1);
+            return msgDate >= selectedStart && msgDate < selectedEnd;
+          }
+          return true;
+        case 'all':
+        default:
+          return true;
       }
-      return true;
     });
   };
 
@@ -1459,30 +1482,100 @@ const WhatsAppChat = () => {
                           >
                             Last 30 Days
                           </div>
-                          <div
-                            onClick={() => {
-                              setShowDatePicker(false);
-                              const picker = document.getElementById('custom-date-picker');
-                              if (picker) {
-                                picker.click();
-                                if (picker.showPicker) picker.showPicker();
-                              }
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ position: 'relative' }}>
+                      <button 
+                        className="icon-btn" 
+                        onClick={() => setShowCustomCalendar(!showCustomCalendar)}
+                        title="Custom date picker"
+                        style={{
+                          color: dateFilter === 'custom' ? '#00a884' : '#54656f'
+                        }}
+                      >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z" />
+                        </svg>
+                      </button>
+                      {showCustomCalendar && (
+                        <div
+                          style={{
+                            position: 'fixed',
+                            top: '80px',
+                            right: '20px',
+                            background: 'white',
+                            borderRadius: '12px',
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+                            padding: '20px',
+                            zIndex: 2000,
+                            border: '1px solid #e9edef',
+                            minWidth: '280px'
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            type="date"
+                            value={selectedDate || ''}
+                            onChange={(e) => {
+                              handleDateFilter(e.target.value);
+                              setShowCustomCalendar(false);
                             }}
+                            max={new Date().toISOString().split('T')[0]}
                             style={{
-                              padding: '12px 16px',
-                              cursor: 'pointer',
+                              width: '100%',
+                              padding: '12px',
+                              border: '1px solid #d1d7db',
+                              borderRadius: '8px',
                               fontSize: '14px',
-                              color: '#111b21',
-                              borderTop: '1px solid #e9edef',
-                              transition: 'background 0.2s'
+                              outline: 'none',
+                              cursor: 'pointer'
                             }}
-                            onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
-                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ verticalAlign: 'middle', marginRight: '8px' }}>
-                              <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z" />
-                            </svg>
-                            Select custom date
+                          />
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            marginTop: '12px',
+                            gap: '8px'
+                          }}>
+                            <button
+                              onClick={() => {
+                                setDateFilter('all');
+                                setSelectedDate('');
+                                setShowCustomCalendar(false);
+                              }}
+                              style={{
+                                padding: '8px 16px',
+                                border: '1px solid #d1d7db',
+                                borderRadius: '6px',
+                                background: 'white',
+                                color: '#54656f',
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                flex: 1
+                              }}
+                            >
+                              Clear
+                            </button>
+                            <button
+                              onClick={() => {
+                                const today = new Date().toISOString().split('T')[0];
+                                handleDateFilter(today);
+                                setShowCustomCalendar(false);
+                              }}
+                              style={{
+                                padding: '8px 16px',
+                                border: 'none',
+                                borderRadius: '6px',
+                                background: '#00a884',
+                                color: 'white',
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                flex: 1
+                              }}
+                            >
+                              Today
+                            </button>
                           </div>
                         </div>
                       )}

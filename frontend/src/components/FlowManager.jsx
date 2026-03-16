@@ -1,319 +1,308 @@
 import React, { useState, useEffect } from 'react';
-import { Send, Plus, X, Zap, Edit, Trash2, BarChart3, Workflow } from 'lucide-react';
-import flowAPI from '../api/flow';
-import flowTriggerAPI from '../api/flowTrigger';
-import FlowBuilder from './FlowBuilder';
+import { Send, Plus, Eye, Trash2, RefreshCw } from 'lucide-react';
 import '../styles/FlowManager.css';
 
 const FlowManager = () => {
   const [flows, setFlows] = useState([]);
-  const [triggers, setTriggers] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [showBuilder, setShowBuilder] = useState(false);
-  const [editingTrigger, setEditingTrigger] = useState(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    triggerWord: '',
-    flowId: '',
-    headerText: '',
-    bodyText: '',
-    footerText: '',
-    ctaText: '',
-    isActive: true,
+  const [phoneNumbers, setPhoneNumbers] = useState([]);
+  const [selectedPhone, setSelectedPhone] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [sendForm, setSendForm] = useState({
+    to: '',
+    flowName: '',
+    flowCta: 'Open Flow',
+    header: '',
+    body: '',
+    footer: '',
+    flowAction: 'data_exchange'
   });
 
   useEffect(() => {
-    loadFlows();
-    loadTriggers();
+    fetchPhoneNumbers();
   }, []);
 
-  const loadFlows = async () => {
+  const fetchPhoneNumbers = async () => {
     try {
-      const flowsData = await flowAPI.getFlows();
-      setFlows(flowsData);
+      const response = await fetch('/api/settings/all');
+      const data = await response.json();
+      setPhoneNumbers(data);
+      if (data.length > 0) {
+        setSelectedPhone(data[0].phoneNumberId);
+      }
     } catch (error) {
-      console.error('Error loading flows:', error);
+      console.error('Error fetching phone numbers:', error);
     }
   };
 
-  const loadTriggers = async () => {
+  const handleSendFlow = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
     try {
-      const triggersData = await flowTriggerAPI.getTriggers();
-      setTriggers(triggersData);
+      const response = await fetch(`/api/flow-message/send/${selectedPhone}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sendForm)
+      });
+
+      if (response.ok) {
+        alert('Flow message sent successfully!');
+        setShowSendModal(false);
+        resetForm();
+      } else {
+        const error = await response.json();
+        alert(`Failed to send: ${error.message}`);
+      }
     } catch (error) {
-      console.error('Error loading triggers:', error);
+      alert('Error sending flow message');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendAppointmentFlow = async (recipient) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/flow-message/send-appointment/${selectedPhone}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: recipient })
+      });
+
+      if (response.ok) {
+        alert('Appointment flow sent successfully!');
+      } else {
+        alert('Failed to send appointment flow');
+      }
+    } catch (error) {
+      alert('Error sending appointment flow');
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const resetForm = () => {
-    setFormData({
-      name: '',
-      triggerWord: '',
-      flowId: '',
-      headerText: '',
-      bodyText: '',
-      footerText: '',
-      ctaText: '',
-      isActive: true,
+    setSendForm({
+      to: '',
+      flowName: '',
+      flowCta: 'Open Flow',
+      header: '',
+      body: '',
+      footer: '',
+      flowAction: 'data_exchange'
     });
-    setEditingTrigger(null);
-    setShowModal(false);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (editingTrigger) {
-        await flowTriggerAPI.updateTrigger(editingTrigger.id, formData);
-      } else {
-        await flowTriggerAPI.createTrigger(formData);
-      }
-      await loadTriggers();
-      resetForm();
-    } catch (error) {
-      console.error('Error saving trigger:', error);
-      alert('Failed to save trigger');
-    }
-  };
-
-  const handleEdit = (trigger) => {
-    setFormData({
-      name: trigger.name,
-      triggerWord: trigger.triggerWord,
-      flowId: trigger.flowId,
-      headerText: trigger.headerText || '',
-      bodyText: trigger.bodyText || '',
-      footerText: trigger.footerText || '',
-      ctaText: trigger.ctaText,
-      isActive: trigger.isActive,
-    });
-    setEditingTrigger(trigger);
-    setShowModal(true);
-  };
-
-  const handleDelete = async (id) => {
-    if (!confirm('Delete this trigger?')) return;
-    try {
-      await flowTriggerAPI.deleteTrigger(id);
-      await loadTriggers();
-    } catch (error) {
-      console.error('Error deleting trigger:', error);
-    }
   };
 
   return (
-    <>
-      {showBuilder ? (
-        <FlowBuilder onBack={() => { setShowBuilder(false); loadFlows(); }} />
-      ) : (
     <div className="flow-manager">
-      <div className="page-header">
-        <div className="page-title">
-          <h1>Flow Manager</h1>
-          <p className="page-subtitle">Create trigger-based flows that automatically respond to keywords</p>
-        </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="btn-secondary" onClick={() => setShowBuilder(true)}>
-            <Workflow size={18} />
-            <span>Build Flow</span>
-          </button>
-          <button className="add-trigger-btn" onClick={() => setShowModal(true)}>
-            <Plus size={18} />
-            <span>Create Trigger</span>
+      <div className="flow-header">
+        <h1>WhatsApp Flows Manager</h1>
+        <div className="flow-actions">
+          <select 
+            value={selectedPhone} 
+            onChange={(e) => setSelectedPhone(e.target.value)}
+            className="phone-select"
+          >
+            {phoneNumbers.map(phone => (
+              <option key={phone.phoneNumberId} value={phone.phoneNumberId}>
+                {phone.name} ({phone.phoneNumberId})
+              </option>
+            ))}
+          </select>
+          <button 
+            className="btn-primary"
+            onClick={() => setShowSendModal(true)}
+          >
+            <Send size={18} />
+            Send Flow
           </button>
         </div>
       </div>
 
-      <div className="triggers-grid">
-        {triggers.map((trigger) => (
-          <div key={trigger.id} className="trigger-card">
-            <div className="trigger-header">
-              <div className="trigger-info">
-                <h3>{trigger.name}</h3>
-                <div className="trigger-word">
-                  <Zap size={14} />
-                  <span>{trigger.triggerWord}</span>
-                </div>
-              </div>
-              <div className="trigger-status">
-                <span className={`status-badge ${trigger.isActive ? 'active' : 'inactive'}`}>
-                  {trigger.isActive ? 'Active' : 'Inactive'}
-                </span>
-              </div>
-            </div>
-            
-            <div className="trigger-content">
-              <div className="trigger-detail">
-                <strong>Flow:</strong> {flows.find(f => f.id === trigger.flowId)?.name || trigger.flowId}
-              </div>
-              <div className="trigger-detail">
-                <strong>Button:</strong> {trigger.ctaText}
-              </div>
-              {trigger.bodyText && (
-                <div className="trigger-detail">
-                  <strong>Message:</strong> {trigger.bodyText.substring(0, 50)}{trigger.bodyText.length > 50 ? '...' : ''}
-                </div>
-              )}
-            </div>
-
-            <div className="trigger-actions">
-              <button className="btn-icon" onClick={() => handleEdit(trigger)}>
-                <Edit size={16} />
-              </button>
-              <button className="btn-icon btn-danger" onClick={() => handleDelete(trigger.id)}>
-                <Trash2 size={16} />
-              </button>
-            </div>
-          </div>
-        ))}
-
-        {triggers.length === 0 && (
-          <div className="empty-state">
-            <Zap size={48} />
-            <h3>No triggers yet</h3>
-            <p>Create your first trigger to automatically send flows when users send specific keywords</p>
-            <button className="add-trigger-btn" onClick={() => setShowModal(true)}>
-              <Plus size={18} />
-              <span>Create First Trigger</span>
+      <div className="flow-grid">
+        {/* Quick Actions */}
+        <div className="flow-card quick-actions">
+          <h3>Quick Actions</h3>
+          <div className="quick-action-buttons">
+            <button 
+              className="quick-btn appointment"
+              onClick={() => {
+                const recipient = prompt('Enter recipient phone number:');
+                if (recipient) handleSendAppointmentFlow(recipient);
+              }}
+            >
+              <Plus size={20} />
+              Send Appointment Flow
+            </button>
+            <button 
+              className="quick-btn custom"
+              onClick={() => setShowSendModal(true)}
+            >
+              <Send size={20} />
+              Send Custom Flow
             </button>
           </div>
-        )}
+        </div>
+
+        {/* Flow Templates */}
+        <div className="flow-card templates">
+          <h3>Flow Templates</h3>
+          <div className="template-list">
+            <div className="template-item">
+              <div className="template-info">
+                <h4>📅 Appointment Booking</h4>
+                <p>Book appointments with department, location, date & time selection</p>
+              </div>
+              <button 
+                className="btn-secondary"
+                onClick={() => {
+                  setSendForm({
+                    ...sendForm,
+                    flowName: 'appointment_booking_v1',
+                    flowCta: 'Book Appointment',
+                    header: '📅 Book Your Appointment',
+                    body: 'Click the button below to book your appointment with us.',
+                    footer: 'Powered by WhatsApp Flows'
+                  });
+                  setShowSendModal(true);
+                }}
+              >
+                Use Template
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Flow Statistics */}
+        <div className="flow-card stats">
+          <h3>Flow Statistics</h3>
+          <div className="stats-grid">
+            <div className="stat-item">
+              <span className="stat-label">Flows Sent Today</span>
+              <span className="stat-value">0</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">Completed Flows</span>
+              <span className="stat-value">0</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">Active Flows</span>
+              <span className="stat-value">1</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {showModal && (
-        <div className="modal-overlay" onClick={resetForm}>
+      {/* Send Flow Modal */}
+      {showSendModal && (
+        <div className="modal-overlay" onClick={() => setShowSendModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editingTrigger ? 'Edit Trigger' : 'Create New Trigger'}</h2>
-              <button className="close-btn" onClick={resetForm}>
-                <X size={20} />
+              <h2>Send Flow Message</h2>
+              <button 
+                className="close-btn"
+                onClick={() => setShowSendModal(false)}
+              >
+                ×
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="trigger-form">
+            <form onSubmit={handleSendFlow} className="flow-form">
               <div className="form-group">
-                <label className="form-label">
-                  Trigger Name <span className="required">*</span>
-                </label>
+                <label>Recipient Phone Number *</label>
                 <input
                   type="text"
-                  className="form-input"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g., Appointment Booking"
+                  placeholder="1234567890"
+                  value={sendForm.to}
+                  onChange={(e) => setSendForm({...sendForm, to: e.target.value})}
                   required
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">
-                  Trigger Word <span className="required">*</span>
-                </label>
+                <label>Flow Name *</label>
                 <input
                   type="text"
-                  className="form-input"
-                  value={formData.triggerWord}
-                  onChange={(e) => setFormData({ ...formData, triggerWord: e.target.value })}
-                  placeholder="e.g., book, appointment, help"
+                  placeholder="appointment_booking_v1"
+                  value={sendForm.flowName}
+                  onChange={(e) => setSendForm({...sendForm, flowName: e.target.value})}
                   required
                 />
-                <span className="form-hint">When user sends this word, the flow will be triggered</span>
+                <small>The name of your Flow in Meta Business Manager</small>
               </div>
 
               <div className="form-group">
-                <label className="form-label">
-                  Flow <span className="required">*</span>
-                </label>
-                <select
-                  className="form-input"
-                  value={formData.flowId}
-                  onChange={(e) => {
-                    const selectedFlow = flows.find(f => f.id === e.target.value);
-                    setFormData({ 
-                      ...formData, 
-                      flowId: e.target.value,
-                      screenName: selectedFlow?.firstScreen || 'SIGN_IN'
-                    });
-                  }}
-                  required
-                >
-                  <option value="">Select a flow...</option>
-                  {flows.map((flow) => (
-                    <option key={flow.id} value={flow.id}>
-                      {flow.name} - {flow.description}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Header Text</label>
+                <label>Button Text (CTA) *</label>
                 <input
                   type="text"
-                  className="form-input"
-                  value={formData.headerText}
-                  onChange={(e) => setFormData({ ...formData, headerText: e.target.value })}
-                  maxLength={60}
-                  placeholder="Optional header text"
+                  placeholder="Open Flow"
+                  value={sendForm.flowCta}
+                  onChange={(e) => setSendForm({...sendForm, flowCta: e.target.value})}
+                  required
+                  maxLength={30}
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">Body Text</label>
+                <label>Header</label>
+                <input
+                  type="text"
+                  placeholder="Flow message header"
+                  value={sendForm.header}
+                  onChange={(e) => setSendForm({...sendForm, header: e.target.value})}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Body *</label>
                 <textarea
-                  className="form-textarea"
-                  value={formData.bodyText}
-                  onChange={(e) => setFormData({ ...formData, bodyText: e.target.value })}
-                  rows={3}
-                  maxLength={1024}
-                  placeholder="Message to show with the flow"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Footer Text</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={formData.footerText}
-                  onChange={(e) => setFormData({ ...formData, footerText: e.target.value })}
-                  maxLength={60}
-                  placeholder="Optional footer text"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">
-                  Button Text <span className="required">*</span>
-                </label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={formData.ctaText}
-                  onChange={(e) => setFormData({ ...formData, ctaText: e.target.value })}
-                  maxLength={20}
-                  placeholder="e.g., Start Booking"
+                  placeholder="Flow message body"
+                  value={sendForm.body}
+                  onChange={(e) => setSendForm({...sendForm, body: e.target.value})}
                   required
+                  rows={3}
                 />
               </div>
 
               <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={formData.isActive}
-                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                  />
-                  <span>Active (trigger will respond to messages)</span>
-                </label>
+                <label>Footer</label>
+                <input
+                  type="text"
+                  placeholder="Flow message footer"
+                  value={sendForm.footer}
+                  onChange={(e) => setSendForm({...sendForm, footer: e.target.value})}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Flow Action</label>
+                <select
+                  value={sendForm.flowAction}
+                  onChange={(e) => setSendForm({...sendForm, flowAction: e.target.value})}
+                >
+                  <option value="navigate">Navigate</option>
+                  <option value="data_exchange">Data Exchange</option>
+                </select>
+                <small>Use "data_exchange" to call your endpoint</small>
               </div>
 
               <div className="form-actions">
-                <button type="button" className="btn-secondary" onClick={resetForm}>
+                <button 
+                  type="button" 
+                  className="btn-secondary"
+                  onClick={() => setShowSendModal(false)}
+                >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
-                  {editingTrigger ? 'Update Trigger' : 'Create Trigger'}
+                <button 
+                  type="submit" 
+                  className="btn-primary"
+                  disabled={loading}
+                >
+                  {loading ? 'Sending...' : 'Send Flow'}
                 </button>
               </div>
             </form>
@@ -321,8 +310,6 @@ const FlowManager = () => {
         </div>
       )}
     </div>
-    )}
-    </>
   );
 };
 

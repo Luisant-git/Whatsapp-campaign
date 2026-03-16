@@ -1,235 +1,273 @@
 import { Injectable } from '@nestjs/common';
+import { TenantPrismaService } from '../tenant-prisma.service';
+import { CentralPrismaService } from '../central-prisma.service';
 import axios from 'axios';
-import FormData from 'form-data';
-import { FlowResult, SendFlowDto, FlowResponse } from './flow-message.types';
+import * as crypto from 'crypto';
+
+export interface FlowMessageParams {
+  to: string;
+  flowId?: string;
+  flowName?: string;
+  flowCta: string;
+  header?: string;
+  body?: string;
+  footer?: string;
+  flowToken?: string;
+  flowAction?: 'navigate' | 'data_exchange';
+  flowActionPayload?: {
+    screen?: string;
+    data?: Record<string, any>;
+  };
+  mode?: 'draft' | 'published';
+}
+
+export interface FlowTemplateParams {
+  templateName: string;
+  to: string;
+  languageCode: string;
+  flowToken?: string;
+  flowActionData?: Record<string, any>;
+}
 
 @Injectable()
 export class FlowMessageService {
-  private readonly accessToken = process.env.META_ACCESS_TOKEN || 'EAAcMSpblosgBQ0Lr9x2byXAquXp5o1ceNowmZCJBDdHMtENNjHiZA8HkMALo6tP5ctnWyJWDIBZAENZAvQluvtGAdjouaEGIPYZBglCh1NZBFpWLUMTCZC79uWG468iYgh1nSYE1Fz4NO72sA6NeMjxG6CgD8JqcsGOH7kVjxfrdZACwOyRJl5AhxqlZBZAHPwuDPgBQZDZD';
-  private readonly phoneNumberId = process.env.META_PHONE_NUMBER_ID || '803957376127788';
-  private readonly wabaId = process.env.META_WABA_ID || '24366060823054981';
-  private readonly apiVersion = 'v21.0';
+  constructor(
+    private tenantPrisma: TenantPrismaService,
+    private centralPrisma: CentralPrismaService,
+  ) {}
 
-  async getAvailableFlows() {
+  /**
+   * Send an interactive Flow message
+   */
+  async sendFlowMessage(params: FlowMessageParams, phoneNumberId: string): Promise<any> {
     try {
-      if (!this.wabaId) {
-        console.error('META_WABA_ID not configured');
-        return [];
+      const settings = await this.getWhatsAppSettings(phoneNumberId);
+      if (!settings) {
+        throw new Error('WhatsApp settings not found');
       }
 
-      const response = await axios.get(
-        `https://graph.facebook.com/${this.apiVersion}/${this.wabaId}/flows`,
-        {
-          headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
-          }
-        }
-      );
+      const flowToken = params.flowToken || this.generateFlowToken();
       
-      // Fetch details for each flow to get first screen
-      const flowsWithDetails = await Promise.all(
-        response.data.data.map(async (flow: any) => {
-          try {
-            const detailResponse = await axios.get(
-              `https://graph.facebook.com/${this.apiVersion}/${flow.id}`,
-              {
-                headers: {
-                  'Authorization': `Bearer ${this.accessToken}`,
-                }
-              }
-            );
-            
-            return {
-              id: flow.id,
-              name: flow.name,
-              description: flow.status,
-              status: flow.status,
-              updatedAt: flow.updated_time,
-              firstScreen: detailResponse.data.json_version?.screens?.[0]?.id || 'SCREEN'
-            };
-          } catch (error) {
-            return {
-              id: flow.id,
-              name: flow.name,
-              description: flow.status,
-              status: flow.status,
-              updatedAt: flow.updated_time,
-              firstScreen: 'SCREEN'
-            };
-          }
-        })
-      );
-      
-      return flowsWithDetails;
-    } catch (error) {
-      console.error('Error fetching flows from Meta:', error.response?.data || error.message);
-      return [];
-    }
-  }
-
-  async sendFlowToNumbers(data: SendFlowDto): Promise<FlowResponse> {
-    const results: FlowResult[] = [];
-    
-    for (const phoneNumber of data.phoneNumbers) {
-      try {
-        const response = await this.sendSingleFlowMessage({
-          phoneNumber,
-          flowId: data.flowId,
-          headerText: data.headerText || 'Flow Message',
-          bodyText: data.bodyText || 'Click the button below to start the Flow experience!',
-          footerText: data.footerText || 'Powered by Meta Flow',
-          ctaText: data.ctaText || 'Start Flow',
-          screenName: data.screenName || 'SCREEN',
-          screenData: data.screenData || {}
-        });
-
-        results.push({
-          phoneNumber,
-          status: 'success',
-          messageId: response.data.messages[0].id
-        });
-      } catch (error: any) {
-        results.push({
-          phoneNumber,
-          status: 'failed',
-          error: error.response?.data?.error?.message || error.message
-        });
-      }
-    }
-
-    return {
-      totalSent: results.filter(r => r.status === 'success').length,
-      totalFailed: results.filter(r => r.status === 'failed').length,
-      results
-    };
-  }
-
-  private async sendSingleFlowMessage(params: any) {
-    const actionParams: any = {
-      flow_message_version: '3',
-      flow_token: `flow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      flow_id: params.flowId,
-      flow_cta: params.ctaText,
-      flow_action: 'navigate',
-    };
-
-    if (params.screenName && params.screenName !== 'SCREEN') {
-      actionParams.flow_action_payload = {
-        screen: params.screenName,
-        data: params.screenData
-      };
-    }
-
-    const interactive: any = {
-      type: 'flow',
-      body: {
-        text: params.bodyText
-      },
-      action: {
-        name: 'flow',
-        parameters: actionParams
-      }
-    };
-
-    if (params.headerText) {
-      interactive.header = {
-        type: 'text',
-        text: params.headerText
-      };
-    }
-
-    if (params.footerText) {
-      interactive.footer = {
-        text: params.footerText
-      };
-    }
-
-    return axios.post(
-      `https://graph.facebook.com/${this.apiVersion}/${this.phoneNumberId}/messages`,
-      {
-        messaging_product: 'whatsapp',
+      const messageData = {
         recipient_type: 'individual',
-        to: params.phoneNumber,
+        messaging_product: 'whatsapp',
+        to: params.to,
         type: 'interactive',
-        interactive
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/json'
+        interactive: {
+          type: 'flow',
+          header: params.header ? {
+            type: 'text',
+            text: params.header
+          } : undefined,
+          body: {
+            text: params.body || 'Please complete the flow below'
+          },
+          footer: params.footer ? {
+            text: params.footer
+          } : undefined,
+          action: {
+            name: 'flow',
+            parameters: {
+              flow_message_version: '3',
+              flow_token: flowToken,
+              flow_cta: params.flowCta,
+              mode: params.mode || 'published',
+              ...(params.flowId && { flow_id: params.flowId }),
+              ...(params.flowName && { flow_name: params.flowName }),
+              ...(params.flowAction && { flow_action: params.flowAction }),
+              ...(params.flowActionPayload && { flow_action_payload: params.flowActionPayload })
+            }
+          }
         }
-      }
-    );
-  }
+      };
 
-  getSentHistory() {
-    // This would typically fetch from database
-    return {
-      totalSent: 0,
-      recentMessages: []
-    };
-  }
-
-  async createFlow(flowData: any) {
-    try {
-      console.log('Creating flow with data:', JSON.stringify(flowData.flowJson, null, 2));
-
-      // Step 1: Create flow
       const response = await axios.post(
-        `https://graph.facebook.com/${this.apiVersion}/${this.wabaId}/flows`,
-        {
-          name: flowData.name,
-          categories: ['APPOINTMENT_BOOKING']
-        },
+        `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+        messageData,
         {
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
+            'Authorization': `Bearer ${settings.accessToken}`,
             'Content-Type': 'application/json'
           }
         }
       );
 
-      const flowId = response.data.id;
-      console.log('Flow created:', flowId);
+      console.log('✅ Flow message sent successfully:', response.data);
+      return response.data;
 
-      // Step 2: Upload flow JSON
-      const formData = new FormData();
-      formData.append('file', JSON.stringify(flowData.flowJson), {
-        filename: 'flow.json',
-        contentType: 'application/json'
-      });
-      formData.append('name', 'flow.json');
-      formData.append('asset_type', 'FLOW_JSON');
-
-      const uploadResponse = await axios.post(
-        `https://graph.facebook.com/${this.apiVersion}/${flowId}/assets`,
-        formData,
-        {
-          headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
-            ...formData.getHeaders()
-          }
-        }
-      );
-      console.log('Flow JSON uploaded:', uploadResponse.data);
-
-      // Step 3: Publish the flow
-      const publishResponse = await axios.post(
-        `https://graph.facebook.com/${this.apiVersion}/${flowId}/publish`,
-        {},
-        {
-          headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      console.log('Flow published:', publishResponse.data);
-
-      return { success: true, flowId, status: 'published' };
     } catch (error) {
-      console.error('Error creating flow:', error.response?.data || error.message);
+      console.error('❌ Failed to send flow message:', error.response?.data || error.message);
       throw error;
     }
+  }
+
+  /**
+   * Send a Flow template message
+   */
+  async sendFlowTemplate(params: FlowTemplateParams, phoneNumberId: string): Promise<any> {
+    try {
+      const settings = await this.getWhatsAppSettings(phoneNumberId);
+      if (!settings) {
+        throw new Error('WhatsApp settings not found');
+      }
+
+      const flowToken = params.flowToken || this.generateFlowToken();
+
+      const messageData = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: params.to,
+        type: 'template',
+        template: {
+          name: params.templateName,
+          language: {
+            code: params.languageCode
+          },
+          components: [
+            {
+              type: 'button',
+              sub_type: 'flow',
+              index: '0',
+              parameters: [
+                {
+                  type: 'action',
+                  action: {
+                    flow_token: flowToken,
+                    ...(params.flowActionData && { flow_action_data: params.flowActionData })
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      };
+
+      const response = await axios.post(
+        `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+        messageData,
+        {
+          headers: {
+            'Authorization': `Bearer ${settings.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('✅ Flow template sent successfully:', response.data);
+      return response.data;
+
+    } catch (error) {
+      console.error('❌ Failed to send flow template:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a message template with Flow
+   */
+  async createFlowTemplate(
+    wabaId: string,
+    templateName: string,
+    category: 'MARKETING' | 'UTILITY',
+    language: string,
+    bodyText: string,
+    buttonText: string,
+    flowId?: string,
+    flowName?: string,
+    flowJson?: string,
+    accessToken?: string
+  ): Promise<any> {
+    try {
+      if (!flowId && !flowName && !flowJson) {
+        throw new Error('Either flowId, flowName, or flowJson must be provided');
+      }
+
+      const templateData = {
+        name: templateName,
+        language: language,
+        category: category,
+        components: [
+          {
+            type: 'BODY',
+            text: bodyText
+          },
+          {
+            type: 'BUTTONS',
+            buttons: [
+              {
+                type: 'FLOW',
+                text: buttonText,
+                ...(flowId && { flow_id: flowId }),
+                ...(flowName && { flow_name: flowName }),
+                ...(flowJson && { flow_json: flowJson }),
+                flow_action: 'navigate'
+              }
+            ]
+          }
+        ]
+      };
+
+      const response = await axios.post(
+        `https://graph.facebook.com/v18.0/${wabaId}/message_templates`,
+        templateData,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('✅ Flow template created successfully:', response.data);
+      return response.data;
+
+    } catch (error) {
+      console.error('❌ Failed to create flow template:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Send appointment booking flow
+   */
+  async sendAppointmentFlow(to: string, phoneNumberId: string): Promise<any> {
+    return this.sendFlowMessage({
+      to,
+      flowName: 'appointment_booking_v1', // Your flow name in Meta Business Manager
+      flowCta: 'Book Appointment',
+      header: '📅 Book Your Appointment',
+      body: 'Click the button below to book your appointment with us.',
+      footer: 'Powered by WhatsApp Flows',
+      flowAction: 'data_exchange' // Use data_exchange to call your endpoint
+    }, phoneNumberId);
+  }
+
+  /**
+   * Generate a secure flow token
+   */
+  private generateFlowToken(): string {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  /**
+   * Get WhatsApp settings for phone number
+   */
+  private async getWhatsAppSettings(phoneNumberId: string): Promise<any> {
+    const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
+    
+    for (const tenant of tenants) {
+      const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+      const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+      
+      const settings = await (tenantClient as any).whatsAppSettings.findFirst({
+        where: { phoneNumberId }
+      });
+      
+      if (settings) {
+        return settings;
+      }
+    }
+    
+    return null;
   }
 }

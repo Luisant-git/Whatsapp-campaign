@@ -1,75 +1,98 @@
-import { Controller, Post, Get, Body, HttpCode, UseGuards, Session, Param, Put, Delete } from '@nestjs/common';
-import { FlowMessageService } from './flow-message.service';
-import { FlowTriggerService } from './flow-trigger.service';
-import { SessionGuard } from '../auth/session.guard';
-import type { SendFlowDto, FlowResponse } from './flow-message.types';
+import { Controller, Post, Body, Param, Get } from '@nestjs/common';
+import { FlowMessageService, FlowMessageParams, FlowTemplateParams } from './flow-message.service';
 
-@Controller('flow-messages')
+export interface SendFlowMessageDto {
+  to: string;
+  flowId?: string;
+  flowName?: string;
+  flowCta: string;
+  header?: string;
+  body?: string;
+  footer?: string;
+  flowToken?: string;
+  flowAction?: 'navigate' | 'data_exchange';
+  flowActionPayload?: {
+    screen?: string;
+    data?: Record<string, any>;
+  };
+  mode?: 'draft' | 'published';
+}
+
+export interface SendFlowTemplateDto {
+  templateName: string;
+  to: string;
+  languageCode: string;
+  flowToken?: string;
+  flowActionData?: Record<string, any>;
+}
+
+export interface CreateFlowTemplateDto {
+  wabaId: string;
+  templateName: string;
+  category: 'MARKETING' | 'UTILITY';
+  language: string;
+  bodyText: string;
+  buttonText: string;
+  flowId?: string;
+  flowName?: string;
+  flowJson?: string;
+  accessToken?: string;
+}
+
+@Controller('flow-message')
 export class FlowMessageController {
-  constructor(
-    private readonly flowMessageService: FlowMessageService,
-    private readonly flowTriggerService: FlowTriggerService,
-  ) {}
+  constructor(private readonly flowMessageService: FlowMessageService) {}
 
-  @Get('flows')
-  @UseGuards(SessionGuard)
-  getAvailableFlows() {
-    return this.flowMessageService.getAvailableFlows();
+  @Post('send/:phoneNumberId')
+  async sendFlowMessage(
+    @Param('phoneNumberId') phoneNumberId: string,
+    @Body() dto: SendFlowMessageDto
+  ) {
+    return this.flowMessageService.sendFlowMessage(dto, phoneNumberId);
   }
 
-  @Post('send')
-  @HttpCode(200)
-  @UseGuards(SessionGuard)
-  async sendFlowMessage(@Body() sendFlowDto: SendFlowDto): Promise<FlowResponse> {
-    return this.flowMessageService.sendFlowToNumbers(sendFlowDto);
+  @Post('send-template/:phoneNumberId')
+  async sendFlowTemplate(
+    @Param('phoneNumberId') phoneNumberId: string,
+    @Body() dto: SendFlowTemplateDto
+  ) {
+    return this.flowMessageService.sendFlowTemplate(dto, phoneNumberId);
   }
 
-  @Get('sent-history')
-  @UseGuards(SessionGuard)
-  getSentHistory() {
-    return this.flowMessageService.getSentHistory();
+  @Post('create-template')
+  async createFlowTemplate(@Body() dto: CreateFlowTemplateDto) {
+    return this.flowMessageService.createFlowTemplate(
+      dto.wabaId,
+      dto.templateName,
+      dto.category,
+      dto.language,
+      dto.bodyText,
+      dto.buttonText,
+      dto.flowId,
+      dto.flowName,
+      dto.flowJson,
+      dto.accessToken
+    );
   }
 
-  // Flow Trigger endpoints
-  @Post('triggers')
-  @UseGuards(SessionGuard)
-  async createTrigger(@Session() session: any, @Body() data: any) {
-    return this.flowTriggerService.createTrigger(session.user.id, data);
+  @Post('send-appointment/:phoneNumberId')
+  async sendAppointmentFlow(
+    @Param('phoneNumberId') phoneNumberId: string,
+    @Body('to') to: string
+  ) {
+    return this.flowMessageService.sendAppointmentFlow(to, phoneNumberId);
   }
 
-  @Get('triggers')
-  @UseGuards(SessionGuard)
-  async getTriggers(@Session() session: any) {
-    return this.flowTriggerService.getTriggers(session.user.id);
-  }
-
-  @Get('triggers/:id')
-  @UseGuards(SessionGuard)
-  async getTrigger(@Session() session: any, @Param('id') id: string) {
-    return this.flowTriggerService.getTrigger(parseInt(id), session.user.id);
-  }
-
-  @Put('triggers/:id')
-  @UseGuards(SessionGuard)
-  async updateTrigger(@Session() session: any, @Param('id') id: string, @Body() data: any) {
-    return this.flowTriggerService.updateTrigger(parseInt(id), session.user.id, data);
-  }
-
-  @Delete('triggers/:id')
-  @UseGuards(SessionGuard)
-  async deleteTrigger(@Session() session: any, @Param('id') id: string) {
-    return this.flowTriggerService.deleteTrigger(parseInt(id), session.user.id);
-  }
-
-  @Get('triggers/:id/logs')
-  @UseGuards(SessionGuard)
-  async getTriggerLogs(@Session() session: any, @Param('id') id: string) {
-    return this.flowTriggerService.getTriggerLogs(parseInt(id), session.user.id);
-  }
-
-  @Post('create-flow')
-  @UseGuards(SessionGuard)
-  async createFlow(@Body() flowData: any) {
-    return this.flowMessageService.createFlow(flowData);
+  @Get('test')
+  testEndpoint() {
+    return {
+      message: 'Flow Message service is running',
+      endpoints: [
+        'POST /flow-message/send/:phoneNumberId - Send interactive flow message',
+        'POST /flow-message/send-template/:phoneNumberId - Send flow template',
+        'POST /flow-message/create-template - Create flow template',
+        'POST /flow-message/send-appointment/:phoneNumberId - Send appointment flow'
+      ]
+    };
   }
 }

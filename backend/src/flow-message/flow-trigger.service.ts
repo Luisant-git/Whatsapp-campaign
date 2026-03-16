@@ -152,41 +152,12 @@ export class FlowTriggerService {
       flow_cta: trigger.ctaText,
     };
 
-    // Add navigation with data if screen is specified
+    // Add navigation if screen is specified
     if (trigger.screenName && trigger.screenName !== 'SCREEN') {
       actionParams.flow_action = 'navigate';
-      
-      // Get dropdown data for appointment flows
-      if (trigger.screenName === 'APPOINTMENT') {
-        try {
-          const appointmentData = await this.getAppointmentData();
-          actionParams.flow_action_payload = {
-            screen: trigger.screenName,
-            data: appointmentData
-          };
-          console.log(`[FlowTrigger] Added appointment data: departments:${appointmentData.department?.length} locations:${appointmentData.location?.length} dates:${appointmentData.date?.length} times:${appointmentData.time?.length}`);
-        } catch (error) {
-          console.error('Error getting appointment data:', error);
-          const defaultData = this.getDefaultAppointmentData();
-          actionParams.flow_action_payload = {
-            screen: trigger.screenName,
-            data: defaultData
-          };
-          console.log('[FlowTrigger] Using default appointment data');
-        }
-      } else if (trigger.screenData && Object.keys(trigger.screenData).length > 0) {
-        // Use custom screen data for other flow types
-        actionParams.flow_action_payload = {
-          screen: trigger.screenName,
-          data: trigger.screenData
-        };
-        console.log('[FlowTrigger] Added custom screen data');
-      } else {
-        // Just navigation without data
-        actionParams.flow_action_payload = {
-          screen: trigger.screenName
-        };
-      }
+      actionParams.flow_action_payload = {
+        screen: trigger.screenName
+      };
     }
 
     console.log(`[FlowTrigger] Flow sent → flowId:${trigger.flowId} screen:${trigger.screenName} token:${flowToken}`);

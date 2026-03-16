@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { TenantPrismaService } from '../../tenant-prisma.service';
+import { CentralPrismaService } from '../../central-prisma.service';
 import { FlowHandler } from './flow-handler.interface';
 import { AppointmentFlowHandler } from './appointment.flow';
 import { FeedbackFlowHandler } from './feedback.flow';
@@ -11,6 +12,7 @@ export class FlowManagerService {
 
   constructor(
     private tenantPrisma: TenantPrismaService,
+    private centralPrisma: CentralPrismaService,
     private appointmentHandler: AppointmentFlowHandler,
     private feedbackHandler: FeedbackFlowHandler,
     private leadHandler: LeadFlowHandler,
@@ -139,9 +141,10 @@ export class FlowManagerService {
     });
   }
 
-  private async getTenantClient(tenantId: number) {
-    // Use your existing tenant client logic
-    const dbUrl = `postgresql://user:pass@localhost:5432/tenant_${tenantId}`;
-    return this.tenantPrisma.getTenantClient(tenantId.toString(), dbUrl);
+  private async getTenantClient(userId: number) {
+    const tenant = await this.centralPrisma.tenant.findUnique({ where: { id: userId } });
+    if (!tenant) throw new Error('Tenant not found');
+    const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+    return this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
   }
 }

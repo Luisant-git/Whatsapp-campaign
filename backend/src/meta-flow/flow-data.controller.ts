@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, Headers } from '@nestjs/common';
+import { Controller, Post, Get, Body, HttpCode, Headers } from '@nestjs/common';
 import { FlowAppointmentService } from '../flow-appointment/flow-appointment.service';
 
 @Controller('meta')
@@ -8,39 +8,70 @@ export class FlowDataController {
   @Post('flows')
   @HttpCode(200)
   async getFlowData(@Body() body: any, @Headers() headers: any) {
+    console.log('🔥 FLOW DATA REQUEST RECEIVED!');
     console.log('=== FLOW DATA REQUEST ===');
-    console.log('Screen:', body.screen);
-    console.log('Flow Token:', body.flow_token);
-    console.log('Data:', JSON.stringify(body.data, null, 2));
+    console.log('Screen:', body?.screen || 'undefined');
+    console.log('Flow Token:', body?.flow_token || 'undefined');
+    console.log('Body:', JSON.stringify(body, null, 2));
     console.log('========================');
 
-    const { screen, data, flow_token } = body;
-
     try {
-      switch (screen) {
-        case 'APPOINTMENT':
-          return await this.getAppointmentData();
+      const { screen, data, flow_token } = body || {};
 
-        case 'DETAILS':
-          // Handle form submission and navigate to summary
-          return this.handleAppointmentDetails(data);
-
-        case 'SUMMARY':
-          // Save appointment and show success
-          return await this.saveAppointment(data, flow_token);
-
-        default:
-          console.log(`Unknown screen: ${screen}`);
-          return { data: {} };
+      // Simple test response for APPOINTMENT screen
+      if (screen === 'APPOINTMENT') {
+        console.log('📅 Returning test appointment data...');
+        return {
+          data: {
+            department: [
+              { id: '1', title: 'Sales' },
+              { id: '2', title: 'Support' },
+              { id: '3', title: 'Technical' }
+            ],
+            location: [
+              { id: '1', title: 'New York' },
+              { id: '2', title: 'London' }
+            ],
+            date: [
+              { id: '2026-03-16', title: 'Sun Mar 16 2026' },
+              { id: '2026-03-17', title: 'Mon Mar 17 2026' }
+            ],
+            time: [
+              { id: '10:30', title: '10:30 AM' },
+              { id: '11:30', title: '11:30 AM' },
+              { id: '14:30', title: '2:30 PM' }
+            ]
+          }
+        };
       }
-    } catch (error) {
-      console.error('Flow data error:', error.message);
+
+      // Default response
       return {
         data: {
-          error: 'Failed to load data'
+          message: 'Flow data endpoint is working',
+          screen: screen || 'unknown',
+          timestamp: new Date().toISOString()
+        }
+      };
+
+    } catch (error) {
+      console.error('❌ Flow data error:', error.message);
+      return {
+        data: {
+          error: 'Failed to process request',
+          message: error.message
         }
       };
     }
+  }
+
+  @Get('flows')
+  async testEndpoint() {
+    return {
+      status: 'active',
+      message: 'Flow data endpoint is working',
+      timestamp: new Date().toISOString()
+    };
   }
 
   private async getAppointmentData() {

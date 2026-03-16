@@ -30,6 +30,7 @@ import { CronModule } from './cron/cron.module';
 import { RunDailyAutomationModule } from './run-daily-automation/run-daily-automation.module';
 import { TemplateModule } from './template/template.module';
 import { UploadModule } from './upload/upload.module';
+import { TenentnoteModule } from './tenentnote/tenentnote.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { UploadModule } from './upload/upload.module';
     RunDailyAutomationModule,
     TemplateModule,
     UploadModule,
+    TenentnoteModule,
   ],
   controllers: [AppController, TestController],
   providers: [AppService],

@@ -22,7 +22,11 @@ function Login({ onLogin }) {
     e.preventDefault();
     setLoading(true);
   
-    localStorage.clear();
+    localStorage.removeItem("user");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("userType");
+    localStorage.removeItem("menuPermission");
+    localStorage.removeItem("tenantId");
   
     try {
       await loginUser(email, password, role);
@@ -32,6 +36,13 @@ function Login({ onLogin }) {
       localStorage.setItem("user", JSON.stringify(profile.user));
       localStorage.setItem("userRole", profile.role || "owner");
       localStorage.setItem("userType", profile.userType || "tenant");
+  
+      if (profile.tenantId || profile.user?.tenantId) {
+        localStorage.setItem(
+          "tenantId",
+          String(profile.tenantId || profile.user?.tenantId)
+        );
+      }
   
       if (profile.menuPermission) {
         localStorage.setItem(
@@ -45,7 +56,6 @@ function Login({ onLogin }) {
       showSuccess("Login successful!");
   
       navigate("/dashboard", { replace: true });
-  
     } catch (err) {
       console.error("Login error:", err);
   

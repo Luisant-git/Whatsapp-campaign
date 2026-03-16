@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { CentralPrismaService } from '../central-prisma.service';
 import { TenantPrismaService } from '../tenant-prisma.service';
 import { AnalyticsDto } from '../analytics/dto/analytics.dto';
-import { AdminTenantAnalyticsDto, ExpiringTenantDto } from './dto/admin-tenant-analytics.dto';
+import {
+  AdminTenantAnalyticsDto,
+  ExpiringTenantDto,
+} from './dto/admin-tenant-analytics.dto';
 
 @Injectable()
 export class AdminAnalyticsService {
@@ -22,33 +25,40 @@ export class AdminAnalyticsService {
     const contactSet = new Set<string>();
 
     for (const tenant of tenants) {
-      // 🔹 Build tenant DB URL from central record
-      const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+      try {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
 
-      const prisma = this.tenantPrisma.getTenantClient(
-        tenant.id.toString(),
-        dbUrl,
-      );
+        const prisma = this.tenantPrisma.getTenantClient(
+          tenant.id.toString(),
+          dbUrl,
+        );
 
-      const messages = await prisma.campaignMessage.findMany({
-        select: {
-          phone: true,
-          status: true,
-        },
-      });
+        const messages = await prisma.campaignMessage.findMany({
+          select: {
+            phone: true,
+            status: true,
+          },
+        });
 
-      totalMessages += messages.length;
+        totalMessages += messages.length;
 
-      for (const msg of messages) {
-        contactSet.add(msg.phone);
+        for (const msg of messages) {
+          contactSet.add(msg.phone);
 
-        if (['sent', 'delivered', 'read'].includes(msg.status)) {
-          successfulDeliveries++;
+          if (['sent', 'delivered', 'read'].includes(msg.status)) {
+            successfulDeliveries++;
+          }
+
+          if (msg.status === 'failed') {
+            failedMessages++;
+          }
         }
-
-        if (msg.status === 'failed') {
-          failedMessages++;
-        }
+      } catch (error) {
+        console.error(
+          `Failed to load analytics for tenant ${tenant.id} (${tenant.companyName})`,
+          error,
+        );
+        continue;
       }
     }
 
@@ -73,27 +83,29 @@ export class AdminAnalyticsService {
       dailyStats: [],
     };
   }
-  // admin-analytics.service.ts
+
   async getTenantSubscriptionAnalytics(): Promise<AdminTenantAnalyticsDto> {
     const today = new Date();
-  
+
     const tenants = await this.centralPrisma.tenant.findMany({
-      include: { subscription: true },
+      include: {
+        subscription: true,
+        notes: true,
+      },
       orderBy: { subscriptionEndDate: 'asc' },
     });
-  
+
     const expiringSoonList: ExpiringTenantDto[] = tenants
       .map((tenant) => {
         const expiryDate = tenant.subscriptionEndDate;
         if (!expiryDate) return null;
-  
+
         const daysLeft = Math.ceil(
-          (expiryDate.getTime() - today.getTime()) /
-          (1000 * 60 * 60 * 24)
+          (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
         );
-  
+
         let status: string;
-  
+
         if (!tenant.isActive) {
           status = 'Inactive';
         } else if (daysLeft < 0) {
@@ -103,14 +115,18 @@ export class AdminAnalyticsService {
         } else {
           status = 'Active';
         }
-  
+
         return {
           id: tenant.id,
           companyName: tenant.companyName ?? 'Unknown Company',
+          contactPersonName: tenant.contactPersonName ?? '',
+          phoneNumber: tenant.phoneNumber ?? '',
           currentPlan: tenant.subscription?.name ?? 'No Plan',
           expiryDate,
           daysLeft,
           status,
+          isActive: tenant.isActive,
+          notesCount: tenant.notes?.length ?? 0,
         };
       })
       .filter((tenant): tenant is ExpiringTenantDto => tenant !== null)
@@ -121,33 +137,27 @@ export class AdminAnalyticsService {
           Expired: 3,
           Inactive: 4,
         };
-  
+
         if (priority[a.status] !== priority[b.status]) {
           return priority[a.status] - priority[b.status];
         }
-  
+
         return a.daysLeft - b.daysLeft;
       });
-  
-    // 🔥 Correct counters
+
     const totalTenants = tenants.length;
-  
+
     const expiredTenants = tenants.filter(
-      (t) =>
-        t.subscriptionEndDate &&
-        t.subscriptionEndDate < today &&
-        t.isActive
+      (t) => t.subscriptionEndDate && t.subscriptionEndDate < today && t.isActive,
     ).length;
-  
+
     const activeTenants = tenants.filter(
       (t) =>
         t.subscriptionEndDate &&
         t.subscriptionEndDate >= today &&
-        t.isActive
+        t.isActive,
     ).length;
-  
-    const inactiveTenants = tenants.filter((t) => !t.isActive).length;
-  
+
     return {
       totalTenants,
       activeTenants,

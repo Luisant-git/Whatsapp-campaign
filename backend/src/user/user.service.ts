@@ -179,15 +179,12 @@ export class UserService {
     };
   }
   async logout(session: any) {
-    return new Promise((resolve, reject) => {
-      session.destroy((err: any) => {
-        if (err) {
-          reject(new Error('Could not log out'));
-        } else {
-          resolve({ message: 'Logout successful' });
-        }
-      });
-    });
+    delete session.userId;
+    delete session.tenantId;
+    delete session.userType;
+    delete session.user;
+  
+    return { message: 'Logout successful' };
   }
 
   async getCurrentUser(session: any, req?: any) {

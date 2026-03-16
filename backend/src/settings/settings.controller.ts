@@ -17,7 +17,7 @@ export class SettingsController {
   @ApiOperation({ summary: 'Get default WhatsApp configuration settings' })
   @ApiResponse({ status: 200, description: 'Settings retrieved successfully', type: SettingsResponseDto })
   async getSettings(@Session() session: any): Promise<SettingsResponseDto> {
-    return this.settingsService.getSettings(session.user.id);
+    return this.settingsService.getSettings(session.tenantId);
   }
 
   @Get('all')
@@ -25,7 +25,7 @@ export class SettingsController {
   @ApiOperation({ summary: 'Get all WhatsApp configuration settings' })
   @ApiResponse({ status: 200, description: 'All settings retrieved successfully', type: [SettingsResponseDto] })
   async getAllSettings(@Session() session: any): Promise<SettingsResponseDto[]> {
-    return this.settingsService.getAllSettings(session.user.id);
+    return this.settingsService.getAllSettings(session.tenantId);
   }
 
   @Get('feature-assignments')
@@ -33,7 +33,7 @@ export class SettingsController {
   @ApiOperation({ summary: 'Get feature phone number assignments' })
   @ApiResponse({ status: 200, description: 'Feature assignments retrieved successfully' })
   async getFeatureAssignments(@Session() session: any): Promise<any> {
-    return this.settingsService.getFeatureAssignments(session.user.id);
+    return this.settingsService.getFeatureAssignments(session.tenantId);
   }
 
   @Get(':id')
@@ -41,7 +41,7 @@ export class SettingsController {
   @ApiOperation({ summary: 'Get WhatsApp settings by ID' })
   @ApiResponse({ status: 200, description: 'Settings retrieved successfully', type: SettingsResponseDto })
   async getSettingsById(@Session() session: any, @Param('id', ParseIntPipe) id: number): Promise<SettingsResponseDto> {
-    return this.settingsService.getSettingsById(session.user.id, id);
+    return this.settingsService.getSettingsById(session.tenantId, id);
   }
 
   @Post()
@@ -49,7 +49,7 @@ export class SettingsController {
   @ApiOperation({ summary: 'Create new WhatsApp settings' })
   @ApiResponse({ status: 201, description: 'Settings created successfully', type: SettingsResponseDto })
   async createSettings(@Session() session: any, @Body() whatsAppSettingsDto: WhatsAppSettingsDto): Promise<SettingsResponseDto> {
-    return this.settingsService.createSettings(session.user.id, whatsAppSettingsDto);
+    return this.settingsService.createSettings(session.tenantId, whatsAppSettingsDto);
   }
 
   @Post('upload-image')
@@ -107,7 +107,7 @@ export class SettingsController {
   @ApiOperation({ summary: 'Update WhatsApp settings' })
   @ApiResponse({ status: 200, description: 'Settings updated successfully', type: SettingsResponseDto })
   async updateSettings(@Session() session: any, @Param('id', ParseIntPipe) id: number, @Body() updateSettingsDto: UpdateSettingsDto): Promise<SettingsResponseDto> {
-    return this.settingsService.updateSettings(session.user.id, id, updateSettingsDto);
+    return this.settingsService.updateSettings(session.tenantId, id, updateSettingsDto);
   }
 
   @Delete(':id')
@@ -115,7 +115,7 @@ export class SettingsController {
   @ApiOperation({ summary: 'Delete WhatsApp settings' })
   @ApiResponse({ status: 200, description: 'Settings deleted successfully' })
   async deleteSettings(@Session() session: any, @Param('id', ParseIntPipe) id: number): Promise<void> {
-    return this.settingsService.deleteSettings(session.user.id, id);
+    return this.settingsService.deleteSettings(session.tenantId, id);
   }
 
   @Put(':id/default')
@@ -123,7 +123,7 @@ export class SettingsController {
   @ApiOperation({ summary: 'Set settings as default' })
   @ApiResponse({ status: 200, description: 'Default settings updated successfully', type: SettingsResponseDto })
   async setDefaultSettings(@Session() session: any, @Param('id', ParseIntPipe) id: number): Promise<SettingsResponseDto> {
-    return this.settingsService.setDefaultSettings(session.user.id, id);
+    return this.settingsService.setDefaultSettings(session.tenantId, id);
   }
 
   @Post('feature-assignments')
@@ -131,6 +131,6 @@ export class SettingsController {
   @ApiOperation({ summary: 'Save feature phone number assignments' })
   @ApiResponse({ status: 200, description: 'Feature assignments saved successfully' })
   async saveFeatureAssignments(@Session() session: any, @Body() assignments: any): Promise<any> {
-    return this.settingsService.saveFeatureAssignments(session.user.id, assignments);
+    return this.settingsService.saveFeatureAssignments(session.tenantId, assignments);
   }
 }

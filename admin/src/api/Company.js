@@ -83,3 +83,39 @@ export const toggleCompanyStatus = async (id, isActive) => {
 
   return JSON.parse(text);
 };
+
+
+export const updateAdminUser = async (id, formData) => {
+  const payload = {
+    ...formData,
+    subscriptionId: formData.subscriptionId
+      ? Number(formData.subscriptionId)
+      : null,
+  };
+
+  // if password empty, don't send it
+  if (!payload.password) {
+    delete payload.password;
+  }
+
+  const res = await fetch(`${API_URL}/admin/users/${id}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await res.text();
+
+  if (!res.ok) {
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { message: text };
+    }
+    throw new Error(data.message || 'Failed to update company');
+  }
+
+  return JSON.parse(text);
+};

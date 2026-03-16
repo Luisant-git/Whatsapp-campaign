@@ -338,10 +338,17 @@ export class AdminService {
 
 
   async updateUser(id: number, updateUserDto: UpdateUserDto) {
-    // This will update only the fields provided in updateUserDto
+    const data: any = { ...updateUserDto };
+  
+    if (data.password && data.password.trim()) {
+      data.password = await bcrypt.hash(data.password, 10);
+    } else {
+      delete data.password;
+    }
+  
     const tenant = await this.prisma.tenant.update({
       where: { id },
-      data: updateUserDto,
+      data,
       select: {
         id: true,
         email: true,
@@ -362,7 +369,7 @@ export class AdminService {
         updatedAt: true,
       },
     });
-
+  
     return {
       message: 'Tenant updated successfully',
       user: tenant,

@@ -5,6 +5,7 @@ import { FlowHandler } from './flow-handler.interface';
 import { AppointmentFlowHandler } from './appointment.flow';
 import { FeedbackFlowHandler } from './feedback.flow';
 import { LeadFlowHandler } from './lead.flow';
+import { CustomerDetailsFlowHandler } from './customer-details.flow';
 
 @Injectable()
 export class FlowManagerService {
@@ -16,11 +17,13 @@ export class FlowManagerService {
     private appointmentHandler: AppointmentFlowHandler,
     private feedbackHandler: FeedbackFlowHandler,
     private leadHandler: LeadFlowHandler,
+    private customerDetailsHandler: CustomerDetailsFlowHandler,
   ) {
     // Register all flow handlers
     this.handlers.set('appointment', this.appointmentHandler);
     this.handlers.set('feedback', this.feedbackHandler);
     this.handlers.set('lead', this.leadHandler);
+    this.handlers.set('customer_details', this.customerDetailsHandler);
   }
 
   // Create flow session when flow starts

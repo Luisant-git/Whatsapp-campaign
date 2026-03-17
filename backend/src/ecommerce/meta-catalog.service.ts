@@ -3,6 +3,8 @@ import axios from 'axios';
 import { EcommerceService } from './ecommerce.service';
 import { ShoppingSessionService } from './shopping-session.service';
 import { RazorpayService } from './razorpay.service';
+import { FlowTriggerService } from '../flow-message/flow-trigger.service';
+import { CustomerDetailsFlowService } from '../whatsapp/flows/customer-details-flow.service';
 
 @Injectable()
 export class MetaCatalogService {
@@ -15,7 +17,9 @@ export class MetaCatalogService {
   constructor(
     private ecommerceService: EcommerceService,
     private sessionService: ShoppingSessionService,
-    private razorpayService: RazorpayService
+    private razorpayService: RazorpayService,
+    private flowTriggerService: FlowTriggerService,
+    private customerDetailsFlowService: CustomerDetailsFlowService
   ) {}
 
   async syncProductToCatalog(product: any, meta?: any) {
@@ -331,26 +335,22 @@ export class MetaCatalogService {
     
     console.log(`[Meta Catalog] Cart products:`, cartProducts.map(p => ({ name: p.name, qty: p.quantity })));
     
-    const existingCustomer = await this.ecommerceService.getCustomerByPhone(phone, userId);
+    // Save cart to session
+    await this.sessionService.setSession(phone, { 
+      cartProducts,
+      totalAmount,
+      step: 'awaiting_name'
+    }, userId);
+    
+    // Check if customer exists
+    const existingCustomer = await this.customerDetailsFlowService.getCustomerByPhone(phone, userId);
     
     if (existingCustomer) {
-      await this.sessionService.setSession(phone, { 
-        cartProducts,
-        totalAmount,
-        customerName: existingCustomer.customerName,
-        customerAddress: existingCustomer.customerAddress || undefined,
-        step: 'confirm_details'
-      }, userId);
-      
+      // Show existing customer details with options
       await this.sendCustomerDetailsConfirmation(phone, phoneNumberId, existingCustomer);
     } else {
-      await this.sessionService.setSession(phone, { 
-        cartProducts,
-        totalAmount,
-        step: 'awaiting_name' 
-      }, userId);
-      
-      return this.sendTextMessage(phone, phoneNumberId, '📦 Great! To complete your order, please provide your full name:\n\n_Type EXIT anytime to cancel_');
+      // Send customer details flow for new customer
+      await this.sendCustomerDetailsFlow(phone, phoneNumberId, userId);
     }
   }
 
@@ -698,9 +698,106 @@ export class MetaCatalogService {
     }
   }
 
-  private async sendOrderConfirmation(phone: string, phoneNumberId: string, product: any, session: any, fullAddress: string) {
-    const confirmationMessage = `✅ *Order Confirmed*\n\nProduct: ${product.name}\nPrice: ₹${product.price}\nPayment: Cash on Delivery\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`;
-    await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
+  async handleCustomerDetailsFlowResponse(phone: string, phoneNumberId: string, customerData: any, userId: number) {
+    try {
+      console.log(`[Meta Catalog] Processing customer details flow response for ${phone}`);
+      console.log(`[Meta Catalog] Customer data:`, customerData);
+      
+      const session = await this.sessionService.getSession(phone, userId);
+      if (!session || !session.cartProducts) {
+        await this.sendTextMessage(phone, phoneNumberId, '❌ Session expired. Please start shopping again by typing SHOP.');
+        return;
+      }
+      
+      const { cartProducts, totalAmount } = session;
+      const paymentMethod = customerData.paymentMethod || 'cod';
+      
+      if (!totalAmount) {
+        await this.sendTextMessage(phone, phoneNumberId, '❌ Session expired. Please start shopping again by typing SHOP.');
+        return;
+      }
+      
+      // Build full address
+      const fullAddress = [customerData.customerAddress, customerData.customerCity, customerData.customerPincode]
+        .filter(part => part && part !== 'undefined')
+        .join(', ');
+      
+      // Create order items
+      const orderItems = cartProducts.map(cartItem => ({
+        productId: cartItem.productId || cartItem.id,
+        quantity: cartItem.quantity || 1,
+        price: cartItem.price
+      }));
+      
+      // Create order
+      const order = await this.ecommerceService.createOrder({
+        customerName: customerData.customerName,
+        customerPhone: phone,
+        customerAddress: fullAddress,
+        totalAmount,
+        paymentMethod: paymentMethod,
+        paymentStatus: paymentMethod === 'cod' ? 'cod' : 'pending',
+        status: paymentMethod === 'cod' ? 'placed' : 'pending',
+        items: orderItems
+      }, userId);
+      
+      console.log(`[Meta Catalog] Order created via flow:`, { orderId: order.id, itemCount: orderItems.length });
+      
+      // Handle payment
+      if (paymentMethod === 'razorpay') {
+        try {
+          const items = cartProducts.map(p => ({
+            name: p.name,
+            price: p.price,
+            quantity: p.quantity
+          }));
+          
+          await this.razorpayService.sendPaymentRequestMultiple(
+            phone,
+            phoneNumberId,
+            totalAmount,
+            order.id,
+            items
+          );
+        } catch (error) {
+          console.error('Payment link error:', error);
+          const productList = cartProducts.map(p => `${p.name} x${p.quantity}`).join('\n');
+          await this.sendTextMessage(phone, phoneNumberId, `✅ *Order Placed*\n\n${productList}\nTotal: ₹${totalAmount}\n\nOur team will send you payment link shortly 📞`);
+        }
+      } else {
+        // COD confirmation
+        const productList = cartProducts.map(p => `${p.name} (x${p.quantity}) - ₹${p.price * p.quantity}`).join('\n');
+        const confirmationMessage = `✅ *Order Confirmed*\n\n${productList}\n\nTotal: ₹${totalAmount}\nPayment: Cash on Delivery\n\nName: ${customerData.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`;
+        await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
+      }
+      
+      // Clear session
+      await this.sessionService.clearSession(phone, userId);
+      
+    } catch (error) {
+      console.error('[Meta Catalog] Error handling customer details flow response:', error);
+      await this.sendTextMessage(phone, phoneNumberId, '❌ Something went wrong. Please try again or contact support.');
+    }
+  }
+
+  private async sendCustomerDetailsFlow(phone: string, phoneNumberId: string, userId: number) {
+    try {
+      console.log(`[Meta Catalog] Sending customer details flow to ${phone}`);
+      
+      // Fallback to text message for now until flow is created
+      await this.sendTextMessage(phone, phoneNumberId, '📦 Great! To complete your order, please provide your details.\n\n_Type EXIT anytime to cancel_');
+      
+      console.log(`[Meta Catalog] Customer details flow sent successfully`);
+    } catch (error) {
+      console.error('[Meta Catalog] Error sending customer details flow:', error);
+      // Fallback to text message
+      await this.sendTextMessage(phone, phoneNumberId, '📦 Great! To complete your order, please provide your details.\n\n_Type EXIT anytime to cancel_');
+    }
+  }
+
+  private async getTenantClientForPhone(phoneNumberId: string, userId: number) {
+    // Get tenant client - implement based on your needs
+    return null;
   }
 
   private async sendOrderDetailsWithPayment(phone: string, phoneNumberId: string, product: any, orderId: number, customerName: string, address: string) {

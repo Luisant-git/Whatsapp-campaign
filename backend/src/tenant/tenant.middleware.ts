@@ -9,22 +9,28 @@ export class TenantMiddleware implements NestMiddleware {
   async use(req: Request, res: Response, next: NextFunction) {
     const path = req.originalUrl || req.url;
     
-    console.log('TenantMiddleware - Processing path:', path);
+    console.log('🔍 TenantMiddleware - Processing path:', path);
+    console.log('🔍 TenantMiddleware - Method:', req.method);
 
+    // ✅ EXPLICIT FLOW ROUTE BYPASS
     if (
+      path === '/customer-details-flow/health' ||
+      path === '/customer-details-flow/exchange' ||
+      path.startsWith('/customer-details-flow/') ||
+      path === '/meta/flows' ||
+      path === '/meta/flows/health' ||
+      path.startsWith('/meta/flows/') ||
       path.startsWith('/admin') ||
       path.startsWith('/analytics/admin') ||
       path.startsWith('/tenentnote') ||
       path.startsWith('/docs') ||
-      path.startsWith('/customer-details-flow') ||
-      path.startsWith('/meta/flows') ||
       path.startsWith('/webhooks')
     ) {
-      console.log('TenantMiddleware - Skipping tenant check for path:', path);
+      console.log('✅ TenantMiddleware - BYPASSING tenant check for path:', path);
       return next();
     }
     
-    console.log('TenantMiddleware - Applying tenant check for path:', path);
+    console.log('🔒 TenantMiddleware - Applying tenant check for path:', path);
 
     const session: any = (req as any).session;
     const origin = req.get('origin') || req.get('referer');

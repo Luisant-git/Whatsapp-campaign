@@ -86,6 +86,7 @@ export class AppModule implements NestModule {
         'meta/flows',
         'menu-permission/(.*)',  
         'menu-permission',
+        'customer-details-flow',
         'customer-details-flow/(.*)',
         'flow-appointments/(.*)',
           

@@ -21,6 +21,7 @@ export class CustomerDetailsFlowController {
 
   @Public()
   @Post('health')
+  @HttpCode(200)
   postHealth() {
     return {
       status: 'ok',

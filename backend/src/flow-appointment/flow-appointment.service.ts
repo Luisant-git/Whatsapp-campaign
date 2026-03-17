@@ -79,7 +79,7 @@ export class FlowAppointmentService {
       
       // Extract flow token to get tenant ID
       const flowToken = responseData.flow_token;
-      let targetTenantId = null;
+      let targetTenantId: number | null = null;
       
       if (flowToken) {
         const tokenParts = flowToken.split('_');

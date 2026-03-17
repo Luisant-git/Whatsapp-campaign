@@ -48,7 +48,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
     return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
   }
 
-  decryptRequest(encryptedFlowData: string, encryptedAesKey: string, initialVector: string): { data: any; aesKey: Buffer; iv: Buffer; isInit?: boolean } {
+  decryptRequest(encryptedFlowData: string, encryptedAesKey: string, initialVector: string): { data: any; aesKey: Buffer; iv: Buffer } {
     const aesKey = crypto.privateDecrypt(
       { 
         key: this.privateKey, 
@@ -62,10 +62,9 @@ sxEK+yx6I1EkGaK+/KWEpai7
     
     if (!encryptedFlowData) {
       return {
-        data: { action: 'INIT', version: '1.0' },
+        data: { action: 'INIT', version: '3.0' },
         aesKey,
-        iv,
-        isInit: true
+        iv
       };
     }
     
@@ -85,21 +84,11 @@ sxEK+yx6I1EkGaK+/KWEpai7
       decrypted = Buffer.concat([decrypted, decipher.final()]);
       
       const parsed = JSON.parse(decrypted.toString());
-      
-      if (parsed.action === 'INIT') {
-        return {
-          data: parsed,
-          aesKey,
-          iv,
-          isInit: true
-        };
-      }
     
       return {
         data: parsed,
         aesKey,
-        iv,
-        isInit: false
+        iv
       };
     } catch (error) {
       console.error('AES-GCM decryption failed:', error.message);

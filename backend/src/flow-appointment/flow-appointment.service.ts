@@ -99,19 +99,32 @@ export class FlowAppointmentService {
   }
   
   async getDepartments() {
-    const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
-    if (tenants.length > 0) {
-      const tenant = tenants[0];
-      const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-      const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+    try {
+      console.log('🔍 Getting departments from database...');
+      const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
+      console.log(`📊 Found ${tenants.length} active tenants`);
       
-      const departments = await (tenantClient as any).flowDepartment.findMany({
-        where: { isActive: true }
-      });
+      if (tenants.length > 0) {
+        const tenant = tenants[0];
+        console.log(`🏢 Using tenant: ${tenant.name} (ID: ${tenant.id})`);
+        
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+        
+        const departments = await (tenantClient as any).flowDepartment.findMany({
+          where: { isActive: true }
+        });
+        
+        console.log(`📋 Found ${departments.length} departments:`, departments);
+        return departments.map(d => ({ id: d.name, title: d.title }));
+      }
       
-      return departments.map(d => ({ id: d.name, title: d.title }));
+      console.log('⚠️ No active tenants found, returning empty array');
+      return [];
+    } catch (error) {
+      console.error('❌ Error getting departments:', error.message);
+      return [];
     }
-    return [];
   }
   
   async getLocations() {

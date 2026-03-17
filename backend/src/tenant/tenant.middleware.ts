@@ -16,7 +16,10 @@ export class TenantMiddleware implements NestMiddleware {
       path.startsWith('/admin') ||
       path.startsWith('/analytics/admin') ||
       path.startsWith('/tenentnote') ||
-      path.startsWith('/docs')
+      path.startsWith('/docs') ||
+      path.startsWith('/customer-details-flow') ||
+      path.startsWith('/meta/flows') ||
+      path.startsWith('/webhooks')
     ) {
       return next();
     }

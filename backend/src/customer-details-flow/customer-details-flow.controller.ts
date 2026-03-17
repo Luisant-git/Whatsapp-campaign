@@ -1,5 +1,6 @@
 import { Controller, Post, Body, HttpCode, Res, Get } from '@nestjs/common';
 import { CustomerDetailsFlowService } from '../whatsapp/flows/customer-details-flow.service';
+import { Public } from '../auth/public.decorator';
 
 @Controller('customer-details-flow')
 export class CustomerDetailsFlowController {
@@ -7,6 +8,7 @@ export class CustomerDetailsFlowController {
     private readonly customerDetailsFlowService: CustomerDetailsFlowService
   ) {}
 
+  @Public()
   @Get('health')
   getHealth() {
     return {
@@ -17,6 +19,7 @@ export class CustomerDetailsFlowController {
     };
   }
 
+  @Public()
   @Post('exchange')
   @HttpCode(200)
   async handleFlowExchange(@Body() body: any, @Res() res: any) {

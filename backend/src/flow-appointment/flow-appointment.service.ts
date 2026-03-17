@@ -143,8 +143,13 @@ export class FlowAppointmentService {
         orderBy: { createdAt: 'desc' },
       });
       
-      console.log(`📋 Found ${appointments.length} appointments for tenant ${userId}:`, appointments);
-      return appointments;
+      // Filter out empty appointments
+      const validAppointments = appointments.filter(apt => 
+        apt.department || apt.location || apt.date || apt.time || apt.name || apt.email
+      );
+      
+      console.log(`📋 Found ${appointments.length} total appointments, ${validAppointments.length} valid appointments for tenant ${userId}`);
+      return validAppointments;
     } catch (error) {
       console.error('❌ Error getting appointments for tenant', userId, ':', error.message);
       
@@ -161,9 +166,14 @@ export class FlowAppointmentService {
             orderBy: { createdAt: 'desc' },
           });
           
-          if (appointments.length > 0) {
-            console.log(`✅ Found ${appointments.length} appointments in tenant ${tenant.id} (${tenant.name})`);
-            return appointments;
+          // Filter out empty appointments
+          const validAppointments = appointments.filter(apt => 
+            apt.department || apt.location || apt.date || apt.time || apt.name || apt.email
+          );
+          
+          if (validAppointments.length > 0) {
+            console.log(`✅ Found ${validAppointments.length} valid appointments in tenant ${tenant.id} (${tenant.name})`);
+            return validAppointments;
           }
         } catch (tenantError) {
           console.log(`⚠️ No appointments in tenant ${tenant.id}:`, tenantError.message);

@@ -9,7 +9,22 @@ export class MetaFlowController {
 
   @Get()
   healthCheck() {
-    return { status: 'active', message: 'Meta Flow endpoint is ready' };
+    return { 
+      status: 'ok', 
+      message: 'Meta Flow endpoint is ready',
+      endpoint: '/meta/flows',
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  @Get('health')
+  getHealth() {
+    return {
+      status: 'ok',
+      message: 'Meta Flow API is working',
+      endpoint: '/meta/flows',
+      timestamp: new Date().toISOString()
+    };
   }
 
   @Post()

@@ -10,6 +10,7 @@ export class CustomerDetailsFlowController {
 
   @Public()
   @Get('health')
+  @Post('health')
   getHealth() {
     return {
       status: 'ok',

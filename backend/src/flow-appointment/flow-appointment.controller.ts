@@ -44,6 +44,24 @@ export class FlowAppointmentController {
     }
   }
 
+  @Delete('cleanup/empty')
+  @UseGuards(SessionGuard)
+  async cleanupEmptyAppointments(@Req() req: any) {
+    const userId = req.session.userId || req.session.user?.id;
+    try {
+      const deletedCount = await this.flowAppointmentService.cleanupEmptyAppointments(userId);
+      return {
+        success: true,
+        message: `Cleaned up ${deletedCount} empty appointment records`
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to cleanup empty appointments'
+      };
+    }
+  }
+
   @Post('exchange')
   @HttpCode(200)
   async handleFlowExchange(@Body() body: any, @Res() res: any) {

@@ -37,30 +37,34 @@ export class FlowAppointmentService {
       
       console.log('📋 Processed appointment data:', JSON.stringify(appointmentData, null, 2));
       
+      // Save to all active tenants to ensure it appears in the correct dashboard
       const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
       
-      if (tenants.length > 0) {
-        const tenant = tenants[0];
-        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-        
-        const appointmentRecord = {
-          department: appointmentData.department || appointmentData.selected_department || '',
-          location: appointmentData.location || appointmentData.selected_location || '',
-          date: appointmentData.date || appointmentData.selected_date || '',
-          time: appointmentData.time || appointmentData.selected_time || appointmentData.time_slot || '',
-          name: appointmentData.name || appointmentData.full_name || '',
-          email: appointmentData.email || appointmentData.email_address || '',
-          phone: appointmentData.phone || appointmentData.phone_number || '',
-          moreDetails: appointmentData.more_details || appointmentData.additional_details || appointmentData.details || null,
-        };
-        
-        console.log('💾 Saving appointment record:', JSON.stringify(appointmentRecord, null, 2));
-        
-        await (tenantClient as any).flowAppointment.create({
-          data: appointmentRecord,
-        });
-        console.log('✅ Flow appointment saved successfully');
+      for (const tenant of tenants) {
+        try {
+          const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+          const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+          
+          const appointmentRecord = {
+            department: appointmentData.department || appointmentData.selected_department || '',
+            location: appointmentData.location || appointmentData.selected_location || '',
+            date: appointmentData.date || appointmentData.selected_date || '',
+            time: appointmentData.time || appointmentData.selected_time || appointmentData.time_slot || '',
+            name: appointmentData.name || appointmentData.full_name || '',
+            email: appointmentData.email || appointmentData.email_address || '',
+            phone: appointmentData.phone || appointmentData.phone_number || '',
+            moreDetails: appointmentData.more_details || appointmentData.additional_details || appointmentData.details || null,
+          };
+          
+          console.log(`💾 Saving appointment record to tenant ${tenant.id}:`, JSON.stringify(appointmentRecord, null, 2));
+          
+          await (tenantClient as any).flowAppointment.create({
+            data: appointmentRecord,
+          });
+          console.log(`✅ Flow appointment saved successfully to tenant ${tenant.id}`);
+        } catch (tenantError) {
+          console.error(`❌ Error saving to tenant ${tenant.id}:`, tenantError.message);
+        }
       }
     } catch (error) {
       console.error('❌ Error saving flow appointment:', error);
@@ -70,7 +74,33 @@ export class FlowAppointmentService {
 
   async saveAppointmentFromWebhook(responseData: any, phoneNumber: string, phoneNumberId: string) {
     try {
+      console.log('📋 Flow response received - checking if appointment already exists');
       console.log('Raw responseData:', JSON.stringify(responseData, null, 2));
+      
+      // Extract flow token to get tenant ID
+      const flowToken = responseData.flow_token;
+      let targetTenantId = null;
+      
+      if (flowToken) {
+        const tokenParts = flowToken.split('_');
+        if (tokenParts.length >= 3) {
+          targetTenantId = parseInt(tokenParts[2]);
+          console.log(`🎯 Flow token indicates tenant ID: ${targetTenantId}`);
+        }
+      }
+      
+      // If we have appointment data in the response, it means the flow already saved it
+      // Don't create duplicate records
+      if (responseData.appointment_id || responseData.message === 'Appointment booked successfully!') {
+        console.log('✅ Appointment already processed by flow data exchange - skipping webhook save');
+        return;
+      }
+      
+      // Only save if we have actual appointment data (not just flow completion)
+      if (!responseData.department && !responseData.name && !responseData.date) {
+        console.log('⚠️ No appointment data in webhook response - skipping save');
+        return;
+      }
       
       const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
       
@@ -95,12 +125,12 @@ export class FlowAppointmentService {
               moreDetails: responseData.more_details || null,
             },
           });
-          console.log('✅ Flow appointment saved successfully');
+          console.log('✅ Flow appointment saved successfully via webhook');
           return;
         }
       }
     } catch (error) {
-      console.error('Error saving flow appointment:', error);
+      console.error('Error saving flow appointment from webhook:', error);
     }
   }
 
@@ -403,6 +433,30 @@ export class FlowAppointmentService {
         { id: '16:00', title: '4:00 PM' }
       ]
     };
+  }
+
+  async cleanupEmptyAppointments(userId: number) {
+    try {
+      const prisma = await this.getTenantClient(userId);
+      const result = await (prisma as any).flowAppointment.deleteMany({
+        where: {
+          AND: [
+            { department: '' },
+            { location: '' },
+            { date: '' },
+            { time: '' },
+            { name: '' },
+            { email: '' }
+          ]
+        }
+      });
+      
+      console.log(`🧹 Cleaned up ${result.count} empty appointment records for tenant ${userId}`);
+      return result.count;
+    } catch (error) {
+      console.error('Error cleaning up empty appointments:', error);
+      throw error;
+    }
   }
 
   private async getTenantClient(userId: number) {

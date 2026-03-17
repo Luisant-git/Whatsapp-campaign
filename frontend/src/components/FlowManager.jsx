@@ -9,8 +9,17 @@ const FlowManager = () => {
   const [flows, setFlows] = useState([]);
   const [triggers, setTriggers] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showSendModal, setShowSendModal] = useState(false);
   const [showBuilder, setShowBuilder] = useState(false);
   const [editingTrigger, setEditingTrigger] = useState(null);
+  const [sendFormData, setSendFormData] = useState({
+    phoneNumber: '',
+    flowId: '',
+    headerText: '',
+    bodyText: 'Click the button below to continue',
+    footerText: '',
+    ctaText: 'Start Flow'
+  });
   const [formData, setFormData] = useState({
     name: '',
     triggerWord: '',
@@ -101,6 +110,26 @@ const FlowManager = () => {
     }
   };
 
+  const handleSendFlow = async (e) => {
+    e.preventDefault();
+    try {
+      await flowTriggerAPI.sendFlowManually(sendFormData);
+      alert('Flow sent successfully!');
+      setSendFormData({
+        phoneNumber: '',
+        flowId: '',
+        headerText: '',
+        bodyText: 'Click the button below to continue',
+        footerText: '',
+        ctaText: 'Start Flow'
+      });
+      setShowSendModal(false);
+    } catch (error) {
+      console.error('Error sending flow:', error);
+      alert('Failed to send flow');
+    }
+  };
+
   return (
     <>
       {showBuilder ? (
@@ -113,6 +142,10 @@ const FlowManager = () => {
           <p className="page-subtitle">Create trigger-based flows that automatically respond to keywords</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="btn-secondary" onClick={() => setShowSendModal(true)}>
+            <Send size={18} />
+            <span>Send Flow</span>
+          </button>
           <button className="btn-secondary" onClick={() => setShowBuilder(true)}>
             <Workflow size={18} />
             <span>Build Flow</span>
@@ -314,6 +347,116 @@ const FlowManager = () => {
                 </button>
                 <button type="submit" className="btn-primary">
                   {editingTrigger ? 'Update Trigger' : 'Create Trigger'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showSendModal && (
+        <div className="modal-overlay" onClick={() => setShowSendModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Send Flow Manually</h2>
+              <button className="close-btn" onClick={() => setShowSendModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSendFlow} className="trigger-form">
+              <div className="form-group">
+                <label className="form-label">
+                  Phone Number <span className="required">*</span>
+                </label>
+                <input
+                  type="tel"
+                  className="form-input"
+                  value={sendFormData.phoneNumber}
+                  onChange={(e) => setSendFormData({ ...sendFormData, phoneNumber: e.target.value })}
+                  placeholder="e.g., 919360999351"
+                  required
+                />
+                <span className="form-hint">Enter phone number with country code (no + sign)</span>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  Flow <span className="required">*</span>
+                </label>
+                <select
+                  className="form-input"
+                  value={sendFormData.flowId}
+                  onChange={(e) => setSendFormData({ ...sendFormData, flowId: e.target.value })}
+                  required
+                >
+                  <option value="">Select a flow...</option>
+                  {flows.map((flow) => (
+                    <option key={flow.id} value={flow.id}>
+                      {flow.name} - {flow.description}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Header Text</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={sendFormData.headerText}
+                  onChange={(e) => setSendFormData({ ...sendFormData, headerText: e.target.value })}
+                  maxLength={60}
+                  placeholder="Optional header text"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Body Text</label>
+                <textarea
+                  className="form-textarea"
+                  value={sendFormData.bodyText}
+                  onChange={(e) => setSendFormData({ ...sendFormData, bodyText: e.target.value })}
+                  rows={3}
+                  maxLength={1024}
+                  placeholder="Message to show with the flow"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Footer Text</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={sendFormData.footerText}
+                  onChange={(e) => setSendFormData({ ...sendFormData, footerText: e.target.value })}
+                  maxLength={60}
+                  placeholder="Optional footer text"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  Button Text <span className="required">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={sendFormData.ctaText}
+                  onChange={(e) => setSendFormData({ ...sendFormData, ctaText: e.target.value })}
+                  maxLength={20}
+                  placeholder="e.g., Start Flow"
+                  required
+                />
+              </div>
+
+              <div className="form-actions">
+                <button type="button" className="btn-secondary" onClick={() => setShowSendModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary">
+                  <Send size={16} />
+                  Send Flow
                 </button>
               </div>
             </form>

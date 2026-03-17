@@ -131,7 +131,7 @@ export class FlowTriggerService {
     }
   }
 
-  // Send flow message via WhatsApp API
+  // Send flow message via WhatsApp API with complete data
   private async sendFlowMessage(phoneNumber: string, trigger: any, accessToken: string, phoneNumberId: string) {
     // Get tenant ID from phone number ID for session tracking
     const tenant = await this.centralPrisma.tenant.findFirst({
@@ -145,23 +145,43 @@ export class FlowTriggerService {
     // Create flow token for session tracking
     const flowToken = `flow_${Date.now()}_${tenant?.id || 'unknown'}_${Math.random().toString(36).substr(2, 9)}`;
 
+    // Get complete appointment data from database
+    const appointmentData = await this.getCompleteAppointmentData(tenant?.id);
+    
+    // Get user info if available (from contacts or previous interactions)
+    const userInfo = await this.getUserInfo(phoneNumber, tenant?.id);
+
     const actionParams: any = {
       flow_message_version: '3',
       flow_token: flowToken,
       flow_id: trigger.flowId,
       flow_cta: trigger.ctaText,
+      flow_action: 'data_exchange', // Use data_exchange to provide initial data
     };
 
-    // Add navigation if screen is specified
-    if (trigger.screenName && trigger.screenName !== 'SCREEN') {
-      actionParams.flow_action = 'navigate';
-      actionParams.flow_action_payload = {
-        screen: trigger.screenName
-      };
-    }
+    // Add complete data payload
+    actionParams.flow_action_payload = {
+      screen: trigger.screenName || 'APPOINTMENT',
+      data: {
+        // Pre-fill dropdown options
+        departments: appointmentData.departments,
+        locations: appointmentData.locations,
+        dates: appointmentData.dates,
+        time_slots: appointmentData.timeSlots,
+        
+        // Pre-fill user information if available
+        ...(userInfo.name && { name: userInfo.name }),
+        ...(userInfo.email && { email: userInfo.email }),
+        ...(userInfo.phone && { phone: userInfo.phone }),
+        
+        // Pre-select default values if desired
+        // department: 'sales', // Uncomment to pre-select
+        // location: 'new_york', // Uncomment to pre-select
+      }
+    };
 
     console.log(`[FlowTrigger] Flow sent → flowId:${trigger.flowId} screen:${trigger.screenName} token:${flowToken}`);
-    console.log('[FlowTrigger] Action params keys:', Object.keys(actionParams));
+    console.log('[FlowTrigger] Complete data payload:', JSON.stringify(actionParams.flow_action_payload.data, null, 2));
 
     const interactive: any = {
       type: 'flow',
@@ -207,7 +227,143 @@ export class FlowTriggerService {
     );
   }
   
-  private async getAppointmentData() {
+  // Get complete appointment data from database
+  private async getCompleteAppointmentData(tenantId?: number) {
+    try {
+      if (!tenantId) {
+        return this.getDefaultAppointmentData();
+      }
+
+      // Get tenant database client
+      const tenant = await this.centralPrisma.tenant.findUnique({ where: { id: tenantId } });
+      if (!tenant) {
+        return this.getDefaultAppointmentData();
+      }
+
+      const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+      const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+
+      // Get departments from database
+      const departments = await (tenantClient as any).flowDepartment.findMany({
+        where: { isActive: true },
+        select: { name: true, title: true }
+      });
+
+      // Get locations from database
+      const locations = await (tenantClient as any).flowLocation.findMany({
+        where: { isActive: true },
+        select: { name: true, title: true }
+      });
+
+      // Get time slots from database
+      const timeSlots = await (tenantClient as any).flowTimeSlot.findMany({
+        where: { isEnabled: true },
+        select: { time: true, title: true }
+      });
+
+      // Generate available dates (next 14 days)
+      const dates = this.generateAvailableDates(14);
+
+      return {
+        departments: departments.map(d => ({ id: d.name, title: d.title })),
+        locations: locations.map(l => ({ id: l.name, title: l.title })),
+        dates: dates,
+        timeSlots: timeSlots.map(t => ({ id: t.time, title: t.title }))
+      };
+    } catch (error) {
+      console.error('Error fetching complete appointment data:', error);
+      return this.getDefaultAppointmentData();
+    }
+  }
+
+  // Get user information from contacts or previous interactions
+  private async getUserInfo(phoneNumber: string, tenantId?: number) {
+    try {
+      if (!tenantId) {
+        return { phone: phoneNumber };
+      }
+
+      // Get tenant database client
+      const tenant = await this.centralPrisma.tenant.findUnique({ where: { id: tenantId } });
+      if (!tenant) {
+        return { phone: phoneNumber };
+      }
+
+      const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+      const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+
+      // Try to find user in contacts
+      const contact = await (tenantClient as any).contact.findFirst({
+        where: { 
+          OR: [
+            { phone: phoneNumber },
+            { phone: phoneNumber.replace(/^\+/, '') }, // Try without +
+            { phone: `+${phoneNumber}` } // Try with +
+          ]
+        },
+        select: { name: true, email: true, phone: true }
+      });
+
+      if (contact) {
+        return {
+          name: contact.name,
+          email: contact.email,
+          phone: contact.phone || phoneNumber
+        };
+      }
+
+      // Try to find in previous flow appointments
+      const previousAppointment = await (tenantClient as any).flowAppointment.findFirst({
+        where: { phone: phoneNumber },
+        orderBy: { createdAt: 'desc' },
+        select: { name: true, email: true, phone: true }
+      });
+
+      if (previousAppointment) {
+        return {
+          name: previousAppointment.name,
+          email: previousAppointment.email,
+          phone: previousAppointment.phone
+        };
+      }
+
+      return { phone: phoneNumber };
+    } catch (error) {
+      console.error('Error fetching user info:', error);
+      return { phone: phoneNumber };
+    }
+  }
+
+  // Generate available dates
+  private generateAvailableDates(days: number): Array<{id: string, title: string}> {
+    const dates: Array<{id: string, title: string}> = [];
+    const today = new Date();
+    
+    for (let i = 1; i <= days; i++) { // Start from tomorrow
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      
+      // Skip weekends if desired
+      // if (date.getDay() === 0 || date.getDay() === 6) continue;
+      
+      const dateStr = date.toISOString().split('T')[0];
+      const dateTitle = date.toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        month: 'short', 
+        day: '2-digit', 
+        year: 'numeric' 
+      });
+      
+      dates.push({
+        id: dateStr,
+        title: dateTitle
+      });
+    }
+    
+    return dates;
+  }
+  
+  private getAppointmentData() {
     // Get dynamic data from database
     try {
       // You should replace this with actual database calls
@@ -271,23 +427,26 @@ export class FlowTriggerService {
   
   private getDefaultAppointmentData() {
     return {
-      department: [
-        { id: 'shopping', title: 'Shopping & Groceries' },
-        { id: 'clothing', title: 'Clothing & Apparel' },
-        { id: 'beauty', title: 'Beauty & Personal Care' }
+      departments: [
+        { id: 'sales', title: 'Sales Department' },
+        { id: 'support', title: 'Customer Support' },
+        { id: 'technical', title: 'Technical Support' },
+        { id: 'billing', title: 'Billing & Accounts' }
       ],
-      location: [
-        { id: '1', title: "King's Cross, London" },
-        { id: '2', title: 'Oxford Street, London' }
+      locations: [
+        { id: 'new_york', title: 'New York Office' },
+        { id: 'london', title: 'London Office' },
+        { id: 'singapore', title: 'Singapore Office' },
+        { id: 'remote', title: 'Remote/Online' }
       ],
-      date: [
-        { id: '2024-01-01', title: 'Mon Jan 01 2024' },
-        { id: '2024-01-02', title: 'Tue Jan 02 2024' }
-      ],
-      time: [
-        { id: '10:30', title: '10:30' },
-        { id: '11:30', title: '11:30' },
-        { id: '12:30', title: '12:30' }
+      dates: this.generateAvailableDates(7),
+      timeSlots: [
+        { id: '09:00', title: '9:00 AM' },
+        { id: '10:00', title: '10:00 AM' },
+        { id: '11:00', title: '11:00 AM' },
+        { id: '14:00', title: '2:00 PM' },
+        { id: '15:00', title: '3:00 PM' },
+        { id: '16:00', title: '4:00 PM' }
       ]
     };
   }

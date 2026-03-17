@@ -45,6 +45,19 @@ const flowTriggerAPI = {
     return response.json();
   },
 
+  // Send flow manually to phone number
+  sendFlowManually: async (data) => {
+    const response = await fetch(`${API_BASE_URL}/flow-messages/send-manual`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+    return response.json();
+  },
+
   // Get trigger logs
   getTriggerLogs: async (id) => {
     const response = await fetch(`${API_BASE_URL}/flow-messages/triggers/${id}/logs`, {

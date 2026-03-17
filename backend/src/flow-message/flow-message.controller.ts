@@ -24,6 +24,13 @@ export class FlowMessageController {
     return this.flowMessageService.sendFlowToNumbers(sendFlowDto);
   }
 
+  @Post('send-manual')
+  @HttpCode(200)
+  @UseGuards(SessionGuard)
+  async sendFlowManually(@Session() session: any, @Body() data: any) {
+    return this.flowMessageService.sendFlowManually(session.user.id, data);
+  }
+
   @Get('sent-history')
   @UseGuards(SessionGuard)
   getSentHistory() {

@@ -175,6 +175,32 @@ export class FlowMessageService {
     );
   }
 
+  async sendFlowManually(userId: number, data: any) {
+    try {
+      const response = await this.sendSingleFlowMessage({
+        phoneNumber: data.phoneNumber,
+        flowId: data.flowId,
+        headerText: data.headerText || '',
+        bodyText: data.bodyText || 'Click the button below to continue',
+        footerText: data.footerText || '',
+        ctaText: data.ctaText || 'Start Flow',
+        screenName: 'APPOINTMENT', // Default to APPOINTMENT screen
+        screenData: {},
+        purpose: 'manual', // Manual flow trigger
+        tenantId: userId.toString()
+      });
+
+      return {
+        success: true,
+        messageId: response.data.messages[0].id,
+        phoneNumber: data.phoneNumber
+      };
+    } catch (error: any) {
+      console.error('Error sending manual flow:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.error?.message || 'Failed to send flow');
+    }
+  }
+
   getSentHistory() {
     // This would typically fetch from database
     return {

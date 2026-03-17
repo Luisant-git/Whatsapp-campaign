@@ -17,6 +17,8 @@ export class TenantMiddleware implements NestMiddleware {
       path === '/customer-details-flow/health' ||
       path === '/customer-details-flow/exchange' ||
       path.startsWith('/customer-details-flow/') ||
+      path === '/health' ||  // ← Added for nginx stripped paths
+      path === '/exchange' || // ← Added for nginx stripped paths
       path === '/meta/flows' ||
       path === '/meta/flows/health' ||
       path.startsWith('/meta/flows/') ||

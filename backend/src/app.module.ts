@@ -25,6 +25,7 @@ import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
 import { MetaFlowModule } from './meta-flow/meta-flow.module';
 import { FlowMessageModule } from './flow-message/flow-message.module';
 import { FlowAppointmentModule } from './flow-appointment/flow-appointment.module';
+import { CustomerDetailsFlowModule } from './customer-details-flow/customer-details-flow.module';
 import { SubuserMenuPermissionModule } from './subuser-menu-permission/subuser-menu-permission.module';
 import { CronModule } from './cron/cron.module';
 import { RunDailyAutomationModule } from './run-daily-automation/run-daily-automation.module';
@@ -56,6 +57,7 @@ import { TenentnoteModule } from './tenentnote/tenentnote.module';
     MetaFlowModule,
     FlowMessageModule,
     FlowAppointmentModule,
+    CustomerDetailsFlowModule,
     SubuserMenuPermissionModule,
    
     RunDailyAutomationModule,
@@ -83,8 +85,9 @@ export class AppModule implements NestModule {
         'webhooks/(.*)',
         'meta/flows',
         'menu-permission/(.*)',  
-        'menu-permission',  
-        
+        'menu-permission',
+        'customer-details-flow/(.*)',
+        'flow-appointments/(.*)',
           
       )
       .forRoutes('*');

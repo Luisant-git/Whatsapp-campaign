@@ -74,22 +74,20 @@ export class AppModule implements NestModule {
       .apply(TenantMiddleware)
       // .apply(DomainTenantMiddleware)
       .exclude(
-        'admin/(.*)',
-        'user/login',
-        'user/register',
-        'subscription',
-        'subscription/(.*)',
-        'test/(.*)',
-        'whatsapp/webhook',
-        'whatsapp/webhook/(.*)',
-        'webhooks/(.*)',
-        'meta/flows',
-        'menu-permission/(.*)',  
-        'menu-permission',
-        'customer-details-flow',
-        'customer-details-flow/(.*)',
-        'flow-appointments/(.*)',
-          
+        { path: 'admin/(.*)', method: RequestMethod.ALL },
+        { path: 'user/login', method: RequestMethod.ALL },
+        { path: 'user/register', method: RequestMethod.ALL },
+        { path: 'subscription', method: RequestMethod.ALL },
+        { path: 'subscription/(.*)', method: RequestMethod.ALL },
+        { path: 'test/(.*)', method: RequestMethod.ALL },
+        { path: 'whatsapp/webhook', method: RequestMethod.ALL },
+        { path: 'whatsapp/webhook/(.*)', method: RequestMethod.ALL },
+        { path: 'webhooks/(.*)', method: RequestMethod.ALL },
+        { path: 'meta/flows', method: RequestMethod.ALL },
+        { path: 'menu-permission/(.*)', method: RequestMethod.ALL },
+        { path: 'menu-permission', method: RequestMethod.ALL },
+        { path: 'customer-details-flow*', method: RequestMethod.ALL },
+        { path: 'flow-appointments/(.*)', method: RequestMethod.ALL },
       )
       .forRoutes('*');
   }

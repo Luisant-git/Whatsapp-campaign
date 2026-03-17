@@ -27,13 +27,12 @@ export class FeedbackFlowHandler implements FlowHandler {
     switch (screen) {
       case 'FEEDBACK':
         return {
-          version: '3.0',
+          screen: 'FEEDBACK',
           data: await this.getInitialData()
         };
 
       case 'DETAILS':
         return {
-          version: '3.0',
           screen: 'SUMMARY',
           data: {
             summary: `Rating: ${data.rating}/5\\nCategory: ${data.category}\\nComments: ${data.comments}\\n\\nName: ${data.name}\\nEmail: ${data.email}`,
@@ -45,7 +44,10 @@ export class FeedbackFlowHandler implements FlowHandler {
         return this.processSubmission(data, session);
 
       default:
-        return { version: '3.0', data: {} };
+        return { 
+          screen: 'FEEDBACK',
+          data: {} 
+        };
     }
   }
 
@@ -55,18 +57,21 @@ export class FeedbackFlowHandler implements FlowHandler {
       console.log('Saving feedback:', data);
       
       return {
-        version: '3.0',
         screen: 'SUCCESS',
         data: {
-          message: 'Thank you for your feedback!'
+          extension_message_response: {
+            params: {
+              flow_token: session.flowToken || 'completed',
+              message: 'Thank you for your feedback!'
+            }
+          }
         }
       };
     } catch (error) {
       return {
-        version: '3.0',
         screen: 'SUMMARY',
         data: {
-          error: 'Failed to save feedback'
+          error_message: 'Failed to save feedback'
         }
       };
     }

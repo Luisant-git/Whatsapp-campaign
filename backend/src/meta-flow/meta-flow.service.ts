@@ -133,7 +133,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
     console.log('==================');
 
     if (action === 'INIT' || action === 'ping') {
-      return { version: '3.0', data: { status: 'active' } };
+      return { data: { status: 'active' } };
     }
     
     if (action === 'data_exchange') {
@@ -148,8 +148,8 @@ sxEK+yx6I1EkGaK+/KWEpai7
         if (!tenant) {
           console.error(`❌ Tenant not found for phone_number_id: ${phoneNumberId}`);
           return {
-            version: '3.0',
-            data: { error: 'Tenant not found' }
+            screen: 'APPOINTMENT',
+            data: { error_message: 'Tenant not found' }
           };
         }
         
@@ -167,8 +167,8 @@ sxEK+yx6I1EkGaK+/KWEpai7
       } else {
         console.error('❌ No phone_number_id or flow_token provided for tenant resolution');
         return {
-          version: '3.0',
-          data: { error: 'Cannot resolve tenant' }
+          screen: 'APPOINTMENT',
+          data: { error_message: 'Cannot resolve tenant' }
         };
       }
       
@@ -187,8 +187,8 @@ sxEK+yx6I1EkGaK+/KWEpai7
       } catch (error) {
         console.error('❌ Flow data exchange error:', error.message);
         return {
-          version: '3.0',
-          data: { error: 'Failed to process request' }
+          screen: 'APPOINTMENT',
+          data: { error_message: 'Failed to process request' }
         };
       }
       
@@ -200,7 +200,6 @@ sxEK+yx6I1EkGaK+/KWEpai7
         const locTitle = await this.flowAppointmentService.getLocationTitle(data.location);
         
         return {
-          version: '3.0',
           screen: 'SUMMARY',
           data: {
             summary: `${deptTitle} at ${locTitle} on ${data.date} at ${data.time}\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}`,
@@ -222,32 +221,36 @@ sxEK+yx6I1EkGaK+/KWEpai7
           console.log('✅ Appointment saved successfully');
           
           const response = { 
-            version: '3.0',
             screen: 'SUCCESS',
-            data: {}
+            data: {
+              extension_message_response: {
+                params: {
+                  flow_token: data.flow_token || 'completed'
+                }
+              }
+            }
           };
           console.log('Sending response:', JSON.stringify(response));
           return response;
         } catch (error) {
           console.error('❌ Failed to save appointment:', error.message);
           return {
-            version: '3.0',
             screen: 'SUMMARY',
             data: {
-              error: 'Failed to save appointment'
+              error_message: 'Failed to save appointment'
             }
           };
         }
       }
       
       return { 
-        version: '3.0',
+        screen: 'APPOINTMENT',
         data: data || {}
       };
     }
     
     return { 
-      version: '3.0',
+      screen: 'APPOINTMENT',
       data: data || {}
     };
   }

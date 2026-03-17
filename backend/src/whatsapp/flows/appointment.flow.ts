@@ -26,7 +26,7 @@ export class AppointmentFlowHandler implements FlowHandler {
     switch (screen) {
       case 'APPOINTMENT':
         return {
-          version: '3.0',
+          screen: 'APPOINTMENT',
           data: await this.getInitialData()
         };
 
@@ -35,7 +35,6 @@ export class AppointmentFlowHandler implements FlowHandler {
         const locTitle = await this.flowAppointmentService.getLocationTitle(data.location);
         
         return {
-          version: '3.0',
           screen: 'SUMMARY',
           data: {
             summary: `${deptTitle} at ${locTitle} on ${data.date} at ${data.time}\\n\\nName: ${data.name}\\nEmail: ${data.email}\\nPhone: ${data.phone}`,
@@ -53,7 +52,10 @@ export class AppointmentFlowHandler implements FlowHandler {
         return this.processSubmission(data, session);
 
       default:
-        return { version: '3.0', data: {} };
+        return { 
+          screen: 'APPOINTMENT',
+          data: {} 
+        };
     }
   }
 
@@ -62,16 +64,20 @@ export class AppointmentFlowHandler implements FlowHandler {
       await this.flowAppointmentService.saveAppointment(data, 1);
       
       return {
-        version: '3.0',
         screen: 'SUCCESS',
-        data: {}
+        data: {
+          extension_message_response: {
+            params: {
+              flow_token: session.flowToken || 'completed'
+            }
+          }
+        }
       };
     } catch (error) {
       return {
-        version: '3.0',
         screen: 'SUMMARY',
         data: {
-          error: 'Failed to save appointment'
+          error_message: 'Failed to save appointment'
         }
       };
     }

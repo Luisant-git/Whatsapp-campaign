@@ -32,13 +32,12 @@ export class LeadFlowHandler implements FlowHandler {
     switch (screen) {
       case 'LEAD_CAPTURE':
         return {
-          version: '3.0',
+          screen: 'LEAD_CAPTURE',
           data: await this.getInitialData()
         };
 
       case 'DETAILS':
         return {
-          version: '3.0',
           screen: 'SUMMARY',
           data: {
             summary: `Interest: ${data.interest}\\nCompany: ${data.company}\\nSize: ${data.company_size}\\nBudget: ${data.budget}\\n\\nName: ${data.name}\\nEmail: ${data.email}\\nPhone: ${data.phone}`,
@@ -50,7 +49,10 @@ export class LeadFlowHandler implements FlowHandler {
         return this.processSubmission(data, session);
 
       default:
-        return { version: '3.0', data: {} };
+        return { 
+          screen: 'LEAD_CAPTURE',
+          data: {} 
+        };
     }
   }
 
@@ -60,18 +62,21 @@ export class LeadFlowHandler implements FlowHandler {
       console.log('Saving lead:', data);
       
       return {
-        version: '3.0',
         screen: 'SUCCESS',
         data: {
-          message: 'Thank you! Our team will contact you soon.'
+          extension_message_response: {
+            params: {
+              flow_token: session.flowToken || 'completed',
+              message: 'Thank you! Our team will contact you soon.'
+            }
+          }
         }
       };
     } catch (error) {
       return {
-        version: '3.0',
         screen: 'SUMMARY',
         data: {
-          error: 'Failed to save lead information'
+          error_message: 'Failed to save lead information'
         }
       };
     }

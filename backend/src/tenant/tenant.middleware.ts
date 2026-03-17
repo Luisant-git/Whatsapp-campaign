@@ -7,10 +7,9 @@ export class TenantMiddleware implements NestMiddleware {
   constructor(private centralPrisma: CentralPrismaService) { }
 
   async use(req: Request, res: Response, next: NextFunction) {
-
-
-
     const path = req.originalUrl || req.url;
+    
+    console.log('TenantMiddleware - Processing path:', path);
 
     if (
       path.startsWith('/admin') ||
@@ -21,8 +20,11 @@ export class TenantMiddleware implements NestMiddleware {
       path.startsWith('/meta/flows') ||
       path.startsWith('/webhooks')
     ) {
+      console.log('TenantMiddleware - Skipping tenant check for path:', path);
       return next();
     }
+    
+    console.log('TenantMiddleware - Applying tenant check for path:', path);
 
     const session: any = (req as any).session;
     const origin = req.get('origin') || req.get('referer');

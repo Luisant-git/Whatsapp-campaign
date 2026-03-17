@@ -56,6 +56,36 @@ export class FlowAppointmentController {
       });
     }
     
+    // Handle INIT action - provide initial data for the flow
+    if (action === 'INIT') {
+      try {
+        const departments = await this.flowAppointmentService.getDepartments();
+        const locations = await this.flowAppointmentService.getLocations();
+        const timeSlots = await this.flowAppointmentService.getTimeSlots();
+        
+        console.log('Providing initial data:', { departments, locations, timeSlots });
+        
+        return res.status(200).json({
+          screen: 'APPOINTMENT',
+          data: {
+            departments,
+            locations,
+            time_slots: timeSlots
+          }
+        });
+      } catch (error) {
+        console.error('Error getting initial data:', error);
+        return res.status(200).json({
+          screen: 'APPOINTMENT',
+          data: {
+            departments: [],
+            locations: [],
+            time_slots: []
+          }
+        });
+      }
+    }
+    
     if (action === 'data_exchange' && screen === 'SUMMARY') {
       try {
         await this.flowAppointmentService.saveAppointmentFromFlow(data);

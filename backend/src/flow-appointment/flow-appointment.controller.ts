@@ -10,7 +10,16 @@ export class FlowAppointmentController {
   @UseGuards(SessionGuard)
   async getAppointments(@Req() req: any) {
     const userId = req.session.userId || req.session.user?.id;
+    console.log('🔍 Getting appointments for user ID:', userId);
+    console.log('📋 Session details:', {
+      userId: req.session.userId,
+      user: req.session.user,
+      sessionId: req.sessionID
+    });
+    
     const appointments = await this.flowAppointmentService.getAppointments(userId);
+    console.log('📊 Found appointments:', appointments?.length || 0);
+    
     return {
       success: true,
       appointments: appointments || []

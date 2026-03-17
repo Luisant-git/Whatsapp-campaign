@@ -10,8 +10,18 @@ export class CustomerDetailsFlowController {
 
   @Public()
   @Get('health')
-  @Post('health')
   getHealth() {
+    return {
+      status: 'ok',
+      message: 'Customer Details Flow API is working',
+      endpoint: '/customer-details-flow/exchange',
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  @Public()
+  @Post('health')
+  postHealth() {
     return {
       status: 'ok',
       message: 'Customer Details Flow API is working',

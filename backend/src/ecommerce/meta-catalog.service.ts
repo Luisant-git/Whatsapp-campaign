@@ -350,12 +350,16 @@ export class MetaCatalogService {
       await this.sendCustomerDetailsConfirmation(phone, phoneNumberId, existingCustomer);
     } else {
       // Send customer details flow for new customer
-      await this.flowTriggerService.sendFlowMessage({
-        to: phone,
-        phoneNumberId,
-        flowId: process.env.CUSTOMER_FLOW_ID,
-        flowToken: `order_${Date.now()}`
-      });
+      if (process.env.CUSTOMER_FLOW_ID) {
+        await this.flowTriggerService.sendFlowMessage({
+          to: phone,
+          phoneNumberId,
+          flowId: process.env.CUSTOMER_FLOW_ID,
+          flowToken: `order_${Date.now()}`
+        });
+      } else {
+        await this.sendTextMessage(phone, phoneNumberId, '📦 Great! To complete your order, please provide your details.\n\n_Type EXIT anytime to cancel_');
+      }
     }
   }
 
@@ -393,12 +397,16 @@ export class MetaCatalogService {
             customerPincode: undefined,
             step: 'awaiting_flow_response' 
           }, userId);
-          await this.flowTriggerService.sendFlowMessage({
-            to: phone,
-            phoneNumberId,
-            flowId: process.env.CUSTOMER_FLOW_ID,
-            flowToken: `order_${Date.now()}`
-          });
+          if (process.env.CUSTOMER_FLOW_ID) {
+            await this.flowTriggerService.sendFlowMessage({
+              to: phone,
+              phoneNumberId,
+              flowId: process.env.CUSTOMER_FLOW_ID,
+              flowToken: `order_${Date.now()}`
+            });
+          } else {
+            await this.sendTextMessage(phone, phoneNumberId, '🎁 Ordering for someone else!\n\nPlease provide recipient\'s full name:');
+          }
           return true;
         }
         return true;

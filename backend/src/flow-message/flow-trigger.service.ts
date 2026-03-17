@@ -149,7 +149,7 @@ export class FlowTriggerService {
 
     try {
       console.log(`[FlowTrigger] Sending flow message to ${phoneNumber}`);
-      const response = await this.sendFlowMessage(phoneNumber, trigger, accessToken, phoneNumberId);
+      const response = await this.sendFlowMessageInternal(phoneNumber, trigger, accessToken, phoneNumberId);
       console.log(`[FlowTrigger] Flow sent successfully:`, response.data);
       
       // Log success
@@ -182,7 +182,7 @@ export class FlowTriggerService {
   }
 
   // Send flow message via WhatsApp API with complete data
-  private async sendFlowMessage(phoneNumber: string, trigger: any, accessToken: string, phoneNumberId: string) {
+  private async sendFlowMessageInternal(phoneNumber: string, trigger: any, accessToken: string, phoneNumberId: string) {
     // Get tenant ID from phone number ID for session tracking
     const tenant = await this.centralPrisma.tenant.findFirst({
       where: { phoneNumberId: phoneNumberId }

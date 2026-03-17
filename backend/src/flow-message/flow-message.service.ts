@@ -84,12 +84,14 @@ export class FlowMessageService {
         const response = await this.sendSingleFlowMessage({
           phoneNumber,
           flowId: data.flowId,
-          headerText: data.headerText || 'Flow Message',
-          bodyText: data.bodyText || 'Click the button below to start the Flow experience!',
-          footerText: data.footerText || 'Powered by Meta Flow',
-          ctaText: data.ctaText || 'Start Flow',
-          screenName: data.screenName || 'SCREEN',
-          screenData: data.screenData || {}
+          headerText: data.headerText || 'Book an Appointment',
+          bodyText: data.bodyText || 'Click the button below to book your appointment!',
+          footerText: data.footerText || 'Powered by Luisant',
+          ctaText: data.ctaText || 'Book Now',
+          screenName: data.screenName || 'APPOINTMENT',
+          screenData: data.screenData || {},
+          purpose: 'appointment', // Add purpose for proper flow token generation
+          tenantId: '1' // Default tenant ID, should be dynamic in production
         });
 
         results.push({

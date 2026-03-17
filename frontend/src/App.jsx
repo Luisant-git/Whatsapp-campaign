@@ -51,6 +51,7 @@ import Blacklist from "./components/BlackList";
 import CreateUser from "./components/CreateUser";
 import UngroupedContact from "./components/UngroupedContact";
 import FlowManager from "./components/FlowManager";
+import FlowAppointments from "./components/FlowAppointments";
 import TemplateManager from "./components/TemplateManager";
 
 import "./App.css";

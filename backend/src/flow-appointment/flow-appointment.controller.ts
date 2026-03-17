@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Req, HttpCode, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Req, HttpCode, Res, Delete, Param } from '@nestjs/common';
 import { FlowAppointmentService } from './flow-appointment.service';
 import { SessionGuard } from '../auth/session.guard';
 
@@ -10,7 +10,29 @@ export class FlowAppointmentController {
   @UseGuards(SessionGuard)
   async getAppointments(@Req() req: any) {
     const userId = req.session.userId || req.session.user?.id;
-    return this.flowAppointmentService.getAppointments(userId);
+    const appointments = await this.flowAppointmentService.getAppointments(userId);
+    return {
+      success: true,
+      appointments: appointments || []
+    };
+  }
+
+  @Delete(':id')
+  @UseGuards(SessionGuard)
+  async deleteAppointment(@Param('id') id: string, @Req() req: any) {
+    const userId = req.session.userId || req.session.user?.id;
+    try {
+      await this.flowAppointmentService.deleteAppointment(parseInt(id), userId);
+      return {
+        success: true,
+        message: 'Appointment deleted successfully'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to delete appointment'
+      };
+    }
   }
 
   @Post('exchange')

@@ -98,6 +98,13 @@ export class FlowAppointmentService {
     });
   }
   
+  async deleteAppointment(appointmentId: number, userId: number) {
+    const prisma = await this.getTenantClient(userId);
+    return (prisma as any).flowAppointment.delete({
+      where: { id: appointmentId }
+    });
+  }
+  
   async getDepartments() {
     try {
       console.log('🔍 Getting departments from database...');

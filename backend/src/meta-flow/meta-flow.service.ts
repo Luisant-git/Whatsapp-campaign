@@ -213,13 +213,13 @@ sxEK+yx6I1EkGaK+/KWEpai7
     }
     
     if (action === 'data_exchange') {
-      // For Flow Builder testing, handle screens directly without session management
-      if (flow_token && flow_token.startsWith('flows-builder-')) {
-        console.log('🧪 Flow Builder test mode - handling directly');
+      // Handle all flow data exchange requests directly (both Flow Builder and real flows)
+      console.log(`📤 Processing ${screen} screen for data exchange`);
+      
+      if (screen === 'DETAILS') {
+        console.log('📝 Processing DETAILS screen - navigating to SUMMARY');
         
-        if (screen === 'DETAILS') {
-          console.log('📝 Processing DETAILS screen - navigating to SUMMARY');
-          
+        try {
           // Get department and location titles
           const deptTitle = await this.flowAppointmentService.getDepartmentTitle(data.department);
           const locTitle = await this.flowAppointmentService.getLocationTitle(data.location);
@@ -237,97 +237,111 @@ sxEK+yx6I1EkGaK+/KWEpai7
               phone: data.phone
             }
           };
-        }
-        
-        if (screen === 'SUMMARY') {
-          try {
-            console.log('💾 Saving appointment:', data);
-            await this.flowAppointmentService.saveAppointment(data, 1);
-            console.log('✅ Appointment saved successfully');
-            
-            return {
-              screen: 'SUCCESS',
-              data: {
-                extension_message_response: {
-                  params: {
-                    flow_token: flow_token || 'completed'
-                  }
-                }
-              }
-            };
-          } catch (error) {
-            console.error('❌ Failed to save appointment:', error.message);
-            return {
-              screen: 'SUMMARY',
-              data: {
-                error_message: 'Failed to save appointment'
-              }
-            };
-          }
-        }
-        
-        // Default fallback for Flow Builder
-        return {
-          screen: 'APPOINTMENT',
-          data: {}
-        };
-      }
-      
-      // Regular flow processing with session management
-      // Resolve tenant from phone_number_id or flow_token
-      let tenantId: string;
-      
-      if (phoneNumberId) {
-        const tenant = await this.centralPrisma.tenant.findFirst({
-          where: { phoneNumberId: phoneNumberId }
-        });
-        
-        if (!tenant) {
-          console.error(`❌ Tenant not found for phone_number_id: ${phoneNumberId}`);
+        } catch (error) {
+          console.error('❌ Error processing DETAILS:', error.message);
           return {
-            screen: 'APPOINTMENT',
-            data: { error_message: 'Tenant not found' }
+            screen: 'DETAILS',
+            data: {
+              error_message: 'Failed to process appointment details'
+            }
           };
         }
+      }
+      
+      if (screen === 'SUMMARY') {
+        console.log('💾 Processing SUMMARY screen - saving appointment');
         
-        tenantId = tenant.id.toString();
-        console.log(`✅ Resolved tenant: ${tenantId} from phone_number_id: ${phoneNumberId}`);
-      } else if (flow_token) {
-        // Extract tenant from flow token pattern: purpose_timestamp_tenantId_random
-        const tokenParts = flow_token.split('_');
-        if (tokenParts.length >= 3) {
-          tenantId = tokenParts[2] || '1';
-        } else {
-          tenantId = '1'; // fallback
+        try {
+          // Extract tenant ID from flow token or default to 1
+          let tenantId = 1;
+          if (flow_token && flow_token.includes('_')) {
+            const tokenParts = flow_token.split('_');
+            if (tokenParts.length >= 3) {
+              tenantId = parseInt(tokenParts[2]) || 1;
+            }
+          }
+          
+          console.log(`💾 Saving appointment for tenant: ${tenantId}`, data);
+          await this.flowAppointmentService.saveAppointment(data, tenantId);
+          console.log('✅ Appointment saved successfully');
+          
+          return {
+            screen: 'SUCCESS',
+            data: {
+              extension_message_response: {
+                params: {
+                  flow_token: flow_token || 'completed',
+                  appointment_id: Date.now().toString(),
+                  message: 'Appointment booked successfully!'
+                }
+              }
+            }
+          };
+        } catch (error) {
+          console.error('❌ Failed to save appointment:', error.message);
+          return {
+            screen: 'SUMMARY',
+            data: {
+              ...data,
+              error_message: 'Failed to save appointment. Please try again.'
+            }
+          };
         }
-        console.log(`✅ Extracted tenant: ${tenantId} from flow_token: ${flow_token}`);
-      } else {
-        console.error('❌ No phone_number_id or flow_token provided for tenant resolution');
-        return {
-          screen: 'APPOINTMENT',
-          data: { error_message: 'Cannot resolve tenant' }
-        };
       }
       
-      console.log(`📤 Processing ${screen} screen for tenant: ${tenantId}`);
-      
-      try {
-        const response = await this.flowManager.handleFlowDataExchange(
-          flow_token,
-          screen,
-          data,
-          tenantId
-        );
+      // Handle other screens or unknown screens
+      if (screen === 'APPOINTMENT' || !screen) {
+        console.log('📅 Processing APPOINTMENT screen - returning initial data');
         
-        console.log('📤 Flow response:', response);
-        return response;
-      } catch (error) {
-        console.error('❌ Flow data exchange error:', error.message);
-        return {
-          screen: 'APPOINTMENT',
-          data: { error_message: 'Failed to process request' }
-        };
+        try {
+          // Get dynamic data from database
+          const departments = await this.flowAppointmentService.getDepartments();
+          const locations = await this.flowAppointmentService.getLocations();
+          const timeSlots = await this.flowAppointmentService.getTimeSlots();
+          const dates = this.generateDates(7);
+          
+          const appointmentData = {
+            department: departments.length > 0 ? departments : [
+              { id: 'sales', title: 'Sales' },
+              { id: 'support', title: 'Support' },
+              { id: 'technical', title: 'Technical' }
+            ],
+            location: locations.length > 0 ? locations : [
+              { id: 'new_york', title: 'New York Office' },
+              { id: 'london', title: 'London Office' }
+            ],
+            date: dates,
+            time: timeSlots.length > 0 ? timeSlots.filter(slot => slot.enabled !== false) : [
+              { id: '10:30', title: '10:30 AM' },
+              { id: '11:30', title: '11:30 AM' },
+              { id: '14:30', title: '2:30 PM' },
+              { id: '15:30', title: '3:30 PM' }
+            ]
+          };
+          
+          return {
+            screen: 'APPOINTMENT',
+            data: appointmentData
+          };
+        } catch (error) {
+          console.error('❌ Error loading appointment data:', error.message);
+          return {
+            screen: 'APPOINTMENT',
+            data: {
+              error_message: 'Failed to load appointment options'
+            }
+          };
+        }
       }
+      
+      // Default fallback for unknown screens
+      console.log(`❓ Unknown screen: ${screen}, returning to APPOINTMENT`);
+      return {
+        screen: 'APPOINTMENT',
+        data: {
+          error_message: `Unknown screen: ${screen}`
+        }
+      };
     }
   }
   

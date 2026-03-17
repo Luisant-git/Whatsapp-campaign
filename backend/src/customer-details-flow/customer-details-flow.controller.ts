@@ -55,6 +55,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
   async postHealth(@Body() body: any, @Headers() headers: any, @Res() res: any) {
     console.log('🔥 HEALTH CHECK REQUEST RECEIVED!');
     console.log('Body keys:', Object.keys(body));
+    console.log('Full body:', JSON.stringify(body, null, 2));
     console.log('Is encrypted request:', this.isEncryptedRequest(body));
 
     try {
@@ -64,45 +65,33 @@ sxEK+yx6I1EkGaK+/KWEpai7
         }
       };
 
-      // Handle encrypted vs unencrypted requests
-      if (this.isEncryptedRequest(body)) {
-        console.log('🔐 Processing encrypted health check (PRODUCTION MODE)...');
-        const { aesKey, iv } = this.decryptRequest(
-          body.encrypted_flow_data || '',
-          body.encrypted_aes_key,
-          body.initial_vector
-        );
-        
-        console.log('📤 Sending encrypted health response:', JSON.stringify(healthResponse, null, 2));
-        
-        // Encrypt and return response as Base64 string
-        const encryptedResponse = this.encryptResponse(healthResponse, aesKey, iv);
-        res.setHeader('Content-Type', 'text/plain');
-        return res.send(encryptedResponse);
-      } else {
-        console.log('🔓 Processing unencrypted health check (TEST MODE)...');
-        console.log('📤 Sending unencrypted health response:', JSON.stringify(healthResponse, null, 2));
-        
-        return res.json(healthResponse);
-      }
+      // Always return Base64 encoded response for health checks
+      const base64Response = Buffer.from(JSON.stringify(healthResponse)).toString('base64');
+      console.log('📤 Sending Base64 health response:', base64Response);
+      
+      res.setHeader('Content-Type', 'text/plain');
+      return res.send(base64Response);
 
     } catch (error) {
       console.error('❌ Health check error:', error.message);
       console.error('Stack:', error.stack);
       
-      // Return basic health response on error
-      return res.json({
+      // Return basic health response as Base64 on error
+      const errorResponse = {
         data: {
           status: 'active'
         }
-      });
+      };
+      const base64ErrorResponse = Buffer.from(JSON.stringify(errorResponse)).toString('base64');
+      res.setHeader('Content-Type', 'text/plain');
+      return res.send(base64ErrorResponse);
     }
   }
 
   @Public()
   @Post('exchange')
   @HttpCode(200)
-  async handleFlowExchange(@Body() body: any, @Headers() headers: any) {
+  async handleFlowExchange(@Body() body: any, @Headers() headers: any, @Res() res: any) {
     console.log('🔥 CUSTOMER DETAILS FLOW REQUEST RECEIVED!');
     console.log('Body keys:', Object.keys(body));
     console.log('Is encrypted request:', this.isEncryptedRequest(body));
@@ -125,8 +114,10 @@ sxEK+yx6I1EkGaK+/KWEpai7
         const response = await this.processFlowRequest(requestData);
         console.log('📤 Sending encrypted response:', JSON.stringify(response, null, 2));
         
-        // Encrypt and return response
-        return this.encryptResponse(response, aesKey, iv);
+        // Encrypt and return response as Base64 string
+        const encryptedResponse = this.encryptResponse(response, aesKey, iv);
+        res.setHeader('Content-Type', 'text/plain');
+        return res.send(encryptedResponse);
       } else {
         console.log('🔓 Processing unencrypted request (TEST MODE)...');
         requestData = body;
@@ -136,7 +127,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
         const response = await this.processFlowRequest(requestData);
         console.log('📤 Sending unencrypted response:', JSON.stringify(response, null, 2));
         
-        return response;
+        return res.json(response);
       }
 
     } catch (error) {
@@ -154,14 +145,16 @@ sxEK+yx6I1EkGaK+/KWEpai7
             body.encrypted_aes_key,
             body.initial_vector
           );
-          return this.encryptResponse(errorResponse, aesKey, iv);
+          const encryptedErrorResponse = this.encryptResponse(errorResponse, aesKey, iv);
+          res.setHeader('Content-Type', 'text/plain');
+          return res.send(encryptedErrorResponse);
         } catch (encryptError) {
           console.error('❌ Failed to encrypt error response:', encryptError.message);
-          return errorResponse;
+          return res.json(errorResponse);
         }
       }
       
-      return errorResponse;
+      return res.json(errorResponse);
     }
   }
 

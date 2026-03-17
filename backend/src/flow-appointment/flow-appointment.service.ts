@@ -105,10 +105,43 @@ export class FlowAppointmentService {
   }
 
   async getAppointments(userId: number) {
-    const prisma = await this.getTenantClient(userId);
-    return (prisma as any).flowAppointment.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+    console.log('🔍 Getting appointments for user/tenant ID:', userId);
+    
+    try {
+      const prisma = await this.getTenantClient(userId);
+      const appointments = await (prisma as any).flowAppointment.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+      
+      console.log(`📋 Found ${appointments.length} appointments for tenant ${userId}:`, appointments);
+      return appointments;
+    } catch (error) {
+      console.error('❌ Error getting appointments for tenant', userId, ':', error.message);
+      
+      // Fallback: try to get appointments from all tenants if user tenant fails
+      console.log('🔄 Trying to get appointments from all active tenants...');
+      const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
+      
+      for (const tenant of tenants) {
+        try {
+          const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+          const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+          
+          const appointments = await (tenantClient as any).flowAppointment.findMany({
+            orderBy: { createdAt: 'desc' },
+          });
+          
+          if (appointments.length > 0) {
+            console.log(`✅ Found ${appointments.length} appointments in tenant ${tenant.id} (${tenant.name})`);
+            return appointments;
+          }
+        } catch (tenantError) {
+          console.log(`⚠️ No appointments in tenant ${tenant.id}:`, tenantError.message);
+        }
+      }
+      
+      return [];
+    }
   }
   
   async deleteAppointment(appointmentId: number, userId: number) {

@@ -30,8 +30,8 @@ export class FlowMessageService {
       const flowsWithDetails = await Promise.all(
         response.data.data.map(async (flow: any) => {
           try {
-            const detailResponse = await axios.get(
-              `https://graph.facebook.com/${this.apiVersion}/${flow.id}`,
+            const assetsResponse = await axios.get(
+              `https://graph.facebook.com/${this.apiVersion}/${flow.id}/assets`,
               {
                 headers: {
                   'Authorization': `Bearer ${this.accessToken}`,
@@ -39,13 +39,22 @@ export class FlowMessageService {
               }
             );
             
+            let firstScreen = 'SCREEN';
+            const asset = assetsResponse.data?.data?.find((a: any) => a.asset_type === 'FLOW_JSON');
+            if (asset?.download_url) {
+              try {
+                const jsonResponse = await axios.get(asset.download_url);
+                firstScreen = jsonResponse.data?.screens?.[0]?.id || 'SCREEN';
+              } catch (_) {}
+            }
+            
             return {
               id: flow.id,
               name: flow.name,
               description: flow.status,
               status: flow.status,
               updatedAt: flow.updated_time,
-              firstScreen: detailResponse.data.json_version?.screens?.[0]?.id || 'SCREEN'
+              firstScreen,
             };
           } catch (error) {
             return {
@@ -107,15 +116,17 @@ export class FlowMessageService {
   private async sendSingleFlowMessage(params: any) {
     const actionParams: any = {
       flow_message_version: '3',
-      flow_token: `flow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      flow_token: `${params.purpose || 'flow'}_${Date.now()}_${params.tenantId || '1'}_${Math.random().toString(36).substr(2, 9)}`,
       flow_id: params.flowId,
       flow_cta: params.ctaText,
-      flow_action: 'navigate',
+      flow_action: 'data_exchange', // ✅ Changed from 'navigate' to 'data_exchange' to call endpoint
     };
 
-    if (params.screenName && params.screenName !== 'SCREEN') {
+    // Only add flow_action_payload if you want to pass initial data
+    // For most cases, let the endpoint provide the data
+    if (params.screenData && Object.keys(params.screenData).length > 0) {
       actionParams.flow_action_payload = {
-        screen: params.screenName,
+        screen: params.screenName || 'APPOINTMENT',
         data: params.screenData
       };
     }

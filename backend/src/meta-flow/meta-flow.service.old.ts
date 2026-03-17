@@ -1,46 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 import { FlowAppointmentService } from '../flow-appointment/flow-appointment.service';
-import { FlowManagerService } from '../whatsapp/flows/flow-manager.service';
-import { CentralPrismaService } from '../central-prisma.service';
 
 @Injectable()
 export class MetaFlowService {
-  private readonly privateKey = `-----BEGIN PRIVATE KEY-----
-MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCxab4BeyDwMHaK
-Cr7jZ1gw/DZI+VOqgSKPgzbVJTKjJ+Z/ALOJ88c6bdiDIfDJcMn+3w5SKLoAvgUP
-vNBd79juwrpn+j0TjrRSU5HEMbexbERSU0KeDQHMpHOL6Sl/ZBRTaLf21csedDDf
-KI4sieDMEI9uYc0m17yzPbBw5aGZNjmWBSKW6hFIsEf6UTqOdbgQhyOMrvJukt/1
-vvWgo4tMLdJF0d6/yakoNfmxUsNXkDOWw0Jq44JSJnWBItBs3nhDQnH1tZ5zdCiI
-KYev+YqejDAyksqNuBKfWl26d/ekCGIElc5PQj/s85ZPbk+kb8AdZczF0y+gVeFY
-UI4M/V7VAgMBAAECggEAGO2TMZET9TvSBB5zaO918FgX5pQF4gDIEuMserGB1nP+
-Sp0WHQ2gUkDp+a70rtFGyKWd1QR88irA+k+c9X4EfLPmzkJWf59/DcxJQIh915Ov
-W+PwCdYpCRCYXbHSz2AIDRo7MxciNbK8xTZlF7P93p57ENb0JP+ON5804gAZ/zVn
-qqP6UAU1YSRIFcVn5SOW+70HE3Ct2XfB8BE4FSUyxpB9YRMjhG63qRGOvqJeTI8p
-k/rDkBGPtRxc3IFz5kgk03iU8+IZlyjADEIhuUwN+MZpMg3JeRNMWia/Z60z4ddQ
-2jSU7XVtz0+c7P2vXQJTFlepNJ5WQk/CEhYKhvHXRwKBgQDpQ93pvEDd6+8sr99M
-Phs0lc87NZ+RSlzHM+EVtwe7K35sShNH/GN3EhLsbVrwd+YE++nj34/m/Aq487FQ
-yqdbKdaZxFJBLlQlp4Jy4tXMcvaSMHUMW1Qxts0iFQ2tePfVNVnpEnE1RDgYQwRd
-u4cqSIteA0kcYDwGMIhOlzPwNwKBgQDCtFOJh+0lyTaOl2yzJ0PWxi6pgxa9DzSD
-xBKNYH0/p9RVMK0LV5/Z4bojZzdAj+ue0TeY/D+VM5spEzXMwmSes5rX3Dvqkn98
-aCIHbmp5N1HI+YpNgwD3e9XftltGn1klOYC5viJWIWqEYlPx6xXs0HQyAh4hMCu/
-uIIMeXzrUwKBgQDhks+2iGXyNYZFII4/nI+Seoy8JU75oX+242R3K1g+mADZl4it
-xFQrgT7rg5S9ljTJ/RJhWoA+Tt3PnVmLV24fqoXsjP0+Kx8UiriLgPBflYz8Mf/+
-wxLYQH5+xv1DFAgWFlGsIjl32VClpalDO2WqbhzX/TVmS2nAUo598Zo4YQKBgCN3
-eagZzIcPihKbXr+brW3YF/Pk3yV9OZGvC7oZE3ee+Lyz6zGfuoyT47ZDPPtTvBXo
-AnqpqGNjTSZES46K8o0+Jjyf74IhQXvF9DzqThbajtlPK3RHIsvyENl5fFL2/+QZ
-/2rWSabq215WEviEXDARILljTV26Sp3X3EitcKXlAoGBAN8H4EIZE+l7ysHqx7X1
-bLFVEtWIJE7YMcDm2/LH+G6MIDoYG5cwk2z/d8FteIQ7xE2D/lweJlSgUkpottJS
-RP+AgXfbu8yAcTjWrr40DwnupV3NoO+4CcvUFkVUWgA97j7PDTwPeXkqYbIdrxU9
-sxEK+yx6I1EkGaK+/KWEpai7
------END PRIVATE KEY-----`;
+  private readonly privateKey: string;
   private readonly appSecret = process.env.META_APP_SECRET || '';
 
-  constructor(
-    private flowAppointmentService: FlowAppointmentService,
-    private flowManager: FlowManagerService,
-    private centralPrisma: CentralPrismaService
-  ) {}
+  constructor(private flowAppointmentService: FlowAppointmentService) {
+    // Load private key from file
+    const keyPath = path.join(process.cwd(), 'flow_private.pem');
+    this.privateKey = fs.readFileSync(keyPath, 'utf8');
+  }
 
   verifySignature(payload: string, signature: string): boolean {
     if (!signature || !this.appSecret) return false;
@@ -121,75 +94,44 @@ sxEK+yx6I1EkGaK+/KWEpai7
     };
   }
 
-  async processFlow(decryptedData: any, phoneNumberId?: string): Promise<any> {
-    const { screen, data, version, action, flow_token } = decryptedData;
+  async processFlow(decryptedData: any): Promise<any> {
+    const { screen, data, version, action } = decryptedData;
 
     console.log('=== FLOW REQUEST ===');
     console.log('Screen:', screen);
     console.log('Action:', action);
-    console.log('Flow Token:', flow_token);
-    console.log('Phone Number ID:', phoneNumberId);
     console.log('Data:', JSON.stringify(data, null, 2));
     console.log('==================');
 
     if (action === 'INIT' || action === 'ping') {
-      return { data: { status: 'active' } };
+      return { version: '3.0', data: { status: 'active' } };
     }
     
     if (action === 'data_exchange') {
-      // Resolve tenant from phone_number_id or flow_token
-      let tenantId: string;
-      
-      if (phoneNumberId) {
-        const tenant = await this.centralPrisma.tenant.findFirst({
-          where: { phoneNumberId: phoneNumberId }
-        });
+      if (screen === 'APPOINTMENT') {
+        const trigger = data?.trigger;
+        console.log('📤 APPOINTMENT trigger:', trigger);
         
-        if (!tenant) {
-          console.error(`❌ Tenant not found for phone_number_id: ${phoneNumberId}`);
-          return {
-            screen: 'APPOINTMENT',
-            data: { error_message: 'Tenant not found' }
-          };
-        }
+        // Fetch dynamic data from database
+        const departments = await this.flowAppointmentService.getDepartments();
+        const locations = await this.flowAppointmentService.getLocations();
+        const timeSlots = await this.flowAppointmentService.getTimeSlots();
+        const dates = this.generateDates(7); // Next 7 days
         
-        tenantId = tenant.id.toString();
-        console.log(`✅ Resolved tenant: ${tenantId} from phone_number_id: ${phoneNumberId}`);
-      } else if (flow_token) {
-        // Extract tenant from flow token pattern: purpose_timestamp_tenantId_random
-        const tokenParts = flow_token.split('_');
-        if (tokenParts.length >= 3) {
-          tenantId = tokenParts[2] || '1';
-        } else {
-          tenantId = '1'; // fallback
-        }
-        console.log(`✅ Extracted tenant: ${tenantId} from flow_token: ${flow_token}`);
-      } else {
-        console.error('❌ No phone_number_id or flow_token provided for tenant resolution');
-        return {
-          screen: 'APPOINTMENT',
-          data: { error_message: 'Cannot resolve tenant' }
+        const response = {
+          version: '3.0',
+          data: {
+            department: departments,
+            location: locations,
+            is_location_enabled: true,
+            date: dates,
+            is_date_enabled: true,
+            time: timeSlots,
+            is_time_enabled: true
+          }
         };
-      }
-      
-      console.log(`📤 Processing ${screen} screen for tenant: ${tenantId}`);
-      
-      try {
-        const response = await this.flowManager.handleFlowDataExchange(
-          flow_token,
-          screen,
-          data,
-          tenantId
-        );
-        
-        console.log('📤 Flow response:', response);
+        console.log('📤 Sending APPOINTMENT response with dynamic data');
         return response;
-      } catch (error) {
-        console.error('❌ Flow data exchange error:', error.message);
-        return {
-          screen: 'APPOINTMENT',
-          data: { error_message: 'Failed to process request' }
-        };
       }
       
       if (screen === 'DETAILS') {
@@ -200,6 +142,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
         const locTitle = await this.flowAppointmentService.getLocationTitle(data.location);
         
         return {
+          version: '3.0',
           screen: 'SUMMARY',
           data: {
             summary: `${deptTitle} at ${locTitle} on ${data.date} at ${data.time}\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}`,
@@ -221,36 +164,32 @@ sxEK+yx6I1EkGaK+/KWEpai7
           console.log('✅ Appointment saved successfully');
           
           const response = { 
+            version: '3.0',
             screen: 'SUCCESS',
-            data: {
-              extension_message_response: {
-                params: {
-                  flow_token: data.flow_token || 'completed'
-                }
-              }
-            }
+            data: {}
           };
           console.log('Sending response:', JSON.stringify(response));
           return response;
         } catch (error) {
           console.error('❌ Failed to save appointment:', error.message);
           return {
+            version: '3.0',
             screen: 'SUMMARY',
             data: {
-              error_message: 'Failed to save appointment'
+              error: 'Failed to save appointment'
             }
           };
         }
       }
       
       return { 
-        screen: 'APPOINTMENT',
+        version: '3.0',
         data: data || {}
       };
     }
     
     return { 
-      screen: 'APPOINTMENT',
+      version: '3.0',
       data: data || {}
     };
   }

@@ -5,7 +5,7 @@ import { getMessages, sendMessage, sendMediaMessage, getLabels, updateLabels, ge
 import '../styles/WhatsAppChat.scss';
 import { contactAPI } from '../api/contact';
 import { groupAPI } from '../api/group';
-import { Users, UserPlus, UserRoundCheck, UserCheck } from 'lucide-react';
+import { Users, UserCheck, MoreVertical } from 'lucide-react';
 import { getTenantSubUsers } from "../api/subuser";
 
 // Simple play/pause icons
@@ -83,7 +83,14 @@ const WhatsAppChat = () => {
   const [userId, setUserId] = useState(null);
   const [businessNumbers, setBusinessNumbers] = useState({}); // Store business number per chat
   const [selectedBusinessNumber, setSelectedBusinessNumber] = useState('all'); // Filter by business number
-
+  
+  // Delete message states
+  const [selectedMessages, setSelectedMessages] = useState(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [hoveredMessage, setHoveredMessage] = useState(null);
+  const [showMessageMenu, setShowMessageMenu] = useState(null);
+  
   const [showGroupMenu, setShowGroupMenu] = useState(null); // which phone's group menu is open
   const [groups, setGroups] = useState([]);                 // all contact groups
   const [phoneGroupId, setPhoneGroupId] = useState({});     // phone -> current groupId
@@ -98,6 +105,9 @@ const WhatsAppChat = () => {
   const [showUserMenu, setShowUserMenu] = useState(null);  //subuser assign
   const [subUsers, setSubUsers] = useState([]);
   const [phoneUserId, setPhoneUserId] = useState({});
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [showSearchBar, setShowSearchBar] = useState(false);
+  const [showCustomCalendar, setShowCustomCalendar] = useState(false);
 
   const [userType, setUserType] = useState("tenant"); //for subuser hide icon label, grp, user
 
@@ -273,11 +283,45 @@ useEffect(() => {
       ) {
         setShowUserMenu(null);
       }
+
+      if (
+        showMessageMenu &&
+        !event.target.closest('.message-dropdown-menu') &&
+        !event.target.closest('.message-menu-btn')
+      ) {
+        setShowMessageMenu(null);
+      }
+
+      if (
+        showHeaderMenu &&
+        !event.target.closest('.header-dropdown-menu') &&
+        !event.target.closest('.icon-btn') &&
+        !event.target.closest('.date-filter-submenu')
+      ) {
+        setShowHeaderMenu(false);
+        setShowDatePicker(false);
+      }
+
+      if (
+        showDatePicker &&
+        !event.target.closest('.date-filter-submenu') &&
+        !event.target.closest('.header-dropdown-item')
+      ) {
+        setShowDatePicker(false);
+      }
+
+      if (
+        showCustomCalendar &&
+        !event.target.closest('[style*="position: fixed"]') &&
+        !event.target.closest('.icon-btn')
+      ) {
+        setShowCustomCalendar(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showLabelMenu, showGroupMenu, showUserMenu]);
+  }, [showLabelMenu, showGroupMenu, showUserMenu, showMessageMenu, showHeaderMenu, showDatePicker, showCustomCalendar]);
 
   // Mark chat as read whenever it is opened
   useEffect(() => {
@@ -479,6 +523,7 @@ useEffect(() => {
     setSelectedDate(date);
     setDateFilter('custom');
     setShowDatePicker(false);
+    setShowCustomCalendar(false);
   };
   useEffect(() => {
     if (!customLabels.length) return;
@@ -501,27 +546,40 @@ useEffect(() => {
   const filterMessagesByDate = (messages) => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     const lastWeek = new Date(today);
     lastWeek.setDate(lastWeek.getDate() - 7);
     const lastMonth = new Date(today);
     lastMonth.setMonth(lastMonth.getMonth() - 1);
-
+    
     return messages.filter(msg => {
       const msgDate = new Date(msg.createdAt);
-      if (dateFilter === 'today') return msgDate >= today;
-      if (dateFilter === 'yesterday') return msgDate >= yesterday && msgDate < today;
-      if (dateFilter === 'week') return msgDate >= lastWeek;
-      if (dateFilter === 'month') return msgDate >= lastMonth;
-      if (dateFilter === 'custom' && selectedDate) {
-        const selected = new Date(selectedDate);
-        const selectedStart = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate());
-        const selectedEnd = new Date(selectedStart);
-        selectedEnd.setDate(selectedEnd.getDate() + 1);
-        return msgDate >= selectedStart && msgDate < selectedEnd;
+      
+      switch(dateFilter) {
+        case 'today':
+          return msgDate >= today && msgDate < tomorrow;
+        case 'yesterday':
+          return msgDate >= yesterday && msgDate < today;
+        case 'week':
+          return msgDate >= lastWeek && msgDate < tomorrow;
+        case 'month':
+          return msgDate >= lastMonth && msgDate < tomorrow;
+        case 'custom':
+          if (selectedDate) {
+            const selected = new Date(selectedDate + 'T00:00:00');
+            const selectedStart = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate());
+            const selectedEnd = new Date(selectedStart);
+            selectedEnd.setDate(selectedEnd.getDate() + 1);
+            return msgDate >= selectedStart && msgDate < selectedEnd;
+          }
+          return true;
+        case 'all':
+        default:
+          return true;
       }
-      return true;
     });
   };
 
@@ -752,6 +810,78 @@ useEffect(() => {
       return chat.businessNumber === selectedBusinessNumber;
     });
 
+  // Delete message functions
+  const toggleMessageSelection = (messageId) => {
+    setSelectedMessages(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
+      } else {
+        newSet.add(messageId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllMessages = () => {
+    const allMessageIds = new Set(filteredMessages.map(msg => msg.id));
+    setSelectedMessages(allMessageIds);
+  };
+
+  const deselectAllMessages = () => {
+    setSelectedMessages(new Set());
+  };
+
+  const handleDeleteMessages = async () => {
+    if (selectedMessages.size === 0) return;
+
+    try {
+      const messageIds = Array.from(selectedMessages);
+      
+      // Call API to delete messages
+      const response = await fetch(`${API_BASE_URL}/whatsapp/messages/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ messageIds })
+      });
+
+      if (response.ok) {
+        // Remove deleted messages from state
+        setMessages(prev => prev.filter(msg => !selectedMessages.has(msg.id)));
+        toast.success(`${selectedMessages.size} message(s) deleted successfully`);
+        setSelectedMessages(new Set());
+        setIsSelectionMode(false);
+        setShowDeleteConfirm(false);
+      } else {
+        throw new Error('Failed to delete messages');
+      }
+    } catch (error) {
+      console.error('Error deleting messages:', error);
+      toast.error('Failed to delete messages');
+    }
+  };
+
+  const handleSingleDelete = async (messageId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/whatsapp/messages/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ messageIds: [messageId] })
+      });
+
+      if (response.ok) {
+        setMessages(prev => prev.filter(msg => msg.id !== messageId));
+        toast.success('Message deleted successfully');
+      } else {
+        throw new Error('Failed to delete message');
+      }
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      toast.error('Failed to delete message');
+    }
+  };
 
   const resolveMediaUrl = (url) => {
     if (!url) return null;
@@ -1195,123 +1325,413 @@ useEffect(() => {
         {selectedChat ? (
           <>
             <div className="chat-header">
-              <button className="back-btn" onClick={() => setSelectedChat(null)}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M19 12H5M12 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-                <h3 style={{ margin: 0 }}>{selectedChat}</h3>
-                {businessNumbers[selectedChat] && (
-                  <div style={{
-                    fontSize: '12px',
-                    color: '#00a884',
-                    fontWeight: '500',
-                    marginTop: '2px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}>
-                    <span>via {businessNumbers[selectedChat]}</span>
-                  </div>
-                )}
-              </div>
-              <div className="header-actions">
-                <button className="icon-btn search-btn" onClick={() => setShowMobileSearchModal(true)}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.35-4.35" />
+              <div className="header-actions" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button className="back-btn" onClick={() => setSelectedChat(null)}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
                   </svg>
                 </button>
-                <button
-                  type="button"
-                  className="icon-btn notes-btn notes-btn-with-count"
-                  onClick={openNotesModal}
-                  title="Notes"
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M4 4h16v12H8l-4 4V4z" />
-                    <path d="M8 8h8" />
-                    <path d="M8 12h5" />
-                  </svg>
-
-                  {notesCount > 0 && (
-                    <span className="notes-count-badge">
-                      {notesCount > 99 ? "99+" : notesCount}
-                    </span>
-                  )}
-                </button>
-                <button className="icon-btn filter-btn" onClick={() => setShowMobileDateModal(true)}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
-                  </svg>
-                </button>
-                <button className="icon-btn calendar-btn" onClick={() => setShowMobileCalendarModal(true)}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z" />
-                  </svg>
-                </button>
-
-
-                <div className="message-search desktop-only">
-                  <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.35-4.35" />
-                  </svg>
-                  <input
-                    type="text"
-                    placeholder="Search messages..."
-                    value={messageSearchQuery}
-                    onChange={(e) => setMessageSearchQuery(e.target.value)}
-                  />
-                  {messageSearchQuery && (
-                    <button className="clear-search" onClick={() => setMessageSearchQuery('')}>
-                      ×
-                    </button>
-                  )}
-                </div>
-                <div className="date-filter desktop-only">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
-                  </svg>
-                  <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}>
-                    <option value="all">All Messages</option>
-                    <option value="today">Today</option>
-                    <option value="yesterday">Yesterday</option>
-                    <option value="week">Last 7 Days</option>
-                    <option value="month">Last 30 Days</option>
-                    {selectedDate && <option value="custom">Selected Date</option>}
-                  </select>
-                </div>
-                <div className="calendar-picker desktop-only">
-                  <button
-                    className="calendar-btn"
-                    onClick={() => setShowDatePicker(!showDatePicker)}
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z" />
-                    </svg>
-                  </button>
-                  {showDatePicker && (
-                    <div className="date-picker-dropdown">
-                      <input
-                        type="date"
-                        value={selectedDate}
-                        onChange={(e) => handleDateFilter(e.target.value)}
-                        max={new Date().toISOString().split('T')[0]}
-                      />
+                {!isSelectionMode ? (
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#111b21', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedChat}</h3>
+                      {businessNumbers[selectedChat] && (
+                        <div style={{
+                          fontSize: '12px',
+                          color: '#00a884',
+                          fontWeight: '500',
+                          marginTop: '2px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '3px'
+                        }}>
+                          <span>via {businessNumbers[selectedChat]}</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                    <div className="message-search" style={{ flex: 1, maxWidth: '300px' }}>
+                      <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.35-4.35" />
+                      </svg>
+                      <input
+                        type="text"
+                        placeholder="Search messages..."
+                        value={messageSearchQuery}
+                        onChange={(e) => setMessageSearchQuery(e.target.value)}
+                      />
+                      {messageSearchQuery && (
+                        <button className="clear-search" onClick={() => setMessageSearchQuery('')}>
+                          ×
+                        </button>
+                      )}
+                    </div>
+                    <div style={{ position: 'relative' }}>
+                      <button 
+                        className="icon-btn" 
+                        onClick={() => setShowDatePicker(!showDatePicker)}
+                        title="Filter by date"
+                      >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
+                        </svg>
+                      </button>
+                      {showDatePicker && (
+                        <div
+                          className="date-filter-dropdown"
+                          style={{
+                            position: 'absolute',
+                            top: '45px',
+                            right: '0',
+                            background: 'white',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+                            minWidth: '180px',
+                            zIndex: 2000,
+                            overflow: 'hidden',
+                            border: '1px solid #e9edef'
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div
+                            onClick={() => {
+                              setDateFilter('all');
+                              setShowDatePicker(false);
+                            }}
+                            style={{
+                              padding: '12px 16px',
+                              cursor: 'pointer',
+                              fontSize: '14px',
+                              color: dateFilter === 'all' ? '#00a884' : '#111b21',
+                              fontWeight: dateFilter === 'all' ? '600' : '400',
+                              background: dateFilter === 'all' ? '#f0f2f5' : 'transparent',
+                              transition: 'background 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = dateFilter === 'all' ? '#f0f2f5' : 'transparent'}
+                          >
+                            All Messages
+                          </div>
+                          <div
+                            onClick={() => {
+                              setDateFilter('today');
+                              setShowDatePicker(false);
+                            }}
+                            style={{
+                              padding: '12px 16px',
+                              cursor: 'pointer',
+                              fontSize: '14px',
+                              color: dateFilter === 'today' ? '#00a884' : '#111b21',
+                              fontWeight: dateFilter === 'today' ? '600' : '400',
+                              background: dateFilter === 'today' ? '#f0f2f5' : 'transparent',
+                              transition: 'background 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = dateFilter === 'today' ? '#f0f2f5' : 'transparent'}
+                          >
+                            Today
+                          </div>
+                          <div
+                            onClick={() => {
+                              setDateFilter('yesterday');
+                              setShowDatePicker(false);
+                            }}
+                            style={{
+                              padding: '12px 16px',
+                              cursor: 'pointer',
+                              fontSize: '14px',
+                              color: dateFilter === 'yesterday' ? '#00a884' : '#111b21',
+                              fontWeight: dateFilter === 'yesterday' ? '600' : '400',
+                              background: dateFilter === 'yesterday' ? '#f0f2f5' : 'transparent',
+                              transition: 'background 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = dateFilter === 'yesterday' ? '#f0f2f5' : 'transparent'}
+                          >
+                            Yesterday
+                          </div>
+                          <div
+                            onClick={() => {
+                              setDateFilter('week');
+                              setShowDatePicker(false);
+                            }}
+                            style={{
+                              padding: '12px 16px',
+                              cursor: 'pointer',
+                              fontSize: '14px',
+                              color: dateFilter === 'week' ? '#00a884' : '#111b21',
+                              fontWeight: dateFilter === 'week' ? '600' : '400',
+                              background: dateFilter === 'week' ? '#f0f2f5' : 'transparent',
+                              transition: 'background 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = dateFilter === 'week' ? '#f0f2f5' : 'transparent'}
+                          >
+                            Last 7 Days
+                          </div>
+                          <div
+                            onClick={() => {
+                              setDateFilter('month');
+                              setShowDatePicker(false);
+                            }}
+                            style={{
+                              padding: '12px 16px',
+                              cursor: 'pointer',
+                              fontSize: '14px',
+                              color: dateFilter === 'month' ? '#00a884' : '#111b21',
+                              fontWeight: dateFilter === 'month' ? '600' : '400',
+                              background: dateFilter === 'month' ? '#f0f2f5' : 'transparent',
+                              transition: 'background 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = dateFilter === 'month' ? '#f0f2f5' : 'transparent'}
+                          >
+                            Last 30 Days
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ position: 'relative' }}>
+                      <button 
+                        className="icon-btn" 
+                        onClick={() => setShowCustomCalendar(!showCustomCalendar)}
+                        title="Custom date picker"
+                        style={{
+                          color: dateFilter === 'custom' ? '#00a884' : '#54656f'
+                        }}
+                      >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z" />
+                        </svg>
+                      </button>
+                      {showCustomCalendar && (
+                        <div
+                          style={{
+                            position: 'fixed',
+                            top: '80px',
+                            right: '20px',
+                            background: 'white',
+                            borderRadius: '12px',
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+                            padding: '20px',
+                            zIndex: 2000,
+                            border: '1px solid #e9edef',
+                            minWidth: '280px'
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            type="date"
+                            value={selectedDate || ''}
+                            onChange={(e) => {
+                              handleDateFilter(e.target.value);
+                              setShowCustomCalendar(false);
+                            }}
+                            max={new Date().toISOString().split('T')[0]}
+                            style={{
+                              width: '100%',
+                              padding: '12px',
+                              border: '1px solid #d1d7db',
+                              borderRadius: '8px',
+                              fontSize: '14px',
+                              outline: 'none',
+                              cursor: 'pointer'
+                            }}
+                          />
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            marginTop: '12px',
+                            gap: '8px'
+                          }}>
+                            <button
+                              onClick={() => {
+                                setDateFilter('all');
+                                setSelectedDate('');
+                                setShowCustomCalendar(false);
+                              }}
+                              style={{
+                                padding: '8px 16px',
+                                border: '1px solid #d1d7db',
+                                borderRadius: '6px',
+                                background: 'white',
+                                color: '#54656f',
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                flex: 1
+                              }}
+                            >
+                              Clear
+                            </button>
+                            <button
+                              onClick={() => {
+                                const today = new Date().toISOString().split('T')[0];
+                                handleDateFilter(today);
+                                setShowCustomCalendar(false);
+                              }}
+                              style={{
+                                padding: '8px 16px',
+                                border: 'none',
+                                borderRadius: '6px',
+                                background: '#00a884',
+                                color: 'white',
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                flex: 1
+                              }}
+                            >
+                              Today
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ position: 'relative' }}>
+                          <button 
+                            className="icon-btn" 
+                            onClick={() => setShowHeaderMenu(!showHeaderMenu)}
+                            title="Menu"
+                          >
+                            <MoreVertical size={20} />
+                          </button>
+                          {showHeaderMenu && (
+                            <div className="header-dropdown-menu"
+                              style={{
+                                position: 'absolute',
+                                top: '45px',
+                                right: '0',
+                                background: 'white',
+                                borderRadius: '8px',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                                minWidth: '200px',
+                                zIndex: 1000,
+                                overflow: 'visible'
+                              }}
+                            >
+                              <div
+                                className="header-dropdown-item"
+                                onClick={() => {
+                                  setShowHeaderMenu(false);
+                                  setIsSelectionMode(true);
+                                }}
+                                style={{
+                                  padding: '12px 16px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '12px',
+                                  fontSize: '14px',
+                                  color: '#111b21',
+                                  transition: 'background 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                              >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <polyline points="3 6 5 6 21 6" />
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                </svg>
+                                Select messages
+                              </div>
+                              <div
+                                className="header-dropdown-item"
+                                onClick={() => {
+                                  setShowHeaderMenu(false);
+                                  openNotesModal();
+                                }}
+                                style={{
+                                  padding: '12px 16px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '12px',
+                                  fontSize: '14px',
+                                  color: '#111b21',
+                                  transition: 'background 0.2s',
+                                  position: 'relative'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                              >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M4 4h16v12H8l-4 4V4z" />
+                                  <path d="M8 8h8" />
+                                  <path d="M8 12h5" />
+                                </svg>
+                                Notes
+                                {notesCount > 0 && (
+                                  <span style={{
+                                    marginLeft: 'auto',
+                                    background: '#ef4444',
+                                    color: 'white',
+                                    fontSize: '11px',
+                                    fontWeight: '600',
+                                    padding: '2px 6px',
+                                    borderRadius: '10px',
+                                    minWidth: '18px',
+                                    textAlign: 'center'
+                                  }}>
+                                    {notesCount > 99 ? '99+' : notesCount}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: '14px', fontWeight: '600', marginRight: '10px', color: '#111b21' }}>
+                      {selectedMessages.size} selected
+                    </span>
+                    <button 
+                      className="icon-btn" 
+                      onClick={selectedMessages.size === filteredMessages.length ? deselectAllMessages : selectAllMessages}
+                      title={selectedMessages.size === filteredMessages.length ? "Deselect all" : "Select all"}
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="9 11 12 14 22 4" />
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                      </svg>
+                    </button>
+                    <button 
+                      className="icon-btn delete-btn-active" 
+                      onClick={() => {
+                        if (selectedMessages.size === 0) {
+                          toast.error('Please select at least one message');
+                          return;
+                        }
+                        setShowDeleteConfirm(true);
+                      }}
+                      disabled={selectedMessages.size === 0}
+                      title={`Delete ${selectedMessages.size} message(s)`}
+                      style={{
+                        background: selectedMessages.size > 0 ? '#ea4335' : '#f5f5f5',
+                        color: selectedMessages.size > 0 ? 'white' : '#54656f'
+                      }}
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        <line x1="10" y1="11" x2="10" y2="17" />
+                        <line x1="14" y1="11" x2="14" y2="17" />
+                      </svg>
+                    </button>
+                    <button 
+                      className="icon-btn" 
+                      onClick={() => {
+                        setIsSelectionMode(false);
+                        setSelectedMessages(new Set());
+                      }}
+                      title="Cancel"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1447,14 +1867,56 @@ useEffect(() => {
                 </div>
               </div>
             )}
-            <div className="chat-messages">
+            <div className="chat-messages"
+              onClick={(e) => {
+                // If clicking on the messages container (not on a message), exit selection mode
+                if (isSelectionMode && e.target.classList.contains('chat-messages')) {
+                  setIsSelectionMode(false);
+                  setSelectedMessages(new Set());
+                }
+              }}
+            >
               {Object.entries(groupedMessages).map(([date, msgs]) => (
                 <React.Fragment key={date}>
                   <div className="date-divider">
                     <span>{getDateLabel(date)}</span>
                   </div>
                   {msgs.map(msg => (
-                    <div key={msg.id} className={`message ${msg.direction}`}>
+                    <div 
+                      key={msg.id} 
+                      className={`message ${msg.direction} ${isSelectionMode ? 'selection-mode' : ''} ${selectedMessages.has(msg.id) ? 'selected' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isSelectionMode) {
+                          toggleMessageSelection(msg.id);
+                        }
+                      }}
+                      onMouseEnter={() => !isSelectionMode && setHoveredMessage(msg.id)}
+                      onMouseLeave={() => !isSelectionMode && setHoveredMessage(null)}
+                      style={{ cursor: isSelectionMode ? 'pointer' : 'default', position: 'relative' }}
+                    >
+                      {isSelectionMode && (
+                        <div className="message-checkbox" style={{
+                          position: 'absolute',
+                          left: msg.direction === 'incoming' ? '-30px' : 'auto',
+                          right: msg.direction === 'outgoing' ? '-30px' : 'auto',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          zIndex: 10
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedMessages.has(msg.id)}
+                            onChange={() => toggleMessageSelection(msg.id)}
+                            style={{
+                              width: '18px',
+                              height: '18px',
+                              cursor: 'pointer',
+                              accentColor: '#00a884'
+                            }}
+                          />
+                        </div>
+                      )}
                       <div className="message-bubble">
                         {msg.mediaType === 'image' && msg.mediaUrl && (
                           <img
@@ -1571,6 +2033,71 @@ useEffect(() => {
               ))}
               <div ref={messagesEndRef} />
             </div>
+            
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && (
+              <div className="delete-confirm-overlay" style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000
+              }}>
+                <div className="delete-confirm-modal" style={{
+                  background: 'white',
+                  borderRadius: '12px',
+                  padding: '24px',
+                  maxWidth: '400px',
+                  width: '90%',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+                }}>
+                  <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '600' }}>
+                    Delete Messages
+                  </h3>
+                  <p style={{ margin: '0 0 24px 0', color: '#667781', fontSize: '14px' }}>
+                    Are you sure you want to delete {selectedMessages.size} message(s)? This action cannot be undone.
+                  </p>
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => setShowDeleteConfirm(false)}
+                      style={{
+                        padding: '10px 20px',
+                        borderRadius: '8px',
+                        border: '1px solid #d1d7db',
+                        background: 'white',
+                        color: '#3b4a54',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleDeleteMessages}
+                      style={{
+                        padding: '10px 20px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: '#ea4335',
+                        color: 'white',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="chat-input">
               <input
                 type="file"
@@ -1578,6 +2105,14 @@ useEffect(() => {
                 style={{ display: 'none' }}
                 onChange={(e) => setSelectedFile(e.target.files[0])}
                 accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+              />
+              <input
+                type="date"
+                id="custom-date-picker"
+                style={{ display: 'none' }}
+                value={selectedDate || ''}
+                onChange={(e) => handleDateFilter(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
               />
               {selectedFile && (
                 <div className="file-preview">

@@ -1994,4 +1994,10 @@ export class WhatsappService {
       where: { phone: formattedPhone },
     });
   }
+
+  async deleteMessages(messageIds: number[]) {
+    return this.prisma.whatsAppMessage.deleteMany({
+      where: { id: { in: messageIds } },
+    });
+  }
 }

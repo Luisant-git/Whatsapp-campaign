@@ -1,14 +1,10 @@
-import { Controller, Get, Post, Body, UseGuards, Req, HttpCode, Res, Delete, Param, Inject } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Req, HttpCode, Res, Delete, Param } from '@nestjs/common';
 import { FlowAppointmentService } from './flow-appointment.service';
-import { FlowTriggerService } from '../flow-message/flow-trigger.service';
 import { SessionGuard } from '../auth/session.guard';
 
 @Controller('flow-appointments')
 export class FlowAppointmentController {
-  constructor(
-    private readonly flowAppointmentService: FlowAppointmentService,
-    private readonly flowTriggerService: FlowTriggerService,
-  ) {}
+  constructor(private readonly flowAppointmentService: FlowAppointmentService) {}
 
   @Get()
   @UseGuards(SessionGuard)
@@ -63,19 +59,22 @@ export class FlowAppointmentController {
     // Handle INIT action - provide initial data for the flow
     if (action === 'INIT') {
       try {
-        const departments = await this.flowAppointmentService.getDepartments();
-        const locations = await this.flowAppointmentService.getLocations();
-        const timeSlots = await this.flowAppointmentService.getTimeSlots();
+        // Extract tenant ID from flow token if available
+        let tenantId: number | undefined;
+        if (flow_token) {
+          const tokenParts = flow_token.split('_');
+          if (tokenParts.length >= 3) {
+            tenantId = parseInt(tokenParts[2]);
+          }
+        }
+
+        const appointmentData = await this.flowAppointmentService.getCompleteAppointmentData(tenantId);
         
-        console.log('Providing initial data:', { departments, locations, timeSlots });
+        console.log('Providing initial data:', appointmentData);
         
         return res.status(200).json({
           screen: 'APPOINTMENT',
-          data: {
-            departments,
-            locations,
-            time_slots: timeSlots
-          }
+          data: appointmentData
         });
       } catch (error) {
         console.error('Error getting initial data:', error);
@@ -84,6 +83,7 @@ export class FlowAppointmentController {
           data: {
             departments: [],
             locations: [],
+            dates: [],
             time_slots: []
           }
         });

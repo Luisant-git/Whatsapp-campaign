@@ -200,6 +200,165 @@ export class FlowAppointmentService {
     return name;
   }
 
+  // Get complete appointment data for flow initialization
+  async getCompleteAppointmentData(tenantId?: number) {
+    try {
+      if (!tenantId) {
+        return this.getDefaultAppointmentData();
+      }
+
+      // Get tenant database client
+      const tenant = await this.centralPrisma.tenant.findUnique({ where: { id: tenantId } });
+      if (!tenant) {
+        return this.getDefaultAppointmentData();
+      }
+
+      const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+      const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+
+      // Get departments from database
+      const departments = await (tenantClient as any).flowDepartment.findMany({
+        where: { isActive: true },
+        select: { name: true, title: true }
+      });
+
+      // Get locations from database
+      const locations = await (tenantClient as any).flowLocation.findMany({
+        where: { isActive: true },
+        select: { name: true, title: true }
+      });
+
+      // Get time slots from database
+      const timeSlots = await (tenantClient as any).flowTimeSlot.findMany({
+        where: { isEnabled: true },
+        select: { time: true, title: true }
+      });
+
+      // Generate available dates (next 14 days)
+      const dates = this.generateAvailableDates(14);
+
+      return {
+        departments: departments.map(d => ({ id: d.name, title: d.title })),
+        locations: locations.map(l => ({ id: l.name, title: l.title })),
+        dates: dates,
+        time_slots: timeSlots.map(t => ({ id: t.time, title: t.title }))
+      };
+    } catch (error) {
+      console.error('Error fetching complete appointment data:', error);
+      return this.getDefaultAppointmentData();
+    }
+  }
+
+  // Get user information from contacts or previous interactions
+  async getUserInfo(phoneNumber: string, tenantId?: number) {
+    try {
+      if (!tenantId) {
+        return { phone: phoneNumber };
+      }
+
+      // Get tenant database client
+      const tenant = await this.centralPrisma.tenant.findUnique({ where: { id: tenantId } });
+      if (!tenant) {
+        return { phone: phoneNumber };
+      }
+
+      const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+      const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+
+      // Try to find user in contacts
+      const contact = await (tenantClient as any).contact.findFirst({
+        where: { 
+          OR: [
+            { phone: phoneNumber },
+            { phone: phoneNumber.replace(/^\+/, '') }, // Try without +
+            { phone: `+${phoneNumber}` } // Try with +
+          ]
+        },
+        select: { name: true, email: true, phone: true }
+      });
+
+      if (contact) {
+        return {
+          name: contact.name,
+          email: contact.email,
+          phone: contact.phone || phoneNumber
+        };
+      }
+
+      // Try to find in previous flow appointments
+      const previousAppointment = await (tenantClient as any).flowAppointment.findFirst({
+        where: { phone: phoneNumber },
+        orderBy: { createdAt: 'desc' },
+        select: { name: true, email: true, phone: true }
+      });
+
+      if (previousAppointment) {
+        return {
+          name: previousAppointment.name,
+          email: previousAppointment.email,
+          phone: previousAppointment.phone
+        };
+      }
+
+      return { phone: phoneNumber };
+    } catch (error) {
+      console.error('Error fetching user info:', error);
+      return { phone: phoneNumber };
+    }
+  }
+
+  // Generate available dates
+  private generateAvailableDates(days: number): Array<{id: string, title: string}> {
+    const dates: Array<{id: string, title: string}> = [];
+    const today = new Date();
+    
+    for (let i = 1; i <= days; i++) { // Start from tomorrow
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      
+      const dateStr = date.toISOString().split('T')[0];
+      const dateTitle = date.toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        month: 'short', 
+        day: '2-digit', 
+        year: 'numeric' 
+      });
+      
+      dates.push({
+        id: dateStr,
+        title: dateTitle
+      });
+    }
+    
+    return dates;
+  }
+
+  private getDefaultAppointmentData() {
+    return {
+      departments: [
+        { id: 'sales', title: 'Sales Department' },
+        { id: 'support', title: 'Customer Support' },
+        { id: 'technical', title: 'Technical Support' },
+        { id: 'billing', title: 'Billing & Accounts' }
+      ],
+      locations: [
+        { id: 'new_york', title: 'New York Office' },
+        { id: 'london', title: 'London Office' },
+        { id: 'singapore', title: 'Singapore Office' },
+        { id: 'remote', title: 'Remote/Online' }
+      ],
+      dates: this.generateAvailableDates(7),
+      time_slots: [
+        { id: '09:00', title: '9:00 AM' },
+        { id: '10:00', title: '10:00 AM' },
+        { id: '11:00', title: '11:00 AM' },
+        { id: '14:00', title: '2:00 PM' },
+        { id: '15:00', title: '3:00 PM' },
+        { id: '16:00', title: '4:00 PM' }
+      ]
+    };
+  }
+
   private async getTenantClient(userId: number) {
     const tenant = await this.centralPrisma.tenant.findUnique({ where: { id: userId } });
     if (!tenant) throw new Error('Tenant not found');

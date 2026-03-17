@@ -1,10 +1,14 @@
-import { Controller, Get, Post, Body, UseGuards, Req, HttpCode, Res, Delete, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Req, HttpCode, Res, Delete, Param, Inject } from '@nestjs/common';
 import { FlowAppointmentService } from './flow-appointment.service';
+import { FlowTriggerService } from '../flow-message/flow-trigger.service';
 import { SessionGuard } from '../auth/session.guard';
 
 @Controller('flow-appointments')
 export class FlowAppointmentController {
-  constructor(private readonly flowAppointmentService: FlowAppointmentService) {}
+  constructor(
+    private readonly flowAppointmentService: FlowAppointmentService,
+    private readonly flowTriggerService: FlowTriggerService,
+  ) {}
 
   @Get()
   @UseGuards(SessionGuard)

@@ -145,43 +145,19 @@ export class FlowTriggerService {
     // Create flow token for session tracking
     const flowToken = `flow_${Date.now()}_${tenant?.id || 'unknown'}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Get complete appointment data from database
-    const appointmentData = await this.getCompleteAppointmentData(tenant?.id);
-    
-    // Get user info if available (from contacts or previous interactions)
-    const userInfo = await this.getUserInfo(phoneNumber, tenant?.id);
-
     const actionParams: any = {
       flow_message_version: '3',
       flow_token: flowToken,
       flow_id: trigger.flowId,
       flow_cta: trigger.ctaText,
-      flow_action: 'data_exchange', // Use data_exchange to provide initial data
+      flow_action: 'data_exchange', // Use data_exchange to call endpoint for data
     };
 
-    // Add complete data payload
-    actionParams.flow_action_payload = {
-      screen: trigger.screenName || 'APPOINTMENT',
-      data: {
-        // Pre-fill dropdown options
-        departments: appointmentData.departments,
-        locations: appointmentData.locations,
-        dates: appointmentData.dates,
-        time_slots: appointmentData.timeSlots,
-        
-        // Pre-fill user information if available
-        ...(userInfo.name && { name: userInfo.name }),
-        ...(userInfo.email && { email: userInfo.email }),
-        ...(userInfo.phone && { phone: userInfo.phone }),
-        
-        // Pre-select default values if desired
-        // department: 'sales', // Uncomment to pre-select
-        // location: 'new_york', // Uncomment to pre-select
-      }
-    };
+    // DO NOT include flow_action_payload when using data_exchange
+    // The data will be provided by the /flow-appointments/exchange endpoint
 
     console.log(`[FlowTrigger] Flow sent → flowId:${trigger.flowId} screen:${trigger.screenName} token:${flowToken}`);
-    console.log('[FlowTrigger] Complete data payload:', JSON.stringify(actionParams.flow_action_payload.data, null, 2));
+    console.log('[FlowTrigger] Using data_exchange - data will be provided by endpoint');
 
     const interactive: any = {
       type: 'flow',

@@ -133,7 +133,87 @@ sxEK+yx6I1EkGaK+/KWEpai7
     console.log('==================');
 
     if (action === 'INIT' || action === 'ping') {
-      return { data: { status: 'active' } };
+      if (action === 'ping') {
+        return { data: { status: 'active' } };
+      }
+      
+      // For INIT, return the first screen with data
+      console.log('📤 INIT action - returning first screen data');
+      console.log('Flow token:', flow_token);
+      
+      try {
+        // For Flow Builder testing, use default tenant (ID: 1)
+        let tenantId = '1';
+        
+        if (flow_token && flow_token.includes('_')) {
+          // Extract tenant from flow token pattern: purpose_timestamp_tenantId_random
+          const tokenParts = flow_token.split('_');
+          if (tokenParts.length >= 3) {
+            tenantId = tokenParts[2] || '1';
+          }
+        }
+        
+        console.log(`📤 Using tenant ID: ${tenantId} for INIT`);
+        
+        // Get dynamic data from database
+        const departments = await this.flowAppointmentService.getDepartments();
+        const locations = await this.flowAppointmentService.getLocations();
+        const timeSlots = await this.flowAppointmentService.getTimeSlots();
+        const dates = this.generateDates(7);
+        
+        const appointmentData = {
+          department: departments.length > 0 ? departments : [
+            { id: 'sales', title: 'Sales' },
+            { id: 'support', title: 'Support' },
+            { id: 'technical', title: 'Technical' }
+          ],
+          location: locations.length > 0 ? locations : [
+            { id: 'new_york', title: 'New York Office' },
+            { id: 'london', title: 'London Office' }
+          ],
+          date: dates,
+          time: timeSlots.length > 0 ? timeSlots.filter(slot => slot.enabled !== false) : [
+            { id: '10:30', title: '10:30 AM' },
+            { id: '11:30', title: '11:30 AM' },
+            { id: '14:30', title: '2:30 PM' },
+            { id: '15:30', title: '3:30 PM' }
+          ]
+        };
+        
+        console.log('📤 INIT response data:', JSON.stringify(appointmentData, null, 2));
+        
+        return {
+          screen: 'APPOINTMENT',
+          data: appointmentData
+        };
+      } catch (error) {
+        console.error('❌ Error loading appointment data for INIT:', error.message);
+        
+        // Fallback to static data
+        const fallbackData = {
+          department: [
+            { id: 'sales', title: 'Sales' },
+            { id: 'support', title: 'Support' },
+            { id: 'technical', title: 'Technical' }
+          ],
+          location: [
+            { id: 'new_york', title: 'New York Office' },
+            { id: 'london', title: 'London Office' }
+          ],
+          date: this.generateDates(7),
+          time: [
+            { id: '10:30', title: '10:30 AM' },
+            { id: '11:30', title: '11:30 AM' },
+            { id: '14:30', title: '2:30 PM' },
+            { id: '15:30', title: '3:30 PM' }
+          ]
+        };
+        
+        return {
+          screen: 'APPOINTMENT',
+          data: fallbackData
+        };
+      }
     }
     
     if (action === 'data_exchange') {

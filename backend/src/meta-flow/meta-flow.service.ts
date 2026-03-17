@@ -213,6 +213,67 @@ sxEK+yx6I1EkGaK+/KWEpai7
     }
     
     if (action === 'data_exchange') {
+      // For Flow Builder testing, handle screens directly without session management
+      if (flow_token && flow_token.startsWith('flows-builder-')) {
+        console.log('🧪 Flow Builder test mode - handling directly');
+        
+        if (screen === 'DETAILS') {
+          console.log('📝 Processing DETAILS screen - navigating to SUMMARY');
+          
+          // Get department and location titles
+          const deptTitle = await this.flowAppointmentService.getDepartmentTitle(data.department);
+          const locTitle = await this.flowAppointmentService.getLocationTitle(data.location);
+          
+          return {
+            screen: 'SUMMARY',
+            data: {
+              summary: `${deptTitle} at ${locTitle} on ${data.date} at ${data.time}\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}`,
+              department: data.department,
+              location: data.location,
+              date: data.date,
+              time: data.time,
+              name: data.name,
+              email: data.email,
+              phone: data.phone
+            }
+          };
+        }
+        
+        if (screen === 'SUMMARY') {
+          try {
+            console.log('💾 Saving appointment:', data);
+            await this.flowAppointmentService.saveAppointment(data, 1);
+            console.log('✅ Appointment saved successfully');
+            
+            return {
+              screen: 'SUCCESS',
+              data: {
+                extension_message_response: {
+                  params: {
+                    flow_token: flow_token || 'completed'
+                  }
+                }
+              }
+            };
+          } catch (error) {
+            console.error('❌ Failed to save appointment:', error.message);
+            return {
+              screen: 'SUMMARY',
+              data: {
+                error_message: 'Failed to save appointment'
+              }
+            };
+          }
+        }
+        
+        // Default fallback for Flow Builder
+        return {
+          screen: 'APPOINTMENT',
+          data: {}
+        };
+      }
+      
+      // Regular flow processing with session management
       // Resolve tenant from phone_number_id or flow_token
       let tenantId: string;
       
@@ -267,68 +328,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
           data: { error_message: 'Failed to process request' }
         };
       }
-      
-      if (screen === 'DETAILS') {
-        console.log('📤 DETAILS screen - navigating to SUMMARY');
-        
-        // Get department and location titles
-        const deptTitle = await this.flowAppointmentService.getDepartmentTitle(data.department);
-        const locTitle = await this.flowAppointmentService.getLocationTitle(data.location);
-        
-        return {
-          screen: 'SUMMARY',
-          data: {
-            summary: `${deptTitle} at ${locTitle} on ${data.date} at ${data.time}\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}`,
-            department: data.department,
-            location: data.location,
-            date: data.date,
-            time: data.time,
-            name: data.name,
-            email: data.email,
-            phone: data.phone
-          }
-        };
-      }
-      
-      if (screen === 'SUMMARY') {
-        try {
-          console.log('💾 Saving appointment:', data);
-          await this.flowAppointmentService.saveAppointment(data, 1);
-          console.log('✅ Appointment saved successfully');
-          
-          const response = { 
-            screen: 'SUCCESS',
-            data: {
-              extension_message_response: {
-                params: {
-                  flow_token: data.flow_token || 'completed'
-                }
-              }
-            }
-          };
-          console.log('Sending response:', JSON.stringify(response));
-          return response;
-        } catch (error) {
-          console.error('❌ Failed to save appointment:', error.message);
-          return {
-            screen: 'SUMMARY',
-            data: {
-              error_message: 'Failed to save appointment'
-            }
-          };
-        }
-      }
-      
-      return { 
-        screen: 'APPOINTMENT',
-        data: data || {}
-      };
     }
-    
-    return { 
-      screen: 'APPOINTMENT',
-      data: data || {}
-    };
   }
   
   private generateDates(days: number): Array<{id: string, title: string}> {

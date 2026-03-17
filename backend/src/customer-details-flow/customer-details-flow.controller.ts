@@ -22,13 +22,18 @@ export class CustomerDetailsFlowController {
   @Public()
   @Post('health')
   @HttpCode(200)
-  postHealth() {
-    return {
-      status: 'ok',
-      message: 'Customer Details Flow API is working',
-      endpoint: '/customer-details-flow/exchange',
-      timestamp: new Date().toISOString()
+  postHealth(@Res() res: any) {
+    const healthResponse = {
+      data: {
+        status: 'active'
+      }
     };
+    
+    // Convert to Base64 as required by Meta
+    const base64Response = Buffer.from(JSON.stringify(healthResponse)).toString('base64');
+    
+    res.setHeader('Content-Type', 'text/plain');
+    return res.send(base64Response);
   }
 
   @Public()

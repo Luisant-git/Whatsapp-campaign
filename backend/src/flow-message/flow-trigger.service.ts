@@ -40,8 +40,11 @@ export class FlowTriggerService {
           action: {
             name: 'flow',
             parameters: {
+              flow_message_version: '3',
+              flow_token: flowToken,
               flow_id: flowId,
-              flow_token: flowToken
+              flow_cta: 'Complete Order',
+              flow_action: 'data_exchange'
             }
           }
         }

@@ -66,6 +66,12 @@ export class CustomerDetailsFlowService {
             const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
             const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
             
+            // Check if the client has the required table/method
+            if (!(tenantClient as any).customer) {
+              console.log(`⚠️ Customer table not found in tenant ${tenant.id}`);
+              continue;
+            }
+            
             const customer = await (tenantClient as any).customer.findFirst({
               where: { 
                 OR: [
@@ -93,6 +99,12 @@ export class CustomerDetailsFlowService {
       
       const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
       const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+      
+      // Check if the client has the required table/method
+      if (!(tenantClient as any).customer) {
+        console.log(`⚠️ Customer table not found in tenant ${tenantId}`);
+        return null;
+      }
       
       const customer = await (tenantClient as any).customer.findFirst({
         where: { 

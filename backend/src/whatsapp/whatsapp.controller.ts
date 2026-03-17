@@ -24,6 +24,7 @@ import { CampaignService } from './campaign.service';
 import { SendMessageDto, SendBulkDto, SendMediaDto, MessageResponseDto, BulkMessageResultDto, WhatsAppMessageDto, UploadResponseDto, AnalyticsDto, WhatsAppSettingsDto, CreateCampaignDto, UpdateCampaignDto, CampaignResponseDto } from './dto';
 import { SessionGuard } from '../auth/session.guard';
 import { FlowAppointmentService } from '../flow-appointment/flow-appointment.service';
+import { MetaCatalogService } from '../ecommerce/meta-catalog.service';
  
 @ApiTags('WhatsApp')
 @Controller('whatsapp')
@@ -31,7 +32,8 @@ export class WhatsappController {
   constructor(
     private readonly whatsappService: WhatsappService,
     private readonly campaignService: CampaignService,
-    private readonly flowAppointmentService: FlowAppointmentService
+    private readonly flowAppointmentService: FlowAppointmentService,
+    private readonly metaCatalogService: MetaCatalogService
   ) {}
  
   @Get('webhook/:verifyToken')
@@ -134,12 +136,28 @@ export class WhatsappController {
                 if (message.type === 'interactive' && message.interactive?.type === 'nfm_reply') {
                   console.log('📋 Flow response received');
                   const responseData = JSON.parse(message.interactive.nfm_reply.response_json);
-                  await this.flowAppointmentService.saveAppointmentFromWebhook(
-                    responseData,
-                    message.from,
-                    phoneNumberId
-                  );
-                  return;
+                  
+                  // Check if it's a customer details flow (has customer_name field)
+                  if (responseData.customer_name || responseData.customerName) {
+                    console.log('👤 Customer details flow response detected');
+                    // Handle customer details flow directly
+                    await this.metaCatalogService.handleCustomerDetailsFlowResponse(
+                      message.from,
+                      phoneNumberId,
+                      responseData,
+                      1 // userId - you may need to determine this properly
+                    );
+                    return;
+                  } else {
+                    // Handle appointment flows
+                    console.log('📅 Appointment flow response detected');
+                    await this.flowAppointmentService.saveAppointmentFromWebhook(
+                      responseData,
+                      message.from,
+                      phoneNumberId
+                    );
+                    return;
+                  }
                 }
                 
                 try {
@@ -250,12 +268,28 @@ export class WhatsappController {
                 if (message.type === 'interactive' && message.interactive?.type === 'nfm_reply') {
                   console.log('📋 Flow response received');
                   const responseData = JSON.parse(message.interactive.nfm_reply.response_json);
-                  await this.flowAppointmentService.saveAppointmentFromWebhook(
-                    responseData,
-                    message.from,
-                    phoneNumberId
-                  );
-                  return;
+                  
+                  // Check if it's a customer details flow (has customer_name field)
+                  if (responseData.customer_name || responseData.customerName) {
+                    console.log('👤 Customer details flow response detected');
+                    // Handle customer details flow directly
+                    await this.metaCatalogService.handleCustomerDetailsFlowResponse(
+                      message.from,
+                      phoneNumberId,
+                      responseData,
+                      1 // userId - you may need to determine this properly
+                    );
+                    return;
+                  } else {
+                    // Handle appointment flows
+                    console.log('📅 Appointment flow response detected');
+                    await this.flowAppointmentService.saveAppointmentFromWebhook(
+                      responseData,
+                      message.from,
+                      phoneNumberId
+                    );
+                    return;
+                  }
                 }
                 
                 try {

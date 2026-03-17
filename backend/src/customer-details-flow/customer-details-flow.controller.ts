@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, Res } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, Res, Get } from '@nestjs/common';
 import { CustomerDetailsFlowService } from '../whatsapp/flows/customer-details-flow.service';
 
 @Controller('customer-details-flow')
@@ -6,6 +6,16 @@ export class CustomerDetailsFlowController {
   constructor(
     private readonly customerDetailsFlowService: CustomerDetailsFlowService
   ) {}
+
+  @Get('health')
+  getHealth() {
+    return {
+      status: 'ok',
+      message: 'Customer Details Flow API is working',
+      endpoint: '/customer-details-flow/exchange',
+      timestamp: new Date().toISOString()
+    };
+  }
 
   @Post('exchange')
   @HttpCode(200)

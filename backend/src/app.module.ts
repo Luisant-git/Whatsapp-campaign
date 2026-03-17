@@ -19,6 +19,7 @@ import { TestModule } from './test/test.module';
 import { TenantMiddleware } from './tenant/tenant.middleware';
 // import { DomainTenantMiddleware } from './tenant/domain-tenant.middleware';
 import { TestController } from './test.controller';
+import { TestApiController } from './test-api.controller';
 import { EcommerceModule } from './ecommerce/ecommerce.module';
 import { MenuPermissionModule } from './menu-permission/menu-permission.module';
 import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
@@ -65,7 +66,7 @@ import { TenentnoteModule } from './tenentnote/tenentnote.module';
     UploadModule,
     TenentnoteModule,
   ],
-  controllers: [AppController, TestController],
+  controllers: [AppController, TestController, TestApiController],
   providers: [AppService],
 })
 export class AppModule implements NestModule {

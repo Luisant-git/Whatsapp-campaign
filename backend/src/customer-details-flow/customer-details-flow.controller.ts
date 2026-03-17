@@ -52,7 +52,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
   @Public()
   @Post('health')
   @HttpCode(200)
-  async postHealth(@Body() body: any, @Headers() headers: any) {
+  async postHealth(@Body() body: any, @Headers() headers: any, @Res() res: any) {
     console.log('🔥 HEALTH CHECK REQUEST RECEIVED!');
     console.log('Body keys:', Object.keys(body));
     console.log('Is encrypted request:', this.isEncryptedRequest(body));
@@ -75,13 +75,15 @@ sxEK+yx6I1EkGaK+/KWEpai7
         
         console.log('📤 Sending encrypted health response:', JSON.stringify(healthResponse, null, 2));
         
-        // Encrypt and return response
-        return this.encryptResponse(healthResponse, aesKey, iv);
+        // Encrypt and return response as Base64 string
+        const encryptedResponse = this.encryptResponse(healthResponse, aesKey, iv);
+        res.setHeader('Content-Type', 'text/plain');
+        return res.send(encryptedResponse);
       } else {
         console.log('🔓 Processing unencrypted health check (TEST MODE)...');
         console.log('📤 Sending unencrypted health response:', JSON.stringify(healthResponse, null, 2));
         
-        return healthResponse;
+        return res.json(healthResponse);
       }
 
     } catch (error) {
@@ -89,11 +91,11 @@ sxEK+yx6I1EkGaK+/KWEpai7
       console.error('Stack:', error.stack);
       
       // Return basic health response on error
-      return {
+      return res.json({
         data: {
           status: 'active'
         }
-      };
+      });
     }
   }
 

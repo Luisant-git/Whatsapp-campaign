@@ -27,7 +27,15 @@ export class FlowAppointmentService {
 
   async saveAppointmentFromFlow(data: any) {
     try {
-      console.log('Saving appointment from flow:', JSON.stringify(data, null, 2));
+      console.log('🔍 Raw flow data received:', JSON.stringify(data, null, 2));
+      
+      // Extract data from nested structure if needed
+      let appointmentData = data;
+      if (data.screen_data) {
+        appointmentData = data.screen_data;
+      }
+      
+      console.log('📋 Processed appointment data:', JSON.stringify(appointmentData, null, 2));
       
       const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
       
@@ -36,22 +44,27 @@ export class FlowAppointmentService {
         const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
         const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
         
+        const appointmentRecord = {
+          department: appointmentData.department || appointmentData.selected_department || '',
+          location: appointmentData.location || appointmentData.selected_location || '',
+          date: appointmentData.date || appointmentData.selected_date || '',
+          time: appointmentData.time || appointmentData.selected_time || appointmentData.time_slot || '',
+          name: appointmentData.name || appointmentData.full_name || '',
+          email: appointmentData.email || appointmentData.email_address || '',
+          phone: appointmentData.phone || appointmentData.phone_number || '',
+          moreDetails: appointmentData.more_details || appointmentData.additional_details || appointmentData.details || null,
+        };
+        
+        console.log('💾 Saving appointment record:', JSON.stringify(appointmentRecord, null, 2));
+        
         await (tenantClient as any).flowAppointment.create({
-          data: {
-            department: data.department || '',
-            location: data.location || '',
-            date: data.date || '',
-            time: data.time || '',
-            name: data.name || '',
-            email: data.email || '',
-            phone: data.phone || '',
-            moreDetails: data.more_details || null,
-          },
+          data: appointmentRecord,
         });
         console.log('✅ Flow appointment saved successfully');
       }
     } catch (error) {
-      console.error('Error saving flow appointment:', error);
+      console.error('❌ Error saving flow appointment:', error);
+      throw error;
     }
   }
 

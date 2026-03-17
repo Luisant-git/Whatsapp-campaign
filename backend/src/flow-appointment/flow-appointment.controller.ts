@@ -92,6 +92,9 @@ export class FlowAppointmentController {
     
     if (action === 'data_exchange' && screen === 'SUMMARY') {
       try {
+        console.log('🔍 SUMMARY screen data exchange - Full body:', JSON.stringify(body, null, 2));
+        console.log('🔍 Data field:', JSON.stringify(data, null, 2));
+        
         await this.flowAppointmentService.saveAppointmentFromFlow(data);
         
         return res.status(200).json({

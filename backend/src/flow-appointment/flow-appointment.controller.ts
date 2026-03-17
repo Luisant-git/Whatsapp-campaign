@@ -122,7 +122,7 @@ export class FlowAppointmentController {
         console.log('🔍 SUMMARY screen data exchange - Full body:', JSON.stringify(body, null, 2));
         console.log('🔍 Data field:', JSON.stringify(data, null, 2));
         
-        await this.flowAppointmentService.saveAppointmentFromFlow(data);
+        await this.flowAppointmentService.saveAppointmentFromFlow(data, flow_token);
         
         return res.status(200).json({
           screen: 'SUCCESS',

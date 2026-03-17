@@ -25,9 +25,10 @@ export class FlowAppointmentService {
     });
   }
 
-  async saveAppointmentFromFlow(data: any) {
+  async saveAppointmentFromFlow(data: any, flowToken?: string) {
     try {
       console.log('🔍 Raw flow data received:', JSON.stringify(data, null, 2));
+      console.log('🔍 Flow token:', flowToken);
       
       // Extract data from nested structure if needed
       let appointmentData = data;
@@ -37,7 +38,20 @@ export class FlowAppointmentService {
       
       console.log('📋 Processed appointment data:', JSON.stringify(appointmentData, null, 2));
       
-      // Save to all active tenants to ensure it appears in the correct dashboard
+      const appointmentRecord = {
+        department: appointmentData.department || appointmentData.selected_department || '',
+        location: appointmentData.location || appointmentData.selected_location || '',
+        date: appointmentData.date || appointmentData.selected_date || '',
+        time: appointmentData.time || appointmentData.selected_time || appointmentData.time_slot || '',
+        name: appointmentData.name || appointmentData.full_name || '',
+        email: appointmentData.email || appointmentData.email_address || '',
+        phone: appointmentData.phone || appointmentData.phone_number || '',
+        moreDetails: appointmentData.more_details || appointmentData.additional_details || appointmentData.details || null,
+      };
+      
+      console.log('💾 Appointment record to save:', JSON.stringify(appointmentRecord, null, 2));
+      
+      // Save to all active tenants to ensure it appears in all dashboards
       const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
       
       for (const tenant of tenants) {
@@ -45,23 +59,10 @@ export class FlowAppointmentService {
           const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
           const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
           
-          const appointmentRecord = {
-            department: appointmentData.department || appointmentData.selected_department || '',
-            location: appointmentData.location || appointmentData.selected_location || '',
-            date: appointmentData.date || appointmentData.selected_date || '',
-            time: appointmentData.time || appointmentData.selected_time || appointmentData.time_slot || '',
-            name: appointmentData.name || appointmentData.full_name || '',
-            email: appointmentData.email || appointmentData.email_address || '',
-            phone: appointmentData.phone || appointmentData.phone_number || '',
-            moreDetails: appointmentData.more_details || appointmentData.additional_details || appointmentData.details || null,
-          };
-          
-          console.log(`💾 Saving appointment record to tenant ${tenant.id}:`, JSON.stringify(appointmentRecord, null, 2));
-          
           await (tenantClient as any).flowAppointment.create({
             data: appointmentRecord,
           });
-          console.log(`✅ Flow appointment saved successfully to tenant ${tenant.id}`);
+          console.log(`✅ Flow appointment saved successfully to tenant ${tenant.id} (${tenant.name})`);
         } catch (tenantError) {
           console.error(`❌ Error saving to tenant ${tenant.id}:`, tenantError.message);
         }

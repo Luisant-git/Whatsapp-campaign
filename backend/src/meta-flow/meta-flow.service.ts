@@ -156,9 +156,16 @@ sxEK+yx6I1EkGaK+/KWEpai7
         console.log(`📤 Using tenant ID: ${tenantId} for INIT`);
         
         // Get dynamic data from database
+        console.log('🔍 Attempting to load data from database...');
         const departments = await this.flowAppointmentService.getDepartments();
+        console.log('📋 Departments from DB:', departments);
+        
         const locations = await this.flowAppointmentService.getLocations();
+        console.log('📍 Locations from DB:', locations);
+        
         const timeSlots = await this.flowAppointmentService.getTimeSlots();
+        console.log('⏰ Time slots from DB:', timeSlots);
+        
         const dates = this.generateDates(7);
         
         const appointmentData = {

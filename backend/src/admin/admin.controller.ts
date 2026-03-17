@@ -18,23 +18,36 @@ export class AdminController {
   async register(@Body() createAdminDto: CreateAdminDto) {
     return this.adminService.register(createAdminDto);
   }
-
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Admin login' })
-  async login(@Body() loginAdminDto: LoginAdminDto, @Session() session: Record<string, any>) {
+  async login(
+    @Body() loginAdminDto: LoginAdminDto,
+    @Session() session: Record<string, any>,
+  ) {
     const admin = await this.adminService.login(loginAdminDto);
+  
     session.adminId = admin.id;
     session.adminEmail = admin.email;
     session.adminName = admin.name;
-
+  
+    await new Promise<void>((resolve, reject) => {
+      session.save((err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+  
     return {
       message: 'Login successful',
       admin: {
         id: admin.id,
         email: admin.email,
         name: admin.name,
-      }
+      },
     };
   }
 
@@ -42,7 +55,10 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Admin logout' })
   logout(@Session() session: Record<string, any>) {
-    session.destroy();
+    delete session.adminId;
+    delete session.adminEmail;
+    delete session.adminName;
+  
     return { message: 'Logout successful' };
   }
 

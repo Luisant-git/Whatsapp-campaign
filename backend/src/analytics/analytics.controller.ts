@@ -12,6 +12,7 @@ export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
   @Get()
+  
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Get WhatsApp analytics and statistics' })
   @ApiQuery({ name: 'settingsName', required: false, description: 'Filter by settings name' })

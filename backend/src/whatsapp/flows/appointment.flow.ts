@@ -61,7 +61,12 @@ export class AppointmentFlowHandler implements FlowHandler {
 
   async processSubmission(data: any, session: any): Promise<any> {
     try {
-      await this.flowAppointmentService.saveAppointment(data, 1);
+      console.log('💾 Processing appointment submission via flow handler');
+      console.log('📋 Data:', JSON.stringify(data, null, 2));
+      console.log('🔑 Session:', JSON.stringify(session, null, 2));
+      
+      // Use the new saveAppointmentFromFlow method that saves to all tenants
+      await this.flowAppointmentService.saveAppointmentFromFlow(data, session.flowToken);
       
       return {
         screen: 'SUCCESS',
@@ -74,6 +79,7 @@ export class AppointmentFlowHandler implements FlowHandler {
         }
       };
     } catch (error) {
+      console.error('❌ Error in flow handler submission:', error);
       return {
         screen: 'SUMMARY',
         data: {

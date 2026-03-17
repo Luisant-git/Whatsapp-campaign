@@ -339,7 +339,7 @@ export class MetaCatalogService {
     await this.sessionService.setSession(phone, { 
       cartProducts,
       totalAmount,
-      step: 'awaiting_name'
+      step: 'awaiting_flow_response'
     }, userId);
     
     // Check if customer exists
@@ -350,7 +350,12 @@ export class MetaCatalogService {
       await this.sendCustomerDetailsConfirmation(phone, phoneNumberId, existingCustomer);
     } else {
       // Send customer details flow for new customer
-      await this.sendCustomerDetailsFlow(phone, phoneNumberId, userId);
+      await this.flowTriggerService.sendFlowMessage({
+        to: phone,
+        phoneNumberId,
+        flowId: process.env.CUSTOMER_FLOW_ID,
+        flowToken: `order_${Date.now()}`
+      });
     }
   }
 
@@ -386,50 +391,16 @@ export class MetaCatalogService {
             customerAddress: undefined,
             customerCity: undefined,
             customerPincode: undefined,
-            step: 'awaiting_name' 
+            step: 'awaiting_flow_response' 
           }, userId);
-          await this.sendTextMessage(phone, phoneNumberId, '🎁 Ordering for someone else!\n\nPlease provide recipient\'s full name:');
+          await this.flowTriggerService.sendFlowMessage({
+            to: phone,
+            phoneNumberId,
+            flowId: process.env.CUSTOMER_FLOW_ID,
+            flowToken: `order_${Date.now()}`
+          });
           return true;
         }
-        return true;
-      }
-      
-      if (step === 'select_update_field') {
-        const field = message.toLowerCase();
-        
-        if (field === 'name' || field === 'update name' || message === 'Update Name') {
-          await this.sessionService.setSession(phone, { step: 'awaiting_name' }, userId);
-          await this.sendTextMessage(phone, phoneNumberId, 'Please provide your full name:');
-          return true;
-        } else if (field === 'address' || field === 'update address' || message === 'Update Address') {
-          await this.sessionService.setSession(phone, { step: 'awaiting_address' }, userId);
-          await this.sendTextMessage(phone, phoneNumberId, 'Please provide your complete delivery address:');
-          return true;
-        }
-        return true;
-      }
-      
-      if (step === 'awaiting_name') {
-        await this.sessionService.setCustomerName(phone, message, userId);
-        await this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your complete delivery address:');
-        return true;
-      }
-      
-      if (step === 'awaiting_address') {
-        await this.sessionService.setCustomerAddress(phone, message, userId);
-        await this.sendTextMessage(phone, phoneNumberId, 'Thank you! Now please provide your city:');
-        return true;
-      }
-      
-      if (step === 'awaiting_city') {
-        await this.sessionService.setCustomerCity(phone, message, userId);
-        await this.sendTextMessage(phone, phoneNumberId, 'Thank you! Finally, please provide your pincode:');
-        return true;
-      }
-      
-      if (step === 'awaiting_pincode') {
-        await this.sessionService.setCustomerPincode(phone, message, userId);
-        await this.sendPaymentMethodSelection(phone, phoneNumberId, userId);
         return true;
       }
       
@@ -784,10 +755,20 @@ export class MetaCatalogService {
     try {
       console.log(`[Meta Catalog] Sending customer details flow to ${phone}`);
       
-      // Fallback to text message for now until flow is created
-      await this.sendTextMessage(phone, phoneNumberId, '📦 Great! To complete your order, please provide your details.\n\n_Type EXIT anytime to cancel_');
-      
-      console.log(`[Meta Catalog] Customer details flow sent successfully`);
+      // Try to send actual flow if CUSTOMER_FLOW_ID is configured
+      if (process.env.CUSTOMER_FLOW_ID) {
+        await this.flowTriggerService.sendFlowMessage({
+          to: phone,
+          phoneNumberId,
+          flowId: process.env.CUSTOMER_FLOW_ID,
+          flowToken: `order_${Date.now()}`
+        });
+        console.log(`[Meta Catalog] Customer details flow sent successfully`);
+      } else {
+        // Fallback to text message if flow not configured
+        await this.sendTextMessage(phone, phoneNumberId, '📦 Great! To complete your order, please provide your details.\n\n_Type EXIT anytime to cancel_');
+        console.log(`[Meta Catalog] Fallback text message sent (no CUSTOMER_FLOW_ID configured)`);
+      }
     } catch (error) {
       console.error('[Meta Catalog] Error sending customer details flow:', error);
       // Fallback to text message

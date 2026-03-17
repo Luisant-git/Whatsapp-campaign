@@ -6,6 +6,7 @@ import axios from 'axios';
 
 @Injectable()
 export class FlowTriggerService {
+  private readonly apiUrl = 'https://graph.facebook.com/v18.0';
   private readonly accessToken = process.env.META_ACCESS_TOKEN;
   private readonly phoneNumberId = process.env.PHONE_NUMBER_ID;
 
@@ -14,6 +15,55 @@ export class FlowTriggerService {
     private centralPrisma: CentralPrismaService,
     private flowManager: FlowManagerService,
   ) {}
+
+  async sendFlowMessage({
+    to,
+    phoneNumberId,
+    flowId,
+    flowToken
+  }: {
+    to: string;
+    phoneNumberId: string;
+    flowId: string;
+    flowToken: string;
+  }) {
+    try {
+      const payload = {
+        messaging_product: 'whatsapp',
+        to,
+        type: 'interactive',
+        interactive: {
+          type: 'flow',
+          body: {
+            text: '🛒 Please complete your order details'
+          },
+          action: {
+            name: 'flow',
+            parameters: {
+              flow_id: flowId,
+              flow_token: flowToken
+            }
+          }
+        }
+      };
+
+      const response = await axios.post(
+        `${this.apiUrl}/${phoneNumberId}/messages`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error('Flow send error:', error.response?.data || error.message);
+      throw error;
+    }
+  }
 
   // Create a new flow trigger
   async createTrigger(userId: number, data: any) {

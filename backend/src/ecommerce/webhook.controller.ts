@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Headers, Param } from '@nestjs/common';
+import { Controller, Post, Body, Headers, Param, Req } from '@nestjs/common';
 import { RazorpayService } from './razorpay.service';
 import { EcommerceService } from './ecommerce.service';
 import { MetaCatalogService } from './meta-catalog.service';
@@ -10,6 +10,39 @@ export class WebhookController {
     private ecommerceService: EcommerceService,
     private metaCatalogService: MetaCatalogService,
   ) {}
+
+  @Post('whatsapp')
+  async handleWebhook(@Req() req: any) {
+    const entry = req.body.entry?.[0];
+    const change = entry?.changes?.[0];
+    const value = change?.value;
+
+    const message = value?.messages?.[0];
+
+    if (!message) return;
+
+    const phone = message.from;
+    const phoneNumberId = value.metadata.phone_number_id;
+
+    // ✅ FLOW RESPONSE HANDLER
+    if (message?.interactive?.nfm_reply) {
+      const flowData = JSON.parse(
+        message.interactive.nfm_reply.response_json
+      );
+
+      await this.metaCatalogService.handleCustomerDetailsFlowResponse(
+        phone,
+        phoneNumberId,
+        flowData,
+        1 // userId
+      );
+
+      return;
+    }
+
+    // Handle other message types...
+    return { status: 'ok' };
+  }
 
   @Post('razorpay')
   async handleRazorpayWebhook(@Body() body: any, @Headers() headers: any) {

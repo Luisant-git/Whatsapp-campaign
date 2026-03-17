@@ -121,6 +121,7 @@ export class FlowAppointmentController {
       try {
         console.log('🔍 SUMMARY screen data exchange - Full body:', JSON.stringify(body, null, 2));
         console.log('🔍 Data field:', JSON.stringify(data, null, 2));
+        console.log('🔍 Flow token:', flow_token);
         
         await this.flowAppointmentService.saveAppointmentFromFlow(data, flow_token);
         

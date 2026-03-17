@@ -252,18 +252,11 @@ sxEK+yx6I1EkGaK+/KWEpai7
         console.log('💾 Processing SUMMARY screen - saving appointment');
         
         try {
-          // Extract tenant ID from flow token or default to 1
-          let tenantId = 1;
-          if (flow_token && flow_token.includes('_')) {
-            const tokenParts = flow_token.split('_');
-            if (tokenParts.length >= 3) {
-              tenantId = parseInt(tokenParts[2]) || 1;
-            }
-          }
+          console.log('📋 Appointment data to save:', JSON.stringify(data, null, 2));
+          console.log('🔑 Flow token:', flow_token);
           
-          console.log(`💾 Saving appointment for tenant: ${tenantId}`, data);
-          await this.flowAppointmentService.saveAppointment(data, tenantId);
-          console.log('✅ Appointment saved successfully');
+          // Use the new saveAppointmentFromFlow method that saves to all tenants
+          await this.flowAppointmentService.saveAppointmentFromFlow(data, flow_token);
           
           return {
             screen: 'SUCCESS',

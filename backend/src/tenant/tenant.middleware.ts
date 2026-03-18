@@ -45,7 +45,23 @@ export class TenantMiddleware implements NestMiddleware {
 
     let tenant: any = null;
 
-    // First, try to identify tenant by the origin domain (where the request came from)
+    // 🔥 NEW: Check for x-tenant-id header first (for API testing)
+    const tenantHeader = req.headers['x-tenant-id'] as string;
+    if (tenantHeader) {
+      console.log('TenantMiddleware - Found x-tenant-id header:', tenantHeader);
+      tenant = await this.centralPrisma.tenant.findFirst({
+        where: {
+          OR: [
+            { email: { contains: tenantHeader, mode: 'insensitive' } },
+            { dbName: tenantHeader }
+          ],
+          isActive: true
+        },
+      });
+      console.log('TenantMiddleware - Found tenant by header:', tenant?.id, tenant?.email);
+    }
+
+    // If no tenant found by header, try to identify tenant by the origin domain (where the request came from)
     if (origin) {
       const originUrl = new URL(origin);
       const hostname = originUrl.hostname;

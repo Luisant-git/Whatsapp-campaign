@@ -13,6 +13,12 @@ const TenantDomainManager = () => {
   const [newDomain, setNewDomain] = useState('');
   const [message, setMessage] = useState('');
 
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   useEffect(() => {
     fetchTenantDomains();
   }, []);
@@ -22,25 +28,25 @@ const TenantDomainManager = () => {
       setLoading(true);
       setError(null);
       console.log('Fetching tenant domains from:', `${API_URL}/admin/tenants/domains`);
-      
+
       const response = await fetch(`${API_URL}/admin/tenants/domains`, {
         credentials: 'include',
       });
-      
+
       console.log('API Response Status:', response.status);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      
+
       const data = await response.json();
       console.log('API Response Data:', data);
-      
+
       // Handle different response structures
       const tenantsData = data?.tenants || data || [];
       console.log('Processed tenants data:', tenantsData);
       console.log('Is array?', Array.isArray(tenantsData));
-      
+
       setTenants(Array.isArray(tenantsData) ? tenantsData : []);
     } catch (error) {
       console.error('Error fetching tenant domains:', error);
@@ -59,12 +65,12 @@ const TenantDomainManager = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ domain }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to update domain');
       }
-      
+
       setMessage('Domain updated successfully');
       setEditingTenant(null);
       setNewDomain('');
@@ -78,18 +84,18 @@ const TenantDomainManager = () => {
 
   const removeTenantDomain = async (tenantId) => {
     if (!window.confirm('Are you sure you want to remove this domain?')) return;
-    
+
     try {
       const response = await fetch(`${API_URL}/admin/tenants/${tenantId}/domain`, {
         method: 'DELETE',
         credentials: 'include',
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to remove domain');
       }
-      
+
       setMessage('Domain removed successfully');
       fetchTenantDomains();
       setTimeout(() => setMessage(''), 3000);
@@ -120,6 +126,27 @@ const TenantDomainManager = () => {
     setNewDomain('');
   };
 
+
+  const filteredTenants = tenants.filter((tenant) => {
+    const matchesSearch =
+      tenant.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tenant.email?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'active' && tenant.isActive) ||
+      (statusFilter === 'inactive' && !tenant.isActive);
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const totalPages = Math.ceil(filteredTenants.length / itemsPerPage) || 1;
+
+  const paginatedTenants = filteredTenants.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -145,17 +172,48 @@ const TenantDomainManager = () => {
     <div className="tenant-domains-page">
       <div className="tenant-domains-header">
         <h2>Tenant Domain Management</h2>
+
         <p>
           Primary Domain: <span className="primary-domain">whatsapp.luisant.cloud</span>
         </p>
+        <div className="filters-container">
+  <div className="filter-inline">
+    <label className="filter-label">Company</label>
+    <input
+      type="text"
+      placeholder="Search Company or email..."
+      value={searchTerm}
+      onChange={(e) => {
+        setSearchTerm(e.target.value);
+        setCurrentPage(1);
+      }}
+      className="search-input"
+    />
+  </div>
+
+  <div className="filter-inline">
+    <label className="filter-label">Status</label>
+    <select
+      value={statusFilter}
+      onChange={(e) => {
+        setStatusFilter(e.target.value);
+        setCurrentPage(1);
+      }}
+      className="status-dropdown"
+    >
+      <option value="all">All</option>
+      <option value="active">Active</option>
+      <option value="inactive">Inactive</option>
+    </select>
+  </div>
+</div>
       </div>
 
       {message && (
-        <div className={`message-alert ${
-          message.includes('Error') || message.includes('already assigned') 
-            ? 'message-error' 
-            : 'message-success'
-        }`}>
+        <div className={`message-alert ${message.includes('Error') || message.includes('already assigned')
+          ? 'message-error'
+          : 'message-success'
+          }`}>
           {message}
         </div>
       )}
@@ -168,73 +226,165 @@ const TenantDomainManager = () => {
           </button>
         </div>
       ) : (
-        <div className="domains-table-container">
-          <table className="domains-table">
-            <thead>
-              <tr>
-                <th>Tenant ID</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Custom Domain</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tenants.map((tenant) => (
-                <tr key={tenant.id}>
-                  <td className="tenant-id">{tenant.id}</td>
-                  <td className="tenant-name">{tenant.name || 'N/A'}</td>
-                  <td className="tenant-email">{tenant.email}</td>
-                  <td>
-                    <span className={`domain-display ${
-                      tenant.domain ? 'domain-active' : 'domain-inactive'
-                    }`}>
-                      {tenant.domain || 'No custom domain'}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`status-badge ${
-                      tenant.isActive ? 'status-active' : 'status-inactive'
-                    }`}>
-                      {tenant.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="actions-container">
-                      <button
-                        onClick={() => handleEditClick(tenant)}
-                        className="btn-edit"
+        <>
+          <div className="domains-table-container desktop-domains-table">
+            <table className="domains-table">
+              <thead>
+                <tr>
+                  <th>Tenant ID</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Custom Domain</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedTenants.map((tenant) => (
+                  <tr key={tenant.id}>
+                    <td className="tenant-id">{tenant.id}</td>
+                    <td className="tenant-name">{tenant.name || 'N/A'}</td>
+                    <td className="tenant-email">{tenant.email}</td>
+                    <td>
+                      <span
+                        className={`domain-display ${tenant.domain ? 'domain-active' : 'domain-inactive'
+                          }`}
                       >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                          <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                        {tenant.domain ? '' : 'Add Domain'}
-                      </button>
-                      {tenant.domain && (
+                        {tenant.domain || 'No custom domain'}
+                      </span>
+                    </td>
+                    <td>
+                      <span
+                        className={`status-badge ${tenant.isActive ? 'status-active' : 'status-inactive'
+                          }`}
+                      >
+                        {tenant.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="actions-container">
                         <button
-                          onClick={() => removeTenantDomain(tenant.id)}
-                          className="btn-remove"
+                          onClick={() => handleEditClick(tenant)}
+                          className="btn-edit"
                         >
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="3,6 5,6 21,6"></polyline>
-                            <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"></path>
-                            <line x1="10" y1="11" x2="10" y2="17"></line>
-                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                           </svg>
-                          
+                          {tenant.domain ? '' : 'Add Domain'}
                         </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+
+                        {tenant.domain && (
+                          <button
+                            onClick={() => removeTenantDomain(tenant.id)}
+                            className="btn-remove"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="3,6 5,6 21,6"></polyline>
+                              <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"></path>
+                              <line x1="10" y1="11" x2="10" y2="17"></line>
+                              <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+          </div>
+
+
+
+          <div className="mobile-domains-list">
+            {paginatedTenants.map((tenant) => (
+              <div className="domain-card" key={tenant.id}>
+                <div className="domain-card-top">
+                  <div>
+                    <h3>{tenant.name || 'N/A'}</h3>
+                    <p>{tenant.email}</p>
+                  </div>
+
+                  <span
+                    className={`status-badge ${tenant.isActive ? 'status-active' : 'status-inactive'
+                      }`}
+                  >
+                    {tenant.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+
+                <div className="domain-card-details">
+                  <div className="domain-card-row">
+                    <span className="domain-card-label">Tenant ID</span>
+                    <span>{tenant.id}</span>
+                  </div>
+
+                  <div className="domain-card-row">
+                    <span className="domain-card-label">Domain</span>
+                    <span
+                      className={`domain-display ${tenant.domain ? 'domain-active' : 'domain-inactive'
+                        }`}
+                    >
+                      {tenant.domain || 'No custom domain'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="domain-card-actions">
+                  <button
+                    onClick={() => handleEditClick(tenant)}
+                    className="btn-edit"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                      <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+
+                  </button>
+
+                  {tenant.domain && (
+                    <button
+                      onClick={() => removeTenantDomain(tenant.id)}
+                      className="btn-remove"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="3,6 5,6 21,6"></polyline>
+                        <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                      </svg>
+
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
+
+      <div className="domains-pagination">
+        <button
+          disabled={currentPage === 1}
+          onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+        >
+          Prev
+        </button>
+
+        <span>
+          Page {currentPage} of {totalPages}
+        </span>
+
+        <button
+          disabled={currentPage === totalPages}
+          onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+        >
+          Next
+        </button>
+      </div>
       {/* <div className="info-panel">
         <h3>Domain Access Control</h3>
         <ul className="info-list">
@@ -261,7 +411,7 @@ const TenantDomainManager = () => {
                 <p><strong>Email:</strong> {modalTenant?.email}</p>
                 <p><strong>Current Domain:</strong> {modalTenant?.domain || 'None'}</p>
               </div>
-              
+
               <div className="form-group">
                 <label htmlFor="domain-input">Custom Domain</label>
                 <input
@@ -282,8 +432,8 @@ const TenantDomainManager = () => {
               <button onClick={handleCancel} className="btn-modal-cancel">
                 Cancel
               </button>
-              <button 
-                onClick={handleSave} 
+              <button
+                onClick={handleSave}
                 className="btn-modal-save"
                 disabled={!newDomain.trim()}
               >

@@ -119,3 +119,11 @@ export const updateAdminUser = async (id, formData) => {
 
   return JSON.parse(text);
 };
+
+export const getUserSubscriptions = async () => {
+  const response = await fetch(`${API_BASE_URL}/subscription/users`, {
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error('Failed to fetch user subscriptions');
+  return await response.json();
+};

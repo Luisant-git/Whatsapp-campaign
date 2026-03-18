@@ -1,16 +1,29 @@
-import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { MdDashboard, MdPeople, MdCampaign, MdMessage, MdAnalytics, MdSettings, MdCardMembership, MdReceipt, MdDomain } from 'react-icons/md';
+import {
+  MdDashboard,
+  MdPeople,
+  MdCampaign,
+  MdCardMembership,
+  MdReceipt,
+  MdDomain,
+  MdClose
+} from 'react-icons/md';
 import '../styles/Sidebar.css';
 
-export default function Sidebar({ isOpen }) {
+export default function Sidebar({ isOpen, toggleSidebar }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const activeMenu = location.pathname === '/users' ? 'users' 
-    : location.pathname === '/subscriptions' ? 'subscriptions'
-    : location.pathname === '/subscription-orders' ? 'orders'
-    : location.pathname === '/tenant-domains' ? 'domains'
-    : 'dashboard';
+
+  const activeMenu =
+    location.pathname === '/users'
+      ? 'users'
+      : location.pathname === '/subscriptions'
+      ? 'subscriptions'
+      : location.pathname === '/subscription-orders'
+      ? 'orders'
+      : location.pathname === '/tenant-domains'
+      ? 'domains'
+      : 'dashboard';
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: MdDashboard, path: '/' },
@@ -18,19 +31,29 @@ export default function Sidebar({ isOpen }) {
     { id: 'domains', label: 'Tenant Domains', icon: MdDomain, path: '/tenant-domains' },
     { id: 'subscriptions', label: 'Subscriptions', icon: MdCardMembership, path: '/subscriptions' },
     { id: 'orders', label: 'Subscription Orders', icon: MdReceipt, path: '/subscription-orders' },
-    // { id: 'campaigns', label: 'Campaigns', icon: MdCampaign },
-    // { id: 'messages', label: 'Messages', icon: MdMessage },
-    // { id: 'analytics', label: 'Analytics', icon: MdAnalytics },
-    // { id: 'settings', label: 'Settings', icon: MdSettings },
   ];
+
+  const handleNavigate = (path) => {
+    navigate(path);
+
+    if (window.innerWidth <= 1023) {
+      toggleSidebar();
+    }
+  };
 
   return (
     <aside className={`admin-sidebar ${isOpen ? 'open' : ''}`}>
       <div className="sidebar-logo">
-        <MdCampaign size={32} />
-        <span className="logo-text">WhatsApp Admin</span>
+        <div className="sidebar-brand">
+          <MdCampaign size={30} />
+          <span className="logo-text">WhatsApp Admin</span>
+        </div>
+
+        <button className="sidebar-close-btn" onClick={toggleSidebar}>
+          <MdClose size={24} />
+        </button>
       </div>
-      
+
       <nav className="sidebar-nav">
         {menuItems.map((item) => {
           const Icon = item.icon;
@@ -38,7 +61,7 @@ export default function Sidebar({ isOpen }) {
             <button
               key={item.id}
               className={`nav-item ${activeMenu === item.id ? 'active' : ''}`}
-              onClick={() => item.path && navigate(item.path)}
+              onClick={() => handleNavigate(item.path)}
             >
               <Icon className="nav-icon" size={20} />
               <span className="nav-label">{item.label}</span>

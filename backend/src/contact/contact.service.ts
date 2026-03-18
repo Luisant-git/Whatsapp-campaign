@@ -265,33 +265,58 @@ export class ContactService {
     phoneNumberId?: string,
   ) {
     const prisma = this.getPrisma(tenantContext);
-
+  
     const formattedPhone = this.formatPhoneNumber(phone);
-    const displayName = name?.trim() || formattedPhone;
-
-    await prisma.contact.upsert({
+  
+    const normalizedIncomingName =
+      name &&
+      !['null', 'undefined', 'unknown'].includes(name.trim().toLowerCase())
+        ? name.trim()
+        : '';
+  
+    const fallbackName = normalizedIncomingName || formattedPhone;
+  
+    const existingContact = await prisma.contact.findFirst({
       where: {
-        phone_phoneNumberId: {
-          phone: formattedPhone,
-          phoneNumberId: (phoneNumberId ?? null) as any,
-        },
-      },
-      update: {
-        name: displayName,
-        lastMessageDate: new Date(),
-        isActive: true,
-      },
-      create: {
-        name: displayName,
         phone: formattedPhone,
-        phoneNumberId: (phoneNumberId ?? null) as any,
-        groupId: null, // ✅ so it comes to Ungrouped page
+        phoneNumberId: phoneNumberId ?? null,
+      },
+    });
+  
+    if (existingContact) {
+      const existingName =
+        existingContact.name &&
+        !['null', 'undefined', 'unknown'].includes(
+          existingContact.name.trim().toLowerCase(),
+        )
+          ? existingContact.name.trim()
+          : '';
+  
+      await prisma.contact.update({
+        where: { id: existingContact.id },
+        data: {
+          name: existingName || fallbackName,
+          lastMessageDate: new Date(),
+          isActive: true,
+        },
+      });
+  
+      return { success: true, message: 'Contact updated' };
+    }
+  
+    await prisma.contact.create({
+      data: {
+        name: fallbackName,
+        phone: formattedPhone,
+        phoneNumberId: phoneNumberId ?? null,
+        groupId: null,
         lastMessageDate: new Date(),
         isActive: true,
       },
     });
+  
+    return { success: true, message: 'Contact created' };
   }
-
   async getLabels(tenantContext: TenantContext) {
     const prisma = this.getPrisma(tenantContext);
     const labels = await prisma.chatLabel.findMany({});

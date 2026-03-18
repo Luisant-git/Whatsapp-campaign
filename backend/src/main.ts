@@ -25,6 +25,7 @@ async function bootstrap() {
         'http://localhost:5174',
         'https://whatsapp.luisant.cloud',
         'https://whatsapp.admin.luisant.cloud',
+        'https://whatsapp.api.luisant.cloud',  // ← Added this
         'https://crm.luisant.in',
       ];
       
@@ -41,6 +42,8 @@ async function bootstrap() {
       // Reject other origins
       callback(new Error('Not allowed by CORS'));
     },
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id'],
     credentials: true,
   });
 

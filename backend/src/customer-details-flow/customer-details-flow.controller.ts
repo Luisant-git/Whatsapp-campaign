@@ -296,8 +296,9 @@ sxEK+yx6I1EkGaK+/KWEpai7
     const decipher = crypto.createDecipheriv('aes-128-gcm', aesKey, iv);
     decipher.setAuthTag(authTag);
     
-    let decrypted = decipher.update(encryptedData, null, 'utf8');
-    decrypted += decipher.final('utf8');
+    const decryptedBuffer = decipher.update(encryptedData);
+    const finalBuffer = decipher.final();
+    const decrypted = Buffer.concat([decryptedBuffer, finalBuffer]).toString('utf8');
     
     const parsed = JSON.parse(decrypted);
     console.log('📋 Decrypted data:', JSON.stringify(parsed, null, 2));
@@ -322,12 +323,12 @@ sxEK+yx6I1EkGaK+/KWEpai7
     // Encrypt response using AES-128-GCM with flipped IV
     const cipher = crypto.createCipheriv('aes-128-gcm', aesKey, flippedIV);
     
-    let encrypted = cipher.update(JSON.stringify(response), 'utf8');
-    const final = cipher.final();
+    const encryptedBuffer = cipher.update(JSON.stringify(response), 'utf8');
+    const finalBuffer = cipher.final();
     const authTag = cipher.getAuthTag();
     
     // Combine encrypted data + auth tag
-    const result = Buffer.concat([encrypted, final, authTag]);
+    const result = Buffer.concat([encryptedBuffer, finalBuffer, authTag]);
     const base64Result = result.toString('base64');
     
     console.log('🔒 Encrypted response length:', base64Result.length);

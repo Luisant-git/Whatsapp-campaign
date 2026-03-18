@@ -13,38 +13,12 @@ async function bootstrap() {
   // Trust proxy (for production behind nginx)
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
-  // Enable CORS with dynamic origin support
+  // Enable CORS with simplified configuration
   app.enableCors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Postman, etc.)
-      if (!origin) return callback(null, true);
-      
-      // List of allowed origins
-      const allowedOrigins = [
-        'http://localhost:5173',
-        'http://localhost:5174',
-        'https://whatsapp.luisant.cloud',
-        'https://whatsapp.admin.luisant.cloud',
-        'https://whatsapp.api.luisant.cloud',  // ← Added this
-        'https://crm.luisant.in',
-      ];
-      
-      // Check if origin is in allowed list
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      
-      // Allow any subdomain of luisant.in or luisant.cloud
-      if (origin.match(/^https?:\/\/[\w-]+\.(luisant\.(in|cloud))$/)) {
-        return callback(null, true);
-      }
-      
-      // Reject other origins
-      callback(new Error('Not allowed by CORS'));
-    },
+    origin: true,
+    credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id'],
-    credentials: true,
   });
 
   // Cookie parser

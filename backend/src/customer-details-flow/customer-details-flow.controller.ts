@@ -270,7 +270,8 @@ sxEK+yx6I1EkGaK+/KWEpai7
     const aesKey = crypto.privateDecrypt(
       { 
         key: this.privateKey, 
-        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha256'
       },
       Buffer.from(encryptedAesKey, 'base64')
     );
@@ -286,10 +287,16 @@ sxEK+yx6I1EkGaK+/KWEpai7
       };
     }
     
-    // Decrypt flow data using AES-256-CBC
-    const decipher = crypto.createDecipheriv('aes-256-cbc', aesKey, iv);
+    // Decrypt flow data using AES-128-GCM (as per Meta docs)
+    const flowDataBuffer = Buffer.from(encryptedFlowData, 'base64');
+    const TAG_LENGTH = 16;
+    const encryptedData = flowDataBuffer.subarray(0, -TAG_LENGTH);
+    const authTag = flowDataBuffer.subarray(-TAG_LENGTH);
     
-    let decrypted = decipher.update(encryptedFlowData, 'base64', 'utf8');
+    const decipher = crypto.createDecipheriv('aes-128-gcm', aesKey, iv);
+    decipher.setAuthTag(authTag);
+    
+    let decrypted = decipher.update(encryptedData, null, 'utf8');
     decrypted += decipher.final('utf8');
     
     const parsed = JSON.parse(decrypted);
@@ -306,13 +313,24 @@ sxEK+yx6I1EkGaK+/KWEpai7
     console.log('🔒 Encrypting response...');
     console.log('📤 Response to encrypt:', JSON.stringify(response, null, 2));
     
-    // Encrypt response using AES-256-CBC with same IV
-    const cipher = crypto.createCipheriv('aes-256-cbc', aesKey, iv);
+    // Flip the initialization vector (as per Meta docs)
+    const flippedIV = Buffer.alloc(iv.length);
+    for (let i = 0; i < iv.length; i++) {
+      flippedIV[i] = iv[i] ^ 0xFF;
+    }
     
-    let encrypted = cipher.update(JSON.stringify(response), 'utf8', 'base64');
-    encrypted += cipher.final('base64');
+    // Encrypt response using AES-128-GCM with flipped IV
+    const cipher = crypto.createCipheriv('aes-128-gcm', aesKey, flippedIV);
     
-    console.log('🔒 Encrypted response length:', encrypted.length);
-    return encrypted;
+    let encrypted = cipher.update(JSON.stringify(response), 'utf8');
+    const final = cipher.final();
+    const authTag = cipher.getAuthTag();
+    
+    // Combine encrypted data + auth tag
+    const result = Buffer.concat([encrypted, final, authTag]);
+    const base64Result = result.toString('base64');
+    
+    console.log('🔒 Encrypted response length:', base64Result.length);
+    return base64Result;
   }
 }

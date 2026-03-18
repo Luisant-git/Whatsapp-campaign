@@ -1,30 +1,35 @@
 .admin-header {
-  height: 70px;
+  height: 64px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  padding: 0 18px;
   position: sticky;
   top: 0;
   z-index: 100;
+  box-sizing: border-box;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
 }
 
 .menu-toggle {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 8px;
+  padding: 6px;
   border-radius: 8px;
   color: var(--text-secondary);
   transition: all 0.2s;
+  display: none;
+  flex-shrink: 0;
 }
 
 .menu-toggle:hover {
@@ -33,62 +38,199 @@
 }
 
 .header-left h2 {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
+  position: relative;
+  flex-shrink: 0;
 }
 
-.user-info {
+.avatar-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
   display: flex;
-  flex-direction: row;
   align-items: center;
-  gap: 12px;
-}
-
-.user-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: #374151;
 }
 
 .user-avatar {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background-color: var(--primary-light);
+  background: #4338ca;
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 16px;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.user-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: #0f172a;
+  white-space: nowrap;
 }
 
 .logout-btn {
-  background: var(--error);
+  background: #ef4444;
   color: white;
   border: none;
-  padding: 8px 16px;
+  padding: 7px 13px;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .logout-btn:hover {
   background: #dc2626;
 }
 
+.mobile-profile-modal {
+  display: none;
+}
+
+/* Show hamburger only on tablet and mobile */
+@media (max-width: 1023px) {
+  .menu-toggle {
+    display: flex;
+  }
+}
+
+/* Tablet */
 @media (max-width: 768px) {
+  .admin-header {
+    height: 60px;
+    padding: 0 14px;
+  }
+
+  .header-left {
+    gap: 10px;
+  }
+
+  .header-left h2 {
+    font-size: 16px;
+  }
+
+  .user-avatar {
+    width: 34px;
+    height: 34px;
+    font-size: 13px;
+  }
+
+  .user-name {
+    font-size: 14px;
+  }
+
+  .logout-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .admin-header {
+    height: 56px;
+    padding: 0 8px;
+  }
+
+  .header-left {
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .menu-toggle {
+    padding: 4px;
+    margin: 0;
+  }
+
+  .header-left h2 {
+    font-size: 13px;
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .header-right {
+    gap: 4px;
+    margin-left: 6px;
+  }
+
+  .avatar-btn {
+    padding: 0;
+    margin: 0;
+  }
+
+  .user-avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 12px;
+  }
+
   .user-name {
     display: none;
+  }
+
+  .desktop-logout {
+    display: none;
+  }
+
+  .mobile-profile-modal {
+    display: block;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 150px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+    overflow: hidden;
+    z-index: 200;
+  }
+
+  .mobile-profile-name {
+    padding: 12px 14px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #111827;
+    background: #ffffff;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .mobile-profile-logout {
+    width: 100%;
+    border: none;
+    background: #ef4444;
+    color: white;
+    text-align: left;
+    padding: 12px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .mobile-profile-logout:hover {
+    background: #dc2626;
   }
 }

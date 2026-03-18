@@ -62,6 +62,8 @@ const Subscriptions = () => {
   });
 
   const [showMenuModal, setShowMenuModal] = useState(false); // NEW
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
 
   const featureOptions = useMemo(
     () => TOP_FEATURES.map((f) => ({ value: f, label: f })),
@@ -238,7 +240,7 @@ const Subscriptions = () => {
                       />
                       <span>{child.label}</span>
                     </label>
-                    
+
                     {child.children && child.children.length > 0 && (
                       <div className="subs-perm-nested-children" style={{ marginLeft: '20px' }}>
                         {child.children.map((nestedChild) => (
@@ -263,7 +265,12 @@ const Subscriptions = () => {
       })}
     </div>
   );
+  const totalPages = Math.ceil(plans.length / itemsPerPage) || 1;
 
+  const paginatedPlans = plans.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
   // ----------------------------------------------------
 
   return (
@@ -275,12 +282,16 @@ const Subscriptions = () => {
         </button>
       </div>
 
+
       <div className="plans-list">
         <div className="plans-grid">
-          {plans.map((plan) => {
+          {paginatedPlans.map((plan) => {
             const displayFeatures = getDisplayFeatures(plan.features || []);
             return (
-              <div key={plan.id} className="plan-item">
+              <div
+              key={plan.id}
+              className={`plan-item ${plan.isActive ? 'active-plan' : ''}`}
+            >
                 <div className="plan-info">
                   <h3>{plan.name}</h3>
                   <p className="plan-price">
@@ -300,9 +311,8 @@ const Subscriptions = () => {
                   </ul>
 
                   <span
-                    className={`status-badge ${
-                      plan.isActive ? "active" : "inactive"
-                    }`}
+                    className={`status-badge ${plan.isActive ? "active" : "inactive"
+                      }`}
                   >
                     {plan.isActive ? "Active" : "Inactive"}
                   </span>
@@ -313,7 +323,10 @@ const Subscriptions = () => {
                     onClick={() => handleEdit(plan)}
                     className="btn-edit"
                   >
-                    <MdEdit size={16} />
+                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                          </svg>
                   </button>
                   <button
                     onClick={() => handleDelete(plan.id)}
@@ -328,6 +341,27 @@ const Subscriptions = () => {
         </div>
       </div>
 
+      <div className="subscriptions-pagination">
+        <button
+          disabled={currentPage === 1}
+          onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+        >
+          Prev
+        </button>
+
+        <span>
+          Page {currentPage} of {totalPages}
+        </span>
+
+        <button
+          disabled={currentPage === totalPages}
+          onClick={() =>
+            setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+          }
+        >
+          Next
+        </button>
+      </div>
       {showForm && (
         <div className="modal-overlay">
           <div className="modal-content subs-modal">
@@ -416,68 +450,68 @@ const Subscriptions = () => {
               </div>
 
               {/* NEW: Menu Permission button */}
-             
+
 
               {/* Menu Permissions header + Plan Status card (screenshot style) */}
-<div className="perm-section">
-  <div className="perm-section-header">
-    <div>
-      <div className="perm-section-title">Menu Permissions</div>
-      <div className="perm-section-subtitle">
-        Fine-tune access control for this plan.
-      </div>
-    </div>
+              <div className="perm-section">
+                <div className="perm-section-header">
+                  <div>
+                    <div className="perm-section-title">Menu Permissions</div>
+                    <div className="perm-section-subtitle">
+                      Fine-tune access control for this plan.
+                    </div>
+                  </div>
 
-    <button
-      type="button"
-      className="perm-section-action"
-      onClick={() => setShowMenuModal(true)}
-    >
-      Configure Access
-    </button>
-  </div>
+                  <button
+                    type="button"
+                    className="perm-section-action"
+                    onClick={() => setShowMenuModal(true)}
+                  >
+                    Configure Access
+                  </button>
+                </div>
 
-  <div className="status-tile">
-    <div className="status-tile-left">
-      <div className="status-icon-wrap" aria-hidden="true">
-        {/* simple shield svg */}
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M12 2L20 5.5V12.2C20 17 16.6 20.9 12 22C7.4 20.9 4 17 4 12.2V5.5L12 2Z"
-            stroke="#16A34A"
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </div>
+                <div className="status-tile">
+                  <div className="status-tile-left">
+                    <div className="status-icon-wrap" aria-hidden="true">
+                      {/* simple shield svg */}
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="M12 2L20 5.5V12.2C20 17 16.6 20.9 12 22C7.4 20.9 4 17 4 12.2V5.5L12 2Z"
+                          stroke="#16A34A"
+                          strokeWidth="2"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </div>
 
-      <div>
-        <div className="status-tile-title">Plan Status</div>
-        <div className="status-tile-sub">
-          Plan is currently {formData.isActive ? "active" : "inactive"}
-        </div>
-      </div>
-    </div>
+                    <div>
+                      <div className="status-tile-title">Plan Status</div>
+                      <div className="status-tile-sub">
+                        Plan is currently {formData.isActive ? "active" : "inactive"}
+                      </div>
+                    </div>
+                  </div>
 
-    <button
-      type="button"
-      className={`status-toggle ${formData.isActive ? "on" : ""}`}
-      onClick={() =>
-        setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))
-      }
-      aria-pressed={formData.isActive}
-      aria-label="Toggle plan active status"
-    >
-      <span className="status-toggle-knob" />
-    </button>
-  </div>
-</div>
+                  <button
+                    type="button"
+                    className={`status-toggle ${formData.isActive ? "on" : ""}`}
+                    onClick={() =>
+                      setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))
+                    }
+                    aria-pressed={formData.isActive}
+                    aria-label="Toggle plan active status"
+                  >
+                    <span className="status-toggle-knob" />
+                  </button>
+                </div>
+              </div>
 
               <div className="form-actions">
                 <button

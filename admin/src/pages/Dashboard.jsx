@@ -369,7 +369,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="table-wrapper">
+        <div className="table-wrapper desktop-table">
           <table className="expiring-table">
             <thead>
               <tr>
@@ -394,11 +394,9 @@ export default function Dashboard() {
                       <div className="company-name">{company.companyName}</div>
                       <div className="company-id">ID: {company.id}</div>
                     </td>
-
                     <td>{company.contactPersonName || '-'}</td>
                     <td>{company.phoneNumber || '-'}</td>
                     <td>{company.currentPlan || '-'}</td>
-
                     <td>
                       <div className="expiry-date-cell">
                         <MdCalendarToday size={14} className="expiry-icon" />
@@ -409,7 +407,6 @@ export default function Dashboard() {
                         </span>
                       </div>
                     </td>
-
                     <td>
                       <span
                         className={`status-pill ${getStatusClass(
@@ -420,7 +417,6 @@ export default function Dashboard() {
                         {statusData.label} {statusData.daysText}
                       </span>
                     </td>
-
                     <td>
                       <button
                         className="note-icon-btn notes-btn-with-count"
@@ -448,28 +444,101 @@ export default function Dashboard() {
               )}
             </tbody>
           </table>
+        </div>
 
-          <div className="pagination">
-            <button
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            >
-              Prev
-            </button>
+        <div className="mobile-company-list">
+          {paginatedList.length === 0 ? (
+            <div className="mobile-empty">No companies found</div>
+          ) : (
+            paginatedList.map((company) => {
+              const statusData = getComputedStatus(company);
+              const notesCount = company.notesCount ?? 0;
 
-            <span>
-              Page {currentPage} of {totalPages}
-            </span>
+              return (
+                <div className="mobile-company-card" key={company.id}>
+                  <div className="mobile-card-top">
+                    <div>
+                      <div className="company-name">{company.companyName}</div>
+                      <div className="company-id">ID: {company.id}</div>
+                    </div>
 
-            <button
-              disabled={currentPage >= totalPages}
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-              }
-            >
-              Next
-            </button>
-          </div>
+                    <button
+                      className="note-icon-btn notes-btn-with-count"
+                      onClick={() => openNotesDrawer(company)}
+                      title="Open notes"
+                    >
+                      <MdNotes size={18} />
+                      {notesCount > 0 && (
+                        <span className="notes-count-badge">
+                          {notesCount > 99 ? '99+' : notesCount}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="mobile-company-details">
+                    <div className="mobile-detail-row">
+                      <span className="mobile-label">Contact</span>
+                      <span>{company.contactPersonName || '-'}</span>
+                    </div>
+
+                    <div className="mobile-detail-row">
+                      <span className="mobile-label">Phone</span>
+                      <span>{company.phoneNumber || '-'}</span>
+                    </div>
+
+                    <div className="mobile-detail-row">
+                      <span className="mobile-label">Plan</span>
+                      <span>{company.currentPlan || '-'}</span>
+                    </div>
+
+                    <div className="mobile-detail-row">
+                      <span className="mobile-label">Expiry</span>
+                      <span>
+                        {company.expiryDate
+                          ? new Date(company.expiryDate).toLocaleDateString()
+                          : '-'}
+                      </span>
+                    </div>
+
+                    <div className="mobile-detail-row">
+                      <span className="mobile-label">Status</span>
+                      <span
+                        className={`status-pill ${getStatusClass(
+                          statusData.label
+                        )}`}
+                      >
+                        <span className="status-dot" />
+                        {statusData.label} {statusData.daysText}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div className="pagination">
+          <button
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+          >
+            Prev
+          </button>
+
+          <span>
+            Page {currentPage} of {totalPages}
+          </span>
+
+          <button
+            disabled={currentPage >= totalPages}
+            onClick={() =>
+              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+            }
+          >
+            Next
+          </button>
         </div>
       </div>
 

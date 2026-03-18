@@ -87,6 +87,8 @@ export class ContactController {
   }
 
 
+ 
+
   @Patch('delivery-status')
   updateDeliveryStatus(
     @Body()
@@ -103,7 +105,7 @@ export class ContactController {
       body.phone,
       body.status,
       body.campaignName,
-      body.name?.trim() || body.phone,
+      body.name?.trim() || '',
       tenantContext,
       body.phoneNumberId,
     );

@@ -466,7 +466,7 @@ export class MetaCatalogService {
             "WB": "West Bengal"
           };
           
-          const fullStateName = stateMap[session.customerState] || session.customerState;
+          const fullStateName = session.customerState ? (stateMap[session.customerState] || session.customerState) : '';
           
           const orders: any[] = [];
           console.log(`[Meta Catalog] Creating single order for ${cartProducts.length} products`);
@@ -772,7 +772,7 @@ export class MetaCatalogService {
         "WB": "West Bengal"
       };
       
-      const fullStateName = stateMap[customerData.customerState] || customerData.customerState;
+      const fullStateName = customerData.customerState ? (stateMap[customerData.customerState] || customerData.customerState) : '';
       
       // Create order items
       const orderItems = cartProducts.map(cartItem => ({

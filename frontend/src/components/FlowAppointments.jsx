@@ -260,7 +260,7 @@ const FlowAppointments = () => {
               <th style={{ width: '200px' }}>Customer</th>
               <th style={{ width: '180px' }}>Service</th>
               <th style={{ width: '200px' }}>Company</th>
-              <th style={{ width: '250px' }}>Business Details</th>
+              {/* <th style={{ width: '250px' }}>Business Details</th> */}
               <th style={{ width: '150px' }}>Date & Time</th>
               <th style={{ width: '100px' }}>Status</th>
               <th style={{ width: '100px' }}>Actions</th>

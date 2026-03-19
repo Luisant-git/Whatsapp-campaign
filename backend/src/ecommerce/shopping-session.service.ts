@@ -14,6 +14,8 @@ interface ShoppingSession {
   cartProducts?: any[];
   totalAmount?: number;
   timestamp: number;
+  selectedVariantId?: number | null;  
+  
 }
 
 @Injectable()
@@ -65,6 +67,7 @@ export class ShoppingSessionService {
             customerCity: sessionData.customerCity,
             customerPincode: sessionData.customerPincode,
             updatedAt: new Date(),
+            selectedVariantId: sessionData.selectedVariantId ?? null, 
           },
           create: {
             phone,
@@ -75,6 +78,7 @@ export class ShoppingSessionService {
             customerAddress: sessionData.customerAddress,
             customerCity: sessionData.customerCity,
             customerPincode: sessionData.customerPincode,
+            selectedVariantId: sessionData.selectedVariantId ?? null,
           },
         }).catch(e => console.error('DB save error:', e));
       }).catch(e => console.error('Tenant client error:', e));
@@ -127,6 +131,7 @@ export class ShoppingSessionService {
             customerAddress: session.customerAddress ?? undefined,
             customerCity: session.customerCity ?? undefined,
             customerPincode: session.customerPincode ?? undefined,
+            selectedVariantId: session.selectedVariantId ?? null, 
             timestamp,
           };
           
@@ -141,6 +146,7 @@ export class ShoppingSessionService {
     this.memoryCache.delete(cacheKey);
     return undefined;
   }
+
 
   async clearSession(phone: string, tenantId?: number) {
     if (!tenantId) return;
@@ -157,10 +163,13 @@ export class ShoppingSessionService {
   }
 
   async setProductForPurchase(phone: string, productId: number, tenantId?: number) {
-    const session = await this.getSession(phone, tenantId);
-    const cart = session?.cartProducts || [];
-    cart.push({ productId, quantity: 1 });
-    await this.setSession(phone, { cartProducts: cart, step: 'buying' }, tenantId);
+    // ✅ FIXED: Replace cart instead of pushing duplicates + reset variant
+    await this.setSession(phone, { 
+      cartProducts: [{ productId, quantity: 1 }], 
+      currentProductId: productId,
+      selectedVariantId: null,
+      step: 'buying' 
+    }, tenantId);
   }
 
   async getCartProducts(phone: string, tenantId?: number): Promise<any[] | undefined> {

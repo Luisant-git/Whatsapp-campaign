@@ -319,6 +319,7 @@ model Product {
   description   String?     @db.Text
   price         Float
   salePrice     Float? 
+  stock         Int?        @default(0)
   availability       Boolean     @default(true)
   contentId     String?     @unique  
   imageUrl      String?
@@ -344,6 +345,7 @@ model ProductVariant {
   description   String?  @db.Text
   price         Float
   salePrice     Float?
+  stock         Int?        @default(0)
 
   imageUrl      String?
   link          String?
@@ -403,6 +405,7 @@ model ShoppingSession {
   customerAddress  String?  @db.Text
   customerCity     String?
   customerPincode  String?
+  selectedVariantId Int?   
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   

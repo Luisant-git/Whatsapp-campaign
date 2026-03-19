@@ -257,13 +257,13 @@ const FlowAppointments = () => {
         <table className="flow-appointments-table">
           <thead>
             <tr>
-              <th style={{ width: '200px' }}>Customer</th>
-              <th style={{ width: '180px' }}>Service</th>
-              <th style={{ width: '200px' }}>Company</th>
-              {/* <th style={{ width: '250px' }}>Business Details</th> */}
-              <th style={{ width: '150px' }}>Date & Time</th>
-              <th style={{ width: '100px' }}>Status</th>
-              <th style={{ width: '100px' }}>Actions</th>
+              <th>Customer</th>
+              <th>Service</th>
+              <th>Company</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Status</th>
+              <th style={{ minWidth: '120px' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -276,107 +276,53 @@ const FlowAppointments = () => {
                 </td>
               </tr>
             ) : (
-              filteredAppointments.map((appointment) => {
-                // Parse moreDetails
-                const businessInfo = {};
-                if (appointment.moreDetails) {
-                  const parts = appointment.moreDetails.split(',');
-                  parts.forEach(part => {
-                    const [key, value] = part.split(':').map(s => s.trim());
-                    if (key && value) {
-                      businessInfo[key] = value;
-                    }
-                  });
-                }
-                
-                return (
-                  <tr key={appointment.id}>
-                    <td>
-                      <div className="flow-customer-info">
-                        <div className="flow-customer-name" style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
-                          {appointment.name}
-                        </div>
-                        <div className="flow-customer-detail" style={{ fontSize: '13px', color: '#6b7280' }}>
-                          <Phone size={12} style={{ marginRight: '4px' }} />
-                          {appointment.phone || appointment.email}
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="flow-department-info" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Building size={16} style={{ color: '#3b82f6', flexShrink: 0 }} />
-                        <span style={{ fontSize: '13px', fontWeight: 500 }}>{formatDepartment(appointment.department)}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="flow-location-info" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <MapPin size={16} style={{ color: '#10b981', flexShrink: 0 }} />
-                        <span style={{ fontSize: '13px', fontWeight: 500 }}>{formatLocation(appointment.location)}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="flow-business-info" style={{ fontSize: '12px', lineHeight: '1.6' }}>
-                        {businessInfo.Place && (
-                          <div style={{ marginBottom: '2px' }}>
-                            <strong style={{ color: '#374151' }}>Place:</strong> <span style={{ color: '#6b7280' }}>{businessInfo.Place}</span>
-                          </div>
-                        )}
-                        {businessInfo.Business && (
-                          <div style={{ marginBottom: '2px' }}>
-                            <strong style={{ color: '#374151' }}>Business:</strong> <span style={{ color: '#6b7280' }}>{businessInfo.Business}</span>
-                          </div>
-                        )}
-                        {businessInfo.Type && (
-                          <div style={{ marginBottom: '2px' }}>
-                            <strong style={{ color: '#374151' }}>Type:</strong> <span style={{ color: '#6b7280' }}>{businessInfo.Type}</span>
-                          </div>
-                        )}
-                        {businessInfo.Size && (
-                          <div>
-                            <strong style={{ color: '#374151' }}>Size:</strong> <span style={{ color: '#6b7280' }}>{businessInfo.Size}</span>
-                          </div>
-                        )}
-                        {!appointment.moreDetails && (
-                          <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>No details</span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="flow-datetime-info">
-                        <div className="flow-date-text" style={{ fontSize: '13px', fontWeight: 500, marginBottom: '2px' }}>
-                          {appointment.date}
-                        </div>
-                        <div className="flow-time-text" style={{ fontSize: '12px', color: '#6b7280' }}>
-                          {appointment.time}
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`flow-status-badge flow-status-${appointment.status || 'confirmed'}`}>
-                        {appointment.status || 'confirmed'}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="flow-actions-container" style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                        <button
-                          onClick={() => handleViewDetails(appointment)}
-                          className="flow-action-btn view"
-                          title="View Details"
-                        >
-                          <Eye size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteAppointment(appointment.id)}
-                          className="flow-action-btn delete"
-                          title="Delete"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
+              filteredAppointments.map((appointment) => (
+                <tr key={appointment.id}>
+                  <td>
+                    <div style={{ fontWeight: 500 }}>{appointment.name}</div>
+                    <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>
+                      {appointment.phone || appointment.email}
+                    </div>
+                  </td>
+                  <td style={{ fontWeight: 500 }}>
+                    {formatDepartment(appointment.department)}
+                  </td>
+                  <td style={{ fontWeight: 500 }}>
+                    {formatLocation(appointment.location)}
+                  </td>
+                  <td style={{ fontSize: '13px' }}>
+                    {appointment.date}
+                  </td>
+                  <td style={{ fontSize: '13px', fontWeight: 500 }}>
+                    {appointment.time}
+                  </td>
+                  <td>
+                    <span className={`flow-status-badge flow-status-${appointment.status || 'confirmed'}`}>
+                      {appointment.status || 'confirmed'}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        className="flow-action-btn view"
+                        onClick={() => handleViewDetails(appointment)}
+                        title="View details"
+                      >
+                        <Eye size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        className="flow-action-btn delete"
+                        onClick={() => handleDeleteAppointment(appointment.id)}
+                        title="Delete"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>

@@ -84,11 +84,11 @@ export class FlowMessageService {
         const response = await this.sendSingleFlowMessage({
           phoneNumber,
           flowId: data.flowId,
-          headerText: data.headerText || 'Book an Appointment',
-          bodyText: data.bodyText || 'Click the button below to book your appointment!',
+          headerText: data.headerText || 'WhatsApp Business Services',
+          bodyText: data.bodyText || 'Click the button below to schedule a demo!',
           footerText: data.footerText || 'Powered by Luisant',
-          ctaText: data.ctaText || 'Book Now',
-          screenName: data.screenName || 'APPOINTMENT',
+          ctaText: data.ctaText || 'Schedule Demo',
+          screenName: data.screenName || 'SERVICE_SELECTION',
           screenData: data.screenData || {},
           purpose: 'appointment', // Add purpose for proper flow token generation
           tenantId: '1' // Default tenant ID, should be dynamic in production
@@ -184,7 +184,7 @@ export class FlowMessageService {
         bodyText: data.bodyText || 'Click the button below to continue',
         footerText: data.footerText || '',
         ctaText: data.ctaText || 'Start Flow',
-        screenName: 'APPOINTMENT', // Default to APPOINTMENT screen
+        screenName: 'SERVICE_SELECTION', // Updated to SERVICE_SELECTION for WhatsApp Business Services flow
         screenData: {},
         purpose: 'manual', // Manual flow trigger
         tenantId: userId.toString()

@@ -81,15 +81,15 @@ const FlowAppointments = () => {
 
   const exportAppointments = () => {
     const csvContent = [
-      ['Name', 'Email', 'Phone', 'Department', 'Location', 'Date', 'Time', 'Status', 'Created At'],
+      ['Name', 'Phone', 'Service', 'Company', 'Date', 'Time', 'Business Info', 'Status', 'Created At'],
       ...filteredAppointments.map(apt => [
         apt.name,
-        apt.email,
-        apt.phone,
-        apt.department,
-        apt.location,
+        apt.phone || apt.email,
+        formatDepartment(apt.department),
+        formatLocation(apt.location),
         apt.date,
         apt.time,
+        apt.moreDetails || '',
         apt.status || 'confirmed',
         new Date(apt.createdAt).toLocaleDateString()
       ])
@@ -99,7 +99,7 @@ const FlowAppointments = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `flow-appointments-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `whatsapp-business-appointments-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -127,6 +127,9 @@ const FlowAppointments = () => {
 
   const formatDepartment = (dept) => {
     const deptMap = {
+      'whatsapp_marketing': 'WhatsApp Marketing',
+      'whatsapp_ecommerce': 'WhatsApp Ecommerce',
+      'ai_chatbot': 'AI Chat Bot',
       'sales': 'Sales',
       'support': 'Support',
       'technical': 'Technical',
@@ -138,6 +141,9 @@ const FlowAppointments = () => {
 
   const formatLocation = (loc) => {
     const locMap = {
+      'meta': 'Meta (WhatsApp Official)',
+      'partner': 'WhatsApp Business Partner',
+      'independent': 'Independent Consultant',
       'new_york': 'New York Office',
       'london': 'London Office',
       'singapore': 'Singapore Office',
@@ -160,7 +166,8 @@ const FlowAppointments = () => {
     <div className="flow-appointments-container">
       <div className="flow-appointments-header">
         <div className="header-left">
-          <h2>Flow Appointments</h2>
+          <h2>WhatsApp Business Appointments</h2>
+          <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px' }}>Manage demo requests and service inquiries</p>
         </div>
         <button className="flow-export-btn" onClick={exportAppointments}>
           <Download size={18} /> Export Report
@@ -251,8 +258,9 @@ const FlowAppointments = () => {
           <thead>
             <tr>
               <th>Customer</th>
-              <th>Department</th>
-              <th>Location</th>
+              <th>Service</th>
+              <th>Company</th>
+              <th>Business Info</th>
               <th>Date & Time</th>
               <th>Status</th>
               <th>Actions</th>
@@ -261,7 +269,7 @@ const FlowAppointments = () => {
           <tbody>
             {filteredAppointments.length === 0 ? (
               <tr>
-                <td colSpan="6" className="flow-empty-state">
+                <td colSpan="7" className="flow-empty-state">
                   <Calendar className="flow-empty-icon" />
                   <p className="flow-empty-title">No appointments found</p>
                   <p className="flow-empty-subtitle">Appointments booked through WhatsApp Flows will appear here</p>
@@ -274,12 +282,8 @@ const FlowAppointments = () => {
                     <div className="flow-customer-info">
                       <div className="flow-customer-name">{appointment.name}</div>
                       <div className="flow-customer-detail">
-                        <Mail size={12} />
-                        {appointment.email}
-                      </div>
-                      <div className="flow-customer-detail">
                         <Phone size={12} />
-                        {appointment.phone}
+                        {appointment.phone || appointment.email}
                       </div>
                     </div>
                   </td>
@@ -293,6 +297,19 @@ const FlowAppointments = () => {
                     <div className="flow-location-info">
                       <MapPin size={16} />
                       <span>{formatLocation(appointment.location)}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="flow-business-info">
+                      {appointment.moreDetails ? (
+                        <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                          {appointment.moreDetails.split(',').map((detail, idx) => (
+                            <div key={idx}>{detail.trim()}</div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={{ color: '#9ca3af' }}>-</span>
+                      )}
                     </div>
                   </td>
                   <td>
@@ -347,39 +364,36 @@ const FlowAppointments = () => {
             
             <div className="flow-modal-body">
               <div className="flow-detail-item">
-                <label className="flow-detail-label">Customer</label>
+                <label className="flow-detail-label">Customer Name</label>
                 <p className="flow-detail-value">{selectedAppointment.name}</p>
               </div>
               
               <div className="flow-detail-item">
-                <label className="flow-detail-label">Email</label>
-                <p className="flow-detail-value">{selectedAppointment.email}</p>
+                <label className="flow-detail-label">Mobile Number</label>
+                <p className="flow-detail-value">{selectedAppointment.phone || selectedAppointment.email}</p>
               </div>
               
               <div className="flow-detail-item">
-                <label className="flow-detail-label">Phone</label>
-                <p className="flow-detail-value">{selectedAppointment.phone}</p>
-              </div>
-              
-              <div className="flow-detail-item">
-                <label className="flow-detail-label">Department</label>
+                <label className="flow-detail-label">Service Requested</label>
                 <p className="flow-detail-value">{formatDepartment(selectedAppointment.department)}</p>
               </div>
               
               <div className="flow-detail-item">
-                <label className="flow-detail-label">Location</label>
+                <label className="flow-detail-label">Preferred Company</label>
                 <p className="flow-detail-value">{formatLocation(selectedAppointment.location)}</p>
               </div>
               
               <div className="flow-detail-item">
-                <label className="flow-detail-label">Date & Time</label>
+                <label className="flow-detail-label">Appointment Date & Time</label>
                 <p className="flow-detail-value">{selectedAppointment.date} at {selectedAppointment.time}</p>
               </div>
               
               {selectedAppointment.moreDetails && (
                 <div className="flow-detail-item">
-                  <label className="flow-detail-label">Additional Details</label>
-                  <p className="flow-detail-value">{selectedAppointment.moreDetails}</p>
+                  <label className="flow-detail-label">Business Information</label>
+                  <p className="flow-detail-value" style={{ whiteSpace: 'pre-line' }}>
+                    {selectedAppointment.moreDetails.split(',').join('\n')}
+                  </p>
                 </div>
               )}
               

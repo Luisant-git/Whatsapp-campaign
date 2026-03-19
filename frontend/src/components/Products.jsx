@@ -31,6 +31,7 @@ export default function Products() {
     description: '',
     price: '',
     salePrice: '',
+    stock: '',
     subCategoryId: '',
     image: null,
     link: '',
@@ -47,6 +48,7 @@ export default function Products() {
     description: '',
     price: '',
     salePrice: '',
+    stock: '',
     subCategoryId: '',
     link: '',
     image: null,
@@ -64,6 +66,7 @@ export default function Products() {
     description: '',
     price: '',
     salePrice: '',
+    stock: '',
     link: '',
     contentId: '',
     availability: true,
@@ -78,6 +81,13 @@ export default function Products() {
     checkMetaCatalogPermission();
   }, []);
 
+
+  const toBool = (value) => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') return value.toLowerCase() === 'true';
+    if (typeof value === 'number') return value === 1;
+    return false;
+  };
   const checkMetaCatalogPermission = async () => {
     try {
       const data = await getProfile();
@@ -143,41 +153,41 @@ export default function Products() {
   const handleEdit = async (prod) => {
     try {
       setLoading(true);
-
+  
       const response = await ecommerceApi.getProduct(prod.id);
       const productWithVariants = response.data;
-
+  
       console.log('Loaded product:', productWithVariants);
-
+  
       setEditingProduct(productWithVariants);
       setForm({
         name: productWithVariants.name || '',
         description: productWithVariants.description || '',
         price: productWithVariants.price || '',
         salePrice: productWithVariants.salePrice || '',
+        stock: productWithVariants.stock ?? '',
         subCategoryId: productWithVariants.subCategoryId || '',
         image: null,
         link: productWithVariants.link || '',
         contentId: productWithVariants.contentId || '',
-        // ✅ FIX: Force actual boolean (handles 1/0, "true"/"false", true/false)
-        availability: Boolean(productWithVariants.availability),
-        isActive: Boolean(productWithVariants.isActive),
+        availability: toBool(productWithVariants.availability),
+        isActive: toBool(productWithVariants.isActive),
         variants: (productWithVariants.variants || []).map((v) => ({
           id: v.id,
           name: v.name || '',
           description: v.description || '',
           price: v.price || '',
           salePrice: v.salePrice || '',
+          stock: v.stock ?? '',
           link: v.link || '',
           contentId: v.contentId || '',
-          // ✅ FIX: Force actual boolean for variants
-          availability: Boolean(v.availability),
-          isActive: Boolean(v.isActive),
+          availability: toBool(v.availability),
+          isActive: toBool(v.isActive),
           image: null,
           imageUrl: v.imageUrl || null,
         })),
       });
-
+  
       setShowModal(true);
     } catch (error) {
       console.error('Failed to load product:', error);
@@ -195,6 +205,7 @@ export default function Products() {
     formData.append('description', form.description || '');
     formData.append('price', form.price);
     formData.append('salePrice', form.salePrice || '');
+    formData.append('stock', form.stock || '0');
     formData.append('subCategoryId', form.subCategoryId);
     formData.append('link', form.link || '');
     formData.append('contentId', form.contentId || '');
@@ -236,6 +247,7 @@ export default function Products() {
           variantFormData.append('name', v.name);
           variantFormData.append('description', v.description || '');
           variantFormData.append('price', v.price);
+          variantFormData.append('stock', v.stock || '0');
           variantFormData.append('salePrice', v.salePrice || '');
           variantFormData.append('link', v.link || '');
           variantFormData.append(
@@ -286,21 +298,22 @@ export default function Products() {
     // Pre-fill with product data
     setVariantForm({
       id: null,
-      name: form.name ? `${form.name} - Variant` : '',  // Add suffix to differentiate
+      name: form.name ? `${form.name} - Variant` : '',
       description: form.description || '',
       price: form.price || '',
       salePrice: form.salePrice || '',
+      stock: form.stock || '',
       link: form.link || '',
-      contentId: '',  // Leave empty for auto-generation
+      contentId: '',
       availability: form.availability ?? true,
       isActive: form.isActive ?? true,
       image: null,
       imageUrl: null,
     });
-
     setShowVariantModal(true);
   };
 
+  
   const openEditVariantForProduct = (idx) => {
     setVariantModalSource('product');
     setEditingVariantIndex(idx);
@@ -311,16 +324,16 @@ export default function Products() {
       description: v.description || '',
       price: v.price,
       salePrice: v.salePrice || '',
+      stock: v.stock ?? '',
       link: v.link || '',
       contentId: v.contentId || '',
-      availability: v.availability ?? true,
-      isActive: v.isActive ?? true,
+      availability: toBool(v.availability),
+      isActive: toBool(v.isActive),
       image: null,
       imageUrl: v.imageUrl || null,
     });
     setShowVariantModal(true);
   };
-
   const removeVariantFromProduct = async (idx) => {
     const variant = form.variants[idx];
 
@@ -368,6 +381,7 @@ export default function Products() {
       description: metaForm.description || '',
       price: metaForm.price || '',
       salePrice: metaForm.salePrice || '',
+      stock: metaForm.stock || '',
       link: metaForm.link || '',
       contentId: '',
       availability: metaForm.availability ?? true,
@@ -385,6 +399,8 @@ export default function Products() {
     const v = metaForm.variants[idx];
     setVariantForm({
       ...v,
+      availability: toBool(v.availability),
+      isActive: toBool(v.isActive),
       image: null,
     });
     setShowVariantModal(true);
@@ -437,6 +453,7 @@ export default function Products() {
     productFormData.append('name', metaForm.name);
     productFormData.append('description', metaForm.description || '');
     productFormData.append('price', metaForm.price);
+    productFormData.append('stock', metaForm.stock || '0');
     productFormData.append('salePrice', metaForm.salePrice || '');
     productFormData.append('subCategoryId', metaForm.subCategoryId);
     productFormData.append('link', metaForm.link || '');
@@ -458,6 +475,7 @@ export default function Products() {
         variantFormData.append('name', v.name);
         variantFormData.append('description', v.description || '');
         variantFormData.append('price', v.price);
+        variantFormData.append('stock', v.stock || '0');
         variantFormData.append('salePrice', v.salePrice || '');
         variantFormData.append('link', v.link || '');
         variantFormData.append(
@@ -519,7 +537,7 @@ export default function Products() {
 
   const saveVariant = (e) => {
     e.preventDefault();
-
+  
     if (!variantForm.name?.trim()) {
       alert('❌ Variant name is required');
       return;
@@ -528,12 +546,14 @@ export default function Products() {
       alert('❌ Variant price is required');
       return;
     }
-
+  
+    const normalizedStock = variantForm.stock || '0';
+  
     const variantData = {
       ...variantForm,
-      // ✅ FIX: Ensure booleans are actual booleans
-      availability: Boolean(variantForm.availability),
-      isActive: Boolean(variantForm.isActive),
+      stock: normalizedStock,
+      availability: Number(normalizedStock) > 0 ? true : false,
+      isActive: toBool(variantForm.isActive),
       id:
         editingVariantIndex !== null
           ? variantModalSource === 'product'
@@ -541,7 +561,7 @@ export default function Products() {
             : metaForm.variants[editingVariantIndex]?.id
           : null,
     };
-
+  
     if (variantModalSource === 'meta') {
       setMetaForm((prev) => {
         const next = [...prev.variants];
@@ -563,7 +583,7 @@ export default function Products() {
         return { ...prev, variants: next };
       });
     }
-
+  
     setShowVariantModal(false);
     setVariantForm(emptyVariantForm);
     setEditingVariantIndex(null);
@@ -703,7 +723,7 @@ export default function Products() {
             {[
               { key: 'all', label: `All (${products.length})`, color: '#1f2937' },
               { key: 'normal', label: `Normal (${normalCount})`, color: '#1f2937' },
-              { key: 'uploaded', label: `Uploaded (${uploadedCount})`, color: '#25d366' },
+              { key: 'uploaded', label: `Meta (${uploadedCount})`, color: '#25d366' },
               { key: 'synced', label: `Synced (${syncedCount})`, color: '#0084ff' },
               { key: 'with-variants', label: `With Variants (${withVariantsCount})`, color: '#8b5cf6' },
             ].map((tab) => (
@@ -761,6 +781,7 @@ export default function Products() {
               <th>Image</th>
               <th>Name</th>
               <th>Price</th>
+              <th>Stock</th>
               <th>Category</th>
               <th>Status</th>
               <th>Variants</th>
@@ -845,6 +866,9 @@ export default function Products() {
                         Sale: ₹{prod.salePrice}
                       </div>
                     )}
+                  </td>
+                  <td>
+                    <div style={{ fontWeight: 600 }}>{prod.stock ?? 0}</div>
                   </td>
 
                   {/* Category */}
@@ -959,7 +983,7 @@ export default function Products() {
                 {expandedRows.has(prod.id) && prod.variants?.length > 0 && (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={9}
                       style={{ background: '#f9fafb', padding: '16px 24px' }}
                     >
                       <div style={{ marginBottom: '12px', fontWeight: 600, color: '#374151' }}>
@@ -1028,6 +1052,9 @@ export default function Products() {
                                     Sale: ₹{variant.salePrice}
                                   </span>
                                 )}
+                              </div>
+                              <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+                                Stock: {variant.stock ?? 0}
                               </div>
                               <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>
                                 ID: {variant.contentId || 'Not set'}
@@ -1104,7 +1131,7 @@ export default function Products() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                 <div className="form-group">
                   <label>Price (₹) *</label>
                   <input
@@ -1127,6 +1154,26 @@ export default function Products() {
                     placeholder="Optional"
                     value={form.salePrice}
                     onChange={(e) => setForm({ ...form, salePrice: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Stock *</label>
+                  <input
+                    className="form-input"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={form.stock}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setForm({
+                        ...form,
+                        stock: value,
+                        availability: Number(value) > 0,
+                      });
+                    }}
+                    required
                   />
                 </div>
               </div>
@@ -1297,7 +1344,7 @@ export default function Products() {
                           <div style={{ fontWeight: 500, fontSize: '14px' }}>{v.name}</div>
                           <div style={{ fontSize: '12px', color: '#6b7280' }}>
                             ₹{v.price}
-                            {v.salePrice ? ` (Sale ₹${v.salePrice})` : ''} •{' '}
+                            {v.salePrice ? ` (Sale ₹${v.salePrice})` : ''} • Stock: {v.stock ?? 0} •{' '}
                             {v.availability ? 'In stock' : 'Out of stock'}
                           </div>
                           <div style={{ fontSize: '11px', color: '#9ca3af' }}>
@@ -1487,7 +1534,7 @@ export default function Products() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                 <div className="form-group">
                   <label>Price (₹) *</label>
                   <input
@@ -1510,6 +1557,26 @@ export default function Products() {
                     value={metaForm.salePrice}
                     onChange={(e) => setMetaForm({ ...metaForm, salePrice: e.target.value })}
                     placeholder="Optional"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Stock *</label>
+                  <input
+                    className="form-input"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={metaForm.stock}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setMetaForm({
+                        ...metaForm,
+                        stock: value,
+                        availability: Number(value) > 0,
+                      });
+                    }}
+                    required
                   />
                 </div>
               </div>
@@ -1682,7 +1749,7 @@ export default function Products() {
                           <div style={{ fontWeight: 500, fontSize: '14px' }}>{v.name}</div>
                           <div style={{ fontSize: '12px', color: '#6b7280' }}>
                             ₹{v.price}
-                            {v.salePrice ? ` (Sale ₹${v.salePrice})` : ''} •{' '}
+                            {v.salePrice ? ` (Sale ₹${v.salePrice})` : ''} • Stock: {v.stock ?? 0} •{' '}
                             {v.availability ? 'In stock' : 'Out of stock'}
                           </div>
                           <div style={{ fontSize: '11px', color: '#9ca3af' }}>
@@ -1873,7 +1940,7 @@ export default function Products() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                 <div className="form-group">
                   <label>Price (₹) *</label>
                   <input
@@ -1895,13 +1962,30 @@ export default function Products() {
                     placeholder="0.00"
                     step="0.01"
                     value={variantForm.salePrice}
-                    onChange={(e) =>
-                      setVariantForm({ ...variantForm, salePrice: e.target.value })
-                    }
+                    onChange={(e) => setVariantForm({ ...variantForm, salePrice: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Stock *</label>
+                  <input
+                    className="form-input"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={variantForm.stock}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setVariantForm({
+                        ...variantForm,
+                        stock: value,
+                        availability: Number(value) > 0,
+                      });
+                    }}
+                    required
                   />
                 </div>
               </div>
-
               <div className="form-group">
                 <label>Link</label>
                 <input

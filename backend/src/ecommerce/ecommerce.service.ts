@@ -171,7 +171,7 @@ export class EcommerceService {
     if (data.price !== undefined) cleanedData.price = parseFloat(data.price);
     if (data.salePrice !== undefined) cleanedData.salePrice = data.salePrice ? parseFloat(data.salePrice) : null;
     if (data.subCategoryId !== undefined) cleanedData.subCategoryId = parseInt(data.subCategoryId);
-  
+    if (data.stock !== undefined) cleanedData.stock = parseInt(data.stock);
     // Boolean fields - THIS IS THE FIX
     if (data.availability !== undefined) cleanedData.availability = parseBoolean(data.availability);
     if (data.isActive !== undefined) cleanedData.isActive = parseBoolean(data.isActive);
@@ -217,6 +217,7 @@ async createVariant(data: any) {
       description: data.description,
       price: data.price,
       salePrice: data.salePrice,
+      stock: data.stock ?? 0,   
       imageUrl: data.imageUrl,
       link: data.link,
       contentId: data.contentId || null,
@@ -250,9 +251,28 @@ async getVariant(id: number) {
 }
 
 async updateVariant(id: number, data: any) {
+  const parseBoolean = (value: any): boolean => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') return value.toLowerCase() === 'true';
+    if (typeof value === 'number') return value === 1;
+    return Boolean(value);
+  };
+
+  const cleanedData: any = {};
+  if (data.name !== undefined) cleanedData.name = data.name;
+  if (data.description !== undefined) cleanedData.description = data.description;
+  if (data.price !== undefined) cleanedData.price = parseFloat(data.price);
+  if (data.salePrice !== undefined) cleanedData.salePrice = data.salePrice ? parseFloat(data.salePrice) : null;
+  if (data.stock !== undefined) cleanedData.stock = parseInt(data.stock);
+  if (data.imageUrl !== undefined) cleanedData.imageUrl = data.imageUrl;
+  if (data.link !== undefined) cleanedData.link = data.link;
+  if (data.contentId !== undefined) cleanedData.contentId = data.contentId;
+  if (data.availability !== undefined) cleanedData.availability = parseBoolean(data.availability);
+  if (data.isActive !== undefined) cleanedData.isActive = parseBoolean(data.isActive);
+
   return this.prisma.productVariant.update({
     where: { id },
-    data,
+    data: cleanedData,
   });
 }
 
@@ -276,6 +296,29 @@ async deleteVariant(id: number) {
       },
       include: { items: { include: { product: true } } },
     });
+  }
+
+  //stock
+  async decreaseStock(productId: number, quantity: number = 1, variantId?: number) {
+    if (variantId) {
+      const variant = await this.prisma.productVariant.findUnique({ where: { id: variantId } });
+      if (variant && variant.stock !== null) {
+        const newStock = Math.max(0, variant.stock - quantity);
+        await this.prisma.productVariant.update({
+          where: { id: variantId },
+          data: { stock: newStock, availability: newStock > 0 },
+        });
+      }
+    } else {
+      const product = await this.prisma.product.findUnique({ where: { id: productId } });
+      if (product && product.stock !== null) {
+        const newStock = Math.max(0, product.stock - quantity);
+        await this.prisma.product.update({
+          where: { id: productId },
+          data: { stock: newStock, availability: newStock > 0 },
+        });
+      }
+    }
   }
 
   async getOrder(id: number, userId?: number) {

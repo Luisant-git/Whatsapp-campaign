@@ -144,69 +144,71 @@ sxEK+yx6I1EkGaK+/KWEpai7
         
         console.log(`📤 Using tenant ID: ${tenantId} for INIT`);
         
-        // Get dynamic data from database
-        console.log('🔍 Attempting to load data from database...');
-        const departments = await this.flowAppointmentService.getDepartments();
-        console.log('📋 Departments from DB:', departments);
+        // Return WhatsApp Business Services data
+        const services = [
+          { id: 'whatsapp_marketing', title: 'WhatsApp Marketing' },
+          { id: 'whatsapp_ecommerce', title: 'WhatsApp Ecommerce' },
+          { id: 'ai_chatbot', title: 'AI Chat Bot' }
+        ];
+
+        const companies = [
+          { id: 'meta', title: 'Meta (WhatsApp Official)' },
+          { id: 'partner', title: 'WhatsApp Business Partner' },
+          { id: 'independent', title: 'Independent Consultant' }
+        ];
+
+        const dates = this.generateDates(5);
+
+        const timeSlots = [
+          { id: '09:00', title: '09:00 AM' },
+          { id: '10:00', title: '10:00 AM' },
+          { id: '11:00', title: '11:00 AM' },
+          { id: '14:00', title: '02:00 PM' },
+          { id: '15:00', title: '03:00 PM' },
+          { id: '16:00', title: '04:00 PM' }
+        ];
         
-        const locations = await this.flowAppointmentService.getLocations();
-        console.log('📍 Locations from DB:', locations);
-        
-        const timeSlots = await this.flowAppointmentService.getTimeSlots();
-        console.log('⏰ Time slots from DB:', timeSlots);
-        
-        const dates = this.generateDates(7);
-        
-        const appointmentData = {
-          department: departments.length > 0 ? departments : [
-            { id: 'sales', title: 'Sales' },
-            { id: 'support', title: 'Support' },
-            { id: 'technical', title: 'Technical' }
-          ],
-          location: locations.length > 0 ? locations : [
-            { id: 'new_york', title: 'New York Office' },
-            { id: 'london', title: 'London Office' }
-          ],
+        const businessServicesData = {
+          services: services,
+          company: companies,
           date: dates,
-          time: timeSlots.length > 0 ? timeSlots.filter(slot => slot.enabled !== false) : [
-            { id: '10:30', title: '10:30 AM' },
-            { id: '11:30', title: '11:30 AM' },
-            { id: '14:30', title: '2:30 PM' },
-            { id: '15:30', title: '3:30 PM' }
-          ]
+          time: timeSlots,
+          is_date_enabled: true,
+          is_time_enabled: true,
+          is_company_enabled: true
         };
         
-        console.log('📤 INIT response data:', JSON.stringify(appointmentData, null, 2));
+        console.log('📤 INIT response data:', JSON.stringify(businessServicesData, null, 2));
         
         return {
-          screen: 'APPOINTMENT',
-          data: appointmentData
+          screen: 'SERVICE_SELECTION',
+          data: businessServicesData
         };
       } catch (error) {
-        console.error('❌ Error loading appointment data for INIT:', error.message);
+        console.error('❌ Error loading business services data for INIT:', error.message);
         
         // Fallback to static data
         const fallbackData = {
-          department: [
-            { id: 'sales', title: 'Sales' },
-            { id: 'support', title: 'Support' },
-            { id: 'technical', title: 'Technical' }
+          services: [
+            { id: 'whatsapp_marketing', title: 'WhatsApp Marketing' },
+            { id: 'ai_chatbot', title: 'AI Chat Bot' }
           ],
-          location: [
-            { id: 'new_york', title: 'New York Office' },
-            { id: 'london', title: 'London Office' }
+          company: [
+            { id: 'meta', title: 'Meta (WhatsApp Official)' },
+            { id: 'partner', title: 'WhatsApp Business Partner' }
           ],
-          date: this.generateDates(7),
+          date: this.generateDates(5),
           time: [
-            { id: '10:30', title: '10:30 AM' },
-            { id: '11:30', title: '11:30 AM' },
-            { id: '14:30', title: '2:30 PM' },
-            { id: '15:30', title: '3:30 PM' }
-          ]
+            { id: '10:00', title: '10:00 AM' },
+            { id: '14:00', title: '02:00 PM' }
+          ],
+          is_date_enabled: true,
+          is_time_enabled: true,
+          is_company_enabled: true
         };
         
         return {
-          screen: 'APPOINTMENT',
+          screen: 'SERVICE_SELECTION',
           data: fallbackData
         };
       }
@@ -216,25 +218,53 @@ sxEK+yx6I1EkGaK+/KWEpai7
       // Handle all flow data exchange requests directly (both Flow Builder and real flows)
       console.log(`📤 Processing ${screen} screen for data exchange`);
       
+      // Handle SERVICE_SELECTION screen (when service is selected with on-select-action)
+      if (screen === 'SERVICE_SELECTION') {
+        console.log('📝 Processing SERVICE_SELECTION screen - staying on same screen');
+        // Just acknowledge the selection, stay on the same screen
+        return {
+          screen: 'SERVICE_SELECTION',
+          data: {}
+        };
+      }
+      
       if (screen === 'DETAILS') {
         console.log('📝 Processing DETAILS screen - navigating to SUMMARY');
         
         try {
-          // Get department and location titles
-          const deptTitle = await this.flowAppointmentService.getDepartmentTitle(data.department);
-          const locTitle = await this.flowAppointmentService.getLocationTitle(data.location);
+          // Map service and company IDs to titles
+          const serviceTitles = {
+            'whatsapp_marketing': 'WhatsApp Marketing',
+            'whatsapp_ecommerce': 'WhatsApp Ecommerce',
+            'ai_chatbot': 'AI Chat Bot'
+          };
+          const companyTitles = {
+            'meta': 'Meta (WhatsApp Official)',
+            'partner': 'WhatsApp Business Partner',
+            'independent': 'Independent Consultant'
+          };
+          
+          const serviceTitle = serviceTitles[data.service] || data.service || 'Unknown';
+          const companyTitle = companyTitles[data.company] || data.company || 'Unknown';
+          
+          const serviceSummary = `${serviceTitle} consultation with ${companyTitle} on ${data.date} at ${data.time}`;
+          const businessSummary = `Name: ${data.name || 'N/A'}\nMobile: ${data.mobile || 'N/A'}\nPlace: ${data.place || 'N/A'}\nBusiness: ${data.business_name || 'N/A'}\nType: ${data.business_type || 'N/A'}\nSize: ${data.business_size || 'N/A'}`;
           
           return {
             screen: 'SUMMARY',
             data: {
-              summary: `${deptTitle} at ${locTitle} on ${data.date} at ${data.time}\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}`,
-              department: data.department,
-              location: data.location,
+              service_summary: serviceSummary,
+              business_summary: businessSummary,
+              service: data.service,
+              company: data.company,
               date: data.date,
               time: data.time,
               name: data.name,
-              email: data.email,
-              phone: data.phone
+              mobile: data.mobile,
+              place: data.place,
+              business_name: data.business_name,
+              business_type: data.business_type,
+              business_size: data.business_size
             }
           };
         } catch (error) {
@@ -242,7 +272,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
           return {
             screen: 'DETAILS',
             data: {
-              error_message: 'Failed to process appointment details'
+              error_message: 'Failed to process business details'
             }
           };
         }
@@ -255,8 +285,19 @@ sxEK+yx6I1EkGaK+/KWEpai7
           console.log('📋 Appointment data to save:', JSON.stringify(data, null, 2));
           console.log('🔑 Flow token:', flow_token);
           
-          // Use the new saveAppointmentFromFlow method that saves to all tenants
-          await this.flowAppointmentService.saveAppointmentFromFlow(data, flow_token);
+          // Save the WhatsApp Business Services appointment
+          const appointmentRecord = {
+            department: data.service || '',
+            location: data.company || '',
+            date: data.date || '',
+            time: data.time || '',
+            name: data.name || '',
+            email: data.mobile || '',
+            phone: data.mobile || '',
+            moreDetails: `Place: ${data.place || 'N/A'}, Business: ${data.business_name || 'N/A'}, Type: ${data.business_type || 'N/A'}, Size: ${data.business_size || 'N/A'}`
+          };
+          
+          await this.flowAppointmentService.saveAppointmentFromFlow(appointmentRecord, flow_token);
           
           return {
             screen: 'SUCCESS',
@@ -265,7 +306,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
                 params: {
                   flow_token: flow_token || 'completed',
                   appointment_id: Date.now().toString(),
-                  message: 'Appointment booked successfully!'
+                  message: 'Demo scheduled successfully! We will contact you soon.'
                 }
               }
             }
@@ -276,7 +317,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
             screen: 'SUMMARY',
             data: {
               ...data,
-              error_message: 'Failed to save appointment. Please try again.'
+              error_message: 'Failed to schedule demo. Please try again.'
             }
           };
         }
@@ -287,50 +328,59 @@ sxEK+yx6I1EkGaK+/KWEpai7
         console.log('📅 Processing APPOINTMENT screen - returning initial data');
         
         try {
-          // Get dynamic data from database
-          const departments = await this.flowAppointmentService.getDepartments();
-          const locations = await this.flowAppointmentService.getLocations();
-          const timeSlots = await this.flowAppointmentService.getTimeSlots();
-          const dates = this.generateDates(7);
+          // Return WhatsApp Business Services data
+          const services = [
+            { id: 'whatsapp_marketing', title: 'WhatsApp Marketing' },
+            { id: 'whatsapp_ecommerce', title: 'WhatsApp Ecommerce' },
+            { id: 'ai_chatbot', title: 'AI Chat Bot' }
+          ];
+
+          const companies = [
+            { id: 'meta', title: 'Meta (WhatsApp Official)' },
+            { id: 'partner', title: 'WhatsApp Business Partner' },
+            { id: 'independent', title: 'Independent Consultant' }
+          ];
+
+          const dates = this.generateDates(5);
+
+          const timeSlots = [
+            { id: '09:00', title: '09:00 AM' },
+            { id: '10:00', title: '10:00 AM' },
+            { id: '11:00', title: '11:00 AM' },
+            { id: '14:00', title: '02:00 PM' },
+            { id: '15:00', title: '03:00 PM' },
+            { id: '16:00', title: '04:00 PM' }
+          ];
           
-          const appointmentData = {
-            department: departments.length > 0 ? departments : [
-              { id: 'sales', title: 'Sales' },
-              { id: 'support', title: 'Support' },
-              { id: 'technical', title: 'Technical' }
-            ],
-            location: locations.length > 0 ? locations : [
-              { id: 'new_york', title: 'New York Office' },
-              { id: 'london', title: 'London Office' }
-            ],
+          const businessServicesData = {
+            services: services,
+            company: companies,
             date: dates,
-            time: timeSlots.length > 0 ? timeSlots.filter(slot => slot.enabled !== false) : [
-              { id: '10:30', title: '10:30 AM' },
-              { id: '11:30', title: '11:30 AM' },
-              { id: '14:30', title: '2:30 PM' },
-              { id: '15:30', title: '3:30 PM' }
-            ]
+            time: timeSlots,
+            is_date_enabled: true,
+            is_time_enabled: true,
+            is_company_enabled: true
           };
           
           return {
-            screen: 'APPOINTMENT',
-            data: appointmentData
+            screen: 'SERVICE_SELECTION',
+            data: businessServicesData
           };
         } catch (error) {
-          console.error('❌ Error loading appointment data:', error.message);
+          console.error('❌ Error loading business services data:', error.message);
           return {
-            screen: 'APPOINTMENT',
+            screen: 'SERVICE_SELECTION',
             data: {
-              error_message: 'Failed to load appointment options'
+              error_message: 'Failed to load service options'
             }
           };
         }
       }
       
       // Default fallback for unknown screens
-      console.log(`❓ Unknown screen: ${screen}, returning to APPOINTMENT`);
+      console.log(`❓ Unknown screen: ${screen}, returning to SERVICE_SELECTION`);
       return {
-        screen: 'APPOINTMENT',
+        screen: 'SERVICE_SELECTION',
         data: {
           error_message: `Unknown screen: ${screen}`
         }

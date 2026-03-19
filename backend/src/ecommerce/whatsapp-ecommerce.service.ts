@@ -13,22 +13,21 @@ export class WhatsappEcommerceService {
     public metaCatalogService: MetaCatalogService,
     private centralPrisma: CentralPrismaService,
   ) { }
-
   async handleIncomingMessage(phone: string, message: string, accessToken: string, phoneNumberId: string, userId: number) {
     const msg = message.toLowerCase().trim();
-
+  
+    console.log('[Ecommerce] Raw message:', message);
+    console.log('[Ecommerce] Normalized msg:', msg);
+  
     if (msg === 'shop' || msg === 'catalog' || msg === 'products') {
       try {
         console.log(`[Ecommerce] Handling '${msg}' keyword for ${phone}`);
-
-        // Check if Meta Catalog permission is enabled
+  
         const hasMetaCatalog = await this.checkMetaCatalogPermission(userId);
-
+  
         if (hasMetaCatalog) {
-          // Use Meta Catalog
           await this.metaCatalogService.sendCatalogMessage(phone, phoneNumberId, userId);
         } else {
-          // Use regular ecommerce flow
           await this.sendCategoryList(phone, accessToken, phoneNumberId, userId);
         }
         return true;
@@ -37,53 +36,52 @@ export class WhatsappEcommerceService {
         throw error;
       }
     }
-
+  
     if (msg.startsWith('cat:')) {
       const categoryId = parseInt(msg.split(':')[1]);
       return this.sendSubCategoryList(phone, categoryId, accessToken, phoneNumberId, userId);
     }
-
+  
     if (msg.startsWith('sub:')) {
       const subCategoryId = parseInt(msg.split(':')[1]);
       return this.sendProductList(phone, subCategoryId, accessToken, phoneNumberId, userId);
     }
-
+  
     if (msg.startsWith('prod:')) {
       const productId = parseInt(msg.split(':')[1]);
       return this.sendProductDetails(phone, productId, accessToken, phoneNumberId, userId);
     }
-
-    // ✅ ADD: Handle variant selection
+  
     if (msg.startsWith('var:')) {
       const parts = msg.split(':');
       const productId = parseInt(parts[1]);
       const variantId = parseInt(parts[2]);
       return this.sendVariantDetails(phone, productId, variantId, accessToken, phoneNumberId, userId);
     }
-
-    // ✅ ADD: Handle buy variant
+  
     if (msg.startsWith('buyvar:')) {
       const parts = msg.split(':');
       const productId = parseInt(parts[1]);
       const variantId = parseInt(parts[2]);
       return this.handleBuyVariant(phone, productId, variantId, accessToken, phoneNumberId, userId);
     }
-
+  
     if (msg.startsWith('buy:')) {
       const productId = parseInt(msg.split(':')[1]);
       return this.handleBuyNow(phone, productId, accessToken, phoneNumberId, userId);
     }
-
+  
     if (
       msg === 'cod' ||
       msg === 'cash on delivery' ||
       msg === '💵 cash on delivery'
     ) {
+      console.log('[Ecommerce] COD matched');
       return this.handleCODPayment(phone, accessToken, phoneNumberId, userId);
     }
+  
     return null;
   }
-
   private async checkMetaCatalogPermission(userId: number): Promise<boolean> {
     try {
       const tenant = await this.centralPrisma.tenant.findUnique({
@@ -538,19 +536,81 @@ export class WhatsappEcommerceService {
 
   
   async handleCODPayment(phone: string, accessToken: string, phoneNumberId: string, userId: number) {
-    const session = await this.sessionService.getSession(phone, userId);
-    const step = session?.step;
+    console.log('[Ecommerce] COD clicked for:', phone);
   
-    if (step !== 'awaiting_payment_method') {
+    const session = await this.sessionService.getSession(phone, userId);
+    console.log('[Ecommerce] Session at COD:', session);
+  
+    if (!session) {
       return this.sendWhatsAppMessage(phone, {
         type: 'text',
-        text: { body: 'Please complete your details first. Send "shop" to browse products.' },
+        text: { body: 'Session expired. Please send "shop" and try again.' },
       }, accessToken, phoneNumberId);
     }
   
-    await this.sessionService.setPaymentMethod(phone, 'cod', userId);
+    const cart = session.cartProducts || [];
+    const productId = cart.length > 0 ? cart[0].productId : null;
+    const variantId = session.selectedVariantId ?? undefined;
   
-    return this.createOrderFromMessage(phone, 'confirm_order', userId, accessToken, phoneNumberId);
+    if (!productId) {
+      return this.sendWhatsAppMessage(phone, {
+        type: 'text',
+        text: { body: 'No product found. Please send "shop" and try again.' },
+      }, accessToken, phoneNumberId);
+    }
+  
+    if (!session.customerName) {
+      return this.sendWhatsAppMessage(phone, {
+        type: 'text',
+        text: { body: 'Customer details missing. Please send "shop" and try again.' },
+      }, accessToken, phoneNumberId);
+    }
+  
+    const product = await this.ecommerceService.getProduct(productId, userId);
+    if (!product) {
+      return this.sendWhatsAppMessage(phone, {
+        type: 'text',
+        text: { body: 'Product not found. Please try again.' },
+      }, accessToken, phoneNumberId);
+    }
+  
+    let displayName = product.name;
+    let price = product.salePrice || product.price;
+  
+    if (variantId) {
+      const variant = product.variants?.find(v => v.id === variantId);
+      if (variant) {
+        displayName = `${product.name} — ${variant.name}`;
+        price = variant.salePrice || variant.price;
+      }
+    }
+  
+    const fullAddress = [session.customerAddress, session.customerCity, session.customerPincode]
+      .filter(Boolean)
+      .join(', ');
+  
+    const order = await this.ecommerceService.createOrder({
+      customerName: session.customerName,
+      customerPhone: phone,
+      customerAddress: fullAddress,
+      totalAmount: price,
+      paymentMethod: 'cod',
+      paymentStatus: 'cod',
+      status: 'placed',
+      items: [{ productId: product.id, quantity: 1, price }],
+    }, userId);
+  
+    await this.ecommerceService.decreaseStock(product.id, 1, variantId);
+  
+    await this.sendWhatsAppMessage(phone, {
+      type: 'text',
+      text: {
+        body: `✅ *Order Confirmed*\n\nOrder ID: ${order.id}\nProduct: ${displayName}\nPrice: ₹${price}\nPayment: Cash on Delivery\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`,
+      },
+    }, accessToken, phoneNumberId);
+  
+    await this.sessionService.clearSession(phone, userId);
+    return true;
   }
   // async createOrderFromMessage(phone: string, message: string, userId: number, accessToken: string, phoneNumberId: string) {
   //   const step = await this.sessionService.getStep(phone, userId);

@@ -111,12 +111,70 @@ sxEK+yx6I1EkGaK+/KWEpai7
     console.log(`🎯 Routing screen: ${screen}`);
     
     switch (screen) {
+      case 'SERVICE_SELECTION':
       case 'APPOINTMENT':
-        console.log('📅 Providing appointment dropdown data...');
+        console.log('📅 Providing service selection data...');
         const appointmentData = await this.getAppointmentData();
         return {
-          screen: 'APPOINTMENT',
+          screen: 'SERVICE_SELECTION',
           data: appointmentData.data
+        };
+
+      case 'DETAILS':
+        console.log('📝 Processing business details...');
+        // Pass through the service selection data to the details screen
+        return {
+          screen: 'DETAILS',
+          data: {
+            service: data?.service || '',
+            company: data?.company || '',
+            date: data?.date || '',
+            time: data?.time || ''
+          }
+        };
+
+      case 'SUMMARY':
+        console.log('📊 Generating summary...');
+        const serviceTitles = {
+          'whatsapp_marketing': 'WhatsApp Marketing',
+          'whatsapp_ecommerce': 'WhatsApp Ecommerce',
+          'ai_chatbot': 'AI Chat Bot'
+        };
+        const companyTitles = {
+          'meta': 'Meta (WhatsApp Official)',
+          'partner': 'WhatsApp Business Partner',
+          'independent': 'Independent Consultant'
+        };
+        
+        const serviceTitle = serviceTitles[data?.service] || data?.service || 'Unknown';
+        const companyTitle = companyTitles[data?.company] || data?.company || 'Unknown';
+        
+        const serviceSummary = `${serviceTitle} consultation with ${companyTitle} on ${data?.date || 'Unknown'} at ${data?.time || 'Unknown'}`;
+        const businessSummary = `Name: ${data?.name || 'N/A'}\nMobile: ${data?.mobile || 'N/A'}\nPlace: ${data?.place || 'N/A'}\nBusiness: ${data?.business_name || 'N/A'}\nType: ${data?.business_type || 'N/A'}\nSize: ${data?.business_size || 'N/A'}`;
+        
+        return {
+          screen: 'SUMMARY',
+          data: {
+            service_summary: serviceSummary,
+            business_summary: businessSummary,
+            service: data?.service || '',
+            company: data?.company || '',
+            date: data?.date || '',
+            time: data?.time || '',
+            name: data?.name || '',
+            mobile: data?.mobile || '',
+            place: data?.place || '',
+            business_name: data?.business_name || '',
+            business_type: data?.business_type || '',
+            business_size: data?.business_size || ''
+          }
+        };
+
+      case 'TERMS':
+        console.log('📜 Showing terms and conditions...');
+        return {
+          screen: 'TERMS',
+          data: {}
         };
 
       case 'CUSTOMER_DETAILS':
@@ -125,16 +183,6 @@ sxEK+yx6I1EkGaK+/KWEpai7
         return {
           screen: 'CUSTOMER_DETAILS',
           data: customerData.data
-        };
-
-      case 'DETAILS':
-        console.log('📝 Processing appointment details...');
-        return {
-          screen: 'SUMMARY',
-          data: {
-            summary: `${data?.department || 'Unknown'} appointment at ${data?.location || 'Unknown'} on ${data?.date || 'Unknown'} at ${data?.time || 'Unknown'}\n\nName: ${data?.name || 'Unknown'}\nEmail: ${data?.email || 'Unknown'}\nPhone: ${data?.phone || 'Unknown'}`,
-            ...data
-          }
         };
 
       case 'COMPLETE_ORDER':
@@ -158,30 +206,52 @@ sxEK+yx6I1EkGaK+/KWEpai7
           };
         }
 
-      case 'SUMMARY':
-        console.log('💾 Saving appointment...');
-        // Here you would save to database
-        return {
-          screen: 'SUCCESS',
-          data: {
-            message: 'Appointment booked successfully!'
-          }
-        };
+      case 'CONFIRM_APPOINTMENT':
+        console.log('💾 Saving WhatsApp Business appointment...');
+        try {
+          // Save the appointment data
+          await this.flowAppointmentService.saveAppointmentFromFlow(data);
+          return {
+            screen: 'SUCCESS',
+            data: {
+              message: 'Demo scheduled successfully! We will contact you soon.'
+            }
+          };
+        } catch (error) {
+          console.error('❌ Failed to save appointment:', error.message);
+          return {
+            screen: 'SUMMARY',
+            data: {
+              ...data,
+              error: 'Failed to schedule demo. Please try again.'
+            }
+          };
+        }
 
       default:
-        console.log('❓ Unknown screen, defaulting to APPOINTMENT');
+        console.log('❓ Unknown screen, defaulting to SERVICE_SELECTION');
         return this.getErrorResponse();
     }
   }
 
   private getErrorResponse(): { screen: string; data: any } {
     return {
-      screen: 'APPOINTMENT',
+      screen: 'SERVICE_SELECTION',
       data: {
-        department: [{ id: 'sales', title: 'Sales' }],
-        location: [{ id: '1', title: 'New York' }],
+        services: [
+          { id: 'whatsapp_marketing', title: 'WhatsApp Marketing' },
+          { id: 'whatsapp_ecommerce', title: 'WhatsApp Ecommerce' },
+          { id: 'ai_chatbot', title: 'AI Chat Bot' }
+        ],
+        company: [
+          { id: 'meta', title: 'Meta (WhatsApp Official)' },
+          { id: 'partner', title: 'WhatsApp Business Partner' }
+        ],
         date: [{ id: '2026-03-17', title: 'Mon Mar 17 2026' }],
-        time: [{ id: '10:30', title: '10:30 AM' }]
+        time: [{ id: '10:30', title: '10:30 AM' }],
+        is_date_enabled: true,
+        is_time_enabled: true,
+        is_company_enabled: true
       }
     };
   }
@@ -196,24 +266,44 @@ sxEK+yx6I1EkGaK+/KWEpai7
   }
 
   private async getAppointmentData() {
-    console.log('📅 Loading appointment data from database...');
+    console.log('📅 Loading WhatsApp Business Services data...');
     
-    // Get dynamic data from database
-    const departments = await this.flowAppointmentService.getDepartments();
-    const locations = await this.flowAppointmentService.getLocations();
-    const timeSlots = await this.flowAppointmentService.getTimeSlots();
-    const dates = this.generateDates(7);
+    const services = [
+      { id: 'whatsapp_marketing', title: 'WhatsApp Marketing' },
+      { id: 'whatsapp_ecommerce', title: 'WhatsApp Ecommerce' },
+      { id: 'ai_chatbot', title: 'AI Chat Bot' }
+    ];
+
+    const companies = [
+      { id: 'meta', title: 'Meta (WhatsApp Official)' },
+      { id: 'partner', title: 'WhatsApp Business Partner' },
+      { id: 'independent', title: 'Independent Consultant' }
+    ];
+
+    const dates = this.generateDates(5);
+
+    const timeSlots = [
+      { id: '09:00', title: '09:00 AM' },
+      { id: '10:00', title: '10:00 AM' },
+      { id: '11:00', title: '11:00 AM' },
+      { id: '14:00', title: '02:00 PM' },
+      { id: '15:00', title: '03:00 PM' },
+      { id: '16:00', title: '04:00 PM' }
+    ];
 
     const response = {
       data: {
-        department: departments,
-        location: locations,
+        services: services,
+        company: companies,
         date: dates,
-        time: timeSlots
+        time: timeSlots,
+        is_date_enabled: true,
+        is_time_enabled: true,
+        is_company_enabled: true
       }
     };
 
-    console.log(`📅 Loaded: departments:${departments.length} locations:${locations.length} dates:${dates.length} times:${timeSlots.length}`);
+    console.log(`📅 Loaded: services:${services.length} companies:${companies.length} dates:${dates.length} times:${timeSlots.length}`);
     return response;
   }
 

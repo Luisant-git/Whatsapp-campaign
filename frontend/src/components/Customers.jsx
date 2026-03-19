@@ -9,6 +9,9 @@ export default function Customers() {
   const [viewCustomer, setViewCustomer] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  const [fromDate, setFromDate] = useState('');
+const [toDate, setToDate] = useState('');
+
   useEffect(() => {
     loadCustomers();
   }, []);
@@ -18,14 +21,35 @@ export default function Customers() {
     setCustomers(res.data);
   };
 
-  const filteredCustomers = customers.filter(c =>
+  const filteredCustomers = customers
+  .filter(c =>
     c.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.customerPhone?.includes(searchQuery) ||
     c.customerAddress?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  )
+  .filter((customer) => {
+    const customerDate = new Date(customer.lastOrderDate);
+    const onlyDate = new Date(
+      customerDate.getFullYear(),
+      customerDate.getMonth(),
+      customerDate.getDate()
+    );
+
+    if (fromDate) {
+      const from = new Date(fromDate);
+      if (onlyDate < from) return false;
+    }
+
+    if (toDate) {
+      const to = new Date(toDate);
+      if (onlyDate > to) return false;
+    }
+
+    return true;
+  });
 
   const exportToExcel = () => {
-    const exportData = customers.map(customer => ({
+    const exportData = filteredCustomers.map(customer => ({
       'Customer Name': customer.customerName,
       'Phone': customer.customerPhone,
       'Address': customer.customerAddress || 'N/A',
@@ -33,11 +57,14 @@ export default function Customers() {
       'Total Spent': `₹${customer.totalSpent}`,
       'Last Order Date': new Date(customer.lastOrderDate).toLocaleDateString()
     }));
-
+  
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Customers');
-    XLSX.writeFile(wb, `customers_report_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(
+      wb,
+      `customers_${fromDate || 'all'}_${toDate || 'all'}.xlsx`
+    );
   };
 
   return (
@@ -46,27 +73,98 @@ export default function Customers() {
         <div className="header-left">
           <h2>Customers</h2>
         </div>
-        <button className="btn-primary" onClick={exportToExcel}>
+        {/* <button className="btn-primary" onClick={exportToExcel}>
           <Download size={18} /> Export Report
-        </button>
+        </button> */}
       </div>
 
-      <div className="filters-section">
-        <div style={{position: 'relative', width: '300px'}}>
-          <Search size={18} style={{position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af'}} />
-          <input
-            type="text"
-            className="form-input"
-            placeholder="Search customers..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{paddingLeft: '40px', padding: '8px 12px 8px 40px'}}
-          />
-        </div>
-        <div className="total-count">
-          Showing: {filteredCustomers.length} Customer{filteredCustomers.length !== 1 ? 's' : ''}
-        </div>
-      </div>
+      <div
+  className="filters-section"
+  style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    overflowX: 'auto',
+    whiteSpace: 'nowrap',
+    flexWrap: 'nowrap',
+    paddingBottom: '4px',
+  }}
+>
+  <div style={{ position: 'relative', width: '200px', flexShrink: 0 }}>
+    <Search
+      size={16}
+      style={{
+        position: 'absolute',
+        left: '10px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        color: '#9ca3af',
+      }}
+    />
+    <input
+      type="text"
+      className="form-input"
+      placeholder="Search customers..."
+      value={searchQuery}
+      onChange={(e) => setSearchQuery(e.target.value)}
+      style={{
+        padding: '7px 10px 7px 34px',
+        fontSize: '13px',
+      }}
+    />
+  </div>
+
+  <div
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+      padding: '7px 10px',
+      border: '1px solid #e5e7eb',
+      borderRadius: '10px',
+      background: '#fff',
+      flexShrink: 0,
+    }}
+  >
+    <label style={{ fontSize: '13px', fontWeight: 500, color: '#374151' }}>
+      From:
+    </label>
+    <input
+      type="date"
+      value={fromDate}
+      onChange={(e) => setFromDate(e.target.value)}
+      className="form-input"
+      style={{ padding: '6px 8px', width: '135px', fontSize: '13px' }}
+    />
+
+    <label style={{ fontSize: '13px', fontWeight: 500, color: '#374151' }}>
+      To:
+    </label>
+    <input
+      type="date"
+      value={toDate}
+      onChange={(e) => setToDate(e.target.value)}
+      className="form-input"
+      style={{ padding: '6px 8px', width: '135px', fontSize: '13px' }}
+    />
+  </div>
+
+  <button
+    className="btn-primary"
+    onClick={exportToExcel}
+    style={{ padding: '8px 14px', fontSize: '13px', flexShrink: 0 }}
+  >
+    <Download size={16} /> Export Report
+  </button>
+
+  <div
+    className="total-count"
+    style={{ flexShrink: 0, fontSize: '13px' }}
+  >
+    Showing: {filteredCustomers.length} Customer
+    {filteredCustomers.length !== 1 ? 's' : ''}
+  </div>
+</div>
 
       <div className="table-container">
         <table className="contacts-table">

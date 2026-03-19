@@ -55,4 +55,11 @@ export const ecommerceApi = {
 
   // Customers
   getCustomers: () => api.get('/ecommerce/customers'),
+
+  //shipping zones
+  
+  getShippingRates: () => api.get('/ecommerce/shipping-rates'),
+  createShippingRate: (data) => api.post('/ecommerce/shipping-rates', data),
+  updateShippingRate: (id, data) => api.put(`/ecommerce/shipping-rates/${id}`, data),
+  deleteShippingRate: (id) => api.delete(`/ecommerce/shipping-rates/${id}`),
 };

@@ -285,14 +285,33 @@ async deleteVariant(id: number) {
   // Orders
   async createOrder(data: any, userId?: number) {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
-    const { items, ...orderData } = data;
-    
+    const { items, customerState, ...orderData } = data;
+  
+    let shippingAmount = 0;
+  
+    if (customerState) {
+      const shippingRate = await this.prisma.shippingRate.findUnique({
+        where: { state: customerState.toUpperCase() },
+      });
+      shippingAmount = shippingRate?.flatShippingRate || 0;
+    }
+  
+    const itemsTotal = (items || []).reduce(
+      (sum, item) => sum + (item.price * (item.quantity || 1)),
+      0
+    );
+  
+    const totalAmount = itemsTotal + shippingAmount;
+  
     return client.order.create({
       data: {
         ...orderData,
+        customerState,
+        totalAmount,
+        shippingAmount,
         items: {
-          create: items || []
-        }
+          create: items || [],
+        },
       },
       include: { items: { include: { product: true } } },
     });
@@ -465,4 +484,50 @@ async deleteVariant(id: number) {
 
     return Array.from(customerMap.values());
   }
+
+  //shipping master crud
+  // Shipping Rates
+async createShippingRate(state: string, flatShippingRate: number) {
+  return this.prisma.shippingRate.create({
+    data: {
+      state: state.toUpperCase(),
+      flatShippingRate,
+    },
+  });
+}
+
+async getShippingRates() {
+  return this.prisma.shippingRate.findMany({
+    orderBy: { state: 'asc' },
+  });
+}
+
+async getShippingRateByState(state: string) {
+  return this.prisma.shippingRate.findUnique({
+    where: { state: state.toUpperCase() },
+  });
+}
+
+async updateShippingRate(id: number, data: { state?: string; flatShippingRate?: number }) {
+  const updateData: any = {};
+
+  if (data.state !== undefined) {
+    updateData.state = data.state.toUpperCase();
+  }
+
+  if (data.flatShippingRate !== undefined) {
+    updateData.flatShippingRate = data.flatShippingRate;
+  }
+
+  return this.prisma.shippingRate.update({
+    where: { id },
+    data: updateData,
+  });
+}
+
+async deleteShippingRate(id: number) {
+  return this.prisma.shippingRate.delete({
+    where: { id },
+  });
+}
 }

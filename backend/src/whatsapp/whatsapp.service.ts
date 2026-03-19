@@ -62,6 +62,29 @@ export class WhatsappService {
     };
   }
 
+  private isEcommerceMessage(lowerText: string): boolean {
+    return (
+      [
+        'shop',
+        'catalog',
+        'products',
+        'buy',
+        'cod',
+        'confirm',
+        'update',
+        'someone_else',
+        'cash on delivery',
+        '💵 cash on delivery'
+      ].includes(lowerText) ||
+      lowerText.startsWith('cat:') ||
+      lowerText.startsWith('sub:') ||
+      lowerText.startsWith('prod:') ||
+      lowerText.startsWith('buy:') ||
+      lowerText.startsWith('var:') ||
+      lowerText.startsWith('buyvar:')
+    );
+  }
+
   async handleIncomingMessage(message: any, userId: number) {
     const from = message.from;
     const messageId = message.id;
@@ -224,12 +247,7 @@ export class WhatsappService {
       }
 
       // Check for ecommerce keywords first
-      if (['shop', 'catalog', 'products', 'buy'].includes(lowerText) || 
-          lowerText.startsWith('cat:') || 
-          lowerText.startsWith('sub:') || 
-          lowerText.startsWith('prod:') ||
-          lowerText.startsWith('buy:') ||
-          lowerText === 'cod') {
+      if (this.isEcommerceMessage(lowerText)) {
         try {
           this.logger.log(`[Ecommerce] Processing keyword: ${lowerText}`);
           const settings = await this.getSettings(userId);
@@ -946,12 +964,7 @@ export class WhatsappService {
   //     }
       
   //     // Check for ecommerce keywords first (before routing to AI bot)
-  //     if (['shop', 'catalog', 'products', 'buy'].includes(lowerText) || 
-  //         lowerText.startsWith('cat:') || 
-  //         lowerText.startsWith('sub:') || 
-  //         lowerText.startsWith('prod:') ||
-  //         lowerText.startsWith('buy:') ||
-  //         lowerText === 'cod') {
+  //    if (this.isEcommerceMessage(lowerText)) {
   //       await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantId);
   //       this.logger.log(`✅ Ecommerce keyword handled`);
   //       return;
@@ -993,12 +1006,7 @@ export class WhatsappService {
   //     }
       
   //     // Check for ecommerce keywords
-  //     if (['shop', 'catalog', 'products', 'buy'].includes(lowerText) || 
-  //         lowerText.startsWith('cat:') || 
-  //         lowerText.startsWith('sub:') || 
-  //         lowerText.startsWith('prod:') ||
-  //         lowerText.startsWith('buy:') ||
-  //         lowerText === 'cod') {
+  //     if (this.isEcommerceMessage(lowerText))
   //       await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantId);
   //       this.logger.log(`✅ Ecommerce keyword handled`);
   //       return;
@@ -1195,14 +1203,7 @@ export class WhatsappService {
       }
   
       // Check for ecommerce keywords first
-      if (
-        ['shop', 'catalog', 'products', 'buy'].includes(lowerText) ||
-        lowerText.startsWith('cat:') ||
-        lowerText.startsWith('sub:') ||
-        lowerText.startsWith('prod:') ||
-        lowerText.startsWith('buy:') ||
-        lowerText === 'cod'
-      ) {
+      if (this.isEcommerceMessage(lowerText)) {
         await this.ecommerceService.handleIncomingMessage(
           from,
           text,
@@ -1313,14 +1314,7 @@ export class WhatsappService {
       }
   
       // Check for ecommerce keywords
-      if (
-        ['shop', 'catalog', 'products', 'buy'].includes(lowerText) ||
-        lowerText.startsWith('cat:') ||
-        lowerText.startsWith('sub:') ||
-        lowerText.startsWith('prod:') ||
-        lowerText.startsWith('buy:') ||
-        lowerText === 'cod'
-      ) {
+      if (this.isEcommerceMessage(lowerText)) {
         await this.ecommerceService.handleIncomingMessage(
           from,
           text,

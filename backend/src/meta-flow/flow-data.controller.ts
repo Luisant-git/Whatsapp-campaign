@@ -40,11 +40,13 @@ sxEK+yx6I1EkGaK+/KWEpai7
   async getFlowData(@Body() body: any, @Headers() headers: any) {
     console.log('🔥 FLOW DATA REQUEST RECEIVED!');
     console.log('Body keys:', Object.keys(body));
+    console.log('Full body:', JSON.stringify(body, null, 2));
     console.log('Is encrypted request:', this.isEncryptedRequest(body));
 
     try {
-      let screen = 'APPOINTMENT';
+      let screen = 'SERVICE_SELECTION';
       let data = {};
+      let action = '';
 
       // Handle encrypted vs unencrypted requests
       if (this.isEncryptedRequest(body)) {
@@ -54,24 +56,26 @@ sxEK+yx6I1EkGaK+/KWEpai7
           body.encrypted_aes_key,
           body.initial_vector
         );
-        screen = decryptedData.screen || 'APPOINTMENT';
+        screen = decryptedData.screen || 'SERVICE_SELECTION';
         data = decryptedData.data || {};
-        console.log('📋 Decrypted - Screen:', screen, 'Data:', JSON.stringify(data, null, 2));
+        action = decryptedData.action || '';
+        console.log('📋 Decrypted - Screen:', screen, 'Action:', action, 'Data:', JSON.stringify(data, null, 2));
         
         // Process request and generate response
-        const response = await this.routeByScreen(screen, data);
+        const response = await this.routeByScreen(screen, data, action);
         console.log('📤 Sending encrypted response:', JSON.stringify(response, null, 2));
         
         // Encrypt and return response
         return this.encryptResponse(response, aesKey, iv);
       } else {
         console.log('🔓 Processing unencrypted request (TEST MODE)...');
-        screen = body.screen || 'APPOINTMENT';
+        screen = body.screen || 'SERVICE_SELECTION';
         data = body.data || {};
-        console.log('📋 Unencrypted - Screen:', screen, 'Data:', JSON.stringify(data, null, 2));
+        action = body.action || '';
+        console.log('📋 Unencrypted - Screen:', screen, 'Action:', action, 'Data:', JSON.stringify(data, null, 2));
         
         // Process request and return unencrypted response
-        const response = await this.routeByScreen(screen, data);
+        const response = await this.routeByScreen(screen, data, action);
         console.log('📤 Sending unencrypted response:', JSON.stringify(response, null, 2));
         
         return response;
@@ -107,8 +111,18 @@ sxEK+yx6I1EkGaK+/KWEpai7
     return !!(body.encrypted_flow_data && body.encrypted_aes_key && body.initial_vector);
   }
 
-  private async routeByScreen(screen: string, data: any): Promise<{ screen: string; data: any }> {
-    console.log(`🎯 Routing screen: ${screen}`);
+  private async routeByScreen(screen: string, data: any, action?: string): Promise<{ screen: string; data: any }> {
+    console.log(`🎯 Routing screen: ${screen}, action: ${action}`);
+    
+    // Handle INIT action - return first screen data
+    if (action === 'INIT' || !screen || screen === 'INIT') {
+      console.log('📅 INIT action - Providing service selection data...');
+      const appointmentData = await this.getAppointmentData();
+      return {
+        screen: 'SERVICE_SELECTION',
+        data: appointmentData.data
+      };
+    }
     
     switch (screen) {
       case 'SERVICE_SELECTION':

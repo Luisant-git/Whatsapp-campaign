@@ -1,4 +1,3 @@
-// Tenant-specific database schema (no userId fields)
 generator client {
   provider = "prisma-client-js"
   output   = "../node_modules/@prisma/client-tenant"
@@ -10,27 +9,27 @@ datasource db {
 }
 
 model TenantConfig {
-  id        Int      @id @default(autoincrement())
-  aiChatbotEnabled Boolean @default(false)
-  useQuickReply Boolean @default(true)
-  responsePriority String @default("quickreply")
-  customLabels String[] @default([])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               Int      @id @default(autoincrement())
+  aiChatbotEnabled Boolean  @default(false)
+  useQuickReply    Boolean  @default(true)
+  responsePriority String   @default("quickreply")
+  customLabels     String[] @default([])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model MasterConfig {
-  id            Int      @id @default(autoincrement())
-  name          String   @unique
+  id            Int                @id @default(autoincrement())
+  name          String             @unique
   phoneNumberId String
   wabaId        String?
   appId         String?
   accessToken   String
   verifyToken   String
-  isActive      Boolean  @default(true)
+  isActive      Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
   settings      WhatsAppSettings[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
 }
 
 model WhatsAppMessage {
@@ -46,105 +45,84 @@ model WhatsAppMessage {
   phoneNumberId String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  
+
   @@index([phoneNumberId])
   @@index([from, phoneNumberId])
 }
 
 model WhatsAppSettings {
-  id            Int      @id @default(autoincrement())
-  name          String?  @unique
-  templateName  String
-  phoneNumberId String
-  accessToken   String
-  verifyToken   String?
-  apiUrl        String
-  language      String   @default("en")
-  headerImageUrl String?
-  isDefault     Boolean  @default(false)
-  masterConfigId Int?
-  masterConfig  MasterConfig? @relation(fields: [masterConfigId], references: [id], onDelete: SetNull)
-  campaigns     Campaign[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  runDailyAutomation   RunDailyAutomation[]
-  runDailyAutomationLogs RunDailyAutomationLog[] 
+  id                     Int                     @id @default(autoincrement())
+  name                   String?                 @unique
+  templateName           String
+  phoneNumberId          String
+  accessToken            String
+  verifyToken            String?
+  apiUrl                 String
+  language               String                  @default("en")
+  headerImageUrl         String?
+  isDefault              Boolean                 @default(false)
+  masterConfigId         Int?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  campaigns              Campaign[]
+  runDailyAutomation     RunDailyAutomation[]
+  runDailyAutomationLogs RunDailyAutomationLog[]
+  masterConfig           MasterConfig?           @relation(fields: [masterConfigId], references: [id])
 }
 
 model Campaign {
-  id           Int      @id @default(autoincrement())
-  name         String
-  templateName String
-  parameters   Json?
-  status       String   @default("draft")
-  totalCount   Int      @default(0)
-  successCount Int      @default(0)
-  failedCount  Int      @default(0)
-  scheduleType String   @default("one-time")
-  scheduledDays String[] @default([])
+  id            Int               @id @default(autoincrement())
+  name          String
+  templateName  String
+  parameters    Json?
+  status        String            @default("draft")
+  totalCount    Int               @default(0)
+  successCount  Int               @default(0)
+  failedCount   Int               @default(0)
+  scheduleType  String            @default("one-time")
+  scheduledDays String[]          @default([])
   scheduledTime String?
   groupId       Int?
-  settingsId   Int
-  settings     WhatsAppSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
-  group        Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  contacts     CampaignContact[]
-  messages     CampaignMessage[]
-}
-
-enum AutomationEventType {
-  DOB
-  ANNIVERSARY
+  settingsId    Int
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  group         Group?            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  settings      WhatsAppSettings  @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  contacts      CampaignContact[]
+  messages      CampaignMessage[]
 }
 
 model RunDailyAutomation {
-  id                 Int @id @default(autoincrement())
-
-  whatsAppSettingsId Int
-  whatsAppSettings   WhatsAppSettings @relation(fields:[whatsAppSettingsId], references:[id])
-
-  contactId          Int
-  contact            Contact @relation(fields:[contactId], references:[id])
-
-  eventType          AutomationEventType   // ✅ NEW
-  dayBefore          Int                   // ✅ allow negative too (after-week)
-
-  dob                DateTime?
-  anniversary        DateTime?
-
+  id                     Int                     @id @default(autoincrement())
+  whatsAppSettingsId     Int
+  contactId              Int
+  eventType              AutomationEventType
+  dayBefore              Int
+  dob                    DateTime?
+  anniversary            DateTime?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  contact                Contact                 @relation(fields: [contactId], references: [id])
+  whatsAppSettings       WhatsAppSettings        @relation(fields: [whatsAppSettingsId], references: [id])
   runDailyAutomationLogs RunDailyAutomationLog[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([contactId, whatsAppSettingsId, eventType, dayBefore])  // ✅ NEW
+  @@unique([contactId, whatsAppSettingsId, eventType, dayBefore])
 }
 
-
 model RunDailyAutomationLog {
-  id                   Int @id @default(autoincrement())
-
+  id                   Int                @id @default(autoincrement())
   runDailyAutomationId Int
-  runDailyAutomation   RunDailyAutomation @relation(fields: [runDailyAutomationId], references: [id], onDelete: Cascade)
-
   contactId            Int
-  contact              Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
-
   whatsAppSettingsId   Int
-  whatsAppSettings     WhatsAppSettings @relation(fields: [whatsAppSettingsId], references: [id])
-
   templateName         String
-  status               String   // 'sent' | 'failed'
+  status               String
   error                String?
   messageId            String?
-
-  sentAt               DateTime @default(now())
-
-  // ✅ dedupe key: one run row should not send twice in same IST day
+  sentAt               DateTime           @default(now())
   sentDate             DateTime
+  contact              Contact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  runDailyAutomation   RunDailyAutomation @relation(fields: [runDailyAutomationId], references: [id], onDelete: Cascade)
+  whatsAppSettings     WhatsAppSettings   @relation(fields: [whatsAppSettingsId], references: [id])
 
   @@unique([runDailyAutomationId, sentDate])
   @@index([sentAt])
@@ -157,8 +135,8 @@ model CampaignContact {
   phone      String
   group      String?
   campaignId Int
-  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 }
 
 model CampaignMessage {
@@ -169,41 +147,40 @@ model CampaignMessage {
   status     String
   error      String?
   campaignId Int
-  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 }
 
 model Document {
   id        Int      @id @default(autoincrement())
   filename  String
-  content   String   @db.Text
+  content   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model ChatSession {
-  id        Int      @id @default(autoincrement())
+  id        Int           @id @default(autoincrement())
   phone     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
   messages  ChatMessage[]
 }
 
 model ChatMessage {
-  id            Int         @id @default(autoincrement())
-  message       String
-  isFromUser    Boolean
-  sessionId     Int
-  session       ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  createdAt     DateTime    @default(now())
+  id         Int         @id @default(autoincrement())
+  message    String
+  isFromUser Boolean
+  sessionId  Int
+  createdAt  DateTime    @default(now())
+  session    ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
 
 model AutoReply {
   id        Int      @id @default(autoincrement())
   triggers  String[]
-  response  String   @db.Text
+  response  String
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -219,53 +196,49 @@ model QuickReply {
 }
 
 model Contact {
-  id                      Int      @id @default(autoincrement())
-  name                    String
-  email                   String?
-  phone                   String
-  place                   String?
-  lastMessageDate         DateTime?
-  dob                     DateTime?
-  anniversary             DateTime?
-  isActive                Boolean ? @default(true)
-  phoneNumberId            String?
-  groupId                   Int?
-  group                     Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  createdAt                 DateTime @default(now())
-  updatedAt                 DateTime @updatedAt
-  runDailyAutomation         RunDailyAutomation[]
-  runDailyAutomationLogs      RunDailyAutomationLog[] 
-  chatNotes                 ChatNote[]
+  id                     Int                     @id @default(autoincrement())
+  name                   String
+  email                  String?
+  phone                  String
+  place                  String?
+  lastMessageDate        DateTime?
+  dob                    DateTime?
+  anniversary            DateTime?
+  isActive               Boolean?                @default(true)
+  phoneNumberId          String?
+  groupId                Int?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  chatNotes              ChatNote[]
+  group                  Group?                  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  runDailyAutomation     RunDailyAutomation[]
+  runDailyAutomationLogs RunDailyAutomationLog[]
+
   @@unique([phone, phoneNumberId])
   @@index([phoneNumberId])
-
-  
 }
-
 
 model ChatNote {
   id          Int      @id @default(autoincrement())
   phone       String
   title       String
   description String
-
   contactId   Int?
-  contact     Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
-
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  contact     Contact? @relation(fields: [contactId], references: [id])
 
   @@index([phone])
   @@index([contactId])
 }
 
 model Group {
-  id                Int  @id @default(autoincrement())
-  name              String @unique
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  contact         Contact[]
-  campaign          Campaign[]
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  campaign  Campaign[]
+  contact   Contact[]
 }
 
 model ChatAssignment {
@@ -278,106 +251,102 @@ model ChatAssignment {
   @@index([subUserId])
 }
 
-
 model ChatLabel {
-  id        Int      @id @default(autoincrement())
-  phone     String   @unique
-  labels    String[]
-  manuallyEdited Boolean @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             Int      @id @default(autoincrement())
+  phone          String   @unique
+  labels         String[]
+  manuallyEdited Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model Test {
-  id       Int     @id @default(autoincrement())
-  name     String
+  id   Int    @id @default(autoincrement())
+  name String
 }
 
 model Category {
-  id            Int      @id @default(autoincrement())
-  name          String   @unique
+  id            Int           @id @default(autoincrement())
+  name          String        @unique
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
   subCategories SubCategory[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
 }
 
 model SubCategory {
-  id          Int      @id @default(autoincrement())
-  name        String
-  categoryId  Int
-  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  products    Product[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  id         Int       @id @default(autoincrement())
+  name       String
+  categoryId Int
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  products   Product[]
+  category   Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
   @@unique([name, categoryId])
 }
 
 model Product {
-  id            Int         @id @default(autoincrement())
+  id            Int              @id @default(autoincrement())
   name          String
-  description   String?     @db.Text
+  description   String?
   price         Float
-  salePrice     Float? 
-  stock         Int?        @default(0)
-  availability       Boolean     @default(true)
-  contentId     String?     @unique  
+  salePrice     Float?
+  stock         Int?             @default(0)
+  availability  Boolean          @default(true)
+  contentId     String?          @unique
   imageUrl      String?
   link          String?
   metaProductId String?
-  source        String?     @default("manual")
+  source        String?          @default("manual")
   subCategoryId Int
-  isActive      Boolean     @default(true)
-  subCategory   SubCategory @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
+  isActive      Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
   orderItems    OrderItem[]
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  variants      ProductVariant[] 
+  subCategory   SubCategory      @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
+  variants      ProductVariant[]
 }
 
 model ProductVariant {
   id            Int      @id @default(autoincrement())
-
   productId     Int
-  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
   name          String
-  description   String?  @db.Text
+  description   String?
   price         Float
   salePrice     Float?
-  stock         Int?        @default(0)
-
+  stock         Int?     @default(0)
   imageUrl      String?
   link          String?
-
-  availability       Boolean  @default(true)
+  availability  Boolean  @default(true)
   isActive      Boolean  @default(true)
-
-  contentId     String   @unique      // ✅ REQUIRED/unique for Meta retailer_id per variant
-  metaProductId String?               // optional: store Meta returned id
+  contentId     String   @unique
+  metaProductId String?
   source        String?  @default("manual")
-
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
 }
 
 model Order {
-  id              Int      @id @default(autoincrement())
+  id              Int         @id @default(autoincrement())
   customerName    String
   customerPhone   String
-  customerAddress String?  @db.Text
+  customerAddress String?
+  customerCity    String?
+  customerState   String?
+  customerPincode String?
   totalAmount     Float
-  status          String   @default("placed")
+  status          String      @default("placed")
   paymentMethod   String?
   paymentId       String?
   paymentLink     String?
-  paymentStatus   String   @default("pending")
-  isAbandoned     Boolean  @default(false)
+  paymentStatus   String      @default("pending")
+  isAbandoned     Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
   items           OrderItem[]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
 }
 
 model OrderItem {
@@ -386,36 +355,33 @@ model OrderItem {
   productId Int
   quantity  Int      @default(1)
   price     Float
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
   @@index([orderId])
   @@index([productId])
 }
 
 model ShoppingSession {
-  id               Int      @id @default(autoincrement())
-  phone            String   @unique
-  currentProductId Int?
-  paymentMethod    String?
-  step             String   @default("browsing")
-  customerName     String?
-  customerAddress  String?  @db.Text
-  customerCity     String?
-  customerState    String?
-  customerPincode  String?
-  selectedVariantId Int?   
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  
+  id                Int      @id @default(autoincrement())
+  phone             String   @unique
+  currentProductId  Int?
+  paymentMethod     String?
+  step              String   @default("browsing")
+  customerName      String?
+  customerAddress   String?
+  customerCity      String?
+  customerPincode   String?
+  selectedVariantId Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  customerState     String?
+
   @@index([phone])
   @@index([updatedAt])
 }
-
-
-
 
 model FeatureAssignment {
   id           Int      @id @default(autoincrement())
@@ -429,43 +395,43 @@ model FeatureAssignment {
 }
 
 model WhatsappFlow {
-  id            Int      @id @default(autoincrement())
-  name          String
-  flowId        String   @unique // Meta flow id
-  purpose       String   // appointment, feedback, lead, support
-  description   String?
-  firstScreen   String   @default("SCREEN")
-  triggerWords  String[] @default([])
-  isActive      Boolean  @default(true)
-  sessions      FlowSession[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
+  id           Int           @id @default(autoincrement())
+  name         String
+  flowId       String        @unique
+  purpose      String
+  description  String?
+  firstScreen  String        @default("SCREEN")
+  triggerWords String[]      @default([])
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  sessions     FlowSession[]
+
   @@index([purpose])
   @@index([flowId])
 }
 
 model FlowSession {
-  id            Int      @id @default(autoincrement())
-  flowToken     String   @unique
+  id            Int          @id @default(autoincrement())
+  flowToken     String       @unique
   flowId        String
   contactPhone  String
   tenantId      String
   purpose       String
   currentScreen String?
-  sessionData   Json     @default("{}")
-  status        String   @default("active") // active, completed, abandoned
+  sessionData   Json         @default("{}")
+  status        String       @default("active")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
   flow          WhatsappFlow @relation(fields: [flowId], references: [flowId])
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
+
   @@index([flowToken])
   @@index([contactPhone])
   @@index([tenantId])
 }
 
 model FlowTrigger {
-  id          Int      @id @default(autoincrement())
+  id          Int              @id @default(autoincrement())
   name        String
   triggerWord String
   flowId      String
@@ -473,27 +439,27 @@ model FlowTrigger {
   bodyText    String?
   footerText  String?
   ctaText     String
-  screenName  String   @default("APPOINTMENT")
-  screenData  Json     @default("{}")
-  isActive    Boolean  @default(true)
+  screenName  String           @default("APPOINTMENT")
+  screenData  Json             @default("{}")
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
   logs        FlowTriggerLog[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+
   @@index([triggerWord])
 }
 
 model FlowTriggerLog {
-  id             Int      @id @default(autoincrement())
-  flowTriggerId  Int
-  phoneNumber    String
-  triggerWord    String
-  status         String
-  messageId      String?
-  error          String?  @db.Text
-  flowTrigger    FlowTrigger @relation(fields: [flowTriggerId], references: [id], onDelete: Cascade)
-  createdAt      DateTime @default(now())
-  
+  id            Int         @id @default(autoincrement())
+  flowTriggerId Int
+  phoneNumber   String
+  triggerWord   String
+  status        String
+  messageId     String?
+  error         String?
+  createdAt     DateTime    @default(now())
+  flowTrigger   FlowTrigger @relation(fields: [flowTriggerId], references: [id], onDelete: Cascade)
+
   @@index([flowTriggerId])
   @@index([phoneNumber])
 }
@@ -510,11 +476,10 @@ model FlowAppointment {
   moreDetails String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   @@index([phone])
   @@index([date])
 }
-
 
 model FlowDepartment {
   id        Int      @id @default(autoincrement())
@@ -544,22 +509,27 @@ model FlowTimeSlot {
 }
 
 model MessageTemplate {
-  id                 Int      @id @default(autoincrement())
-  templateId         String   @unique
-  name               String
-  category           String
-  language           String
-  status             String   @default("PENDING")
-  components         String
-  sampleValues       String?  @db.Text
-  reviewRequested    Boolean  @default(false)
-  reviewRequestedAt  DateTime?
-  reviewReason       String?
-  rejectionReason    String?
-  previousCategory   String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  
+  id                Int       @id @default(autoincrement())
+  templateId        String    @unique
+  name              String
+  category          String
+  language          String
+  status            String    @default("PENDING")
+  components        String
+  sampleValues      String?
+  reviewRequested   Boolean   @default(false)
+  reviewRequestedAt DateTime?
+  reviewReason      String?
+  rejectionReason   String?
+  previousCategory  String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
   @@index([status])
   @@index([category])
+}
+
+enum AutomationEventType {
+  DOB
+  ANNIVERSARY
 }

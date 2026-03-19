@@ -98,46 +98,77 @@ export class WhatsappEcommerceService {
       return false;
     }
   }
-
   async sendCategoryList(phone: string, accessToken: string, phoneNumberId: string, userId: number) {
     const categories = await this.ecommerceService.getCategories(userId);
-
-    const buttons = categories.slice(0, 3).map((cat) => ({
-      type: 'reply',
-      reply: { id: `cat:${cat.id}`, title: cat.name.substring(0, 20) },
+  
+    const rows = categories.slice(0, 10).map((cat) => ({
+      id: `cat:${cat.id}`,
+      title: cat.name.substring(0, 24),
+      description: 'Browse products',
     }));
-
-    return this.sendWhatsAppMessage(phone, {
-      type: 'interactive',
-      interactive: {
-        type: 'button',
-        body: { text: '🛍️ Select a Category:' },
-        action: { buttons },
-      },
-    }, accessToken, phoneNumberId);
-  }
-
-  async sendSubCategoryList(phone: string, categoryId: number, accessToken: string, phoneNumberId: string, userId: number) {
-    const subCategories = await this.ecommerceService.getSubCategories(categoryId, userId);
-
-    const rows = subCategories.map((sub) => ({
-      id: `sub:${sub.id}`,
-      title: sub.name.substring(0, 24),
-    }));
-
+  
     return this.sendWhatsAppMessage(phone, {
       type: 'interactive',
       interactive: {
         type: 'list',
-        body: { text: 'Choose a subcategory:' },
+        header: {
+          type: 'text',
+          text: '🛍️ Our Store'
+        },
+        body: {
+          text: 'Welcome! Please choose a category to start shopping.'
+        },
+        footer: {
+          text: 'Tap below to explore'
+        },
         action: {
-          button: 'View Options',
-          sections: [{ title: 'Subcategories', rows }],
+          button: 'View Categories',
+          sections: [
+            {
+              title: 'Shop Categories',
+              rows,
+            },
+          ],
         },
       },
     }, accessToken, phoneNumberId);
   }
-
+ 
+  async sendSubCategoryList(phone: string, categoryId: number, accessToken: string, phoneNumberId: string, userId: number) {
+    const subCategories = await this.ecommerceService.getSubCategories(categoryId, userId);
+  
+    const rows = subCategories.slice(0, 10).map((sub) => ({
+      id: `sub:${sub.id}`,
+      title: sub.name.substring(0, 24),
+      description: 'View available products',
+    }));
+  
+    return this.sendWhatsAppMessage(phone, {
+      type: 'interactive',
+      interactive: {
+        type: 'list',
+        header: {
+          type: 'text',
+          text: '📂 Subcategories'
+        },
+        body: {
+          text: 'Choose a subcategory to view products.'
+        },
+        footer: {
+          text: 'Find what suits you best'
+        },
+        action: {
+          button: 'View Subcategories',
+          sections: [
+            {
+              title: 'Available Subcategories',
+              rows,
+            },
+          ],
+        },
+      },
+    }, accessToken, phoneNumberId);
+  }
   // async sendProductList(phone: string, subCategoryId: number, accessToken: string, phoneNumberId: string, userId: number) {
   //   const hasMetaCatalog = await this.checkMetaCatalogPermission(userId);
   //   console.log(`[sendProductList] userId: ${userId}, hasMetaCatalog: ${hasMetaCatalog}, excludeMetaProducts: ${!hasMetaCatalog}`);
@@ -169,15 +200,15 @@ export class WhatsappEcommerceService {
     const hasMetaCatalog = await this.checkMetaCatalogPermission(userId);
     const products = await this.ecommerceService.getProducts(subCategoryId, userId, !hasMetaCatalog);
   
-    const rows = products.map((prod) => {
-      const stockInfo = prod.stock !== null && prod.stock !== undefined ? ` | Stock: ${prod.stock}` : '';
+    const rows = products.slice(0, 10).map((prod) => {
+      const price = prod.salePrice || prod.price;
       const variantCount = prod.variants?.length || 0;
-      const variantInfo = variantCount > 0 ? ` | ${variantCount} options` : '';
+      const variantInfo = variantCount > 0 ? ` • ${variantCount} options` : '';
   
       return {
         id: `prod:${prod.id}`,
         title: prod.name.substring(0, 24),
-        description: `₹${prod.price}${stockInfo}${variantInfo}`.substring(0, 72),
+        description: `₹${price}${variantInfo}`.substring(0, 72),
       };
     });
   
@@ -185,15 +216,28 @@ export class WhatsappEcommerceService {
       type: 'interactive',
       interactive: {
         type: 'list',
-        body: { text: 'Select a product:' },
+        header: {
+          type: 'text',
+          text: '🛒 Products'
+        },
+        body: {
+          text: 'Select a product to view full details.'
+        },
+        footer: {
+          text: 'Prices shown in INR'
+        },
         action: {
           button: 'View Products',
-          sections: [{ title: 'Products', rows }],
+          sections: [
+            {
+              title: 'Available Products',
+              rows,
+            },
+          ],
         },
       },
     }, accessToken, phoneNumberId);
   }
-
   async sendProductDetails(phone: string, productId: number, accessToken: string, phoneNumberId: string, userId: number) {
     const product = await this.ecommerceService.getProduct(productId, userId);
     if (!product) return;
@@ -202,33 +246,43 @@ export class WhatsappEcommerceService {
   
     const variants = product.variants?.filter((v) => v.isActive && v.availability) || [];
   
-    // ── Product HAS variants → show variant selection ──
+    // Product has variants → show image + variant selection list
     if (variants.length > 0) {
-      const stockInfo = product.stock !== null && product.stock !== undefined ? `\n📦 Stock: ${product.stock}` : '';
-  
-      // Send image first if available
       if (product.imageUrl) {
+        const fromPrice = product.salePrice || product.price;
+  
         await this.sendWhatsAppMessage(phone, {
           type: 'image',
           image: {
-            link: product.imageUrl.startsWith('http') ? product.imageUrl : `${process.env.BASE_URL || 'http://localhost:3010'}${product.imageUrl}`,
-            caption: `*${product.name}*\n${product.description || ''}\n💰 From ₹${product.price}`,
+            link: product.imageUrl.startsWith('http')
+              ? product.imageUrl
+              : `${process.env.BASE_URL || 'http://localhost:3010'}${product.imageUrl}`,
+            caption: `*${product.name}*\n\n${product.description || 'Choose your preferred option below.'}\n\n💰 Starting from ₹${fromPrice}`,
           },
         }, accessToken, phoneNumberId);
       }
+  
+      const baseStockInfo =
+        product.stock !== null && product.stock !== undefined
+          ? ` | Stock: ${product.stock}`
+          : '';
   
       const rows = [
         {
           id: `buy:${productId}`,
           title: 'Base Product',
-          description: `₹${product.price}${stockInfo.replace('\n📦 ', ' | ')}`.substring(0, 72),
+          description: `₹${product.salePrice || product.price}${baseStockInfo}`.substring(0, 72),
         },
         ...variants.map((v) => {
-          const vStock = v.stock !== null && v.stock !== undefined ? ` | Stock: ${v.stock}` : '';
+          const vStock =
+            v.stock !== null && v.stock !== undefined
+              ? ` | Stock: ${v.stock}`
+              : '';
+  
           return {
             id: `var:${productId}:${v.id}`,
             title: v.name.substring(0, 24),
-            description: `₹${v.price}${vStock}`.substring(0, 72),
+            description: `₹${v.salePrice || v.price}${vStock}`.substring(0, 72),
           };
         }),
       ];
@@ -237,18 +291,44 @@ export class WhatsappEcommerceService {
         type: 'interactive',
         interactive: {
           type: 'list',
-          body: { text: `Choose a variant for *${product.name}*:` },
+          header: {
+            type: 'text',
+            text: '🔽 Product Options',
+          },
+          body: {
+            text: `Choose a variant for *${product.name}*`,
+          },
+          footer: {
+            text: 'Select one option to continue',
+          },
           action: {
             button: 'View Options',
-            sections: [{ title: `${product.name} Options`, rows: rows.slice(0, 10) }],
+            sections: [
+              {
+                title: `${product.name} Options`,
+                rows: rows.slice(0, 10),
+              },
+            ],
           },
         },
       }, accessToken, phoneNumberId);
     }
   
-    // ── No variants → show Buy button directly ──
-    const stockInfo = product.stock !== null && product.stock !== undefined ? `\n📦 Stock: ${product.stock}` : '';
-    const message = `*${product.name}*\n\n${product.description || ''}${stockInfo}\n\n💰 Price: ₹${product.price}`;
+    // No variants → show polished product detail + Buy Now
+    const stockInfo =
+      product.stock !== null && product.stock !== undefined
+        ? `📦 Stock: ${product.stock}\n`
+        : '';
+  
+    const priceBlock = product.salePrice
+      ? `🏷️ Offer Price: ₹${product.salePrice}\n💰 MRP: ~~₹${product.price}~~`
+      : `💰 Price: ₹${product.price}`;
+  
+    const message = `*${product.name}*
+  
+  ${product.description || 'Premium quality product.'}
+  
+  ${stockInfo}${priceBlock}`;
   
     if (product.imageUrl) {
       return this.sendWhatsAppMessage(phone, {
@@ -258,12 +338,19 @@ export class WhatsappEcommerceService {
           header: {
             type: 'image',
             image: {
-              link: product.imageUrl.startsWith('http') ? product.imageUrl : `${process.env.BASE_URL || 'http://localhost:3010'}${product.imageUrl}`,
+              link: product.imageUrl.startsWith('http')
+                ? product.imageUrl
+                : `${process.env.BASE_URL || 'http://localhost:3010'}${product.imageUrl}`,
             },
           },
           body: { text: message },
           action: {
-            buttons: [{ type: 'reply', reply: { id: `buy:${productId}`, title: '🛒 Buy Now' } }],
+            buttons: [
+              {
+                type: 'reply',
+                reply: { id: `buy:${productId}`, title: '🛒 Buy Now' },
+              },
+            ],
           },
         },
       }, accessToken, phoneNumberId);
@@ -275,7 +362,12 @@ export class WhatsappEcommerceService {
         type: 'button',
         body: { text: message },
         action: {
-          buttons: [{ type: 'reply', reply: { id: `buy:${productId}`, title: '🛒 Buy Now' } }],
+          buttons: [
+            {
+              type: 'reply',
+              reply: { id: `buy:${productId}`, title: '🛒 Buy Now' },
+            },
+          ],
         },
       },
     }, accessToken, phoneNumberId);
@@ -296,10 +388,21 @@ export class WhatsappEcommerceService {
     await this.sessionService.setProductForPurchase(phone, productId, userId);
     await this.sessionService.setSession(phone, { selectedVariantId: variantId }, userId);
   
-    const stockInfo = variant.stock !== null && variant.stock !== undefined ? `\n📦 Stock: ${variant.stock}` : '';
-    const saleInfo = variant.salePrice ? `\n🏷️ Sale Price: ₹${variant.salePrice}` : '';
+    const stockInfo =
+      variant.stock !== null && variant.stock !== undefined
+        ? `📦 Stock: ${variant.stock}\n`
+        : '';
   
-    const message = `*${product.name}*\n📌 Variant: *${variant.name}*\n\n${variant.description || product.description || ''}${stockInfo}\n\n💰 Price: ₹${variant.price}${saleInfo}`;
+    const priceBlock = variant.salePrice
+      ? `🏷️ Offer Price: ₹${variant.salePrice}\n💰 MRP: ~~₹${variant.price}~~`
+      : `💰 Price: ₹${variant.price}`;
+  
+    const message = `*${product.name}*
+  🔹 Variant: *${variant.name}*
+  
+  ${variant.description || product.description || 'Premium quality option.'}
+  
+  ${stockInfo}${priceBlock}`;
   
     const imageUrl = variant.imageUrl || product.imageUrl;
   
@@ -316,7 +419,9 @@ export class WhatsappEcommerceService {
           header: {
             type: 'image',
             image: {
-              link: imageUrl.startsWith('http') ? imageUrl : `${process.env.BASE_URL || 'http://localhost:3010'}${imageUrl}`,
+              link: imageUrl.startsWith('http')
+                ? imageUrl
+                : `${process.env.BASE_URL || 'http://localhost:3010'}${imageUrl}`,
             },
           },
           body: { text: message },

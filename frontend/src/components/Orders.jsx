@@ -19,6 +19,8 @@ export default function Orders() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewOrder, setViewOrder] = useState(null); // 👈 for modal
+  const [fromDate, setFromDate] = useState('');
+const [toDate, setToDate] = useState('');
 
   useEffect(() => {
     loadOrders();
@@ -35,7 +37,7 @@ export default function Orders() {
   };
 
   const exportToExcel = () => {
-    const exportData = orders.map((order) => ({
+    const exportData = filteredOrders.map((order) => ({
       'Order ID': `#${order.id}`,
       'Customer Name': order.customerName,
       Phone: order.customerPhone,
@@ -44,35 +46,57 @@ export default function Orders() {
       State: order.customerState || 'N/A',
       Pincode: order.customerPincode || 'N/A',
       Product: order.items?.[0]?.product?.name || 'N/A',
+      Product: order.items?.map((item) => item.product?.name).join(', ') || 'N/A',
+      Quantity: order.items?.reduce((total, item) => total + item.quantity, 0) || 0,
       Amount: `₹${order.totalAmount}`,
       Status: order.status,
       Date: new Date(order.createdAt).toLocaleDateString(),
+      Time: new Date(order.createdAt).toLocaleTimeString(),
     }));
-
+  
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Orders');
+  
     XLSX.writeFile(
       wb,
-      `orders_report_${new Date().toISOString().split('T')[0]}.xlsx`
+      `orders_${statusFilter}_${fromDate || 'all'}_${toDate || 'all'}.xlsx`
     );
   };
 
-  const placedOrders = orders.filter(o => o.status === 'placed');
+  const placedOrders = orders.filter((o) => o.status === 'placed');
   const pendingOrders = orders.filter((o) => o.status === 'pending');
-  const processingOrders = orders.filter((o) => o.status === 'processing');
-  const completedOrders = orders.filter((o) => o.status === 'completed');
+  const acceptedOrders = orders.filter((o) => o.status === 'accepted');
   const cancelledOrders = orders.filter((o) => o.status === 'cancelled');
-
   const filteredOrders = orders
-    .filter((o) => statusFilter === 'all' || o.status === statusFilter)
-    .filter(
-      (o) =>
-        o.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        o.customerPhone?.includes(searchQuery) ||
-        o.items?.[0]?.product?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        o.id?.toString().includes(searchQuery)
+  .filter((o) => statusFilter === 'all' || o.status === statusFilter)
+  .filter(
+    (o) =>
+      o.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      o.customerPhone?.includes(searchQuery) ||
+      o.items?.[0]?.product?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      o.id?.toString().includes(searchQuery)
+  )
+  .filter((o) => {
+    const orderDate = new Date(o.createdAt);
+    const orderOnlyDate = new Date(
+      orderDate.getFullYear(),
+      orderDate.getMonth(),
+      orderDate.getDate()
     );
+
+    if (fromDate) {
+      const from = new Date(fromDate);
+      if (orderOnlyDate < from) return false;
+    }
+
+    if (toDate) {
+      const to = new Date(toDate);
+      if (orderOnlyDate > to) return false;
+    }
+
+    return true;
+  });
 
   return (
     <div className="ecommerce-container">
@@ -80,16 +104,14 @@ export default function Orders() {
         <div className="header-left">
           <h2>Orders</h2>
         </div>
-        <button className="btn-primary" onClick={exportToExcel}>
+        {/* <button className="btn-primary" onClick={exportToExcel}>
           <Download size={18} /> Export Report
-        </button>
+        </button> */}
       </div>
-
       <div
         className="analytics-grid"
-        style={{ marginBottom: '24px', gridTemplateColumns: 'repeat(5, 1fr)' }}
+        style={{ marginBottom: '24px', gridTemplateColumns: 'repeat(4, 1fr)' }}
       >
-
         <div className="stat-card">
           <div
             className="stat-icon"
@@ -102,6 +124,7 @@ export default function Orders() {
             <p className="stat-number">{placedOrders.length}</p>
           </div>
         </div>
+
         <div className="stat-card">
           <div
             className="stat-icon"
@@ -118,23 +141,13 @@ export default function Orders() {
         <div className="stat-card">
           <div
             className="stat-icon"
-            style={{ background: '#dbeafe', color: '#2563eb' }}
+            style={{ background: '#dcfce7', color: '#16a34a' }}
           >
-            <Package size={24} />
-          </div>
-          <div className="stat-content">
-            <h3>Processing</h3>
-            <p className="stat-number">{processingOrders.length}</p>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon success">
             <CheckCircle size={24} />
           </div>
           <div className="stat-content">
-            <h3>Completed</h3>
-            <p className="stat-number">{completedOrders.length}</p>
+            <h3>Accepted</h3>
+            <p className="stat-number">{acceptedOrders.length}</p>
           </div>
         </div>
 
@@ -148,46 +161,119 @@ export default function Orders() {
           </div>
         </div>
       </div>
+      <div
+  className="filters-section"
+  style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    overflowX: 'auto',
+    whiteSpace: 'nowrap',
+    flexWrap: 'nowrap',
+    paddingBottom: '4px',
+  }}
+>
+  <div style={{ position: 'relative', width: '200px', flexShrink: 0 }}>
+    <Search
+      size={16}
+      style={{
+        position: 'absolute',
+        left: '10px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        color: '#9ca3af',
+      }}
+    />
+    <input
+      type="text"
+      className="form-input"
+      placeholder="Search orders..."
+      value={searchQuery}
+      onChange={(e) => setSearchQuery(e.target.value)}
+      style={{
+        padding: '7px 10px 7px 34px',
+        fontSize: '13px',
+      }}
+    />
+  </div>
 
-      <div className="filters-section">
-        <div style={{ position: 'relative', width: '300px' }}>
-          <Search
-            size={18}
-            style={{
-              position: 'absolute',
-              left: '12px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: '#9ca3af',
-            }}
-          />
-          <input
-            type="text"
-            className="form-input"
-            placeholder="Search orders..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ paddingLeft: '40px', padding: '8px 12px 8px 40px' }}
-          />
-        </div>
-        <select
-          className="form-select"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          style={{ width: '200px', padding: '8px 12px' }}
-        >
-          <option value="all">All Orders ({orders.length})</option>
-          <option value="placed">Placed ({placedOrders.length})</option>
-          <option value="pending">Pending ({pendingOrders.length})</option>
-          <option value="processing">Processing ({processingOrders.length})</option>
-          <option value="completed">Completed ({completedOrders.length})</option>
-          <option value="cancelled">Cancelled ({cancelledOrders.length})</option>
-        </select>
-        <div className="total-count">
-          Showing: {filteredOrders.length} Order
-          {filteredOrders.length !== 1 ? 's' : ''}
-        </div>
-      </div>
+  <select
+    className="form-select"
+    value={statusFilter}
+    onChange={(e) => setStatusFilter(e.target.value)}
+    style={{
+      width: '170px',
+      padding: '7px 10px',
+      fontSize: '13px',
+      flexShrink: 0,
+    }}
+  >
+    <option value="all">All Orders ({orders.length})</option>
+    <option value="placed">Placed ({placedOrders.length})</option>
+    <option value="pending">Pending ({pendingOrders.length})</option>
+    <option value="accepted">Accepted ({acceptedOrders.length})</option>
+    <option value="cancelled">Cancelled ({cancelledOrders.length})</option>
+  </select>
+
+  <div
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+      padding: '7px 10px',
+      border: '1px solid #e5e7eb',
+      borderRadius: '10px',
+      background: '#fff',
+      flexShrink: 0,
+    }}
+  >
+    <label style={{ fontSize: '13px', fontWeight: 500, color: '#374151' }}>
+      From:
+    </label>
+    <input
+      type="date"
+      value={fromDate}
+      onChange={(e) => setFromDate(e.target.value)}
+      className="form-input"
+      style={{ padding: '6px 8px', width: '135px', fontSize: '13px' }}
+    />
+
+    <label style={{ fontSize: '13px', fontWeight: 500, color: '#374151' }}>
+      To:
+    </label>
+    <input
+      type="date"
+      value={toDate}
+      onChange={(e) => setToDate(e.target.value)}
+      className="form-input"
+      style={{ padding: '6px 8px', width: '135px', fontSize: '13px' }}
+    />
+  </div>
+
+  <button
+    className="btn-primary"
+    onClick={exportToExcel}
+    style={{
+      padding: '8px 14px',
+      fontSize: '13px',
+      flexShrink: 0,
+    }}
+  >
+    <Download size={16} /> Download
+  </button>
+
+  <div
+    className="total-count"
+    style={{
+      flexShrink: 0,
+      fontSize: '13px',
+      marginLeft: '4px',
+    }}
+  >
+    Showing: {filteredOrders.length} Order
+    {filteredOrders.length !== 1 ? 's' : ''}
+  </div>
+</div>
 
       <div className="table-container">
         <table className="contacts-table">
@@ -259,8 +345,7 @@ export default function Orders() {
                     >
                       <option value="placed">Placed</option>
                       <option value="pending">Pending</option>
-                      <option value="processing">Processing</option>
-                      <option value="completed">Completed</option>
+                      <option value="accepted">Accepted</option>
                       <option value="cancelled">Cancelled</option>
                     </select>
                   </div>
@@ -386,12 +471,12 @@ export default function Orders() {
                         </div>
                       </div>
                     )) || (
-                      <div className="order-item-card">
-                        <div className="order-item-info">
-                          <div className="order-item-name">No items found</div>
+                        <div className="order-item-card">
+                          <div className="order-item-info">
+                            <div className="order-item-name">No items found</div>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                   </div>
                 </div>
               </div>

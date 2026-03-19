@@ -9,6 +9,22 @@ export class FlowAppointmentService {
     private centralPrisma: CentralPrismaService,
   ) {}
 
+  async saveOrder(data: any, userId: number) {
+    const prisma = await this.getTenantClient(userId);
+    return (prisma as any).order.create({
+      data: {
+        customerName: data.customerName,
+        customerAddress: data.customerAddress,
+        customerCity: data.customerCity,
+        customerState: data.customerState,
+        customerPincode: data.customerPincode,
+        paymentMethod: data.paymentMethod,
+        status: 'pending',
+        createdAt: new Date(),
+      },
+    });
+  }
+
   async saveAppointment(data: any, userId: number) {
     const prisma = await this.getTenantClient(userId);
     return (prisma as any).flowAppointment.create({

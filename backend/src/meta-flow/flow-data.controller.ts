@@ -59,7 +59,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
         console.log('📋 Decrypted - Screen:', screen, 'Data:', JSON.stringify(data, null, 2));
         
         // Process request and generate response
-        const response = this.routeByScreen(screen, data);
+        const response = await this.routeByScreen(screen, data);
         console.log('📤 Sending encrypted response:', JSON.stringify(response, null, 2));
         
         // Encrypt and return response
@@ -71,7 +71,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
         console.log('📋 Unencrypted - Screen:', screen, 'Data:', JSON.stringify(data, null, 2));
         
         // Process request and return unencrypted response
-        const response = this.routeByScreen(screen, data);
+        const response = await this.routeByScreen(screen, data);
         console.log('📤 Sending unencrypted response:', JSON.stringify(response, null, 2));
         
         return response;
@@ -107,34 +107,24 @@ sxEK+yx6I1EkGaK+/KWEpai7
     return !!(body.encrypted_flow_data && body.encrypted_aes_key && body.initial_vector);
   }
 
-  private routeByScreen(screen: string, data: any): { screen: string; data: any } {
+  private async routeByScreen(screen: string, data: any): Promise<{ screen: string; data: any }> {
     console.log(`🎯 Routing screen: ${screen}`);
     
     switch (screen) {
       case 'APPOINTMENT':
         console.log('📅 Providing appointment dropdown data...');
+        const appointmentData = await this.getAppointmentData();
         return {
           screen: 'APPOINTMENT',
-          data: {
-            department: [
-              { id: 'sales', title: 'Sales' },
-              { id: 'support', title: 'Support' },
-              { id: 'technical', title: 'Technical' }
-            ],
-            location: [
-              { id: '1', title: 'New York' },
-              { id: '2', title: 'London' }
-            ],
-            date: [
-              { id: '2026-03-16', title: 'Sun Mar 16 2026' },
-              { id: '2026-03-17', title: 'Mon Mar 17 2026' }
-            ],
-            time: [
-              { id: '10:30', title: '10:30 AM' },
-              { id: '11:30', title: '11:30 AM' },
-              { id: '14:30', title: '2:30 PM' }
-            ]
-          }
+          data: appointmentData.data
+        };
+
+      case 'CUSTOMER_DETAILS':
+        console.log('👤 Providing customer details dropdown data...');
+        const customerData = await this.getCustomerDetailsData();
+        return {
+          screen: 'CUSTOMER_DETAILS',
+          data: customerData.data
         };
 
       case 'DETAILS':
@@ -146,6 +136,27 @@ sxEK+yx6I1EkGaK+/KWEpai7
             ...data
           }
         };
+
+      case 'COMPLETE_ORDER':
+        console.log('💾 Saving customer order...');
+        try {
+          await this.flowAppointmentService.saveOrder(data, 1);
+          return {
+            screen: 'SUCCESS',
+            data: {
+              message: 'Order placed successfully! We will contact you soon.'
+            }
+          };
+        } catch (error) {
+          console.error('❌ Failed to save order:', error.message);
+          return {
+            screen: 'CUSTOMER_DETAILS',
+            data: {
+              ...data,
+              error: 'Failed to place order. Please try again.'
+            }
+          };
+        }
 
       case 'SUMMARY':
         console.log('💾 Saving appointment...');
@@ -245,6 +256,64 @@ sxEK+yx6I1EkGaK+/KWEpai7
         }
       };
     }
+  }
+
+  private async getCustomerDetailsData() {
+    console.log('👤 Loading customer details data...');
+    
+    const states = [
+      { "id": "AN", "title": "Andaman and Nicobar Islands" },
+      { "id": "AP", "title": "Andhra Pradesh" },
+      { "id": "AR", "title": "Arunachal Pradesh" },
+      { "id": "AS", "title": "Assam" },
+      { "id": "BR", "title": "Bihar" },
+      { "id": "CH", "title": "Chandigarh" },
+      { "id": "CT", "title": "Chhattisgarh" },
+      { "id": "DN", "title": "Dadra and Nagar Haveli and Daman and Diu" },
+      { "id": "DL", "title": "Delhi" },
+      { "id": "GA", "title": "Goa" },
+      { "id": "GJ", "title": "Gujarat" },
+      { "id": "HR", "title": "Haryana" },
+      { "id": "HP", "title": "Himachal Pradesh" },
+      { "id": "JK", "title": "Jammu and Kashmir" },
+      { "id": "JH", "title": "Jharkhand" },
+      { "id": "KA", "title": "Karnataka" },
+      { "id": "KL", "title": "Kerala" },
+      { "id": "LA", "title": "Ladakh" },
+      { "id": "LD", "title": "Lakshadweep" },
+      { "id": "MP", "title": "Madhya Pradesh" },
+      { "id": "MH", "title": "Maharashtra" },
+      { "id": "MN", "title": "Manipur" },
+      { "id": "ML", "title": "Meghalaya" },
+      { "id": "MZ", "title": "Mizoram" },
+      { "id": "NL", "title": "Nagaland" },
+      { "id": "OR", "title": "Odisha" },
+      { "id": "PY", "title": "Puducherry" },
+      { "id": "PB", "title": "Punjab" },
+      { "id": "RJ", "title": "Rajasthan" },
+      { "id": "SK", "title": "Sikkim" },
+      { "id": "TN", "title": "Tamil Nadu" },
+      { "id": "TG", "title": "Telangana" },
+      { "id": "TR", "title": "Tripura" },
+      { "id": "UP", "title": "Uttar Pradesh" },
+      { "id": "UT", "title": "Uttarakhand" },
+      { "id": "WB", "title": "West Bengal" }
+    ];
+
+    const paymentMethods = [
+      { "id": "cod", "title": "Cash on Delivery" },
+      { "id": "razorpay", "title": "Pay Online" }
+    ];
+
+    const response = {
+      data: {
+        customerState: states,
+        paymentMethod: paymentMethods
+      }
+    };
+
+    console.log(`👤 Loaded: states:${states.length} paymentMethods:${paymentMethods.length}`);
+    return response;
   }
 
   private generateDates(days: number): Array<{id: string, title: string}> {

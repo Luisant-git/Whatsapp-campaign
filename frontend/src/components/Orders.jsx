@@ -40,6 +40,9 @@ export default function Orders() {
       'Customer Name': order.customerName,
       Phone: order.customerPhone,
       Address: order.customerAddress || 'N/A',
+      City: order.customerCity || 'N/A',
+      State: order.customerState || 'N/A',
+      Pincode: order.customerPincode || 'N/A',
       Product: order.items?.[0]?.product?.name || 'N/A',
       Amount: `₹${order.totalAmount}`,
       Status: order.status,
@@ -334,6 +337,18 @@ export default function Orders() {
                   <div className="order-info-row">
                     <span>Address:</span>
                     <span>{viewOrder.customerAddress || 'N/A'}</span>
+                  </div>
+                  <div className="order-info-row">
+                    <span>City:</span>
+                    <span>{viewOrder.customerCity || 'N/A'}</span>
+                  </div>
+                  <div className="order-info-row">
+                    <span>State:</span>
+                    <span>{viewOrder.customerState || 'N/A'}</span>
+                  </div>
+                  <div className="order-info-row">
+                    <span>Pincode:</span>
+                    <span>{viewOrder.customerPincode || 'N/A'}</span>
                   </div>
                 </div>
               </div>

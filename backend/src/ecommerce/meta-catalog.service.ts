@@ -426,18 +426,47 @@ export class MetaCatalogService {
         const totalAmount = session?.totalAmount || 0;
         
         if (cartProducts.length > 0 && session) {
-          let fullAddress;
-          if (session.customerAddress && !session.customerCity && !session.customerPincode && !session.customerState) {
-            fullAddress = session.customerAddress;
-          } else {
-            const addressParts = [
-              session.customerAddress,
-              session.customerCity,
-              session.customerState,
-              session.customerPincode
-            ].filter(part => part && part !== 'undefined');
-            fullAddress = addressParts.join(', ');
-          }
+          // Get full state name from state code
+          const stateMap = {
+            "AN": "Andaman and Nicobar Islands",
+            "AP": "Andhra Pradesh",
+            "AR": "Arunachal Pradesh",
+            "AS": "Assam",
+            "BR": "Bihar",
+            "CH": "Chandigarh",
+            "CT": "Chhattisgarh",
+            "DN": "Dadra and Nagar Haveli and Daman and Diu",
+            "DL": "Delhi",
+            "GA": "Goa",
+            "GJ": "Gujarat",
+            "HR": "Haryana",
+            "HP": "Himachal Pradesh",
+            "JK": "Jammu and Kashmir",
+            "JH": "Jharkhand",
+            "KA": "Karnataka",
+            "KL": "Kerala",
+            "LA": "Ladakh",
+            "LD": "Lakshadweep",
+            "MP": "Madhya Pradesh",
+            "MH": "Maharashtra",
+            "MN": "Manipur",
+            "ML": "Meghalaya",
+            "MZ": "Mizoram",
+            "NL": "Nagaland",
+            "OR": "Odisha",
+            "PY": "Puducherry",
+            "PB": "Punjab",
+            "RJ": "Rajasthan",
+            "SK": "Sikkim",
+            "TN": "Tamil Nadu",
+            "TG": "Telangana",
+            "TR": "Tripura",
+            "UP": "Uttar Pradesh",
+            "UT": "Uttarakhand",
+            "WB": "West Bengal"
+          };
+          
+          const fullStateName = stateMap[session.customerState] || session.customerState;
           
           const orders: any[] = [];
           console.log(`[Meta Catalog] Creating single order for ${cartProducts.length} products`);
@@ -450,13 +479,13 @@ export class MetaCatalogService {
             price: cartItem.price
           }));
           
-          // Create single order with all items including state
+          // Create single order with all items including full state name
           const order = await this.ecommerceService.createOrder({
             customerName: session.customerName,
             customerPhone: phone,
             customerAddress: session.customerAddress,
             customerCity: session.customerCity,
-            customerState: session.customerState,
+            customerState: fullStateName, // Store full state name
             customerPincode: session.customerPincode,
             totalAmount,
             paymentMethod: paymentMethod,
@@ -490,7 +519,7 @@ export class MetaCatalogService {
             }
           } else {
             const productList = cartProducts.map(p => `${p.name} (x${p.quantity}) - ₹${p.price * p.quantity}`).join('\n');
-            const confirmationMessage = `✅ *Order Confirmed*\n\n${productList}\n\nTotal: ₹${totalAmount}\nPayment: Cash on Delivery\n\nName: ${session.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`;
+            const confirmationMessage = `✅ *Order Confirmed*\n\n${productList}\n\nTotal: ₹${totalAmount}\nPayment: Cash on Delivery\n\n*Delivery Details:*\nName: ${session.customerName}\nAddress: ${session.customerAddress}\nCity: ${session.customerCity}\nState: ${fullStateName}\nPincode: ${session.customerPincode}\n\nOur team will contact you soon 🙂`;
             await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
           }
           
@@ -703,15 +732,47 @@ export class MetaCatalogService {
         return;
       }
       
-      // Build full address including state
-      const addressParts = [
-        customerData.customerAddress,
-        customerData.customerCity,
-        customerData.customerState,
-        customerData.customerPincode
-      ].filter(part => part && part !== 'undefined');
+      // Get full state name from state code
+      const stateMap = {
+        "AN": "Andaman and Nicobar Islands",
+        "AP": "Andhra Pradesh",
+        "AR": "Arunachal Pradesh",
+        "AS": "Assam",
+        "BR": "Bihar",
+        "CH": "Chandigarh",
+        "CT": "Chhattisgarh",
+        "DN": "Dadra and Nagar Haveli and Daman and Diu",
+        "DL": "Delhi",
+        "GA": "Goa",
+        "GJ": "Gujarat",
+        "HR": "Haryana",
+        "HP": "Himachal Pradesh",
+        "JK": "Jammu and Kashmir",
+        "JH": "Jharkhand",
+        "KA": "Karnataka",
+        "KL": "Kerala",
+        "LA": "Ladakh",
+        "LD": "Lakshadweep",
+        "MP": "Madhya Pradesh",
+        "MH": "Maharashtra",
+        "MN": "Manipur",
+        "ML": "Meghalaya",
+        "MZ": "Mizoram",
+        "NL": "Nagaland",
+        "OR": "Odisha",
+        "PY": "Puducherry",
+        "PB": "Punjab",
+        "RJ": "Rajasthan",
+        "SK": "Sikkim",
+        "TN": "Tamil Nadu",
+        "TG": "Telangana",
+        "TR": "Tripura",
+        "UP": "Uttar Pradesh",
+        "UT": "Uttarakhand",
+        "WB": "West Bengal"
+      };
       
-      const fullAddress = addressParts.join(', ');
+      const fullStateName = stateMap[customerData.customerState] || customerData.customerState;
       
       // Create order items
       const orderItems = cartProducts.map(cartItem => ({
@@ -720,13 +781,13 @@ export class MetaCatalogService {
         price: cartItem.price
       }));
       
-      // Create order with state information
+      // Create order with individual address fields
       const order = await this.ecommerceService.createOrder({
         customerName: customerData.customerName,
         customerPhone: phone,
         customerAddress: customerData.customerAddress,
         customerCity: customerData.customerCity,
-        customerState: customerData.customerState,
+        customerState: fullStateName, // Store full state name
         customerPincode: customerData.customerPincode,
         totalAmount,
         paymentMethod: paymentMethod,
@@ -759,9 +820,9 @@ export class MetaCatalogService {
           await this.sendTextMessage(phone, phoneNumberId, `✅ *Order Placed*\n\n${productList}\nTotal: ₹${totalAmount}\n\nOur team will send you payment link shortly 📞`);
         }
       } else {
-        // COD confirmation with state information
+        // COD confirmation with detailed address
         const productList = cartProducts.map(p => `${p.name} (x${p.quantity}) - ₹${p.price * p.quantity}`).join('\n');
-        const confirmationMessage = `✅ *Order Confirmed*\n\n${productList}\n\nTotal: ₹${totalAmount}\nPayment: Cash on Delivery\n\nName: ${customerData.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`;
+        const confirmationMessage = `✅ *Order Confirmed*\n\n${productList}\n\nTotal: ₹${totalAmount}\nPayment: Cash on Delivery\n\n*Delivery Details:*\nName: ${customerData.customerName}\nAddress: ${customerData.customerAddress}\nCity: ${customerData.customerCity}\nState: ${fullStateName}\nPincode: ${customerData.customerPincode}\n\nOur team will contact you soon 🙂`;
         await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
       }
       

@@ -10,6 +10,7 @@ interface ShoppingSession {
   customerName?: string;
   customerAddress?: string;
   customerCity?: string;
+  customerState?: string;
   customerPincode?: string;
   cartProducts?: any[];
   totalAmount?: number;
@@ -65,6 +66,7 @@ export class ShoppingSessionService {
             customerName: sessionData.customerName,
             customerAddress: sessionData.customerAddress,
             customerCity: sessionData.customerCity,
+            customerState: sessionData.customerState,
             customerPincode: sessionData.customerPincode,
             updatedAt: new Date(),
             selectedVariantId: sessionData.selectedVariantId ?? null, 
@@ -77,6 +79,7 @@ export class ShoppingSessionService {
             customerName: sessionData.customerName,
             customerAddress: sessionData.customerAddress,
             customerCity: sessionData.customerCity,
+            customerState: sessionData.customerState,
             customerPincode: sessionData.customerPincode,
             selectedVariantId: sessionData.selectedVariantId ?? null,
           },
@@ -130,6 +133,7 @@ export class ShoppingSessionService {
             customerName: session.customerName ?? undefined,
             customerAddress: session.customerAddress ?? undefined,
             customerCity: session.customerCity ?? undefined,
+            customerState: session.customerState ?? undefined,
             customerPincode: session.customerPincode ?? undefined,
             selectedVariantId: session.selectedVariantId ?? null, 
             timestamp,

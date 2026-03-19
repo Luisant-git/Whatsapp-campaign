@@ -404,6 +404,7 @@ model ShoppingSession {
   customerName     String?
   customerAddress  String?  @db.Text
   customerCity     String?
+  customerState    String?
   customerPincode  String?
   selectedVariantId Int?   
   createdAt        DateTime @default(now())

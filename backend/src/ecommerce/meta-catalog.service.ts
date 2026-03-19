@@ -427,12 +427,16 @@ export class MetaCatalogService {
         
         if (cartProducts.length > 0 && session) {
           let fullAddress;
-          if (session.customerAddress && !session.customerCity && !session.customerPincode) {
+          if (session.customerAddress && !session.customerCity && !session.customerPincode && !session.customerState) {
             fullAddress = session.customerAddress;
           } else {
-            fullAddress = [session.customerAddress, session.customerCity, session.customerPincode]
-              .filter(part => part && part !== 'undefined')
-              .join(', ');
+            const addressParts = [
+              session.customerAddress,
+              session.customerCity,
+              session.customerState,
+              session.customerPincode
+            ].filter(part => part && part !== 'undefined');
+            fullAddress = addressParts.join(', ');
           }
           
           const orders: any[] = [];
@@ -446,11 +450,14 @@ export class MetaCatalogService {
             price: cartItem.price
           }));
           
-          // Create single order with all items
+          // Create single order with all items including state
           const order = await this.ecommerceService.createOrder({
             customerName: session.customerName,
             customerPhone: phone,
-            customerAddress: fullAddress,
+            customerAddress: session.customerAddress,
+            customerCity: session.customerCity,
+            customerState: session.customerState,
+            customerPincode: session.customerPincode,
             totalAmount,
             paymentMethod: paymentMethod,
             paymentStatus: paymentMethod === 'cod' ? 'cod' : 'pending',
@@ -696,10 +703,15 @@ export class MetaCatalogService {
         return;
       }
       
-      // Build full address
-      const fullAddress = [customerData.customerAddress, customerData.customerCity, customerData.customerPincode]
-        .filter(part => part && part !== 'undefined')
-        .join(', ');
+      // Build full address including state
+      const addressParts = [
+        customerData.customerAddress,
+        customerData.customerCity,
+        customerData.customerState,
+        customerData.customerPincode
+      ].filter(part => part && part !== 'undefined');
+      
+      const fullAddress = addressParts.join(', ');
       
       // Create order items
       const orderItems = cartProducts.map(cartItem => ({
@@ -708,11 +720,14 @@ export class MetaCatalogService {
         price: cartItem.price
       }));
       
-      // Create order
+      // Create order with state information
       const order = await this.ecommerceService.createOrder({
         customerName: customerData.customerName,
         customerPhone: phone,
-        customerAddress: fullAddress,
+        customerAddress: customerData.customerAddress,
+        customerCity: customerData.customerCity,
+        customerState: customerData.customerState,
+        customerPincode: customerData.customerPincode,
         totalAmount,
         paymentMethod: paymentMethod,
         paymentStatus: paymentMethod === 'cod' ? 'cod' : 'pending',
@@ -744,7 +759,7 @@ export class MetaCatalogService {
           await this.sendTextMessage(phone, phoneNumberId, `✅ *Order Placed*\n\n${productList}\nTotal: ₹${totalAmount}\n\nOur team will send you payment link shortly 📞`);
         }
       } else {
-        // COD confirmation
+        // COD confirmation with state information
         const productList = cartProducts.map(p => `${p.name} (x${p.quantity}) - ₹${p.price * p.quantity}`).join('\n');
         const confirmationMessage = `✅ *Order Confirmed*\n\n${productList}\n\nTotal: ₹${totalAmount}\nPayment: Cash on Delivery\n\nName: ${customerData.customerName}\nAddress: ${fullAddress}\n\nOur team will contact you soon 🙂`;
         await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);

@@ -26,6 +26,7 @@ export class CustomerDetailsFlowService {
         customerName: customerData.customer_name || customerData.customerName || '',
         customerAddress: customerData.customer_address || customerData.customerAddress || '',
         customerCity: customerData.customer_city || customerData.customerCity || '',
+        customerState: customerData.customer_state || customerData.customerState || '',
         customerPincode: customerData.customer_pincode || customerData.customerPincode || '',
         paymentMethod: customerData.payment_method || customerData.paymentMethod || 'cod',
       };

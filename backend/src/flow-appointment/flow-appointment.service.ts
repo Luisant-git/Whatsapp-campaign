@@ -62,7 +62,7 @@ export class FlowAppointmentService {
         name: appointmentData.name || appointmentData.full_name || '',
         email: appointmentData.email || appointmentData.email_address || '',
         phone: appointmentData.phone || appointmentData.phone_number || '',
-        moreDetails: appointmentData.more_details || appointmentData.additional_details || appointmentData.details || null,
+        moreDetails: appointmentData.moreDetails || appointmentData.more_details || appointmentData.additional_details || appointmentData.details || null,
       };
       
       console.log('💾 Appointment record to save:', JSON.stringify(appointmentRecord, null, 2));

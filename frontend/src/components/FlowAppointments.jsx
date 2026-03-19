@@ -257,13 +257,13 @@ const FlowAppointments = () => {
         <table className="flow-appointments-table">
           <thead>
             <tr>
-              <th>Customer</th>
-              <th>Service</th>
-              <th>Company</th>
-              <th>Business Info</th>
-              <th>Date & Time</th>
-              <th>Status</th>
-              <th>Actions</th>
+              <th style={{ width: '200px' }}>Customer</th>
+              <th style={{ width: '180px' }}>Service</th>
+              <th style={{ width: '200px' }}>Company</th>
+              <th style={{ width: '250px' }}>Business Details</th>
+              <th style={{ width: '150px' }}>Date & Time</th>
+              <th style={{ width: '100px' }}>Status</th>
+              <th style={{ width: '100px' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -276,146 +276,241 @@ const FlowAppointments = () => {
                 </td>
               </tr>
             ) : (
-              filteredAppointments.map((appointment) => (
-                <tr key={appointment.id}>
-                  <td>
-                    <div className="flow-customer-info">
-                      <div className="flow-customer-name">{appointment.name}</div>
-                      <div className="flow-customer-detail">
-                        <Phone size={12} />
-                        {appointment.phone || appointment.email}
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="flow-department-info">
-                      <Building size={16} />
-                      <span>{formatDepartment(appointment.department)}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="flow-location-info">
-                      <MapPin size={16} />
-                      <span>{formatLocation(appointment.location)}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="flow-business-info">
-                      {appointment.moreDetails ? (
-                        <div style={{ fontSize: '13px', color: '#6b7280' }}>
-                          {appointment.moreDetails.split(',').map((detail, idx) => (
-                            <div key={idx}>{detail.trim()}</div>
-                          ))}
+              filteredAppointments.map((appointment) => {
+                // Parse moreDetails
+                const businessInfo = {};
+                if (appointment.moreDetails) {
+                  const parts = appointment.moreDetails.split(',');
+                  parts.forEach(part => {
+                    const [key, value] = part.split(':').map(s => s.trim());
+                    if (key && value) {
+                      businessInfo[key] = value;
+                    }
+                  });
+                }
+                
+                return (
+                  <tr key={appointment.id}>
+                    <td>
+                      <div className="flow-customer-info">
+                        <div className="flow-customer-name" style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
+                          {appointment.name}
                         </div>
-                      ) : (
-                        <span style={{ color: '#9ca3af' }}>-</span>
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    <div className="flow-datetime-info">
-                      <div className="flow-date-text">{appointment.date}</div>
-                      <div className="flow-time-text">{appointment.time}</div>
-                    </div>
-                  </td>
-                  <td>
-                    <span className={`flow-status-badge flow-status-${appointment.status || 'confirmed'}`}>
-                      {appointment.status || 'confirmed'}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="flow-actions-container">
-                      <button
-                        onClick={() => handleViewDetails(appointment)}
-                        className="flow-action-btn view"
-                        title="View Details"
-                      >
-                        <Eye size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteAppointment(appointment.id)}
-                        className="flow-action-btn delete"
-                        title="Delete"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
+                        <div className="flow-customer-detail" style={{ fontSize: '13px', color: '#6b7280' }}>
+                          <Phone size={12} style={{ marginRight: '4px' }} />
+                          {appointment.phone || appointment.email}
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="flow-department-info" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Building size={16} style={{ color: '#3b82f6', flexShrink: 0 }} />
+                        <span style={{ fontSize: '13px', fontWeight: 500 }}>{formatDepartment(appointment.department)}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="flow-location-info" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <MapPin size={16} style={{ color: '#10b981', flexShrink: 0 }} />
+                        <span style={{ fontSize: '13px', fontWeight: 500 }}>{formatLocation(appointment.location)}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="flow-business-info" style={{ fontSize: '12px', lineHeight: '1.6' }}>
+                        {businessInfo.Place && (
+                          <div style={{ marginBottom: '2px' }}>
+                            <strong style={{ color: '#374151' }}>Place:</strong> <span style={{ color: '#6b7280' }}>{businessInfo.Place}</span>
+                          </div>
+                        )}
+                        {businessInfo.Business && (
+                          <div style={{ marginBottom: '2px' }}>
+                            <strong style={{ color: '#374151' }}>Business:</strong> <span style={{ color: '#6b7280' }}>{businessInfo.Business}</span>
+                          </div>
+                        )}
+                        {businessInfo.Type && (
+                          <div style={{ marginBottom: '2px' }}>
+                            <strong style={{ color: '#374151' }}>Type:</strong> <span style={{ color: '#6b7280' }}>{businessInfo.Type}</span>
+                          </div>
+                        )}
+                        {businessInfo.Size && (
+                          <div>
+                            <strong style={{ color: '#374151' }}>Size:</strong> <span style={{ color: '#6b7280' }}>{businessInfo.Size}</span>
+                          </div>
+                        )}
+                        {!appointment.moreDetails && (
+                          <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>No details</span>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="flow-datetime-info">
+                        <div className="flow-date-text" style={{ fontSize: '13px', fontWeight: 500, marginBottom: '2px' }}>
+                          {appointment.date}
+                        </div>
+                        <div className="flow-time-text" style={{ fontSize: '12px', color: '#6b7280' }}>
+                          {appointment.time}
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`flow-status-badge flow-status-${appointment.status || 'confirmed'}`}>
+                        {appointment.status || 'confirmed'}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="flow-actions-container" style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                        <button
+                          onClick={() => handleViewDetails(appointment)}
+                          className="flow-action-btn view"
+                          title="View Details"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAppointment(appointment.id)}
+                          className="flow-action-btn delete"
+                          title="Delete"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
 
       {/* Details Modal */}
-      {showDetails && selectedAppointment && (
-        <div className="flow-modal-overlay" onClick={() => setShowDetails(false)}>
-          <div className="flow-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="flow-modal-header">
-              <h3>Appointment Details</h3>
-              <button
-                onClick={() => setShowDetails(false)}
-                className="flow-modal-close"
-              >
-                ×
-              </button>
-            </div>
-            
-            <div className="flow-modal-body">
-              <div className="flow-detail-item">
-                <label className="flow-detail-label">Customer Name</label>
-                <p className="flow-detail-value">{selectedAppointment.name}</p>
+      {showDetails && selectedAppointment && (() => {
+        // Parse business info
+        const businessInfo = {};
+        if (selectedAppointment.moreDetails) {
+          const parts = selectedAppointment.moreDetails.split(',');
+          parts.forEach(part => {
+            const [key, value] = part.split(':').map(s => s.trim());
+            if (key && value) {
+              businessInfo[key] = value;
+            }
+          });
+        }
+        
+        return (
+          <div className="flow-modal-overlay" onClick={() => setShowDetails(false)}>
+            <div className="flow-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+              <div className="flow-modal-header">
+                <h3>Appointment Details</h3>
+                <button
+                  onClick={() => setShowDetails(false)}
+                  className="flow-modal-close"
+                >
+                  ×
+                </button>
               </div>
               
-              <div className="flow-detail-item">
-                <label className="flow-detail-label">Mobile Number</label>
-                <p className="flow-detail-value">{selectedAppointment.phone || selectedAppointment.email}</p>
-              </div>
-              
-              <div className="flow-detail-item">
-                <label className="flow-detail-label">Service Requested</label>
-                <p className="flow-detail-value">{formatDepartment(selectedAppointment.department)}</p>
-              </div>
-              
-              <div className="flow-detail-item">
-                <label className="flow-detail-label">Preferred Company</label>
-                <p className="flow-detail-value">{formatLocation(selectedAppointment.location)}</p>
-              </div>
-              
-              <div className="flow-detail-item">
-                <label className="flow-detail-label">Appointment Date & Time</label>
-                <p className="flow-detail-value">{selectedAppointment.date} at {selectedAppointment.time}</p>
-              </div>
-              
-              {selectedAppointment.moreDetails && (
-                <div className="flow-detail-item">
-                  <label className="flow-detail-label">Business Information</label>
-                  <p className="flow-detail-value" style={{ whiteSpace: 'pre-line' }}>
-                    {selectedAppointment.moreDetails.split(',').join('\n')}
-                  </p>
+              <div className="flow-modal-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                {/* Customer Information */}
+                <div style={{ gridColumn: '1 / -1', borderBottom: '2px solid #e5e7eb', paddingBottom: '12px', marginBottom: '8px' }}>
+                  <h4 style={{ fontSize: '16px', fontWeight: 600, color: '#111827', marginBottom: '12px' }}>Customer Information</h4>
                 </div>
-              )}
-              
-              <div className="flow-detail-item">
-                <label className="flow-detail-label">Booked On</label>
-                <p className="flow-detail-value">
-                  {new Date(selectedAppointment.createdAt).toLocaleString()}
-                </p>
+                
+                <div className="flow-detail-item">
+                  <label className="flow-detail-label" style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Full Name</label>
+                  <p className="flow-detail-value" style={{ fontSize: '14px', fontWeight: 500, color: '#111827' }}>{selectedAppointment.name}</p>
+                </div>
+                
+                <div className="flow-detail-item">
+                  <label className="flow-detail-label" style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Mobile Number</label>
+                  <p className="flow-detail-value" style={{ fontSize: '14px', fontWeight: 500, color: '#111827' }}>{selectedAppointment.phone || selectedAppointment.email}</p>
+                </div>
+                
+                {/* Service Information */}
+                <div style={{ gridColumn: '1 / -1', borderBottom: '2px solid #e5e7eb', paddingBottom: '12px', marginBottom: '8px', marginTop: '12px' }}>
+                  <h4 style={{ fontSize: '16px', fontWeight: 600, color: '#111827', marginBottom: '12px' }}>Service Details</h4>
+                </div>
+                
+                <div className="flow-detail-item">
+                  <label className="flow-detail-label" style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Service Requested</label>
+                  <p className="flow-detail-value" style={{ fontSize: '14px', fontWeight: 500, color: '#3b82f6' }}>{formatDepartment(selectedAppointment.department)}</p>
+                </div>
+                
+                <div className="flow-detail-item">
+                  <label className="flow-detail-label" style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Preferred Company</label>
+                  <p className="flow-detail-value" style={{ fontSize: '14px', fontWeight: 500, color: '#10b981' }}>{formatLocation(selectedAppointment.location)}</p>
+                </div>
+                
+                <div className="flow-detail-item">
+                  <label className="flow-detail-label" style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Appointment Date</label>
+                  <p className="flow-detail-value" style={{ fontSize: '14px', fontWeight: 500, color: '#111827' }}>{selectedAppointment.date}</p>
+                </div>
+                
+                <div className="flow-detail-item">
+                  <label className="flow-detail-label" style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Appointment Time</label>
+                  <p className="flow-detail-value" style={{ fontSize: '14px', fontWeight: 500, color: '#111827' }}>{selectedAppointment.time}</p>
+                </div>
+                
+                {/* Business Information */}
+                {selectedAppointment.moreDetails && (
+                  <>
+                    <div style={{ gridColumn: '1 / -1', borderBottom: '2px solid #e5e7eb', paddingBottom: '12px', marginBottom: '8px', marginTop: '12px' }}>
+                      <h4 style={{ fontSize: '16px', fontWeight: 600, color: '#111827', marginBottom: '12px' }}>Business Information</h4>
+                    </div>
+                    
+                    {businessInfo.Place && (
+                      <div className="flow-detail-item">
+                        <label className="flow-detail-label" style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Place / City</label>
+                        <p className="flow-detail-value" style={{ fontSize: '14px', fontWeight: 500, color: '#111827' }}>{businessInfo.Place}</p>
+                      </div>
+                    )}
+                    
+                    {businessInfo.Business && (
+                      <div className="flow-detail-item">
+                        <label className="flow-detail-label" style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Business Name</label>
+                        <p className="flow-detail-value" style={{ fontSize: '14px', fontWeight: 500, color: '#111827' }}>{businessInfo.Business}</p>
+                      </div>
+                    )}
+                    
+                    {businessInfo.Type && (
+                      <div className="flow-detail-item">
+                        <label className="flow-detail-label" style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Business Type</label>
+                        <p className="flow-detail-value" style={{ fontSize: '14px', fontWeight: 500, color: '#111827' }}>{businessInfo.Type}</p>
+                      </div>
+                    )}
+                    
+                    {businessInfo.Size && (
+                      <div className="flow-detail-item">
+                        <label className="flow-detail-label" style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Business Size</label>
+                        <p className="flow-detail-value" style={{ fontSize: '14px', fontWeight: 500, color: '#111827' }}>{businessInfo.Size} employees</p>
+                      </div>
+                    )}
+                  </>
+                )}
+                
+                {/* Metadata */}
+                <div style={{ gridColumn: '1 / -1', borderTop: '1px solid #e5e7eb', paddingTop: '12px', marginTop: '12px' }}>
+                  <div className="flow-detail-item">
+                    <label className="flow-detail-label" style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Booked On</label>
+                    <p className="flow-detail-value" style={{ fontSize: '13px', color: '#6b7280' }}>
+                      {new Date(selectedAppointment.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
-            
-            <div className="flow-modal-footer">
-              <button
-                onClick={() => setShowDetails(false)}
-                className="flow-modal-btn"
-              >
-                Close
-              </button>
+              
+              <div className="flow-modal-footer">
+                <button
+                  onClick={() => setShowDetails(false)}
+                  className="flow-modal-btn"
+                  style={{ width: '100%', padding: '10px', fontSize: '14px', fontWeight: 500 }}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

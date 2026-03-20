@@ -887,31 +887,37 @@ export class WhatsappEcommerceService {
       }
       return false;
     }
-  
     if (step === 'awaiting_name') {
       await this.sessionService.setCustomerName(phone, trimmedMsg, userId);
+      await this.sessionService.setSession(phone, { step: 'awaiting_address' }, userId);
+    
       await this.sendWhatsAppMessage(phone, {
         type: 'text',
         text: { body: 'Please provide your delivery address:' },
       }, accessToken, phoneNumberId);
+    
       return 'awaiting_address';
     }
-  
     if (step === 'awaiting_address') {
       await this.sessionService.setCustomerAddress(phone, trimmedMsg, userId);
+      await this.sessionService.setSession(phone, { step: 'awaiting_city' }, userId);
+    
       await this.sendWhatsAppMessage(phone, {
         type: 'text',
         text: { body: 'Please provide your city:' },
       }, accessToken, phoneNumberId);
+    
       return 'awaiting_city';
     }
-  
     if (step === 'awaiting_city') {
       await this.sessionService.setCustomerCity(phone, trimmedMsg, userId);
+      await this.sessionService.setSession(phone, { step: 'awaiting_pincode' }, userId);
+    
       await this.sendWhatsAppMessage(phone, {
         type: 'text',
         text: { body: 'Please provide your pincode:' },
       }, accessToken, phoneNumberId);
+    
       return 'awaiting_pincode';
     }
   
@@ -971,6 +977,7 @@ export class WhatsappEcommerceService {
         trimmedMsg.toLowerCase() === '💵 cash on delivery'
       )
     ) {
+      await this.sessionService.setPaymentMethod(phone, 'cod', userId);
       const session = await this.sessionService.getSession(phone, userId);
       const cart = session?.cartProducts || [];
       const variantId = session?.selectedVariantId ?? undefined;

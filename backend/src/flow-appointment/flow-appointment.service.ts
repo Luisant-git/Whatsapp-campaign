@@ -115,8 +115,9 @@ export class FlowAppointmentService {
 
   async saveAppointmentFromWebhook(responseData: any, phoneNumber: string, phoneNumberId: string) {
     try {
-      console.log('📋 Flow response received - checking if appointment already exists');
+      console.log('📋 Flow response received - processing appointment');
       console.log('Raw responseData:', JSON.stringify(responseData, null, 2));
+      console.log('Phone number:', phoneNumber);
       
       // Extract flow token to get tenant ID
       const flowToken = responseData.flow_token;
@@ -130,11 +131,27 @@ export class FlowAppointmentService {
         }
       }
       
-      // If we have appointment data in the response, it means the flow already saved it
-      // Don't create duplicate records
-      if (responseData.appointment_id || responseData.message === 'Appointment booked successfully!') {
-        console.log('✅ Appointment already processed by flow data exchange - skipping webhook save');
-        return;
+      // Send confirmation message when flow is completed
+      if (responseData.appointment_id || responseData.message) {
+        console.log('✅ Appointment flow completed - sending confirmation message');
+        
+        const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
+        
+        for (const tenant of tenants) {
+          if (targetTenantId && tenant.id !== targetTenantId) continue;
+          
+          const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+          const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+          
+          const settings = await (tenantClient as any).whatsAppSettings.findFirst({
+            where: { phoneNumberId }
+          });
+          
+          if (settings) {
+            await this.sendConfirmationMessage(phoneNumber, settings.accessToken, settings.phoneNumberId, tenantClient);
+            return;
+          }
+        }
       }
       
       // Only save if we have actual appointment data (not just flow completion)

@@ -1215,8 +1215,55 @@ export class WhatsappService {
         return;
       }
   
-      // 🔥 AI BOT NUMBER: Route to chatbot
+      // 🔥 AI BOT NUMBER: Check quick replies first, then route to chatbot
       if (routing.route === 'ai-bot') {
+        // Try quick replies and auto replies first
+        const sessionHandled = await this.sessionService.handleInteractiveMenu(
+          from,
+          text,
+          settingsId,
+          async (to, msg, imageUrl) => {
+            if (imageUrl) {
+              return this.sendMediaMessageDirect(
+                to,
+                imageUrl,
+                'image',
+                whatsappSettings.accessToken,
+                whatsappSettings.phoneNumberId,
+                tenantClient,
+                msg
+              );
+            }
+            return this.sendMessageDirect(
+              to,
+              msg,
+              whatsappSettings.accessToken,
+              whatsappSettings.phoneNumberId,
+              tenantClient
+            );
+          },
+          async (to, msg, buttons) => {
+            return this.sendButtonsMessageDirect(
+              to,
+              msg,
+              buttons,
+              whatsappSettings.accessToken,
+              whatsappSettings.phoneNumberId,
+              tenantClient
+            );
+          }
+        ).catch(e => {
+          this.logger.error('Session error:', e);
+          return false;
+        });
+
+        // If quick reply/auto reply handled it, stop here
+        if (sessionHandled) {
+          this.logger.log('✅ Quick reply/Auto reply handled in ai-bot mode');
+          return;
+        }
+
+        // Otherwise, use AI chatbot
         const chatResponse = await this.chatbotService.processMessage(tenantId, {
           message: text,
           phone: from

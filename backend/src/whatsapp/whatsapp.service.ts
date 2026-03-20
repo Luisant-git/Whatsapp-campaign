@@ -1141,7 +1141,9 @@ export class WhatsappService {
     }
   
     if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
-      text = message.interactive.button_reply.id;
+      const buttonTitle = message.interactive.button_reply.title;
+      text = buttonTitle; // Use button title instead of ID
+      console.log(`[WhatsappService] Button clicked: ${buttonTitle} (ID: ${message.interactive.button_reply.id})`);
     }
   
     if (message.type === 'interactive' && message.interactive?.type === 'list_reply') {

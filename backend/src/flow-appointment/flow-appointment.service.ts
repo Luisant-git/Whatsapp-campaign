@@ -143,11 +143,53 @@ export class FlowAppointmentService {
             },
           });
           console.log('✅ Flow appointment saved successfully via webhook');
+          
+          // Send confirmation message
+          await this.sendConfirmationMessage(phoneNumber, settings.accessToken, settings.phoneNumberId, tenantClient);
           return;
         }
       }
     } catch (error) {
       console.error('Error saving flow appointment from webhook:', error);
+    }
+  }
+
+  private async sendConfirmationMessage(phoneNumber: string, accessToken: string, phoneNumberId: string, tenantClient: any) {
+    try {
+      const axios = require('axios');
+      const message = 'Thank you for sharing your details! Our team will contact you soon😊.';
+      
+      const response = await axios.post(
+        `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          to: phoneNumber,
+          type: 'text',
+          text: { body: message }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      await tenantClient.whatsAppMessage.create({
+        data: {
+          messageId: response.data.messages[0].id,
+          to: phoneNumber,
+          from: phoneNumber,
+          message,
+          direction: 'outgoing',
+          status: 'sent',
+          phoneNumberId,
+        }
+      });
+
+      console.log('✅ Confirmation message sent successfully');
+    } catch (error) {
+      console.error('❌ Error sending confirmation message:', error.response?.data || error.message);
     }
   }
 

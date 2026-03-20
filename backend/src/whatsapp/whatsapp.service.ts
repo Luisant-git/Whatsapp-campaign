@@ -1267,8 +1267,6 @@ export class WhatsappService {
         if (flowResult?.success) {
           this.logger.log(`✅ [Priority 2] Flow triggered: ${flowResult.trigger.name}`);
           return;
-        } else if (flowResult === null) {
-          this.logger.log('🔍 [Priority 2] No flow trigger found, continuing to next priority...');
         }
       } catch (error) {
         this.logger.error('Flow trigger error:', error);

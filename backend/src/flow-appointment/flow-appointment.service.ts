@@ -197,6 +197,10 @@ export class FlowAppointmentService {
 
   private async sendConfirmationMessage(phoneNumber: string, accessToken: string, phoneNumberId: string, tenantClient: any) {
     try {
+      console.log('📤 Attempting to send confirmation message...');
+      console.log('📞 To:', phoneNumber);
+      console.log('🔑 Phone Number ID:', phoneNumberId);
+      
       const axios = require('axios');
       const message = 'Thank you for sharing your details! Our team will contact you soon😊.';
       
@@ -216,6 +220,8 @@ export class FlowAppointmentService {
         }
       );
 
+      console.log('📨 WhatsApp API Response:', JSON.stringify(response.data, null, 2));
+
       await tenantClient.whatsAppMessage.create({
         data: {
           messageId: response.data.messages[0].id,
@@ -231,6 +237,10 @@ export class FlowAppointmentService {
       console.log('✅ Confirmation message sent successfully');
     } catch (error) {
       console.error('❌ Error sending confirmation message:', error.response?.data || error.message);
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', JSON.stringify(error.response.data, null, 2));
+      }
     }
   }
 

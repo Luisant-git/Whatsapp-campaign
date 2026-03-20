@@ -149,7 +149,7 @@ export class WhatsappEcommerceService {
         type: 'list',
         header: {
           type: 'text',
-          text: '📂 Subcategories'
+          text: '🛍️ Subcategories'
         },
         body: {
           text: 'Choose a subcategory to view products.'
@@ -238,41 +238,68 @@ export class WhatsappEcommerceService {
       },
     }, accessToken, phoneNumberId);
   }
-  async sendProductDetails(phone: string, productId: number, accessToken: string, phoneNumberId: string, userId: number) {
+  async sendProductDetails(
+    phone: string,
+    productId: number,
+    accessToken: string,
+    phoneNumberId: string,
+    userId: number
+  ) {
     const product = await this.ecommerceService.getProduct(productId, userId);
     if (!product) return;
   
     await this.sessionService.setProductForPurchase(phone, productId, userId);
   
-    const variants = product.variants?.filter((v) => v.isActive && v.availability) || [];
+    const baseInStock =
+      product.isActive &&
+      product.availability &&
+      (product.stock === null || product.stock === undefined || product.stock > 0);
+  
+    const variants =
+      product.variants?.filter(
+        (v) =>
+          v.isActive &&
+          v.availability &&
+          (v.stock === null || v.stock === undefined || v.stock > 0)
+      ) || [];
   
     // Product has variants → show image + variant selection list
     if (variants.length > 0) {
       if (product.imageUrl) {
         const fromPrice = product.salePrice || product.price;
   
-        await this.sendWhatsAppMessage(phone, {
-          type: 'image',
-          image: {
-            link: product.imageUrl.startsWith('http')
-              ? product.imageUrl
-              : `${process.env.BASE_URL || 'http://localhost:3010'}${product.imageUrl}`,
-            caption: `*${product.name}*\n\n${product.description || 'Choose your preferred option below.'}\n\n💰 Starting from ₹${fromPrice}`,
+        await this.sendWhatsAppMessage(
+          phone,
+          {
+            type: 'image',
+            image: {
+              link: product.imageUrl.startsWith('http')
+                ? product.imageUrl
+                : `${process.env.BASE_URL || 'http://localhost:3010'}${product.imageUrl}`,
+              caption: `*${product.name}*\n\n${product.description || 'Choose your preferred option below.'}\n\n💰 Starting from ₹${fromPrice}`,
+            },
           },
-        }, accessToken, phoneNumberId);
+          accessToken,
+          phoneNumberId,
+        );
       }
   
-      const baseStockInfo =
-        product.stock !== null && product.stock !== undefined
-          ? ` | Stock: ${product.stock}`
-          : '';
+      const rows: any[] = [];
   
-      const rows = [
-        {
+      if (baseInStock) {
+        const baseStockInfo =
+          product.stock !== null && product.stock !== undefined
+            ? ` | Stock: ${product.stock}`
+            : '';
+  
+        rows.push({
           id: `buy:${productId}`,
           title: 'Base Product',
           description: `₹${product.salePrice || product.price}${baseStockInfo}`.substring(0, 72),
-        },
+        });
+      }
+  
+      rows.push(
         ...variants.map((v) => {
           const vStock =
             v.stock !== null && v.stock !== undefined
@@ -285,36 +312,55 @@ export class WhatsappEcommerceService {
             description: `₹${v.salePrice || v.price}${vStock}`.substring(0, 72),
           };
         }),
-      ];
+      );
   
-      return this.sendWhatsAppMessage(phone, {
-        type: 'interactive',
-        interactive: {
-          type: 'list',
-          header: {
+      if (rows.length === 0) {
+        return this.sendWhatsAppMessage(
+          phone,
+          {
             type: 'text',
-            text: '🔽 Product Options',
+            text: {
+              body: `*${product.name}*\n\n${product.description || 'Premium quality product.'}\n\n❌ Currently out of stock.`,
+            },
           },
-          body: {
-            text: `Choose a variant for *${product.name}*`,
-          },
-          footer: {
-            text: 'Select one option to continue',
-          },
-          action: {
-            button: 'View Options',
-            sections: [
-              {
-                title: `${product.name} Options`,
-                rows: rows.slice(0, 10),
-              },
-            ],
+          accessToken,
+          phoneNumberId,
+        );
+      }
+  
+      return this.sendWhatsAppMessage(
+        phone,
+        {
+          type: 'interactive',
+          interactive: {
+            type: 'list',
+            header: {
+              type: 'text',
+              text: '🔽 Product Options',
+            },
+            body: {
+              text: `Choose a variant for *${product.name}*`,
+            },
+            footer: {
+              text: 'Select one option to continue',
+            },
+            action: {
+              button: 'View Options',
+              sections: [
+                {
+                  title: `${product.name} Options`,
+                  rows: rows.slice(0, 10),
+                },
+              ],
+            },
           },
         },
-      }, accessToken, phoneNumberId);
+        accessToken,
+        phoneNumberId,
+      );
     }
   
-    // No variants → show polished product detail + Buy Now
+    // No variants → show product detail + Buy Now only if in stock
     const stockInfo =
       product.stock !== null && product.stock !== undefined
         ? `📦 Stock: ${product.stock}\n`
@@ -324,26 +370,77 @@ export class WhatsappEcommerceService {
       ? `🏷️ Offer Price: ₹${product.salePrice}\n💰 MRP: ~~₹${product.price}~~`
       : `💰 Price: ₹${product.price}`;
   
-    const message = `*${product.name}*
+    const messageText = `*${product.name}*\n\n${product.description || 'Premium quality product.'}\n\n${stockInfo}${priceBlock}`;
   
-  ${product.description || 'Premium quality product.'}
-  
-  ${stockInfo}${priceBlock}`;
-  
-    if (product.imageUrl) {
-      return this.sendWhatsAppMessage(phone, {
-        type: 'interactive',
-        interactive: {
-          type: 'button',
-          header: {
+    if (!baseInStock) {
+      if (product.imageUrl) {
+        return this.sendWhatsAppMessage(
+          phone,
+          {
             type: 'image',
             image: {
               link: product.imageUrl.startsWith('http')
                 ? product.imageUrl
                 : `${process.env.BASE_URL || 'http://localhost:3010'}${product.imageUrl}`,
+              caption: `${messageText}\n\n❌ Out of stock`,
             },
           },
-          body: { text: message },
+          accessToken,
+          phoneNumberId,
+        );
+      }
+  
+      return this.sendWhatsAppMessage(
+        phone,
+        {
+          type: 'text',
+          text: {
+            body: `${messageText}\n\n❌ Out of stock`,
+          },
+        },
+        accessToken,
+        phoneNumberId,
+      );
+    }
+  
+    if (product.imageUrl) {
+      return this.sendWhatsAppMessage(
+        phone,
+        {
+          type: 'interactive',
+          interactive: {
+            type: 'button',
+            header: {
+              type: 'image',
+              image: {
+                link: product.imageUrl.startsWith('http')
+                  ? product.imageUrl
+                  : `${process.env.BASE_URL || 'http://localhost:3010'}${product.imageUrl}`,
+              },
+            },
+            body: { text: messageText },
+            action: {
+              buttons: [
+                {
+                  type: 'reply',
+                  reply: { id: `buy:${productId}`, title: '🛒 Buy Now' },
+                },
+              ],
+            },
+          },
+        },
+        accessToken,
+        phoneNumberId,
+      );
+    }
+  
+    return this.sendWhatsAppMessage(
+      phone,
+      {
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { text: messageText },
           action: {
             buttons: [
               {
@@ -353,36 +450,49 @@ export class WhatsappEcommerceService {
             ],
           },
         },
-      }, accessToken, phoneNumberId);
-    }
-  
-    return this.sendWhatsAppMessage(phone, {
-      type: 'interactive',
-      interactive: {
-        type: 'button',
-        body: { text: message },
-        action: {
-          buttons: [
-            {
-              type: 'reply',
-              reply: { id: `buy:${productId}`, title: '🛒 Buy Now' },
-            },
-          ],
-        },
       },
-    }, accessToken, phoneNumberId);
+      accessToken,
+      phoneNumberId,
+    );
   }
-
-  async sendVariantDetails(phone: string, productId: number, variantId: number, accessToken: string, phoneNumberId: string, userId: number) {
+  async sendVariantDetails(
+    phone: string,
+    productId: number,
+    variantId: number,
+    accessToken: string,
+    phoneNumberId: string,
+    userId: number
+  ) {
     const product = await this.ecommerceService.getProduct(productId, userId);
     if (!product) return;
   
     const variant = product.variants?.find((v) => v.id === variantId);
     if (!variant) {
-      return this.sendWhatsAppMessage(phone, {
-        type: 'text',
-        text: { body: 'Sorry, this variant is no longer available.' },
-      }, accessToken, phoneNumberId);
+      return this.sendWhatsAppMessage(
+        phone,
+        {
+          type: 'text',
+          text: { body: 'Sorry, this variant is no longer available.' },
+        },
+        accessToken,
+        phoneNumberId,
+      );
+    }
+  
+    if (
+      !variant.isActive ||
+      !variant.availability ||
+      (variant.stock !== null && variant.stock !== undefined && variant.stock <= 0)
+    ) {
+      return this.sendWhatsAppMessage(
+        phone,
+        {
+          type: 'text',
+          text: { body: `Sorry, *${variant.name}* is currently out of stock. 😔` },
+        },
+        accessToken,
+        phoneNumberId,
+      );
     }
   
     await this.sessionService.setProductForPurchase(phone, productId, userId);
@@ -397,12 +507,7 @@ export class WhatsappEcommerceService {
       ? `🏷️ Offer Price: ₹${variant.salePrice}\n💰 MRP: ~~₹${variant.price}~~`
       : `💰 Price: ₹${variant.price}`;
   
-    const message = `*${product.name}*
-  🔹 Variant: *${variant.name}*
-  
-  ${variant.description || product.description || 'Premium quality option.'}
-  
-  ${stockInfo}${priceBlock}`;
+    const messageText = `*${product.name}*\n🔹 Variant: *${variant.name}*\n\n${variant.description || product.description || 'Premium quality option.'}\n\n${stockInfo}${priceBlock}`;
   
     const imageUrl = variant.imageUrl || product.imageUrl;
   
@@ -412,77 +517,126 @@ export class WhatsappEcommerceService {
     ];
   
     if (imageUrl) {
-      return this.sendWhatsAppMessage(phone, {
+      return this.sendWhatsAppMessage(
+        phone,
+        {
+          type: 'interactive',
+          interactive: {
+            type: 'button',
+            header: {
+              type: 'image',
+              image: {
+                link: imageUrl.startsWith('http')
+                  ? imageUrl
+                  : `${process.env.BASE_URL || 'http://localhost:3010'}${imageUrl}`,
+              },
+            },
+            body: { text: messageText },
+            action: { buttons },
+          },
+        },
+        accessToken,
+        phoneNumberId,
+      );
+    }
+  
+    return this.sendWhatsAppMessage(
+      phone,
+      {
         type: 'interactive',
         interactive: {
           type: 'button',
-          header: {
-            type: 'image',
-            image: {
-              link: imageUrl.startsWith('http')
-                ? imageUrl
-                : `${process.env.BASE_URL || 'http://localhost:3010'}${imageUrl}`,
-            },
-          },
-          body: { text: message },
+          body: { text: messageText },
           action: { buttons },
         },
-      }, accessToken, phoneNumberId);
-    }
-  
-    return this.sendWhatsAppMessage(phone, {
-      type: 'interactive',
-      interactive: {
-        type: 'button',
-        body: { text: message },
-        action: { buttons },
       },
-    }, accessToken, phoneNumberId);
+      accessToken,
+      phoneNumberId,
+    );
   }
 
-  async handleBuyVariant(phone: string, productId: number, variantId: number, accessToken: string, phoneNumberId: string, userId: number) {
+  async handleBuyVariant(
+    phone: string,
+    productId: number,
+    variantId: number,
+    accessToken: string,
+    phoneNumberId: string,
+    userId: number
+  ) {
     const product = await this.ecommerceService.getProduct(productId, userId);
     if (!product) return;
   
     const variant = product.variants?.find((v) => v.id === variantId);
     if (!variant) {
-      return this.sendWhatsAppMessage(phone, {
-        type: 'text',
-        text: { body: 'Sorry, this variant is no longer available.' },
-      }, accessToken, phoneNumberId);
+      return this.sendWhatsAppMessage(
+        phone,
+        {
+          type: 'text',
+          text: { body: 'Sorry, this variant is no longer available.' },
+        },
+        accessToken,
+        phoneNumberId,
+      );
     }
   
-    if (variant.stock !== null && variant.stock !== undefined && variant.stock <= 0) {
-      return this.sendWhatsAppMessage(phone, {
-        type: 'text',
-        text: { body: `Sorry, *${variant.name}* is currently out of stock. 😔` },
-      }, accessToken, phoneNumberId);
+    if (
+      !variant.isActive ||
+      !variant.availability ||
+      (variant.stock !== null && variant.stock !== undefined && variant.stock <= 0)
+    ) {
+      return this.sendWhatsAppMessage(
+        phone,
+        {
+          type: 'text',
+          text: { body: `Sorry, *${variant.name}* is currently out of stock. 😔` },
+        },
+        accessToken,
+        phoneNumberId,
+      );
     }
   
     await this.sessionService.setProductForPurchase(phone, productId, userId);
-    await this.sessionService.setSession(phone, {
-      selectedVariantId: variantId,
-    }, userId);
+    await this.sessionService.setSession(
+      phone,
+      {
+        selectedVariantId: variantId,
+      },
+      userId,
+    );
   
     const existingCustomer = await this.ecommerceService.getCustomerByPhone(phone, userId);
   
     if (existingCustomer) {
-      await this.sessionService.setSession(phone, {
-        customerName: existingCustomer.customerName,
-        customerAddress: existingCustomer.customerAddress || undefined,
-        step: 'confirm_details',
-      }, userId);
+      await this.sessionService.setSession(
+        phone,
+        {
+          customerName: existingCustomer.customerName,
+          customerAddress: existingCustomer.customerAddress || undefined,
+          step: 'confirm_details',
+        },
+        userId,
+      );
   
-      return this.sendCustomerDetailsConfirmation(phone, accessToken, phoneNumberId, existingCustomer);
+      return this.sendCustomerDetailsConfirmation(
+        phone,
+        accessToken,
+        phoneNumberId,
+        existingCustomer,
+      );
     } else {
       await this.sessionService.setSession(phone, { step: 'awaiting_name' }, userId);
   
-      return this.sendWhatsAppMessage(phone, {
-        type: 'text',
-        text: {
-          body: `📦 *Order Details*\n\nProduct: ${product.name} — ${variant.name}\nPrice: ₹${variant.salePrice || variant.price}\n\nPlease provide your full name:`,
+      return this.sendWhatsAppMessage(
+        phone,
+        {
+          type: 'text',
+          text: {
+            body: `📦 *Order Details*\n\nProduct: ${product.name} — ${variant.name}\nPrice: ₹${variant.salePrice || variant.price}\n\nPlease provide your full name:`,
+          },
         },
-      }, accessToken, phoneNumberId);
+        accessToken,
+        phoneNumberId,
+      );
     }
   }
   // async sendProductDetails(phone: string, productId: number, accessToken: string, phoneNumberId: string, userId: number) {
@@ -553,41 +707,74 @@ export class WhatsappEcommerceService {
   //     }
   //   }, accessToken, phoneNumberId);
   // }
-  async handleBuyNow(phone: string, productId: number, accessToken: string, phoneNumberId: string, userId: number) {
+  async handleBuyNow(
+    phone: string,
+    productId: number,
+    accessToken: string,
+    phoneNumberId: string,
+    userId: number
+  ) {
     const product = await this.ecommerceService.getProduct(productId, userId);
     if (!product) return;
   
-    if (product.stock !== null && product.stock !== undefined && product.stock <= 0) {
-      return this.sendWhatsAppMessage(phone, {
-        type: 'text',
-        text: { body: `Sorry, *${product.name}* is currently out of stock. 😔` },
-      }, accessToken, phoneNumberId);
+    if (
+      !product.isActive ||
+      !product.availability ||
+      (product.stock !== null && product.stock !== undefined && product.stock <= 0)
+    ) {
+      return this.sendWhatsAppMessage(
+        phone,
+        {
+          type: 'text',
+          text: { body: `Sorry, *${product.name}* is currently out of stock. 😔` },
+        },
+        accessToken,
+        phoneNumberId,
+      );
     }
   
     await this.sessionService.setProductForPurchase(phone, productId, userId);
-    await this.sessionService.setSession(phone, {
-      selectedVariantId: null,
-    }, userId);
+    await this.sessionService.setSession(
+      phone,
+      {
+        selectedVariantId: null,
+      },
+      userId,
+    );
   
     const existingCustomer = await this.ecommerceService.getCustomerByPhone(phone, userId);
   
     if (existingCustomer) {
-      await this.sessionService.setSession(phone, {
-        customerName: existingCustomer.customerName,
-        customerAddress: existingCustomer.customerAddress || undefined,
-        step: 'confirm_details',
-      }, userId);
+      await this.sessionService.setSession(
+        phone,
+        {
+          customerName: existingCustomer.customerName,
+          customerAddress: existingCustomer.customerAddress || undefined,
+          step: 'confirm_details',
+        },
+        userId,
+      );
   
-      return this.sendCustomerDetailsConfirmation(phone, accessToken, phoneNumberId, existingCustomer);
+      return this.sendCustomerDetailsConfirmation(
+        phone,
+        accessToken,
+        phoneNumberId,
+        existingCustomer,
+      );
     } else {
       await this.sessionService.setSession(phone, { step: 'awaiting_name' }, userId);
   
-      return this.sendWhatsAppMessage(phone, {
-        type: 'text',
-        text: {
-          body: `📦 *Order Details*\n\nProduct: ${product.name}\nPrice: ₹${product.salePrice || product.price}\n\nPlease provide your full name:`,
+      return this.sendWhatsAppMessage(
+        phone,
+        {
+          type: 'text',
+          text: {
+            body: `📦 *Order Details*\n\nProduct: ${product.name}\nPrice: ₹${product.salePrice || product.price}\n\nPlease provide your full name:`,
+          },
         },
-      }, accessToken, phoneNumberId);
+        accessToken,
+        phoneNumberId,
+      );
     }
   }
   // async handleCODPayment(phone: string, accessToken: string, phoneNumberId: string, userId: number) {

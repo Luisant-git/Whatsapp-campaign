@@ -24,6 +24,7 @@ import {
   ClipboardList,
   UserCheck,
   Layout,
+  Truck,
 } from "lucide-react";
 
 import { MENU_CONFIG } from "./config/menuconfig.js"
@@ -63,6 +64,7 @@ import { logoutUser, getProfile } from "./api/auth";
 import AutomationTemplatesSettings from "./components/AutomationTemplatesSettings.jsx";
 import RunAutomationLogs from "./components/RunAutomationLogs.jsx";
 import AssignedContacts from "./components/AssignedContact.jsx";
+import ShippingSettings from "./components/ShippingSetting.jsx";
 
 // Icon map for MENU_CONFIG.icon
 const ICON_MAP = {
@@ -104,6 +106,7 @@ const MENU_TO_VIEW = {
   "ecommerce.products": "products",
   "ecommerce.orders": "orders",
   "ecommerce.customers": "customers",
+  "ecommerce.shipping": "shipping",
 
   "templates.create": "templates",
   "templates.manage": "templates",
@@ -138,6 +141,7 @@ const CHILD_ICON_MAP = {
   plus: UserPlus2,
   book: Package,
   eye: List,
+  truck: Truck,
 };
 
 
@@ -533,6 +537,7 @@ function App() {
             {activeView === "products" && <Products />}
             {activeView === "orders" && <Orders />}
             {activeView === "customers" && <Customers />}
+            {activeView === "shipping" && <ShippingSettings />}
             {activeView === "auto-reply" && <AutoReply />}
             {activeView === "quick-reply" && useQuickReply && <QuickReply />}
             {activeView === "chatbot" && <Chatbot />}

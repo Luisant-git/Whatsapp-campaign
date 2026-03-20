@@ -41,10 +41,11 @@ export class FlowAppointmentService {
     });
   }
 
-  async saveAppointmentFromFlow(data: any, flowToken?: string) {
+  async saveAppointmentFromFlow(data: any, flowToken?: string, phoneNumber?: string) {
     try {
       console.log('🔍 Raw flow data received:', JSON.stringify(data, null, 2));
       console.log('🔍 Flow token:', flowToken);
+      console.log('📞 Phone number:', phoneNumber);
       
       // Extract data from nested structure if needed
       let appointmentData = data;
@@ -61,11 +62,21 @@ export class FlowAppointmentService {
         time: appointmentData.time || appointmentData.selected_time || appointmentData.time_slot || '',
         name: appointmentData.name || appointmentData.full_name || '',
         email: appointmentData.email || appointmentData.email_address || '',
-        phone: appointmentData.phone || appointmentData.phone_number || '',
+        phone: appointmentData.phone || appointmentData.phone_number || phoneNumber || '',
         moreDetails: appointmentData.moreDetails || appointmentData.more_details || appointmentData.additional_details || appointmentData.details || null,
       };
       
       console.log('💾 Appointment record to save:', JSON.stringify(appointmentRecord, null, 2));
+      
+      // Extract tenant ID from flow token
+      let targetTenantId: number | null = null;
+      if (flowToken) {
+        const tokenParts = flowToken.split('_');
+        if (tokenParts.length >= 3) {
+          targetTenantId = parseInt(tokenParts[2]);
+          console.log(`🎯 Flow token indicates tenant ID: ${targetTenantId}`);
+        }
+      }
       
       // Save to all active tenants to ensure it appears in all dashboards
       const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
@@ -79,6 +90,19 @@ export class FlowAppointmentService {
             data: appointmentRecord,
           });
           console.log(`✅ Flow appointment saved successfully to tenant ${tenant.id} (${tenant.name})`);
+          
+          // Send confirmation message only for the target tenant
+          if (tenant.id === targetTenantId && appointmentRecord.phone) {
+            const settings = await (tenantClient as any).whatsAppSettings.findFirst();
+            if (settings) {
+              await this.sendConfirmationMessage(
+                appointmentRecord.phone,
+                settings.accessToken,
+                settings.phoneNumberId,
+                tenantClient
+              );
+            }
+          }
         } catch (tenantError) {
           console.error(`❌ Error saving to tenant ${tenant.id}:`, tenantError.message);
         }

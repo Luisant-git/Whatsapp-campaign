@@ -68,8 +68,8 @@ export class WhatsappSessionService {
           return true; // Handled
         }
 
-        console.log('No nested quick reply found, button response handled');
-        return true; // Mark as handled, don't send to chatbot
+        console.log('No nested quick reply found, passing to next priority (Flow/Meta Catalog/AI)');
+        return false; // Not handled, let Flow Triggers or other priorities handle it
       }
 
       // Check for exact quick reply match first

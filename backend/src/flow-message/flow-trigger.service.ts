@@ -137,6 +137,13 @@ export class FlowTriggerService {
     const triggerWord = message.toLowerCase().trim();
     console.log(`[FlowTrigger] Checking for trigger word: "${triggerWord}"`);
     
+    // First, get all active triggers to see what's available
+    const allTriggers = await tenantClient.flowTrigger.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, triggerWord: true }
+    });
+    console.log(`[FlowTrigger] All active triggers:`, allTriggers);
+    
     const trigger = await tenantClient.flowTrigger.findFirst({
       where: {
         triggerWord,
@@ -144,7 +151,7 @@ export class FlowTriggerService {
       },
     });
 
-    console.log(`[FlowTrigger] Found trigger:`, trigger);
+    console.log(`[FlowTrigger] Found trigger for "${triggerWord}":`, trigger);
 
     if (!trigger) {
       return null;

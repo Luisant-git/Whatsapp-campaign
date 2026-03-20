@@ -138,43 +138,54 @@ export class FlowAppointmentService {
         const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
         console.log(`📊 Found ${tenants.length} active tenants`);
         
+        // First try target tenant
         for (const tenant of tenants) {
-          console.log(`🔍 Checking tenant ${tenant.id} (${tenant.name})`);
+          if (targetTenantId && tenant.id !== targetTenantId) continue;
           
-          if (targetTenantId && tenant.id !== targetTenantId) {
-            console.log(`⏭️ Skipping tenant ${tenant.id} - not target tenant`);
-            continue;
-          }
+          console.log(`🔍 Checking target tenant ${tenant.id} (${tenant.name})`);
           
           const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
           const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
           
-          // First, try to find settings with phoneNumberId
-          console.log(`🔍 Looking for settings with phoneNumberId: ${phoneNumberId}`);
           let settings = await (tenantClient as any).whatsAppSettings.findFirst({
             where: { phoneNumberId }
           });
           
-          // If not found, try to get any settings for this tenant
           if (!settings) {
-            console.log(`⚠️ No settings found with phoneNumberId, trying to get first available settings...`);
             settings = await (tenantClient as any).whatsAppSettings.findFirst();
-            
-            if (settings) {
-              console.log(`✅ Found settings with phoneNumberId: ${settings.phoneNumberId}`);
-            }
           }
           
           if (settings) {
-            console.log(`✅ Using settings for tenant ${tenant.id}`);
+            console.log(`✅ Using settings from target tenant ${tenant.id}`);
             await this.sendConfirmationMessage(phoneNumber, settings.accessToken, settings.phoneNumberId, tenantClient);
             return;
-          } else {
-            console.log(`❌ No settings found for tenant ${tenant.id}`);
           }
         }
         
-        console.log('❌ No matching settings found in any tenant');
+        // Fallback: try any tenant with settings
+        console.log('⚠️ Target tenant has no settings, checking all tenants...');
+        for (const tenant of tenants) {
+          console.log(`🔍 Checking tenant ${tenant.id} (${tenant.name})`);
+          
+          const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+          const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+          
+          let settings = await (tenantClient as any).whatsAppSettings.findFirst({
+            where: { phoneNumberId }
+          });
+          
+          if (!settings) {
+            settings = await (tenantClient as any).whatsAppSettings.findFirst();
+          }
+          
+          if (settings) {
+            console.log(`✅ Using settings from tenant ${tenant.id}`);
+            await this.sendConfirmationMessage(phoneNumber, settings.accessToken, settings.phoneNumberId, tenantClient);
+            return;
+          }
+        }
+        
+        console.log('❌ No settings found in any tenant');
       }
       
       // Only save if we have actual appointment data (not just flow completion)

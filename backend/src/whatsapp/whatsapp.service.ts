@@ -1172,7 +1172,54 @@ export class WhatsappService {
         return;
       }
   
-      // Check for flow triggers first
+      // 🔥 PRIORITY 1: Check Quick Replies first
+      this.logger.log('🔍 [Priority 1] Checking Quick Replies...');
+      const quickReplyHandled = await this.sessionService.handleInteractiveMenu(
+        from,
+        text,
+        tenantId,
+        async (to, msg, imageUrl) => {
+          if (imageUrl) {
+            return this.sendMediaMessageDirect(
+              to,
+              imageUrl,
+              'image',
+              whatsappSettings.accessToken,
+              whatsappSettings.phoneNumberId,
+              tenantClient,
+              msg
+            );
+          }
+          return this.sendMessageDirect(
+            to,
+            msg,
+            whatsappSettings.accessToken,
+            whatsappSettings.phoneNumberId,
+            tenantClient
+          );
+        },
+        async (to, msg, buttons) => {
+          return this.sendButtonsMessageDirect(
+            to,
+            msg,
+            buttons,
+            whatsappSettings.accessToken,
+            whatsappSettings.phoneNumberId,
+            tenantClient
+          );
+        }
+      ).catch(e => {
+        this.logger.error('Quick Reply error:', e);
+        return false;
+      });
+
+      if (quickReplyHandled) {
+        this.logger.log('✅ [Priority 1] Quick Reply handled');
+        return;
+      }
+
+      // 🔥 PRIORITY 2: Check Flow Triggers
+      this.logger.log('🔍 [Priority 2] Checking Flow Triggers...');
       try {
         const flowResult = await this.flowTriggerService.checkAndSendFlowWithClient(
           text,
@@ -1183,13 +1230,16 @@ export class WhatsappService {
         );
   
         if (flowResult?.success) {
-          this.logger.log(`✅ Flow triggered: ${flowResult.trigger.name}`);
+          this.logger.log(`✅ [Priority 2] Flow triggered: ${flowResult.trigger.name}`);
           return;
         }
       } catch (error) {
         this.logger.error('Flow trigger error:', error);
       }
   
+      // 🔥 PRIORITY 3: Check Meta Catalog (Ecommerce)
+      this.logger.log('🔍 [Priority 3] Checking Meta Catalog...');
+      
       // 🔥 ECOMMERCE NUMBER: Route to catalog
       if (routing.route === 'ecommerce') {
         await this.ecommerceService.handleIncomingMessage(
@@ -1199,10 +1249,11 @@ export class WhatsappService {
           whatsappSettings.phoneNumberId,
           tenantId
         );
+        this.logger.log('✅ [Priority 3] Ecommerce route handled');
         return;
       }
   
-      // Check for ecommerce keywords first
+      // Check for ecommerce keywords
       if (this.isEcommerceMessage(lowerText)) {
         await this.ecommerceService.handleIncomingMessage(
           from,
@@ -1211,59 +1262,13 @@ export class WhatsappService {
           whatsappSettings.phoneNumberId,
           tenantId
         );
-        this.logger.log(`✅ Ecommerce keyword handled`);
+        this.logger.log(`✅ [Priority 3] Ecommerce keyword handled`);
         return;
       }
   
-      // 🔥 AI BOT NUMBER: Check quick replies first, then route to chatbot
+      // 🔥 PRIORITY 4: AI Chatbot (only if assigned to ai-bot route)
       if (routing.route === 'ai-bot') {
-        // Try quick replies and auto replies first (use tenantId, not settingsId)
-        const sessionHandled = await this.sessionService.handleInteractiveMenu(
-          from,
-          text,
-          tenantId, // ✅ Use tenantId here, not settingsId
-          async (to, msg, imageUrl) => {
-            if (imageUrl) {
-              return this.sendMediaMessageDirect(
-                to,
-                imageUrl,
-                'image',
-                whatsappSettings.accessToken,
-                whatsappSettings.phoneNumberId,
-                tenantClient,
-                msg
-              );
-            }
-            return this.sendMessageDirect(
-              to,
-              msg,
-              whatsappSettings.accessToken,
-              whatsappSettings.phoneNumberId,
-              tenantClient
-            );
-          },
-          async (to, msg, buttons) => {
-            return this.sendButtonsMessageDirect(
-              to,
-              msg,
-              buttons,
-              whatsappSettings.accessToken,
-              whatsappSettings.phoneNumberId,
-              tenantClient
-            );
-          }
-        ).catch(e => {
-          this.logger.error('Session error:', e);
-          return false;
-        });
-
-        // If quick reply/auto reply handled it, stop here
-        if (sessionHandled) {
-          this.logger.log('✅ Quick reply/Auto reply handled in ai-bot mode');
-          return;
-        }
-
-        // Otherwise, use AI chatbot
+        this.logger.log('🔍 [Priority 4] Routing to AI Chatbot...');
         const chatResponse = await this.chatbotService.processMessage(tenantId, {
           message: text,
           phone: from
@@ -1277,6 +1282,7 @@ export class WhatsappService {
             whatsappSettings.phoneNumberId,
             tenantClient
           );
+          this.logger.log('✅ [Priority 4] AI Chatbot responded');
         }
         return;
       }

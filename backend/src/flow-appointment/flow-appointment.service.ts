@@ -149,17 +149,28 @@ export class FlowAppointmentService {
           const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
           const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
           
+          // First, try to find settings with phoneNumberId
           console.log(`🔍 Looking for settings with phoneNumberId: ${phoneNumberId}`);
-          const settings = await (tenantClient as any).whatsAppSettings.findFirst({
+          let settings = await (tenantClient as any).whatsAppSettings.findFirst({
             where: { phoneNumberId }
           });
           
+          // If not found, try to get any settings for this tenant
+          if (!settings) {
+            console.log(`⚠️ No settings found with phoneNumberId, trying to get first available settings...`);
+            settings = await (tenantClient as any).whatsAppSettings.findFirst();
+            
+            if (settings) {
+              console.log(`✅ Found settings with phoneNumberId: ${settings.phoneNumberId}`);
+            }
+          }
+          
           if (settings) {
-            console.log(`✅ Found settings for tenant ${tenant.id}`);
+            console.log(`✅ Using settings for tenant ${tenant.id}`);
             await this.sendConfirmationMessage(phoneNumber, settings.accessToken, settings.phoneNumberId, tenantClient);
             return;
           } else {
-            console.log(`❌ No settings found for tenant ${tenant.id} with phoneNumberId ${phoneNumberId}`);
+            console.log(`❌ No settings found for tenant ${tenant.id}`);
           }
         }
         

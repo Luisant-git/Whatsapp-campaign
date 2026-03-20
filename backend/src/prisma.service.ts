@@ -176,7 +176,12 @@ export class PrismaService {
     }
     return this.client.order;
   }
-
+  get shippingRate() {
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.shippingRate;
+  }
   get shoppingSession() {
     if (!this.client) {
       throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');

@@ -61,6 +61,7 @@ export const MENU_CONFIG = [
         { key: "ecommerce.products", label: "Products", icon: "package" },
         { key: "ecommerce.orders", label: "Orders", icon: "shoppingCart" },
         { key: "ecommerce.customers", label: "Customers", icon: "users" },
+        { key: "ecommerce.shipping", label: "Shipping", icon: "truck" },
       ],
     },
     {

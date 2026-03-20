@@ -24,14 +24,14 @@ export class EcommerceController {
   constructor(
     private ecommerceService: EcommerceService,
     private metaCatalogService: MetaCatalogService,
-  ) {}
+  ) { }
 
   @Get('payment-callback')
   async paymentCallback(@Query() query: any) {
     const { razorpay_payment_id, razorpay_payment_link_id } = query;
     const orderId = parseInt(query.order_id);
     const userId = parseInt(query.user_id);
-    
+
     if (razorpay_payment_id && orderId) {
       await this.metaCatalogService.handlePaymentSuccess(orderId, razorpay_payment_id, userId);
       return '<html><body><h1>Payment Successful!</h1><p>Your order is confirmed. You will receive a WhatsApp message shortly.</p></body></html>';
@@ -124,40 +124,40 @@ export class EcommerceController {
   }
 
   @Put('products/:id')
-@UseInterceptors(
-  FileInterceptor('image', {
-    storage: diskStorage({
-      destination: './uploads',
-      filename: (req, file, cb) => {
-        const name = `product-${Date.now()}${extname(file.originalname)}`;
-        cb(null, name);
-      },
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, cb) => {
+          const name = `product-${Date.now()}${extname(file.originalname)}`;
+          cb(null, name);
+        },
+      }),
     }),
-  }),
-)
-async updateProduct(
-  @Param('id') id: string,
-  @UploadedFile() file: Express.Multer.File,
-  @Body() body: any,
-) {
-  const data: any = {
-    name: body.name,
-    description: body.description || '',
-    price: parseFloat(body.price),
-    salePrice: body.salePrice ? parseFloat(body.salePrice) : null,
-    stock: body.stock !== undefined ? parseInt(body.stock) : undefined,
-    subCategoryId: +body.subCategoryId,
-    link: body.link || null,
-    contentId: body.contentId || null,
-    availability:
-      body.availability === 'true' || body.availability === true,
-    isActive: body.isActive === 'true' || body.isActive === true,
-  };
-  if (file) {
-    data.imageUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
+  )
+  async updateProduct(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: any,
+  ) {
+    const data: any = {
+      name: body.name,
+      description: body.description || '',
+      price: parseFloat(body.price),
+      salePrice: body.salePrice ? parseFloat(body.salePrice) : null,
+      stock: body.stock !== undefined ? parseInt(body.stock) : undefined,
+      subCategoryId: +body.subCategoryId,
+      link: body.link || null,
+      contentId: body.contentId || null,
+      availability:
+        body.availability === 'true' || body.availability === true,
+      isActive: body.isActive === 'true' || body.isActive === true,
+    };
+    if (file) {
+      data.imageUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
+    }
+    return this.ecommerceService.updateProduct(+id, data);
   }
-  return this.ecommerceService.updateProduct(+id, data);
-}
 
   @Delete('products/:id')
   deleteProduct(@Param('id') id: string) {
@@ -166,84 +166,84 @@ async updateProduct(
 
   // Add these to ecommerce.controller.ts
 
-// ==================== VARIANT ENDPOINTS ====================
+  // ==================== VARIANT ENDPOINTS ====================
 
-@Post('products/:productId/variants')
-@UseInterceptors(
-  FileInterceptor('image', {
-    storage: diskStorage({
-      destination: './uploads',
-      filename: (req, file, cb) => {
-        const name = `variant-${Date.now()}${extname(file.originalname)}`;
-        cb(null, name);
-      },
+  @Post('products/:productId/variants')
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, cb) => {
+          const name = `variant-${Date.now()}${extname(file.originalname)}`;
+          cb(null, name);
+        },
+      }),
     }),
-  }),
-)
-async createVariant(
-  @Param('productId') productId: string,
-  @UploadedFile() file: Express.Multer.File,
-  @Body() body: any,
-) {
-  const data = {
-    productId: +productId,
-    name: body.name,
-    description: body.description || null,
-    price: parseFloat(body.price),
-    salePrice: body.salePrice ? parseFloat(body.salePrice) : null,
-    stock: body.stock ? parseInt(body.stock) : 0,
-    imageUrl: file ? `${process.env.UPLOAD_URL}/${file.filename}` : null,
-    link: body.link || null,
-    contentId: body.contentId || null,
-    availability: body.availability === 'true' || body.availability === true,
-    isActive: body.isActive !== 'false' && body.isActive !== false,
-  };
-  return this.ecommerceService.createVariant(data);
-}
-
-@Get('products/:productId/variants')
-getVariants(@Param('productId') productId: string) {
-  return this.ecommerceService.getVariants(+productId);
-}
-
-@Put('variants/:id')
-@UseInterceptors(
-  FileInterceptor('image', {
-    storage: diskStorage({
-      destination: './uploads',
-      filename: (req, file, cb) => {
-        const name = `variant-${Date.now()}${extname(file.originalname)}`;
-        cb(null, name);
-      },
-    }),
-  }),
-)
-async updateVariant(
-  @Param('id') id: string,
-  @UploadedFile() file: Express.Multer.File,
-  @Body() body: any,
-) {
-  const data: any = {
-    name: body.name,
-    description: body.description || null,
-    price: parseFloat(body.price),
-    salePrice: body.salePrice ? parseFloat(body.salePrice) : null,
-    stock: body.stock !== undefined ? parseInt(body.stock) : undefined,
-    link: body.link || null,
-    contentId: body.contentId || null,
-    availability: body.availability === 'true' || body.availability === true,
-    isActive: body.isActive !== 'false' && body.isActive !== false,
-  };
-  if (file) {
-    data.imageUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
+  )
+  async createVariant(
+    @Param('productId') productId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: any,
+  ) {
+    const data = {
+      productId: +productId,
+      name: body.name,
+      description: body.description || null,
+      price: parseFloat(body.price),
+      salePrice: body.salePrice ? parseFloat(body.salePrice) : null,
+      stock: body.stock ? parseInt(body.stock) : 0,
+      imageUrl: file ? `${process.env.UPLOAD_URL}/${file.filename}` : null,
+      link: body.link || null,
+      contentId: body.contentId || null,
+      availability: body.availability === 'true' || body.availability === true,
+      isActive: body.isActive !== 'false' && body.isActive !== false,
+    };
+    return this.ecommerceService.createVariant(data);
   }
-  return this.ecommerceService.updateVariant(+id, data);
-}
 
-@Delete('variants/:id')
-deleteVariant(@Param('id') id: string) {
-  return this.ecommerceService.deleteVariant(+id);
-}
+  @Get('products/:productId/variants')
+  getVariants(@Param('productId') productId: string) {
+    return this.ecommerceService.getVariants(+productId);
+  }
+
+  @Put('variants/:id')
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, cb) => {
+          const name = `variant-${Date.now()}${extname(file.originalname)}`;
+          cb(null, name);
+        },
+      }),
+    }),
+  )
+  async updateVariant(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: any,
+  ) {
+    const data: any = {
+      name: body.name,
+      description: body.description || null,
+      price: parseFloat(body.price),
+      salePrice: body.salePrice ? parseFloat(body.salePrice) : null,
+      stock: body.stock !== undefined ? parseInt(body.stock) : undefined,
+      link: body.link || null,
+      contentId: body.contentId || null,
+      availability: body.availability === 'true' || body.availability === true,
+      isActive: body.isActive !== 'false' && body.isActive !== false,
+    };
+    if (file) {
+      data.imageUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
+    }
+    return this.ecommerceService.updateVariant(+id, data);
+  }
+
+  @Delete('variants/:id')
+  deleteVariant(@Param('id') id: string) {
+    return this.ecommerceService.deleteVariant(+id);
+  }
 
   @Post('orders')
   createOrder(@Body() body: any, @Request() req) {
@@ -261,17 +261,17 @@ deleteVariant(@Param('id') id: string) {
   }
 
   @Post('products/:id/sync-meta')
-async syncProductToMeta(@Param('id') id: string, @Body() body: any) {
-  const product = await this.ecommerceService.getProduct(+id);
-  const result = await this.metaCatalogService.syncProductToCatalog(product, body);
+  async syncProductToMeta(@Param('id') id: string, @Body() body: any) {
+    const product = await this.ecommerceService.getProduct(+id);
+    const result = await this.metaCatalogService.syncProductToCatalog(product, body);
 
-  await this.ecommerceService.updateProduct(+id, {
-    metaProductId: result.metaProductId,
-    source: 'uploaded',
-  });
+    await this.ecommerceService.updateProduct(+id, {
+      metaProductId: result.metaProductId,
+      source: 'uploaded',
+    });
 
-  return result;
-}
+    return result;
+  }
 
   @Post('sync-from-meta')
   async syncFromMeta(@Request() req) {
@@ -281,5 +281,35 @@ async syncProductToMeta(@Param('id') id: string, @Body() body: any) {
   @Get('customers')
   getCustomers(@Request() req) {
     return this.ecommerceService.getCustomers(req.session.userId);
+  }
+
+  // ==================== SHIPPING RATE ENDPOINTS ====================
+
+  @Post('shipping-rates')
+  createShippingRate(@Body() body: { state: string; flatShippingRate: number }) {
+    return this.ecommerceService.createShippingRate(body.state, body.flatShippingRate);
+  }
+
+  @Get('shipping-rates')
+  getShippingRates() {
+    return this.ecommerceService.getShippingRates();
+  }
+
+  @Get('shipping-rates/:state')
+  getShippingRateByState(@Param('state') state: string) {
+    return this.ecommerceService.getShippingRateByState(state);
+  }
+
+  @Put('shipping-rates/:id')
+  updateShippingRate(
+    @Param('id') id: string,
+    @Body() body: { state?: string; flatShippingRate?: number },
+  ) {
+    return this.ecommerceService.updateShippingRate(+id, body);
+  }
+
+  @Delete('shipping-rates/:id')
+  deleteShippingRate(@Param('id') id: string) {
+    return this.ecommerceService.deleteShippingRate(+id);
   }
 }

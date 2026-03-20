@@ -26,8 +26,18 @@ export class WhatsappService {
     private ecommerceService: WhatsappEcommerceService,
     private phoneRouter: PhoneRouterService,
     private flowTriggerService: FlowTriggerService
-  ) {}
+  ) { }
 
+  private isEcommerceCheckoutStep(step?: string | null): boolean {
+    return [
+      'confirm_details',
+      'awaiting_name',
+      'awaiting_address',
+      'awaiting_city',
+      'awaiting_pincode',
+      'awaiting_payment_method',
+    ].includes(step || '');
+  }
   private async getSettings(userId: number) {
     const settings = await this.settingsService.getCurrentSettings(userId);
     if (!settings) {
@@ -93,38 +103,38 @@ export class WhatsappService {
     const video = message.video;
     const document = message.document;
     const audio = message.audio;
-    
+
     this.logger.log(`📨 Incoming message type: ${message.type}`);
-    
+
     // Handle Meta Catalog order messages (when order management is enabled)
     if (message.type === 'order') {
       const order = message.order;
       this.logger.log('🛒 Meta Catalog order received:', JSON.stringify(order, null, 2));
-      
+
       const settings = await this.getSettings(userId);
       const metaCatalogService = this.ecommerceService['metaCatalogService'];
-      
+
       if (metaCatalogService) {
         await metaCatalogService.handleOrderMessage(from, settings.phoneNumberId, order, userId);
       }
       return;
     }
-    
+
     // Handle interactive nfm_reply (catalog cart sent)
     if (message.type === 'interactive' && message.interactive?.type === 'nfm_reply') {
       this.logger.log('🛒 Catalog cart message received');
       const nfmReply = message.interactive.nfm_reply;
       const orderData = JSON.parse(nfmReply.response_json || '{}');
-      
+
       const settings = await this.getSettings(userId);
       const metaCatalogService = this.ecommerceService['metaCatalogService'];
-      
+
       if (metaCatalogService && orderData) {
         await metaCatalogService.handleOrderMessage(from, settings.phoneNumberId, orderData, userId);
       }
       return;
     }
-    
+
     // Handle interactive button clicks
     if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
       const buttonId = message.interactive.button_reply.id;
@@ -144,7 +154,7 @@ export class WhatsappService {
     // Check if message is "stop" or "yes" and handle labels
     if (text) {
       const lowerText = text.toLowerCase().trim();
-      
+
       // Check if manually edited to avoid auto-labeling
       const chatLabel = await this.prisma.chatLabel.findUnique({
         where: { phone: from },
@@ -168,7 +178,7 @@ export class WhatsappService {
           if (!updatedLabels.includes('Yes')) {
             updatedLabels.push('Yes');
           }
-          
+
           await this.prisma.chatLabel.upsert({
             where: { phone: from },
             update: { labels: { set: updatedLabels } },
@@ -197,7 +207,7 @@ export class WhatsappService {
     }
 
     this.logger.log(`Storing incoming message: from=${from}, to=${from}, message=${text || (mediaType ? `${mediaType} file` : 'button click')}`);
-    
+
     // Check if message already exists
     const existingMessage = await this.prisma.whatsAppMessage.findUnique({
       where: { messageId }
@@ -227,7 +237,7 @@ export class WhatsappService {
 
     if (text) {
       const lowerText = text.toLowerCase().trim();
-      
+
       // Skip auto-reply/chatbot if message is "stop" or "yes"
       if (lowerText === 'stop' || lowerText === 'yes') {
         this.logger.log(`Skipping auto-reply/chatbot for ${lowerText} message`);
@@ -275,12 +285,12 @@ export class WhatsappService {
       // Check if user is in order flow (awaiting name, address, city, or pincode)
       try {
         const settings = await this.getSettings(userId);
-        
+
         // Check current session step to determine which flow
         const currentStep = await this.ecommerceService['sessionService'].getStep(from, userId);
         const session = await this.ecommerceService['sessionService'].getSession(from, userId);
         const paymentMethod = session?.paymentMethod;
-        
+
         // If user is in confirm_details step AND payment method is already COD, use regular ecommerce
         if (currentStep === 'confirm_details' && paymentMethod === 'COD') {
           const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, userId, settings.accessToken, settings.phoneNumberId);
@@ -291,7 +301,7 @@ export class WhatsappService {
             return;
           }
         }
-        
+
         // Try regular ecommerce order flow for other steps
         const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, userId, settings.accessToken, settings.phoneNumberId);
         if (orderResult === 'awaiting_address') {
@@ -306,7 +316,7 @@ export class WhatsappService {
         } else if (orderResult === 'order_placed') {
           return;
         }
-        
+
         // If not handled by regular ecommerce, try Meta Catalog
         const metaCatalogService = this.ecommerceService['metaCatalogService'];
         if (metaCatalogService) {
@@ -318,7 +328,7 @@ export class WhatsappService {
       }
 
       // Try session service first (auto-reply, quick-reply)
-      const sessionHandled = await this.sessionService.handleInteractiveMenu(from, text, userId, 
+      const sessionHandled = await this.sessionService.handleInteractiveMenu(from, text, userId,
         async (to, msg, imageUrl) => {
           if (imageUrl) {
             return this.sendMediaMessage(to, imageUrl, 'image', userId, msg);
@@ -338,7 +348,7 @@ export class WhatsappService {
     try {
       const settings = await this.getSettings(userId);
       this.logger.log(`Downloading media: ${mediaId}`);
-     
+
       const mediaInfoResponse = await axios.get(
         `${settings.apiUrl}/${mediaId}`,
         {
@@ -347,15 +357,15 @@ export class WhatsappService {
           }
         }
       );
-     
+
       this.logger.log('Media info:', mediaInfoResponse.data);
       const mediaUrl = mediaInfoResponse.data.url;
-     
+
       if (!mediaUrl) {
         this.logger.error('No media URL found');
         return null;
       }
-     
+
       const mediaDataResponse = await axios.get(mediaUrl, {
         headers: {
           'Authorization': `Bearer ${settings.accessToken}`
@@ -366,16 +376,16 @@ export class WhatsappService {
       const fs = require('fs');
       const path = require('path');
       const crypto = require('crypto');
-     
+
       const ext = mediaInfoResponse.data.mime_type?.split('/')[1] || 'jpg';
       const filename = `${crypto.randomBytes(16).toString('hex')}.${ext}`;
       const filepath = path.join('uploads', filename);
-     
+
       fs.writeFileSync(filepath, mediaDataResponse.data);
-     
+
       const finalUrl = `${process.env.UPLOAD_URL}/${filename}`;
       this.logger.log(`Media saved: ${finalUrl}`);
-     
+
       return finalUrl;
     } catch (error) {
       this.logger.error('Media download error:', error.response?.data || error.message);
@@ -386,47 +396,47 @@ export class WhatsappService {
   async downloadMediaDirect(mediaId: string, accessToken: string, apiUrl: string): Promise<string | null> {
     try {
       this.logger.log(`Downloading media directly: ${mediaId}`);
-  
+
       const mediaInfoResponse = await axios.get(`${apiUrl}/${mediaId}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
       });
-  
+
       this.logger.log('Direct media info:', mediaInfoResponse.data);
-  
+
       const mediaUrl = mediaInfoResponse.data.url;
       if (!mediaUrl) {
         this.logger.error('No media URL found');
         return null;
       }
-  
+
       const mediaDataResponse = await axios.get(mediaUrl, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
         responseType: 'arraybuffer',
       });
-  
+
       const fs = require('fs');
       const path = require('path');
       const crypto = require('crypto');
-  
+
       const uploadsDir = path.join(process.cwd(), 'uploads');
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
-  
+
       const mimeType = mediaInfoResponse.data.mime_type || 'application/octet-stream';
       const ext = mimeType.split('/')[1] || 'bin';
       const filename = `${crypto.randomBytes(16).toString('hex')}.${ext}`;
       const filepath = path.join(uploadsDir, filename);
-  
+
       fs.writeFileSync(filepath, mediaDataResponse.data);
-  
+
       const finalUrl = `${process.env.UPLOAD_URL}/${filename}`;
       this.logger.log(`Media saved: ${finalUrl}`);
-  
+
       return finalUrl;
     } catch (error) {
       this.logger.error('Direct media download error:', error.response?.data || error.message);
@@ -437,7 +447,7 @@ export class WhatsappService {
   async sendButtonsMessage(to: string, text: string, buttons: string[], userId: number) {
     try {
       const settings = await this.getSettings(userId);
-      
+
       const interactiveButtons = buttons.slice(0, 3).map((button, index) => ({
         type: 'reply',
         reply: {
@@ -445,7 +455,7 @@ export class WhatsappService {
           title: button.length > 20 ? button.substring(0, 20) : button
         }
       }));
-      
+
       const response = await axios.post(
         `${settings.apiUrl}/${settings.phoneNumberId}/messages`,
         {
@@ -490,7 +500,7 @@ export class WhatsappService {
   async sendMessage(to: string, message: string, userId: number) {
     try {
       const { phoneNumberId, accessToken, apiUrl } = await this.getPhoneCredentials('whatsappChat', userId);
-      
+
       this.logger.log(`Sending message to ${to}: ${message}`);
       this.logger.log(`Using API URL: ${apiUrl}/${phoneNumberId}/messages`);
 
@@ -538,7 +548,7 @@ export class WhatsappService {
   async sendMediaMessage(to: string, mediaUrl: string, mediaType: string, userId: number, caption?: string) {
     try {
       const { phoneNumberId, accessToken, apiUrl } = await this.getPhoneCredentials('whatsappChat', userId);
-      
+
       const response = await axios.post(
         `${apiUrl}/${phoneNumberId}/messages`,
         {
@@ -607,16 +617,16 @@ export class WhatsappService {
       const tenants = await this.centralPrisma.tenant.findMany({
         where: { isActive: true }
       });
-      
+
       for (const tenant of tenants) {
         const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
         const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-        
+
         const settings = await tenantClient.whatsAppSettings.findFirst({
           where: { phoneNumberId },
           select: { id: true }
         });
-        
+
         if (settings) {
           return settings.id;
         }
@@ -634,16 +644,16 @@ export class WhatsappService {
       const tenants = await this.centralPrisma.tenant.findMany({
         where: { isActive: true }
       });
-      
+
       for (const tenant of tenants) {
         const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
         const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-        
+
         const settings = await tenantClient.whatsAppSettings.findMany({
           where: { phoneNumberId },
           select: { id: true }
         });
-        
+
         userIds.push(...settings.map(s => s.id));
       }
       return userIds;
@@ -658,19 +668,19 @@ export class WhatsappService {
       const tenants = await this.centralPrisma.tenant.findMany({
         where: { isActive: true }
       });
-      
+
       for (const tenant of tenants) {
         const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
         const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-        
+
         const settings = await tenantClient.whatsAppSettings.findFirst({
-          where: { 
+          where: {
             accessToken: { not: '' },
             phoneNumberId: { not: '' }
           },
           select: { id: true }
         });
-        
+
         if (settings) {
           return settings.id;
         }
@@ -687,15 +697,15 @@ export class WhatsappService {
       const tenants = await this.centralPrisma.tenant.findMany({
         where: { isActive: true }
       });
-      
+
       for (const tenant of tenants) {
         const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
         const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-        
+
         const settings = await tenantClient.whatsAppSettings.findFirst({
           where: { verifyToken: token }
         });
-        
+
         if (settings) {
           return true;
         }
@@ -712,16 +722,16 @@ export class WhatsappService {
       const tenants = await this.centralPrisma.tenant.findMany({
         where: { isActive: true }
       });
-      
+
       for (const tenant of tenants) {
         const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
         const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-        
+
         const settings = await tenantClient.whatsAppSettings.findFirst({
           where: { verifyToken: token },
           select: { id: true }
         });
-        
+
         if (settings) {
           return settings.id;
         }
@@ -749,7 +759,7 @@ export class WhatsappService {
   //           where: { phoneNumberId: msg.phoneNumberId },
   //           select: { name: true, phoneNumberId: true }
   //         });
-          
+
   //         if (masterConfig) {
   //           displayPhoneNumber = `${masterConfig.name} - ${masterConfig.phoneNumberId}`;
   //         } else {
@@ -777,20 +787,20 @@ export class WhatsappService {
     userType: 'tenant' | 'subuser' = 'tenant',
   ) {
     let allowedPhones: string[] | undefined;
-  
+
     if (userType === 'subuser') {
       const assignments = await this.prisma.chatAssignment.findMany({
         where: { subUserId: userId },
         select: { phone: true },
       });
-  
+
       allowedPhones = assignments.map((a) => a.phone);
-  
+
       if (allowedPhones.length === 0) {
         return [];
       }
     }
-  
+
     const messages = await this.prisma.whatsAppMessage.findMany({
       where: {
         ...(phoneNumber && { from: phoneNumber }),
@@ -798,7 +808,7 @@ export class WhatsappService {
       },
       orderBy: { createdAt: 'asc' },
     });
-  
+
     const enrichedMessages = await Promise.all(
       messages.map(async (msg) => {
         let displayPhoneNumber: string | null = null;
@@ -807,7 +817,7 @@ export class WhatsappService {
             where: { phoneNumberId: msg.phoneNumberId },
             select: { name: true, phoneNumberId: true },
           });
-  
+
           if (masterConfig) {
             displayPhoneNumber = `${masterConfig.name} - ${masterConfig.phoneNumberId}`;
           } else {
@@ -818,7 +828,7 @@ export class WhatsappService {
             displayPhoneNumber = settings?.name || msg.phoneNumberId || null;
           }
         }
-  
+
         return {
           ...msg,
           displayPhoneNumber,
@@ -826,14 +836,14 @@ export class WhatsappService {
         };
       }),
     );
-  
+
     return enrichedMessages;
   }
 
   async handleIncomingMessageWithoutContext(message: any, phoneNumberId: string) {
     try {
       this.logger.log(`📨 Webhook received - Phone: ${message.from}, Type: ${message.type}, Text: ${message.text?.body || 'N/A'}`);
-      
+
       // Check cache first
       const cached = this.phoneNumberIdCache.get(phoneNumberId);
       if (cached && (Date.now() - cached.timestamp) < this.CACHE_TTL) {
@@ -844,16 +854,16 @@ export class WhatsappService {
 
       // Cache miss - find tenant
       const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
-      
+
       for (const tenant of tenants) {
         const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
         const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-        
+
         const settings = await tenantClient.whatsAppSettings.findFirst({
           where: { phoneNumberId },
           select: { id: true }
         });
-        
+
         if (settings) {
           // Cache the mapping
           this.phoneNumberIdCache.set(phoneNumberId, {
@@ -861,7 +871,7 @@ export class WhatsappService {
             settingsId: settings.id,
             timestamp: Date.now()
           });
-          
+
           await this.processMessageForTenant(message, phoneNumberId, tenant.id, settings.id);
           return;
         }
@@ -875,20 +885,20 @@ export class WhatsappService {
   // private async processMessageForTenant(message: any, phoneNumberId: string, tenantId: number, settingsId: number) {
   //   const dbUrl = await this.getTenantDbUrl(tenantId);
   //   const tenantClient = this.tenantPrisma.getTenantClient(tenantId.toString(), dbUrl);
-    
+
   //   const from = message.from;
   //   const messageId = message.id;
   //   let text = message.text?.body;
-    
+
   //   // 🔥 ROUTE BASED ON PHONE NUMBER ID
   //   const routing = await this.phoneRouter.routeMessage(phoneNumberId, message, settingsId, tenantClient, tenantId);
   //   this.logger.log(`📍 Routing: ${routing.route} for phone ${phoneNumberId}`);
-    
+
   //   // Handle Meta Catalog order messages
   //   if (message.type === 'order') {
   //     const order = message.order;
   //     this.logger.log('🛒 Meta Catalog order received:', JSON.stringify(order, null, 2));
-      
+
   //     const whatsappSettings = await tenantClient.whatsAppSettings.findFirst();
   //     if (whatsappSettings) {
   //       const metaCatalogService = this.ecommerceService['metaCatalogService'];
@@ -899,22 +909,22 @@ export class WhatsappService {
   //     }
   //     return;
   //   }
-    
+
   //   if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
   //     text = message.interactive.button_reply.id;
   //   }
-    
+
   //   if (message.type === 'interactive' && message.interactive?.type === 'list_reply') {
   //     text = message.interactive.list_reply.id;
   //   }
-    
+
   //   // Quick duplicate check
   //   const existingMessage = await tenantClient.whatsAppMessage.findUnique({ where: { messageId } });
   //   if (existingMessage) {
   //     this.logger.log(`Message ${messageId} already exists, skipping`);
   //     return;
   //   }
-    
+
   //   // Store message with phoneNumberId
   //   tenantClient.whatsAppMessage.create({
   //     data: {
@@ -927,19 +937,19 @@ export class WhatsappService {
   //       phoneNumberId,
   //     }
   //   }).catch(e => this.logger.error('Message store error:', e.message));
-    
+
   //   this.logger.log(`✓ Message stored successfully`);
-    
+
   //   // Process immediately
   //   if (text) {
   //     const lowerText = text.toLowerCase().trim();
-      
+
   //     // Get settings once
   //     const whatsappSettings = await tenantClient.whatsAppSettings.findFirst({
   //       where: { phoneNumberId }
   //     });
   //     if (!whatsappSettings) return;
-      
+
   //     // 🔥 CAMPAIGNS-ONLY NUMBER: Block incoming messages
   //     if (routing.route === 'campaigns-only') {
   //       this.logger.log('⛔ Campaigns-only number - ignoring incoming message');
@@ -956,20 +966,20 @@ export class WhatsappService {
   //     } catch (error) {
   //       this.logger.error('Flow trigger error:', error);
   //     }
-      
+
   //     // 🔥 ECOMMERCE NUMBER: Route to catalog
   //     if (routing.route === 'ecommerce') {
   //       await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantId);
   //       return;
   //     }
-      
+
   //     // Check for ecommerce keywords first (before routing to AI bot)
   //    if (this.isEcommerceMessage(lowerText)) {
   //       await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantId);
   //       this.logger.log(`✅ Ecommerce keyword handled`);
   //       return;
   //     }
-      
+
   //     // 🔥 AI BOT NUMBER: Route to chatbot
   //     if (routing.route === 'ai-bot') {
   //       const chatResponse = await this.chatbotService.processMessage(tenantId, { message: text, phone: from });
@@ -978,7 +988,7 @@ export class WhatsappService {
   //       }
   //       return;
   //     }
-      
+
   //     // 🔥 QUICK REPLY NUMBER: Route to session service
   //     if (routing.route === 'quick-reply') {
   //       await this.sessionService.handleInteractiveMenu(from, text, settingsId, 
@@ -994,7 +1004,7 @@ export class WhatsappService {
   //       );
   //       return;
   //     }
-      
+
   //     // Check if user is in Meta Catalog order flow first
   //     const metaCatalogService = this.ecommerceService['metaCatalogService'];
   //     if (metaCatalogService) {
@@ -1004,14 +1014,14 @@ export class WhatsappService {
   //         return;
   //       }
   //     }
-      
+
   //     // Check for ecommerce keywords
   //     if (this.isEcommerceMessage(lowerText))
   //       await this.ecommerceService.handleIncomingMessage(from, text, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantId);
   //       this.logger.log(`✅ Ecommerce keyword handled`);
   //       return;
   //     }
-      
+
   //     // Check if user is in order flow
   //     const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, tenantId);
   //     if (orderResult === 'awaiting_address') {
@@ -1027,7 +1037,7 @@ export class WhatsappService {
   //       await this.sendMessageDirect(from, '✅ Order placed successfully! We will contact you soon for delivery. Thank you for shopping with us!', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
   //       return;
   //     }
-      
+
   //     // Try session service for auto-reply/quick-reply
   //     const sessionHandled = await this.sessionService.handleInteractiveMenu(from, text, settingsId, 
   //       async (to, msg, imageUrl) => {
@@ -1062,7 +1072,6 @@ export class WhatsappService {
     this.logger.log(`📨 Webhook received - Phone: ${from}, Type: ${message.type}, Text: ${text || 'N/A'}`);
     this.logger.log(`Incoming media debug: image=${!!image}, video=${!!video}, document=${!!document}, audio=${!!audio}`);
   
-    // Get settings early because media download needs token
     const whatsappSettings = await tenantClient.whatsAppSettings.findFirst({
       where: { phoneNumberId }
     });
@@ -1072,13 +1081,12 @@ export class WhatsappService {
       return;
     }
   
-    // Download media if incoming message contains media
     const apiUrl = process.env.WHATSAPP_API_URL;
-
+  
     if (!apiUrl) {
-      throw new Error("WHATSAPP_API_URL is missing in env");
+      throw new Error('WHATSAPP_API_URL is missing in env');
     }
-    
+  
     if (image) {
       mediaType = 'image';
       mediaUrl = await this.downloadMediaDirect(
@@ -1108,13 +1116,18 @@ export class WhatsappService {
         apiUrl
       );
     }
-    
+  
     this.logger.log(`Resolved media => type=${mediaType}, url=${mediaUrl}`);
-    // 🔥 ROUTE BASED ON PHONE NUMBER ID
-    const routing = await this.phoneRouter.routeMessage(phoneNumberId, message, settingsId, tenantClient, tenantId);
+  
+    const routing = await this.phoneRouter.routeMessage(
+      phoneNumberId,
+      message,
+      settingsId,
+      tenantClient,
+      tenantId
+    );
     this.logger.log(`📍 Routing: ${routing.route} for phone ${phoneNumberId}`);
   
-    // Handle Meta Catalog order messages
     if (message.type === 'order') {
       const order = message.order;
       this.logger.log('🛒 Meta Catalog order received:', JSON.stringify(order, null, 2));
@@ -1135,7 +1148,6 @@ export class WhatsappService {
       text = message.interactive.list_reply.id;
     }
   
-    // Quick duplicate check
     const existingMessage = await tenantClient.whatsAppMessage.findUnique({
       where: { messageId }
     });
@@ -1145,7 +1157,6 @@ export class WhatsappService {
       return;
     }
   
-    // Store message WITH media fields
     await tenantClient.whatsAppMessage.create({
       data: {
         messageId,
@@ -1162,11 +1173,35 @@ export class WhatsappService {
   
     this.logger.log(`✓ Message stored successfully`);
   
-    // Only process text messages in chatbot/ecommerce/session flow
     if (text) {
       const lowerText = text.toLowerCase().trim();
+      const currentStep = await this.ecommerceService['sessionService'].getStep(from, tenantId);
   
-      // 🔥 CAMPAIGNS-ONLY NUMBER: Block incoming messages
+      // PRIORITY 1: Ecommerce checkout flow
+      if (this.isEcommerceCheckoutStep(currentStep)) {
+        this.logger.log(`🛒 Ecommerce checkout step detected: ${currentStep}`);
+  
+        const orderResult = await this.ecommerceService.createOrderFromMessage(
+          from,
+          text,
+          tenantId,
+          whatsappSettings.accessToken,
+          whatsappSettings.phoneNumberId
+        );
+  
+        if (
+          orderResult === 'awaiting_name' ||
+          orderResult === 'awaiting_address' ||
+          orderResult === 'awaiting_city' ||
+          orderResult === 'awaiting_pincode' ||
+          orderResult === 'awaiting_payment_method' ||
+          orderResult === 'order_placed'
+        ) {
+          this.logger.log(`✅ Ecommerce checkout handled with result: ${orderResult}`);
+          return;
+        }
+      }
+  
       if (routing.route === 'campaigns-only') {
         this.logger.log('⛔ Campaigns-only number - ignoring incoming message');
         return;
@@ -1287,21 +1322,46 @@ export class WhatsappService {
         return;
       }
   
-      // 🔥 QUICK REPLY NUMBER: Route to session service
+      // Quick reply route
       if (routing.route === 'quick-reply') {
-        // Check current session to determine which flow
-        const currentStep = await this.ecommerceService['sessionService'].getStep(from, tenantId);
         const session = await this.ecommerceService['sessionService'].getSession(from, tenantId);
         const paymentMethod = session?.paymentMethod;
-        
-        // If user is in confirm_details step AND payment method is already COD, use regular ecommerce
+  
         if (currentStep === 'confirm_details' && paymentMethod === 'COD') {
-          const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, tenantId, whatsappSettings.accessToken, whatsappSettings.phoneNumberId);
-          if (orderResult === 'order_placed' || orderResult === 'awaiting_name' || orderResult === 'awaiting_address') {
-            if (orderResult === 'awaiting_address') {
-              await this.sendMessageDirect(from, 'Thank you! Now please provide your complete delivery address:', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
-            }
+          const orderResult = await this.ecommerceService.createOrderFromMessage(
+            from,
+            text,
+            tenantId,
+            whatsappSettings.accessToken,
+            whatsappSettings.phoneNumberId
+          );
+  
+          if (
+            orderResult === 'order_placed' ||
+            orderResult === 'awaiting_name' ||
+            orderResult === 'awaiting_address' ||
+            orderResult === 'awaiting_city' ||
+            orderResult === 'awaiting_pincode' ||
+            orderResult === 'awaiting_payment_method'
+          ) {
             return;
+          }
+        }
+  
+        // IMPORTANT: Meta flow only if NOT in ecommerce checkout
+        if (!this.isEcommerceCheckoutStep(currentStep)) {
+          const metaCatalogService = this.ecommerceService['metaCatalogService'];
+          if (metaCatalogService) {
+            const handled = await metaCatalogService.handleCustomerResponse(
+              from,
+              whatsappSettings.phoneNumberId,
+              text,
+              tenantId
+            );
+            if (handled) {
+              this.logger.log('✅ Meta Catalog order flow handled in quick-reply');
+              return;
+            }
           }
         }
         
@@ -1350,69 +1410,44 @@ export class WhatsappService {
         return;
       }
   
-      // Check if user is in Meta Catalog order flow first
-      const metaCatalogService = this.ecommerceService['metaCatalogService'];
-      if (metaCatalogService) {
-        const handled = await metaCatalogService.handleCustomerResponse(
-          from,
-          whatsappSettings.phoneNumberId,
-          text,
-          tenantId
-        );
+      // IMPORTANT: Meta flow only if NOT in ecommerce checkout
+      if (!this.isEcommerceCheckoutStep(currentStep)) {
+        const metaCatalogService = this.ecommerceService['metaCatalogService'];
+        if (metaCatalogService) {
+          const handled = await metaCatalogService.handleCustomerResponse(
+            from,
+            whatsappSettings.phoneNumberId,
+            text,
+            tenantId
+          );
   
-        if (handled) {
-          this.logger.log('✅ Meta Catalog order flow handled');
-          return;
+          if (handled) {
+            this.logger.log('✅ Meta Catalog order flow handled');
+            return;
+          }
         }
       }
   
-      // Check for ecommerce keywords
-      if (this.isEcommerceMessage(lowerText)) {
-        await this.ecommerceService.handleIncomingMessage(
-          from,
-          text,
-          whatsappSettings.accessToken,
-          whatsappSettings.phoneNumberId,
-          tenantId
-        );
-        this.logger.log(`✅ Ecommerce keyword handled`);
+      const orderResult = await this.ecommerceService.createOrderFromMessage(
+        from,
+        text,
+        tenantId,
+        whatsappSettings.accessToken,
+        whatsappSettings.phoneNumberId
+      );
+  
+      if (
+        orderResult === 'awaiting_name' ||
+        orderResult === 'awaiting_address' ||
+        orderResult === 'awaiting_city' ||
+        orderResult === 'awaiting_pincode' ||
+        orderResult === 'awaiting_payment_method' ||
+        orderResult === 'order_placed'
+      ) {
+        this.logger.log(`✅ Ecommerce order flow handled with result: ${orderResult}`);
         return;
       }
   
-      // Check if user is in order flow
-      const orderResult = await this.ecommerceService.createOrderFromMessage(from, text, tenantId, whatsappSettings.accessToken, whatsappSettings.phoneNumberId);
-      if (orderResult === 'awaiting_address') {
-        await this.sendMessageDirect(
-          from,
-          'Thank you! Now please provide your complete delivery address:',
-          whatsappSettings.accessToken,
-          whatsappSettings.phoneNumberId,
-          tenantClient
-        );
-        return;
-      } else if (orderResult === 'awaiting_city') {
-        await this.sendMessageDirect(
-          from,
-          'Thank you! Now please provide your city:',
-          whatsappSettings.accessToken,
-          whatsappSettings.phoneNumberId,
-          tenantClient
-        );
-        return;
-      } else if (orderResult === 'awaiting_pincode') {
-        await this.sendMessageDirect(
-          from,
-          'Thank you! Finally, please provide your pincode:',
-          whatsappSettings.accessToken,
-          whatsappSettings.phoneNumberId,
-          tenantClient
-        );
-        return;
-      } else if (orderResult === 'order_placed') {
-        return;
-      }
-  
-      // Try session service for auto-reply/quick-reply
       await this.sessionService.handleInteractiveMenu(
         from,
         text,
@@ -1463,16 +1498,16 @@ export class WhatsappService {
   async updateMessageStatusWithoutContext(messageId: string, status: string, phoneNumberId: string) {
     try {
       const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
-      
+
       for (const tenant of tenants) {
         const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
         const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-        
+
         const updated = await tenantClient.whatsAppMessage.updateMany({
           where: { messageId },
           data: { status }
         });
-        
+
         if (updated.count > 0) {
           this.logger.log(`Message ${messageId} status updated to ${status}`);
           return;
@@ -1568,7 +1603,7 @@ export class WhatsappService {
           title: button.length > 20 ? button.substring(0, 20) : button
         }
       }));
-      
+
       const response = await axios.post(
         `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
         {
@@ -1613,12 +1648,12 @@ export class WhatsappService {
   async sendBulkTemplateMessage(phoneNumbers: string[], templateName: string, userId: number, parameters?: any[]) {
     const settings = await this.getSettings(userId);
     const results: Array<{ phoneNumber: string; success: boolean; messageId?: string; error?: string }> = [];
-   
+
     for (const phoneNumber of phoneNumbers) {
       try {
         // Build template components
         const components: any[] = [];
-        
+
         // Add body parameters if provided
         if (parameters && parameters.length > 0) {
           components.push({
@@ -1626,7 +1661,7 @@ export class WhatsappService {
             parameters: parameters.map(param => ({ type: 'text', text: param }))
           });
         }
-        
+
         const response = await axios.post(
           `${settings.apiUrl}/${settings.phoneNumberId}/messages`,
           {
@@ -1668,13 +1703,13 @@ export class WhatsappService {
     return results;
   }
 
-  async sendBulkTemplateMessageWithNames(contacts: Array<{name: string; phone: string}>, templateName: string, userId: number, settingsId?: number, headerImageUrl?: string) {
+  async sendBulkTemplateMessageWithNames(contacts: Array<{ name: string; phone: string }>, templateName: string, userId: number, settingsId?: number, headerImageUrl?: string) {
     // Use campaigns feature assignment
     const { phoneNumberId, accessToken, apiUrl } = await this.getPhoneCredentials('campaigns', userId);
     const language = 'en'; // Default language
-    
+
     const results: Array<{ phoneNumber: string; success: boolean; messageId?: string; error?: string }> = [];
-   
+
     for (const contact of contacts) {
       const validationError = this.validatePhoneNumber(contact.phone);
       if (validationError) {
@@ -1687,24 +1722,24 @@ export class WhatsappService {
       try {
         this.logger.log(`Sending campaign message to ${formattedPhone} with template ${templateName}`);
         this.logger.log(`Using phone number: ${phoneNumberId}`);
-        
+
         const components: any[] = [];
-        
+
         if (headerImageUrl && headerImageUrl.trim() !== '' && headerImageUrl.startsWith('http')) {
           // Get template information to determine the correct header format
           let headerFormat = 'IMAGE'; // Default fallback
-          
+
           try {
             // Try to get template from database to determine actual header format
             const template = await this.prisma.messageTemplate.findFirst({
               where: { name: templateName }
             });
-            
+
             if (template && template.components) {
-              const templateComponents = typeof template.components === 'string' 
-                ? JSON.parse(template.components) 
+              const templateComponents = typeof template.components === 'string'
+                ? JSON.parse(template.components)
                 : template.components;
-              
+
               const headerComponent = templateComponents.find((c: any) => c.type === 'HEADER');
               if (headerComponent && headerComponent.format) {
                 headerFormat = headerComponent.format;
@@ -1716,7 +1751,7 @@ export class WhatsappService {
             // Fallback to file extension detection
             const isVideo = /\.(mp4|avi|mov)$/i.test(headerImageUrl);
             const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i.test(headerImageUrl);
-            
+
             if (isDocument) {
               headerFormat = 'DOCUMENT';
             } else if (isVideo) {
@@ -1725,10 +1760,10 @@ export class WhatsappService {
               headerFormat = 'IMAGE';
             }
           }
-          
+
           // Use the determined format
           const mediaType = headerFormat.toLowerCase();
-          
+
           components.push({
             type: 'header',
             parameters: [
@@ -1741,12 +1776,12 @@ export class WhatsappService {
             ]
           });
         }
-        
+
         // Add body parameters if the template has variables
         try {
           // First try to find the actual template name from database
           const dbTemplate = await this.prisma.messageTemplate.findFirst({
-            where: { 
+            where: {
               OR: [
                 { name: templateName },
                 { name: { startsWith: templateName + '_v' } } // Handle versioned names
@@ -1754,22 +1789,22 @@ export class WhatsappService {
             },
             orderBy: { updatedAt: 'desc' } // Get the most recent version
           });
-          
+
           const actualTemplateName = dbTemplate?.name || templateName;
           this.logger.log(`Using actual template name: ${actualTemplateName}`);
-          
+
           if (dbTemplate && dbTemplate.components) {
-            const templateComponents = typeof dbTemplate.components === 'string' 
-              ? JSON.parse(dbTemplate.components) 
+            const templateComponents = typeof dbTemplate.components === 'string'
+              ? JSON.parse(dbTemplate.components)
               : dbTemplate.components;
-            
+
             const bodyComponent = templateComponents.find((c: any) => c.type === 'BODY');
             if (bodyComponent && bodyComponent.text) {
               // Count variables in body text ({{1}}, {{2}}, etc.)
               const variables = bodyComponent.text.match(/{{\d+}}/g);
               if (variables && variables.length > 0) {
                 this.logger.log(`Template ${actualTemplateName} has ${variables.length} body parameters, using contact name: ${contact.name}`);
-                
+
                 // Create parameters array - use contact name for first parameter, repeat if more needed
                 const bodyParameters: Array<{ type: string; text: string }> = [];
                 for (let i = 0; i < variables.length; i++) {
@@ -1778,7 +1813,7 @@ export class WhatsappService {
                     text: contact.name || 'Customer'
                   });
                 }
-                
+
                 components.push({
                   type: 'body',
                   parameters: bodyParameters
@@ -1791,12 +1826,12 @@ export class WhatsappService {
         } catch (error) {
           this.logger.warn('Could not determine template body parameters:', error.message);
         }
-        
+
         // Get the actual template name to use for sending
         let actualTemplateName = templateName;
         try {
           const dbTemplate = await this.prisma.messageTemplate.findFirst({
-            where: { 
+            where: {
               OR: [
                 { name: templateName },
                 { name: { startsWith: templateName + '_v' } }
@@ -1804,7 +1839,7 @@ export class WhatsappService {
             },
             orderBy: { updatedAt: 'desc' }
           });
-          
+
           if (dbTemplate) {
             actualTemplateName = dbTemplate.name;
             this.logger.log(`Using actual template name for sending: ${actualTemplateName}`);
@@ -1812,7 +1847,7 @@ export class WhatsappService {
         } catch (error) {
           this.logger.warn('Could not find template in database, using original name:', templateName);
         }
-        
+
         const requestBody = {
           messaging_product: 'whatsapp',
           to: formattedPhone,
@@ -1823,7 +1858,7 @@ export class WhatsappService {
             ...(components.length > 0 && { components })
           }
         };
-        
+
         const response = await axios.post(
           `${apiUrl}/${phoneNumberId}/messages`,
           requestBody,
@@ -1867,36 +1902,36 @@ export class WhatsappService {
       return 'Phone number is required';
     }
     const cleanPhone = phone.replace(/[^0-9]/g, '');
-   
+
     if (cleanPhone.length < 10 || cleanPhone.length > 15) {
       return 'Invalid phone number format';
     }
     if (!/^[1-9]/.test(cleanPhone)) {
       return 'Phone number cannot start with 0';
     }
-   
+
     // Block repeated digits (1111111111, 2222222222, etc.)
     if (/^(\d)\1{9,}$/.test(cleanPhone)) {
       return 'Invalid phone number - not registered on WhatsApp';
     }
-   
+
     // Block sequential numbers (1234567890, 0123456789)
     if (cleanPhone === '1234567890' || cleanPhone === '0123456789' ||
-        cleanPhone === '9876543210' || cleanPhone === '0987654321') {
+      cleanPhone === '9876543210' || cleanPhone === '0987654321') {
       return 'Invalid phone number - not registered on WhatsApp';
     }
-   
+
     return null;
   }
 
   private formatPhoneNumber(phone: string): string {
     const cleanPhone = phone.replace(/[^0-9]/g, '');
-    
+
     // If phone number is 10 digits and starts with 6-9, add India country code
     if (cleanPhone.length === 10 && /^[6-9]/.test(cleanPhone)) {
       return `91${cleanPhone}`;
     }
-    
+
     // If already has country code, return as is
     return cleanPhone;
   }
@@ -1973,11 +2008,11 @@ export class WhatsappService {
   }
 
   //assign subuser 
-  
-  
+
+
   async assignChatToSubUser(phone: string, subUserId: number) {
     const formattedPhone = this.formatPhoneNumber(phone);
-  
+
     return this.prisma.chatAssignment.upsert({
       where: { phone: formattedPhone },
       update: { subUserId },
@@ -1987,10 +2022,10 @@ export class WhatsappService {
       },
     });
   }
-  
+
   async getChatAssignment(phone: string) {
     const formattedPhone = this.formatPhoneNumber(phone);
-  
+
     return this.prisma.chatAssignment.findUnique({
       where: { phone: formattedPhone },
     });
@@ -1999,7 +2034,7 @@ export class WhatsappService {
     const assignments = await this.prisma.chatAssignment.findMany({
       orderBy: { updatedAt: 'desc' },
     });
-  
+
     const enriched = await Promise.all(
       assignments.map(async (a) => {
         const subUser = await this.centralPrisma.subUser.findUnique({
@@ -2010,14 +2045,14 @@ export class WhatsappService {
             designation: true,
           },
         });
-  
+
         const contact = await this.prisma.contact.findFirst({
           where: { phone: a.phone },
           include: {
             group: true,
           },
         });
-  
+
         return {
           id: a.id,
           phone: a.phone,
@@ -2031,12 +2066,12 @@ export class WhatsappService {
         };
       })
     );
-  
+
     return enriched;
   }
   async removeChatAssignment(phone: string) {
     const formattedPhone = this.formatPhoneNumber(phone);
-  
+
     return this.prisma.chatAssignment.deleteMany({
       where: { phone: formattedPhone },
     });

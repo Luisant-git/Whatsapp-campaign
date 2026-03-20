@@ -14,7 +14,7 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 250px;
+  width: 270px;
   height: 100vh;
   background: #f8f9fa;
   border-right: 1px solid #e0e0e0;
@@ -178,6 +178,13 @@
   border: none;
   cursor: pointer;
   transition: color 0.2s ease;
+}
+
+.nav-item span,
+.nav-subitem span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nav-subitem:hover {

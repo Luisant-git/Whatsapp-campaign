@@ -1217,11 +1217,11 @@ export class WhatsappService {
   
       // 🔥 AI BOT NUMBER: Check quick replies first, then route to chatbot
       if (routing.route === 'ai-bot') {
-        // Try quick replies and auto replies first
+        // Try quick replies and auto replies first (use tenantId, not settingsId)
         const sessionHandled = await this.sessionService.handleInteractiveMenu(
           from,
           text,
-          settingsId,
+          tenantId, // ✅ Use tenantId here, not settingsId
           async (to, msg, imageUrl) => {
             if (imageUrl) {
               return this.sendMediaMessageDirect(
@@ -1309,7 +1309,7 @@ export class WhatsappService {
           }
         }
         
-        await this.sessionService.handleInteractiveMenu(from, text, settingsId, 
+        await this.sessionService.handleInteractiveMenu(from, text, tenantId, // ✅ Use tenantId 
           async (to, msg, imageUrl) => {
             if (imageUrl) {
               return this.sendMediaMessageDirect(
@@ -1410,7 +1410,7 @@ export class WhatsappService {
       await this.sessionService.handleInteractiveMenu(
         from,
         text,
-        settingsId,
+        tenantId, // ✅ Use tenantId
         async (to, msg, imageUrl) => {
           if (imageUrl) {
             return this.sendMediaMessageDirect(

@@ -27,6 +27,8 @@ export class QuickReplyService {
   async getQuickReply(message: string, userId: number) {
     const prisma = await this.getPrisma(userId);
     const lowerMessage = message.toLowerCase().trim();
+    
+    console.log('[QuickReplyService] Searching for:', lowerMessage, 'userId:', userId);
 
     const quickReply = await prisma.quickReply.findFirst({
       where: {
@@ -36,6 +38,8 @@ export class QuickReplyService {
         },
       },
     });
+    
+    console.log('[QuickReplyService] Query result:', quickReply);
 
     return quickReply;
   }
@@ -82,8 +86,12 @@ export class QuickReplyService {
 
   async getAllQuickReplies(userId: number) {
     const prisma = await this.getPrisma(userId);
-    return prisma.quickReply.findMany({
+    const replies = await prisma.quickReply.findMany({
       orderBy: { createdAt: 'desc' },
     });
+    
+    console.log('[QuickReplyService] getAllQuickReplies for userId:', userId, 'found:', replies.length, 'replies');
+    
+    return replies;
   }
 }

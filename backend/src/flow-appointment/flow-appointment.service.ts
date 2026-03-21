@@ -41,10 +41,11 @@ export class FlowAppointmentService {
     });
   }
 
-  async saveAppointmentFromFlow(data: any, flowToken?: string) {
+  async saveAppointmentFromFlow(data: any, flowToken?: string, phoneNumber?: string) {
     try {
       console.log('🔍 Raw flow data received:', JSON.stringify(data, null, 2));
       console.log('🔍 Flow token:', flowToken);
+      console.log('📞 Phone number:', phoneNumber);
       
       // Extract data from nested structure if needed
       let appointmentData = data;
@@ -61,11 +62,21 @@ export class FlowAppointmentService {
         time: appointmentData.time || appointmentData.selected_time || appointmentData.time_slot || '',
         name: appointmentData.name || appointmentData.full_name || '',
         email: appointmentData.email || appointmentData.email_address || '',
-        phone: appointmentData.phone || appointmentData.phone_number || '',
+        phone: appointmentData.phone || appointmentData.phone_number || phoneNumber || '',
         moreDetails: appointmentData.moreDetails || appointmentData.more_details || appointmentData.additional_details || appointmentData.details || null,
       };
       
       console.log('💾 Appointment record to save:', JSON.stringify(appointmentRecord, null, 2));
+      
+      // Extract tenant ID from flow token
+      let targetTenantId: number | null = null;
+      if (flowToken) {
+        const tokenParts = flowToken.split('_');
+        if (tokenParts.length >= 3) {
+          targetTenantId = parseInt(tokenParts[2]);
+          console.log(`🎯 Flow token indicates tenant ID: ${targetTenantId}`);
+        }
+      }
       
       // Save to all active tenants to ensure it appears in all dashboards
       const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
@@ -79,6 +90,19 @@ export class FlowAppointmentService {
             data: appointmentRecord,
           });
           console.log(`✅ Flow appointment saved successfully to tenant ${tenant.id} (${tenant.name})`);
+          
+          // Send confirmation message only for the target tenant
+          if (tenant.id === targetTenantId && appointmentRecord.phone) {
+            const settings = await (tenantClient as any).whatsAppSettings.findFirst();
+            if (settings) {
+              await this.sendConfirmationMessage(
+                appointmentRecord.phone,
+                settings.accessToken,
+                settings.phoneNumberId,
+                tenantClient
+              );
+            }
+          }
         } catch (tenantError) {
           console.error(`❌ Error saving to tenant ${tenant.id}:`, tenantError.message);
         }
@@ -91,8 +115,9 @@ export class FlowAppointmentService {
 
   async saveAppointmentFromWebhook(responseData: any, phoneNumber: string, phoneNumberId: string) {
     try {
-      console.log('📋 Flow response received - checking if appointment already exists');
+      console.log('📋 Flow response received - processing appointment');
       console.log('Raw responseData:', JSON.stringify(responseData, null, 2));
+      console.log('Phone number:', phoneNumber);
       
       // Extract flow token to get tenant ID
       const flowToken = responseData.flow_token;
@@ -106,11 +131,61 @@ export class FlowAppointmentService {
         }
       }
       
-      // If we have appointment data in the response, it means the flow already saved it
-      // Don't create duplicate records
-      if (responseData.appointment_id || responseData.message === 'Appointment booked successfully!') {
-        console.log('✅ Appointment already processed by flow data exchange - skipping webhook save');
-        return;
+      // Send confirmation message when flow is completed
+      if (responseData.appointment_id || responseData.message) {
+        console.log('✅ Appointment flow completed - sending confirmation message');
+        
+        const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
+        console.log(`📊 Found ${tenants.length} active tenants`);
+        
+        // First try target tenant
+        for (const tenant of tenants) {
+          if (targetTenantId && tenant.id !== targetTenantId) continue;
+          
+          console.log(`🔍 Checking target tenant ${tenant.id} (${tenant.name})`);
+          
+          const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+          const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+          
+          let settings = await (tenantClient as any).whatsAppSettings.findFirst({
+            where: { phoneNumberId }
+          });
+          
+          if (!settings) {
+            settings = await (tenantClient as any).whatsAppSettings.findFirst();
+          }
+          
+          if (settings) {
+            console.log(`✅ Using settings from target tenant ${tenant.id}`);
+            await this.sendConfirmationMessage(phoneNumber, settings.accessToken, settings.phoneNumberId, tenantClient);
+            return;
+          }
+        }
+        
+        // Fallback: try any tenant with settings
+        console.log('⚠️ Target tenant has no settings, checking all tenants...');
+        for (const tenant of tenants) {
+          console.log(`🔍 Checking tenant ${tenant.id} (${tenant.name})`);
+          
+          const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+          const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+          
+          let settings = await (tenantClient as any).whatsAppSettings.findFirst({
+            where: { phoneNumberId }
+          });
+          
+          if (!settings) {
+            settings = await (tenantClient as any).whatsAppSettings.findFirst();
+          }
+          
+          if (settings) {
+            console.log(`✅ Using settings from tenant ${tenant.id}`);
+            await this.sendConfirmationMessage(phoneNumber, settings.accessToken, settings.phoneNumberId, tenantClient);
+            return;
+          }
+        }
+        
+        console.log('❌ No settings found in any tenant');
       }
       
       // Only save if we have actual appointment data (not just flow completion)
@@ -143,11 +218,63 @@ export class FlowAppointmentService {
             },
           });
           console.log('✅ Flow appointment saved successfully via webhook');
+          
+          // Send confirmation message
+          await this.sendConfirmationMessage(phoneNumber, settings.accessToken, settings.phoneNumberId, tenantClient);
           return;
         }
       }
     } catch (error) {
       console.error('Error saving flow appointment from webhook:', error);
+    }
+  }
+
+  private async sendConfirmationMessage(phoneNumber: string, accessToken: string, phoneNumberId: string, tenantClient: any) {
+    try {
+      console.log('📤 Attempting to send confirmation message...');
+      console.log('📞 To:', phoneNumber);
+      console.log('🔑 Phone Number ID:', phoneNumberId);
+      
+      const axios = require('axios');
+      const message = 'Thank you for sharing your details! Our team will contact you soon 😊.';
+      
+      const response = await axios.post(
+        `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          to: phoneNumber,
+          type: 'text',
+          text: { body: message }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('📨 WhatsApp API Response:', JSON.stringify(response.data, null, 2));
+
+      await tenantClient.whatsAppMessage.create({
+        data: {
+          messageId: response.data.messages[0].id,
+          to: phoneNumber,
+          from: phoneNumber,
+          message,
+          direction: 'outgoing',
+          status: 'sent',
+          phoneNumberId,
+        }
+      });
+
+      console.log('✅ Confirmation message sent successfully');
+    } catch (error) {
+      console.error('❌ Error sending confirmation message:', error.response?.data || error.message);
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', JSON.stringify(error.response.data, null, 2));
+      }
     }
   }
 

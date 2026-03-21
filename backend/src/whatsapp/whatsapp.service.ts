@@ -79,20 +79,12 @@ export class WhatsappService {
         'catalog',
         'products',
         'buy',
-        'buy now',
-        '🛒 buy now',
         'cod',
         'confirm',
         'update',
         'someone_else',
-        'use my details',
-        'update details',
-        'order for someone',
         'cash on delivery',
-        '💵 cash on delivery',
-        'payment_cod',
-        'payment_razorpay',
-        'pay online'
+        '💵 cash on delivery'
       ].includes(lowerText) ||
       lowerText.startsWith('cat:') ||
       lowerText.startsWith('sub:') ||
@@ -101,37 +93,6 @@ export class WhatsappService {
       lowerText.startsWith('var:') ||
       lowerText.startsWith('buyvar:')
     );
-  }
-
-  private async normalizeEcommerceText(
-    text: string,
-    from: string,
-    tenantId: number
-  ): Promise<string> {
-    const lowerText = text.toLowerCase().trim();
-  
-    if (lowerText === 'use my details') return 'confirm';
-    if (lowerText === 'update details') return 'update';
-    if (lowerText === 'order for someone') return 'someone_else';
-    if (lowerText === 'cash on delivery' || lowerText === '💵 cash on delivery') return 'cod';
-    if (lowerText === 'pay online') return 'payment_razorpay';
-  
-    if (lowerText === '🛒 buy now' || lowerText === 'buy now') {
-      const session = await this.ecommerceService['sessionService'].getSession(from, tenantId);
-      const cart = session?.cartProducts || [];
-      const selectedVariantId = session?.selectedVariantId ?? undefined;
-      const productId = cart.length > 0 ? (cart[0].productId || cart[0].id) : null;
-  
-      if (productId && selectedVariantId) {
-        return `buyvar:${productId}:${selectedVariantId}`;
-      }
-  
-      if (productId) {
-        return `buy:${productId}`;
-      }
-    }
-  
-    return text;
   }
 
   async handleIncomingMessage(message: any, userId: number) {
@@ -1030,7 +991,7 @@ export class WhatsappService {
 
   //     // 🔥 QUICK REPLY NUMBER: Route to session service
   //     if (routing.route === 'quick-reply') {
-  //       await this.sessionService.handleInteractiveMenu(from, text, settingsId, 
+  //       await this.sessionService.handleInteractiveMenu(from, text, settingsId,
   //         async (to, msg, imageUrl) => {
   //           if (imageUrl) {
   //             return this.sendMediaMessageDirect(to, imageUrl, 'image', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient, msg);
@@ -1078,7 +1039,7 @@ export class WhatsappService {
   //     }
 
   //     // Try session service for auto-reply/quick-reply
-  //     const sessionHandled = await this.sessionService.handleInteractiveMenu(from, text, settingsId, 
+  //     const sessionHandled = await this.sessionService.handleInteractiveMenu(from, text, settingsId,
   //       async (to, msg, imageUrl) => {
   //         if (imageUrl) {
   //           return this.sendMediaMessageDirect(to, imageUrl, 'image', whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient, msg);
@@ -1095,52 +1056,69 @@ export class WhatsappService {
   private async processMessageForTenant(message: any, phoneNumberId: string, tenantId: number, settingsId: number) {
     const dbUrl = await this.getTenantDbUrl(tenantId);
     const tenantClient = this.tenantPrisma.getTenantClient(tenantId.toString(), dbUrl);
-  
+ 
     const from = message.from;
     const messageId = message.id;
     let text = message.text?.body;
-  
+ 
     const image = message.image;
     const video = message.video;
     const document = message.document;
     const audio = message.audio;
-  
+ 
     let mediaType: string | null = null;
     let mediaUrl: string | null = null;
-  
+ 
     this.logger.log(`📨 Webhook received - Phone: ${from}, Type: ${message.type}, Text: ${text || 'N/A'}`);
     this.logger.log(`Incoming media debug: image=${!!image}, video=${!!video}, document=${!!document}, audio=${!!audio}`);
-  
+ 
     const whatsappSettings = await tenantClient.whatsAppSettings.findFirst({
       where: { phoneNumberId }
     });
-  
+ 
     if (!whatsappSettings) {
       this.logger.warn(`No WhatsApp settings found for phoneNumberId: ${phoneNumberId}`);
       return;
     }
-  
+ 
     const apiUrl = process.env.WHATSAPP_API_URL;
+ 
     if (!apiUrl) {
       throw new Error('WHATSAPP_API_URL is missing in env');
     }
-  
+ 
     if (image) {
       mediaType = 'image';
-      mediaUrl = await this.downloadMediaDirect(image.id, whatsappSettings.accessToken, apiUrl);
+      mediaUrl = await this.downloadMediaDirect(
+        image.id,
+        whatsappSettings.accessToken,
+        apiUrl
+      );
     } else if (video) {
       mediaType = 'video';
-      mediaUrl = await this.downloadMediaDirect(video.id, whatsappSettings.accessToken, apiUrl);
+      mediaUrl = await this.downloadMediaDirect(
+        video.id,
+        whatsappSettings.accessToken,
+        apiUrl
+      );
     } else if (document) {
       mediaType = 'document';
-      mediaUrl = await this.downloadMediaDirect(document.id, whatsappSettings.accessToken, apiUrl);
+      mediaUrl = await this.downloadMediaDirect(
+        document.id,
+        whatsappSettings.accessToken,
+        apiUrl
+      );
     } else if (audio) {
       mediaType = 'audio';
-      mediaUrl = await this.downloadMediaDirect(audio.id, whatsappSettings.accessToken, apiUrl);
+      mediaUrl = await this.downloadMediaDirect(
+        audio.id,
+        whatsappSettings.accessToken,
+        apiUrl
+      );
     }
-  
+ 
     this.logger.log(`Resolved media => type=${mediaType}, url=${mediaUrl}`);
-  
+ 
     const routing = await this.phoneRouter.routeMessage(
       phoneNumberId,
       message,
@@ -1149,12 +1127,11 @@ export class WhatsappService {
       tenantId
     );
     this.logger.log(`📍 Routing: ${routing.route} for phone ${phoneNumberId}`);
-  
-    // Meta catalog order webhook event
+ 
     if (message.type === 'order') {
       const order = message.order;
       this.logger.log('🛒 Meta Catalog order received:', JSON.stringify(order, null, 2));
-  
+ 
       const metaCatalogService = this.ecommerceService['metaCatalogService'];
       if (metaCatalogService) {
         await metaCatalogService.handleOrderMessage(from, whatsappSettings.phoneNumberId, order, tenantId);
@@ -1162,31 +1139,26 @@ export class WhatsappService {
       }
       return;
     }
-  
-    // Interactive replies
+ 
     if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
-      text = message.interactive.button_reply.id;
+      const buttonTitle = message.interactive.button_reply.title;
+      text = buttonTitle; // Use button title instead of ID
+      console.log(`[WhatsappService] Button clicked: ${buttonTitle} (ID: ${message.interactive.button_reply.id})`);
     }
-  
+ 
     if (message.type === 'interactive' && message.interactive?.type === 'list_reply') {
       text = message.interactive.list_reply.id;
     }
-  
-    if (text) {
-      text = await this.normalizeEcommerceText(text, from, tenantId);
-    }
-  
-    // Duplicate check
+ 
     const existingMessage = await tenantClient.whatsAppMessage.findUnique({
       where: { messageId }
     });
-  
+ 
     if (existingMessage) {
       this.logger.log(`Message ${messageId} already exists, skipping`);
       return;
     }
-  
-    // Store incoming message
+ 
     await tenantClient.whatsAppMessage.create({
       data: {
         messageId,
@@ -1200,162 +1172,49 @@ export class WhatsappService {
         phoneNumberId,
       }
     });
-  
+ 
     this.logger.log(`✓ Message stored successfully`);
-  
-    if (!text) return;
-  
-    const lowerText = text.toLowerCase().trim();
-    const currentStep = await this.ecommerceService['sessionService'].getStep(from, tenantId);
-  
-    // PRIORITY 1: If user is in ecommerce checkout, handle that first
-    if (this.isEcommerceCheckoutStep(currentStep)) {
-      this.logger.log(`🛒 Ecommerce checkout step detected: ${currentStep}`);
-  
-      const orderResult = await this.ecommerceService.createOrderFromMessage(
-        from,
-        text,
-        tenantId,
-        whatsappSettings.accessToken,
-        whatsappSettings.phoneNumberId
-      );
-  
-      if (
-        orderResult === 'awaiting_name' ||
-        orderResult === 'awaiting_address' ||
-        orderResult === 'awaiting_city' ||
-        orderResult === 'awaiting_pincode' ||
-        orderResult === 'awaiting_payment_method' ||
-        orderResult === 'order_placed'
-      ) {
-        this.logger.log(`✅ Ecommerce checkout handled with result: ${orderResult}`);
-        return;
-      }
-    }
-  
-    // Campaign-only numbers ignore inbound
-    if (routing.route === 'campaigns-only') {
-      this.logger.log('⛔ Campaigns-only number - ignoring incoming message');
-      return;
-    }
-  
-    // Flow triggers
-    try {
-      const flowResult = await this.flowTriggerService.checkAndSendFlowWithClient(
-        text,
-        from,
-        tenantClient,
-        whatsappSettings.accessToken,
-        whatsappSettings.phoneNumberId
-      );
-  
-      if (flowResult?.success) {
-        this.logger.log(`✅ Flow triggered: ${flowResult.trigger.name}`);
-        return;
-      }
-    } catch (error) {
-      this.logger.error('Flow trigger error:', error);
-    }
-  
-    // Route directly to ecommerce number
-    if (routing.route === 'ecommerce') {
-      await this.ecommerceService.handleIncomingMessage(
-        from,
-        text,
-        whatsappSettings.accessToken,
-        whatsappSettings.phoneNumberId,
-        tenantId
-      );
-      this.logger.log(`✅ Routed directly to ecommerce`);
-      return;
-    }
-  
-    // Ecommerce keyword / action handling
-    if (this.isEcommerceMessage(lowerText)) {
-      await this.ecommerceService.handleIncomingMessage(
-        from,
-        text,
-        whatsappSettings.accessToken,
-        whatsappSettings.phoneNumberId,
-        tenantId
-      );
-      this.logger.log(`✅ Ecommerce keyword handled`);
-      return;
-    }
-  
-    // AI bot route
-    if (routing.route === 'ai-bot') {
-      const chatResponse = await this.chatbotService.processMessage(tenantId, {
-        message: text,
-        phone: from
-      });
-  
-      if (chatResponse.response) {
-        await this.sendMessageDirect(
-          from,
-          chatResponse.response,
-          whatsappSettings.accessToken,
-          whatsappSettings.phoneNumberId,
-          tenantClient
-        );
-      }
-      return;
-    }
-  
-    // Quick reply route - ecommerce first, meta later
-    if (routing.route === 'quick-reply') {
-      const orderResult = await this.ecommerceService.createOrderFromMessage(
-        from,
-        text,
-        tenantId,
-        whatsappSettings.accessToken,
-        whatsappSettings.phoneNumberId
-      );
-  
-      if (
-        orderResult === 'order_placed' ||
-        orderResult === 'awaiting_name' ||
-        orderResult === 'awaiting_address' ||
-        orderResult === 'awaiting_city' ||
-        orderResult === 'awaiting_pincode' ||
-        orderResult === 'awaiting_payment_method'
-      ) {
-        this.logger.log(`✅ Ecommerce flow handled in quick-reply with result: ${orderResult}`);
-        return;
-      }
-  
-      if (this.isEcommerceMessage(lowerText)) {
-        await this.ecommerceService.handleIncomingMessage(
+ 
+    if (text) {
+      const lowerText = text.toLowerCase().trim();
+      const currentStep = await this.ecommerceService['sessionService'].getStep(from, tenantId);
+ 
+      // PRIORITY 1: Ecommerce checkout flow
+      if (this.isEcommerceCheckoutStep(currentStep)) {
+        this.logger.log(`🛒 Ecommerce checkout step detected: ${currentStep}`);
+ 
+        const orderResult = await this.ecommerceService.createOrderFromMessage(
           from,
           text,
+          tenantId,
           whatsappSettings.accessToken,
-          whatsappSettings.phoneNumberId,
-          tenantId
+          whatsappSettings.phoneNumberId
         );
-        this.logger.log(`✅ Ecommerce keyword handled in quick-reply`);
-        return;
-      }
-  
-      if (!this.isEcommerceCheckoutStep(currentStep)) {
-        const metaCatalogService = this.ecommerceService['metaCatalogService'];
-        if (metaCatalogService) {
-          const handled = await metaCatalogService.handleCustomerResponse(
-            from,
-            whatsappSettings.phoneNumberId,
-            text,
-            tenantId
-          );
-          if (handled) {
-            this.logger.log('✅ Meta Catalog order flow handled in quick-reply');
-            return;
-          }
+ 
+        if (
+          orderResult === 'awaiting_name' ||
+          orderResult === 'awaiting_address' ||
+          orderResult === 'awaiting_city' ||
+          orderResult === 'awaiting_pincode' ||
+          orderResult === 'awaiting_payment_method' ||
+          orderResult === 'order_placed'
+        ) {
+          this.logger.log(`✅ Ecommerce checkout handled with result: ${orderResult}`);
+          return;
         }
       }
-  
-      await this.sessionService.handleInteractiveMenu(
+ 
+      if (routing.route === 'campaigns-only') {
+        this.logger.log('⛔ Campaigns-only number - ignoring incoming message');
+        return;
+      }
+ 
+      // 🔥 PRIORITY 1: Check Quick Replies first
+      this.logger.log('🔍 [Priority 1] Checking Quick Replies...');
+      const quickReplyHandled = await this.sessionService.handleInteractiveMenu(
         from,
         text,
-        settingsId,
+        tenantId,
         async (to, msg, imageUrl) => {
           if (imageUrl) {
             return this.sendMediaMessageDirect(
@@ -1386,88 +1245,250 @@ export class WhatsappService {
             tenantClient
           );
         }
-      );
-      return;
-    }
-  
-    // Ecommerce order flow BEFORE Meta flow
-    const orderResult = await this.ecommerceService.createOrderFromMessage(
-      from,
-      text,
-      tenantId,
-      whatsappSettings.accessToken,
-      whatsappSettings.phoneNumberId
-    );
-  
-    if (
-      orderResult === 'awaiting_name' ||
-      orderResult === 'awaiting_address' ||
-      orderResult === 'awaiting_city' ||
-      orderResult === 'awaiting_pincode' ||
-      orderResult === 'awaiting_payment_method' ||
-      orderResult === 'order_placed'
-    ) {
-      this.logger.log(`✅ Ecommerce order flow handled with result: ${orderResult}`);
-      return;
-    }
-  
-    // Meta only if ecommerce did not handle
-    if (!this.isEcommerceCheckoutStep(currentStep)) {
-      const metaCatalogService = this.ecommerceService['metaCatalogService'];
-      if (metaCatalogService) {
-        const handled = await metaCatalogService.handleCustomerResponse(
-          from,
-          whatsappSettings.phoneNumberId,
+      ).catch(e => {
+        this.logger.error('Quick Reply error:', e);
+        return false;
+      });
+
+      if (quickReplyHandled) {
+        this.logger.log('✅ [Priority 1] Quick Reply handled');
+        return;
+      }
+
+      // 🔥 PRIORITY 2: Check Flow Triggers
+      this.logger.log('🔍 [Priority 2] Checking Flow Triggers...');
+      try {
+        const flowResult = await this.flowTriggerService.checkAndSendFlowWithClient(
           text,
-          tenantId
+          from,
+          tenantClient,
+          whatsappSettings.accessToken,
+          whatsappSettings.phoneNumberId
         );
-  
-        if (handled) {
-          this.logger.log('✅ Meta Catalog order flow handled');
+ 
+        if (flowResult?.success) {
+          this.logger.log(`✅ [Priority 2] Flow triggered: ${flowResult.trigger.name}`);
           return;
         }
+      } catch (error) {
+        this.logger.error('Flow trigger error:', error);
       }
-    }
-  
-    // Session / auto-reply fallback
-    await this.sessionService.handleInteractiveMenu(
-      from,
-      text,
-      settingsId,
-      async (to, msg, imageUrl) => {
-        if (imageUrl) {
-          return this.sendMediaMessageDirect(
-            to,
-            imageUrl,
-            'image',
+ 
+      // 🔥 PRIORITY 3: Check Meta Catalog (Ecommerce)
+      this.logger.log('🔍 [Priority 3] Checking Meta Catalog...');
+     
+      // 🔥 ECOMMERCE NUMBER: Route to catalog
+      if (routing.route === 'ecommerce') {
+        await this.ecommerceService.handleIncomingMessage(
+          from,
+          text,
+          whatsappSettings.accessToken,
+          whatsappSettings.phoneNumberId,
+          tenantId
+        );
+        this.logger.log('✅ [Priority 3] Ecommerce route handled');
+        return;
+      }
+ 
+      // Check for ecommerce keywords
+      if (this.isEcommerceMessage(lowerText)) {
+        await this.ecommerceService.handleIncomingMessage(
+          from,
+          text,
+          whatsappSettings.accessToken,
+          whatsappSettings.phoneNumberId,
+          tenantId
+        );
+        this.logger.log(`✅ [Priority 3] Ecommerce keyword handled`);
+        return;
+      }
+ 
+      // 🔥 PRIORITY 4: AI Chatbot (only if assigned to ai-bot route)
+      if (routing.route === 'ai-bot') {
+        this.logger.log('🔍 [Priority 4] Routing to AI Chatbot...');
+        const chatResponse = await this.chatbotService.processMessage(tenantId, {
+          message: text,
+          phone: from
+        });
+ 
+        if (chatResponse.response) {
+          await this.sendMessageDirect(
+            from,
+            chatResponse.response,
             whatsappSettings.accessToken,
             whatsappSettings.phoneNumberId,
-            tenantClient,
-            msg
+            tenantClient
+          );
+          this.logger.log('✅ [Priority 4] AI Chatbot responded');
+        }
+        return;
+      }
+ 
+      // Quick reply route
+      if (routing.route === 'quick-reply') {
+        const session = await this.ecommerceService['sessionService'].getSession(from, tenantId);
+        const paymentMethod = session?.paymentMethod;
+ 
+        if (currentStep === 'confirm_details' && paymentMethod === 'COD') {
+          const orderResult = await this.ecommerceService.createOrderFromMessage(
+            from,
+            text,
+            tenantId,
+            whatsappSettings.accessToken,
+            whatsappSettings.phoneNumberId
+          );
+ 
+          if (
+            orderResult === 'order_placed' ||
+            orderResult === 'awaiting_name' ||
+            orderResult === 'awaiting_address' ||
+            orderResult === 'awaiting_city' ||
+            orderResult === 'awaiting_pincode' ||
+            orderResult === 'awaiting_payment_method'
+          ) {
+            return;
+          }
+        }
+ 
+        // IMPORTANT: Meta flow only if NOT in ecommerce checkout
+        if (!this.isEcommerceCheckoutStep(currentStep)) {
+          const metaCatalogService = this.ecommerceService['metaCatalogService'];
+          if (metaCatalogService) {
+            const handled = await metaCatalogService.handleCustomerResponse(
+              from,
+              whatsappSettings.phoneNumberId,
+              text,
+              tenantId
+            );
+            if (handled) {
+              this.logger.log('✅ Meta Catalog order flow handled in quick-reply');
+              return;
+            }
+          }
+        }
+       
+        // Check if user is in Meta Catalog order flow
+        const metaCatalogService = this.ecommerceService['metaCatalogService'];
+        if (metaCatalogService) {
+          const handled = await metaCatalogService.handleCustomerResponse(from, whatsappSettings.phoneNumberId, text, tenantId);
+          if (handled) {
+            this.logger.log('✅ Meta Catalog order flow handled in quick-reply');
+            return;
+          }
+        }
+       
+        await this.sessionService.handleInteractiveMenu(from, text, tenantId, // ✅ Use tenantId
+          async (to, msg, imageUrl) => {
+            if (imageUrl) {
+              return this.sendMediaMessageDirect(
+                to,
+                imageUrl,
+                'image',
+                whatsappSettings.accessToken,
+                whatsappSettings.phoneNumberId,
+                tenantClient,
+                msg
+              );
+            }
+            return this.sendMessageDirect(
+              to,
+              msg,
+              whatsappSettings.accessToken,
+              whatsappSettings.phoneNumberId,
+              tenantClient
+            );
+          },
+          async (to, msg, buttons) => {
+            return this.sendButtonsMessageDirect(
+              to,
+              msg,
+              buttons,
+              whatsappSettings.accessToken,
+              whatsappSettings.phoneNumberId,
+              tenantClient
+            );
+          }
+        );
+        return;
+      }
+ 
+      // IMPORTANT: Meta flow only if NOT in ecommerce checkout
+      if (!this.isEcommerceCheckoutStep(currentStep)) {
+        const metaCatalogService = this.ecommerceService['metaCatalogService'];
+        if (metaCatalogService) {
+          const handled = await metaCatalogService.handleCustomerResponse(
+            from,
+            whatsappSettings.phoneNumberId,
+            text,
+            tenantId
+          );
+ 
+          if (handled) {
+            this.logger.log('✅ Meta Catalog order flow handled');
+            return;
+          }
+        }
+      }
+ 
+      const orderResult = await this.ecommerceService.createOrderFromMessage(
+        from,
+        text,
+        tenantId,
+        whatsappSettings.accessToken,
+        whatsappSettings.phoneNumberId
+      );
+ 
+      if (
+        orderResult === 'awaiting_name' ||
+        orderResult === 'awaiting_address' ||
+        orderResult === 'awaiting_city' ||
+        orderResult === 'awaiting_pincode' ||
+        orderResult === 'awaiting_payment_method' ||
+        orderResult === 'order_placed'
+      ) {
+        this.logger.log(`✅ Ecommerce order flow handled with result: ${orderResult}`);
+        return;
+      }
+ 
+      await this.sessionService.handleInteractiveMenu(
+        from,
+        text,
+        tenantId, // ✅ Use tenantId
+        async (to, msg, imageUrl) => {
+          if (imageUrl) {
+            return this.sendMediaMessageDirect(
+              to,
+              imageUrl,
+              'image',
+              whatsappSettings.accessToken,
+              whatsappSettings.phoneNumberId,
+              tenantClient,
+              msg
+            );
+          }
+          return this.sendMessageDirect(
+            to,
+            msg,
+            whatsappSettings.accessToken,
+            whatsappSettings.phoneNumberId,
+            tenantClient
+          );
+        },
+        async (to, msg, buttons) => {
+          return this.sendButtonsMessageDirect(
+            to,
+            msg,
+            buttons,
+            whatsappSettings.accessToken,
+            whatsappSettings.phoneNumberId,
+            tenantClient
           );
         }
-        return this.sendMessageDirect(
-          to,
-          msg,
-          whatsappSettings.accessToken,
-          whatsappSettings.phoneNumberId,
-          tenantClient
-        );
-      },
-      async (to, msg, buttons) => {
-        return this.sendButtonsMessageDirect(
-          to,
-          msg,
-          buttons,
-          whatsappSettings.accessToken,
-          whatsappSettings.phoneNumberId,
-          tenantClient
-        );
-      }
-    ).catch(e => {
-      this.logger.error('Session error:', e);
-      return false;
-    });
+      ).catch(e => {
+        this.logger.error('Session error:', e);
+        return false;
+      });
+    }
   }
 
   private async getTenantDbUrl(tenantId: number): Promise<string> {
@@ -1988,7 +2009,7 @@ export class WhatsappService {
     }
   }
 
-  //assign subuser 
+  //assign subuser
 
 
   async assignChatToSubUser(phone: string, subUserId: number) {

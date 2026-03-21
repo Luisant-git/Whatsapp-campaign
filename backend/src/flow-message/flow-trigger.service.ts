@@ -137,14 +137,37 @@ export class FlowTriggerService {
     const triggerWord = message.toLowerCase().trim();
     console.log(`[FlowTrigger] Checking for trigger word: "${triggerWord}"`);
     
-    const trigger = await tenantClient.flowTrigger.findFirst({
+    // Get all active triggers
+    const allTriggers = await tenantClient.flowTrigger.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, triggerWord: true }
+    });
+    console.log(`[FlowTrigger] All active triggers:`, JSON.stringify(allTriggers));
+    
+    // Try exact match
+    let trigger = await tenantClient.flowTrigger.findFirst({
       where: {
         triggerWord,
         isActive: true,
       },
     });
+    
+    // If no exact match, try partial/fuzzy match
+    if (!trigger && allTriggers.length > 0) {
+      console.log(`[FlowTrigger] No exact match, trying fuzzy match...`);
+      for (const t of allTriggers) {
+        const tWord = t.triggerWord.toLowerCase();
+        if (triggerWord.includes(tWord) || tWord.includes(triggerWord)) {
+          trigger = await tenantClient.flowTrigger.findFirst({
+            where: { id: t.id }
+          });
+          console.log(`[FlowTrigger] Fuzzy match found: "${t.triggerWord}"`);
+          break;
+        }
+      }
+    }
 
-    console.log(`[FlowTrigger] Found trigger:`, trigger);
+    console.log(`[FlowTrigger] Final trigger:`, trigger ? `{id: ${trigger.id}, name: ${trigger.name}}` : null);
 
     if (!trigger) {
       return null;

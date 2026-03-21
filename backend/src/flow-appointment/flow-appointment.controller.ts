@@ -123,7 +123,10 @@ export class FlowAppointmentController {
         console.log('🔍 Data field:', JSON.stringify(data, null, 2));
         console.log('🔍 Flow token:', flow_token);
         
-        await this.flowAppointmentService.saveAppointmentFromFlow(data, flow_token);
+        // Extract phone number from data
+        const phoneNumber = data.phone || data.phone_number;
+        
+        await this.flowAppointmentService.saveAppointmentFromFlow(data, flow_token, phoneNumber);
         
         return res.status(200).json({
           screen: 'SUCCESS',

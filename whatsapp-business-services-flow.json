@@ -23,6 +23,10 @@
           "type": "array",
           "__example__": [
             {
+              "id": "all",
+              "title": "All"
+            },
+            {
               "id": "whatsapp_marketing",
               "title": "WhatsApp Marketing"
             },
@@ -69,23 +73,6 @@
         "is_time_enabled": {
           "type": "boolean",
           "__example__": true
-        },
-        "company": {
-          "type": "array",
-          "__example__": [
-            {
-              "id": "meta",
-              "title": "Meta (WhatsApp Official)"
-            },
-            {
-              "id": "partner",
-              "title": "WhatsApp Business Partner"
-            }
-          ]
-        },
-        "is_company_enabled": {
-          "type": "boolean",
-          "__example__": true
         }
       },
       "layout": {
@@ -105,14 +92,6 @@
                 "name": "service",
                 "data-source": "${data.services}",
                 "required": true
-              },
-              {
-                "type": "Dropdown",
-                "label": "Preferred Company",
-                "name": "company",
-                "data-source": "${data.company}",
-                "required": "${data.is_company_enabled}",
-                "enabled": "${data.is_company_enabled}"
               },
               {
                 "type": "Dropdown",
@@ -141,7 +120,6 @@
                   },
                   "payload": {
                     "service": "${form.service}",
-                    "company": "${form.company}",
                     "date": "${form.date}",
                     "time": "${form.time}"
                   }
@@ -160,10 +138,6 @@
         "service": {
           "type": "string",
           "__example__": "ai_chatbot"
-        },
-        "company": {
-          "type": "string",
-          "__example__": "partner"
         },
         "date": {
           "type": "string",
@@ -247,7 +221,6 @@
                   "name": "data_exchange",
                   "payload": {
                     "service": "${data.service}",
-                    "company": "${data.company}",
                     "date": "${data.date}",
                     "time": "${data.time}",
                     "name": "${form.name}",
@@ -271,7 +244,7 @@
       "data": {
         "service_summary": {
           "type": "string",
-          "__example__": "AI Chat Bot consultation with WhatsApp Business Partner on Mon Jan 15 2024 at 11:00 AM"
+          "__example__": "AI Chat Bot consultation on Mon Jan 15 2024 at 11:00 AM"
         },
         "business_summary": {
           "type": "string",
@@ -280,10 +253,6 @@
         "service": {
           "type": "string",
           "__example__": "ai_chatbot"
-        },
-        "company": {
-          "type": "string",
-          "__example__": "partner"
         },
         "date": {
           "type": "string",
@@ -363,7 +332,6 @@
                   "payload": {
                     "screen": "CONFIRM_APPOINTMENT",
                     "service": "${data.service}",
-                    "company": "${data.company}",
                     "date": "${data.date}",
                     "time": "${data.time}",
                     "name": "${data.name}",

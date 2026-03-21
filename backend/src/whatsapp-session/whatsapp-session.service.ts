@@ -27,7 +27,7 @@ export class WhatsappSessionService {
     ) => Promise<any>,
   ): Promise<boolean> {
     const lowerText = text.toLowerCase().trim();
-    console.log('Processing message:', lowerText);
+    console.log('[SessionService] Processing message:', lowerText, 'for userId:', userId);
 
     // Get user preference
     const user = await this.centralPrisma.tenant.findUnique({
@@ -36,9 +36,11 @@ export class WhatsappSessionService {
     });
     
     if (!user) {
-      console.log('User not found');
+      console.log('[SessionService] User not found for userId:', userId);
       return false;
     }
+    
+    console.log('[SessionService] Found tenant:', user.id);
 
     const useQuickReply = true; // Default to true for all tenants
     console.log('User preference - useQuickReply:', useQuickReply);
@@ -66,22 +68,26 @@ export class WhatsappSessionService {
           return true; // Handled
         }
 
-        console.log('No nested quick reply found, button response handled');
-        return true; // Mark as handled, don't send to chatbot
+        console.log('No nested quick reply found, passing to next priority (Flow/Meta Catalog/AI)');
+        return false; // Not handled, let Flow Triggers or other priorities handle it
       }
 
       // Check for exact quick reply match first
+      console.log('[SessionService] Checking quick reply for:', lowerText, 'userId:', userId);
       let quickReply = await this.quickReplyService.getQuickReply(
         lowerText,
         userId,
       );
+      console.log('[SessionService] Exact match result:', quickReply);
 
       // If no exact match, try fuzzy matching for quick replies
       if (!quickReply) {
+        console.log('[SessionService] Trying fuzzy match...');
         quickReply = await this.findSimilarQuickReply(lowerText, userId);
+        console.log('[SessionService] Fuzzy match result:', quickReply);
       }
 
-      console.log('Quick reply found:', quickReply);
+      console.log('[SessionService] Final quick reply found:', quickReply);
       if (quickReply) {
         const buttons = quickReply.buttons as string[];
         await sendButtonsCallback(from, 'Choose an option:', buttons);

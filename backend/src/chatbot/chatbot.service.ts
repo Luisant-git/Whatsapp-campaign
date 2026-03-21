@@ -89,12 +89,13 @@ export class ChatbotService {
     }
 
     const context = documents.map(doc => `Document: ${doc.filename}\n${doc.content}`).join('\n\n');
+    const documentNames = documents.map(doc => doc.filename.replace(/\.[^/.]+$/, '')).join(', ');
 
     const completion = await this.groq.chat.completions.create({
       messages: [
         {
           role: 'system',
-          content: `You are a helpful customer support assistant. Answer questions based ONLY on the following documents:\n\n${context}\n\nIf the question cannot be answered from the documents, respond with: "I don't have information about that in my knowledge base. Please contact our support team at [support contact] for further assistance."`,
+          content: `You are a helpful customer support assistant for ${documentNames}. Answer questions based ONLY on the following documents:\n\n${context}\n\nFor greetings or first messages, respond with: "Hi there! 👋 Welcome to ${documentNames}!"\n\nFor other questions, answer based on the documents. If the question cannot be answered from the documents, respond with: "I don't have information about that in my knowledge base. Please contact our support team for further assistance."`,
         },
         {
           role: 'user',

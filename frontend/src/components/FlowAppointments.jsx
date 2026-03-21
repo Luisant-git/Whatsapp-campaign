@@ -81,12 +81,11 @@ const FlowAppointments = () => {
 
   const exportAppointments = () => {
     const csvContent = [
-      ['Name', 'Phone', 'Service', 'Company', 'Date', 'Time', 'Business Info', 'Status', 'Created At'],
+      ['Name', 'Phone', 'Service', 'Date', 'Time', 'Business Info', 'Status', 'Created At'],
       ...filteredAppointments.map(apt => [
         apt.name,
         apt.phone || apt.email,
         formatDepartment(apt.department),
-        formatLocation(apt.location),
         apt.date,
         apt.time,
         apt.moreDetails || '',
@@ -127,6 +126,7 @@ const FlowAppointments = () => {
 
   const formatDepartment = (dept) => {
     const deptMap = {
+      'all': 'All',
       'whatsapp_marketing': 'WhatsApp Marketing',
       'whatsapp_ecommerce': 'WhatsApp Ecommerce',
       'ai_chatbot': 'AI Chat Bot',
@@ -259,7 +259,6 @@ const FlowAppointments = () => {
             <tr>
               <th>Customer</th>
               <th>Service</th>
-              <th>Company</th>
               <th>Date</th>
               <th>Time</th>
               <th>Status</th>
@@ -269,7 +268,7 @@ const FlowAppointments = () => {
           <tbody>
             {filteredAppointments.length === 0 ? (
               <tr>
-                <td colSpan="7" className="flow-empty-state">
+                <td colSpan="6" className="flow-empty-state">
                   <Calendar className="flow-empty-icon" />
                   <p className="flow-empty-title">No appointments found</p>
                   <p className="flow-empty-subtitle">Appointments booked through WhatsApp Flows will appear here</p>
@@ -286,9 +285,6 @@ const FlowAppointments = () => {
                   </td>
                   <td style={{ fontWeight: 500 }}>
                     {formatDepartment(appointment.department)}
-                  </td>
-                  <td style={{ fontWeight: 500 }}>
-                    {formatLocation(appointment.location)}
                   </td>
                   <td style={{ fontSize: '13px' }}>
                     {appointment.date}
@@ -356,11 +352,6 @@ const FlowAppointments = () => {
               <div className="flow-detail-item">
                 <label className="flow-detail-label">Service Requested</label>
                 <p className="flow-detail-value">{formatDepartment(selectedAppointment.department)}</p>
-              </div>
-              
-              <div className="flow-detail-item">
-                <label className="flow-detail-label">Preferred Company</label>
-                <p className="flow-detail-value">{formatLocation(selectedAppointment.location)}</p>
               </div>
               
               <div className="flow-detail-item">

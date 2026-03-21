@@ -146,15 +146,10 @@ sxEK+yx6I1EkGaK+/KWEpai7
         
         // Return WhatsApp Business Services data
         const services = [
+          { id: 'all', title: 'All' },
           { id: 'whatsapp_marketing', title: 'WhatsApp Marketing' },
           { id: 'whatsapp_ecommerce', title: 'WhatsApp Ecommerce' },
           { id: 'ai_chatbot', title: 'AI Chat Bot' }
-        ];
-
-        const companies = [
-          { id: 'meta', title: 'Meta (WhatsApp Official)' },
-          { id: 'partner', title: 'WhatsApp Business Partner' },
-          { id: 'independent', title: 'Independent Consultant' }
         ];
 
         const dates = this.generateDates(5);
@@ -170,12 +165,10 @@ sxEK+yx6I1EkGaK+/KWEpai7
         
         const businessServicesData = {
           services: services,
-          company: companies,
           date: dates,
           time: timeSlots,
           is_date_enabled: true,
-          is_time_enabled: true,
-          is_company_enabled: true
+          is_time_enabled: true
         };
         
         console.log('📤 INIT response data:', JSON.stringify(businessServicesData, null, 2));
@@ -190,12 +183,9 @@ sxEK+yx6I1EkGaK+/KWEpai7
         // Fallback to static data
         const fallbackData = {
           services: [
+            { id: 'all', title: 'All' },
             { id: 'whatsapp_marketing', title: 'WhatsApp Marketing' },
             { id: 'ai_chatbot', title: 'AI Chat Bot' }
-          ],
-          company: [
-            { id: 'meta', title: 'Meta (WhatsApp Official)' },
-            { id: 'partner', title: 'WhatsApp Business Partner' }
           ],
           date: this.generateDates(5),
           time: [
@@ -203,8 +193,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
             { id: '14:00', title: '02:00 PM' }
           ],
           is_date_enabled: true,
-          is_time_enabled: true,
-          is_company_enabled: true
+          is_time_enabled: true
         };
         
         return {
@@ -234,20 +223,15 @@ sxEK+yx6I1EkGaK+/KWEpai7
         try {
           // Map service and company IDs to titles
           const serviceTitles = {
+            'all': 'All',
             'whatsapp_marketing': 'WhatsApp Marketing',
             'whatsapp_ecommerce': 'WhatsApp Ecommerce',
             'ai_chatbot': 'AI Chat Bot'
           };
-          const companyTitles = {
-            'meta': 'Meta (WhatsApp Official)',
-            'partner': 'WhatsApp Business Partner',
-            'independent': 'Independent Consultant'
-          };
           
           const serviceTitle = serviceTitles[data.service] || data.service || 'Unknown';
-          const companyTitle = companyTitles[data.company] || data.company || 'Unknown';
           
-          const serviceSummary = `${serviceTitle} consultation with ${companyTitle} on ${data.date} at ${data.time}`;
+          const serviceSummary = `${serviceTitle} consultation on ${data.date} at ${data.time}`;
           const businessSummary = `Name: ${data.name || 'N/A'}\nMobile: ${data.mobile || 'N/A'}\nPlace: ${data.place || 'N/A'}\nBusiness: ${data.business_name || 'N/A'}\nType: ${data.business_type || 'N/A'}\nSize: ${data.business_size || 'N/A'}`;
           
           return {
@@ -256,7 +240,6 @@ sxEK+yx6I1EkGaK+/KWEpai7
               service_summary: serviceSummary,
               business_summary: businessSummary,
               service: data.service,
-              company: data.company,
               date: data.date,
               time: data.time,
               name: data.name,
@@ -288,7 +271,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
           // Save the WhatsApp Business Services appointment
           const appointmentRecord = {
             department: data.service || '',
-            location: data.company || '',
+            location: '',
             date: data.date || '',
             time: data.time || '',
             name: data.name || '',
@@ -330,15 +313,10 @@ sxEK+yx6I1EkGaK+/KWEpai7
         try {
           // Return WhatsApp Business Services data
           const services = [
+            { id: 'all', title: 'All' },
             { id: 'whatsapp_marketing', title: 'WhatsApp Marketing' },
             { id: 'whatsapp_ecommerce', title: 'WhatsApp Ecommerce' },
             { id: 'ai_chatbot', title: 'AI Chat Bot' }
-          ];
-
-          const companies = [
-            { id: 'meta', title: 'Meta (WhatsApp Official)' },
-            { id: 'partner', title: 'WhatsApp Business Partner' },
-            { id: 'independent', title: 'Independent Consultant' }
           ];
 
           const dates = this.generateDates(5);
@@ -354,12 +332,10 @@ sxEK+yx6I1EkGaK+/KWEpai7
           
           const businessServicesData = {
             services: services,
-            company: companies,
             date: dates,
             time: timeSlots,
             is_date_enabled: true,
-            is_time_enabled: true,
-            is_company_enabled: true
+            is_time_enabled: true
           };
           
           return {

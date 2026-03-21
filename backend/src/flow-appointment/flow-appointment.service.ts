@@ -236,7 +236,7 @@ export class FlowAppointmentService {
       console.log('🔑 Phone Number ID:', phoneNumberId);
       
       const axios = require('axios');
-      const message = 'Thank you for sharing your details! Our team will contact you soon😊.';
+      const message = 'Thank you for sharing your details! Our team will contact you soon 😊.';
       
       const response = await axios.post(
         `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,

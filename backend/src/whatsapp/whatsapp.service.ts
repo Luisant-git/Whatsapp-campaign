@@ -1180,6 +1180,23 @@ export class WhatsappService {
       const lowerText = text.toLowerCase().trim();
       const currentStep = await this.ecommerceService['sessionService'].getStep(from, tenantId);
  
+      // PRIORITY 0: Check Meta Catalog responses FIRST (before ecommerce checkout)
+      if (currentStep === 'confirm_details' || currentStep === 'awaiting_payment_method') {
+        const metaCatalogService = this.ecommerceService['metaCatalogService'];
+        if (metaCatalogService) {
+          const handled = await metaCatalogService.handleCustomerResponse(
+            from,
+            whatsappSettings.phoneNumberId,
+            text,
+            tenantId
+          );
+          if (handled) {
+            this.logger.log('✅ [Priority 0] Meta Catalog response handled');
+            return;
+          }
+        }
+      }
+ 
       // PRIORITY 1: Ecommerce checkout flow
       if (this.isEcommerceCheckoutStep(currentStep)) {
         this.logger.log(`🛒 Ecommerce checkout step detected: ${currentStep}`);

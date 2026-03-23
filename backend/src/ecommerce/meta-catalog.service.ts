@@ -387,16 +387,16 @@ export class MetaCatalogService {
           await this.sendPaymentMethodSelection(phone, phoneNumberId, userId);
           return true;
         } else if (response === 'update' || response === 'update details' || message === 'Update Details') {
-          await this.sendUpdateFieldSelection(phone, phoneNumberId, userId);
-          return true;
-        } else if (response === 'someone_else' || response === 'order for someone' || message === 'Order for Someone') {
+          // Clear existing details and open flow
           await this.sessionService.setSession(phone, { 
             customerName: undefined,
             customerAddress: undefined,
             customerCity: undefined,
+            customerState: undefined,
             customerPincode: undefined,
             step: 'awaiting_flow_response' 
           }, userId);
+          
           if (process.env.CUSTOMER_FLOW_ID) {
             await this.flowTriggerService.sendFlowMessage({
               to: phone,
@@ -405,7 +405,29 @@ export class MetaCatalogService {
               flowToken: `order_${Date.now()}`
             });
           } else {
-            await this.sendTextMessage(phone, phoneNumberId, '🎁 Ordering for someone else!\n\nPlease provide recipient\'s full name:');
+            await this.sendTextMessage(phone, phoneNumberId, '📝 Please provide your updated details.');
+          }
+          return true;
+        } else if (response === 'someone_else' || response === 'order for someone' || message === 'Order for Someone') {
+          // Clear existing details and open flow for new recipient
+          await this.sessionService.setSession(phone, { 
+            customerName: undefined,
+            customerAddress: undefined,
+            customerCity: undefined,
+            customerState: undefined,
+            customerPincode: undefined,
+            step: 'awaiting_flow_response' 
+          }, userId);
+          
+          if (process.env.CUSTOMER_FLOW_ID) {
+            await this.flowTriggerService.sendFlowMessage({
+              to: phone,
+              phoneNumberId,
+              flowId: process.env.CUSTOMER_FLOW_ID,
+              flowToken: `order_${Date.now()}`
+            });
+          } else {
+            await this.sendTextMessage(phone, phoneNumberId, '🎁 Ordering for someone else! Please provide recipient\'s details.');
           }
           return true;
         }
@@ -678,52 +700,6 @@ export class MetaCatalogService {
       );
     } catch (error) {
       console.error('Send customer details error:', error.response?.data || error.message);
-    }
-  }
-
-  private async sendUpdateFieldSelection(phone: string, phoneNumberId: string, userId: number) {
-    try {
-      await axios.post(
-        `${this.apiUrl}/${phoneNumberId}/messages`,
-        {
-          messaging_product: 'whatsapp',
-          to: phone,
-          type: 'interactive',
-          interactive: {
-            type: 'button',
-            body: {
-              text: '✏️ *What would you like to update?*'
-            },
-            action: {
-              buttons: [
-                {
-                  type: 'reply',
-                  reply: {
-                    id: 'name',
-                    title: 'Update Name'
-                  }
-                },
-                {
-                  type: 'reply',
-                  reply: {
-                    id: 'address',
-                    title: 'Update Address'
-                  }
-                }
-              ]
-            }
-          }
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-      await this.sessionService.setSession(phone, { step: 'select_update_field' }, userId);
-    } catch (error) {
-      console.error('Send update field selection error:', error.response?.data || error.message);
     }
   }
 

@@ -367,11 +367,12 @@ export class MetaCatalogService {
     try {
       const step = await this.sessionService.getStep(phone, userId);
       
+      console.log(`[Meta Catalog] handleCustomerResponse called - Phone: ${phone}, Step: ${step}, Message: "${message}"`);
+      
       if (!step) {
+        console.log(`[Meta Catalog] No step found, returning false`);
         return false;
       }
-      
-      console.log(`[Meta Catalog] Customer ${phone} in step: ${step}, message: ${message}`);
       
       // Check for EXIT command
       if (message.toUpperCase() === 'EXIT') {
@@ -382,11 +383,14 @@ export class MetaCatalogService {
       
       if (step === 'confirm_details') {
         const response = message.toLowerCase();
+        console.log(`[Meta Catalog] In confirm_details step, response: "${response}", original: "${message}"`);
         
         if (response === 'confirm' || response === 'use my details' || message === 'Use My Details') {
+          console.log(`[Meta Catalog] Matched 'Use My Details' - sending payment method selection`);
           await this.sendPaymentMethodSelection(phone, phoneNumberId, userId);
           return true;
         } else if (response === 'update' || response === 'update details' || message === 'Update Details') {
+          console.log(`[Meta Catalog] Matched 'Update Details' - opening flow`);
           // Clear existing details and open flow
           await this.sessionService.setSession(phone, { 
             customerName: undefined,

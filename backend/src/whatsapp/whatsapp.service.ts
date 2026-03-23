@@ -1194,17 +1194,22 @@ export class WhatsappService {
  
       // PRIORITY 0: Check Meta Catalog responses FIRST (before ecommerce checkout)
       if (currentStep === 'confirm_details' || currentStep === 'awaiting_payment_method') {
+        this.logger.log(`[Priority 0] Checking Meta Catalog for step: ${currentStep}, text: ${text}`);
         const metaCatalogService = this.ecommerceService['metaCatalogService'];
         if (metaCatalogService) {
-          const handled = await metaCatalogService.handleCustomerResponse(
-            from,
-            whatsappSettings.phoneNumberId,
-            text,
-            tenantId
-          );
-          if (handled) {
-            this.logger.log('✅ [Priority 0] Meta Catalog response handled');
-            return;
+          try {
+            const handled = await metaCatalogService.handleCustomerResponse(
+              from,
+              whatsappSettings.phoneNumberId,
+              text,
+              tenantId
+            );
+            if (handled) {
+              this.logger.log('✅ [Priority 0] Meta Catalog response handled');
+              return;
+            }
+          } catch (error) {
+            this.logger.error('[Priority 0] Meta Catalog error:', error.message);
           }
         }
       }

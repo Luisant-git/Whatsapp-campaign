@@ -95,7 +95,7 @@ export class WhatsappService {
     );
   }
 
-  async handleIncomingMessage(message: any, userId: number) {
+  async handleIncomingMessage(message: any, userId: number, profileName?: string | null) {
     const from = message.from;
     const messageId = message.id;
     let text = message.text?.body;
@@ -232,8 +232,16 @@ export class WhatsappService {
         direction: 'incoming',
         status: 'received',
         phoneNumberId: settings.phoneNumberId,
+        profileName: profileName || null,
       }
     });
+
+    await this.upsertContactFromIncomingMessage(
+      this.prisma,
+      from,
+      settings.phoneNumberId,
+      profileName,
+    );
 
     if (text) {
       const lowerText = text.toLowerCase().trim();
@@ -812,6 +820,7 @@ export class WhatsappService {
     const enrichedMessages = await Promise.all(
       messages.map(async (msg) => {
         let displayPhoneNumber: string | null = null;
+        let contactName: string | null = null;
         if (msg.phoneNumberId) {
           const masterConfig = await this.prisma.masterConfig.findFirst({
             where: { phoneNumberId: msg.phoneNumberId },
@@ -829,10 +838,23 @@ export class WhatsappService {
           }
         }
 
+        const contact = await this.prisma.contact.findFirst({
+          where: {
+            phone: msg.from,
+            phoneNumberId: msg.phoneNumberId || undefined,
+          },
+          select: { name: true },
+        });
+
+        contactName = contact?.name || null;
+
         return {
           ...msg,
           displayPhoneNumber,
           businessPhoneNumberId: msg.phoneNumberId,
+          contactName,
+          profileName: msg.profileName || null,
+          customerName: contactName || msg.profileName || msg.from,
         };
       }),
     );
@@ -840,7 +862,7 @@ export class WhatsappService {
     return enrichedMessages;
   }
 
-  async handleIncomingMessageWithoutContext(message: any, phoneNumberId: string) {
+  async handleIncomingMessageWithoutContext(message: any, phoneNumberId: string, profileName?: string | null,) {
     try {
       this.logger.log(`📨 Webhook received - Phone: ${message.from}, Type: ${message.type}, Text: ${message.text?.body || 'N/A'}`);
 
@@ -848,7 +870,7 @@ export class WhatsappService {
       const cached = this.phoneNumberIdCache.get(phoneNumberId);
       if (cached && (Date.now() - cached.timestamp) < this.CACHE_TTL) {
         this.logger.log(`Using cached tenant ${cached.tenantId} for phoneNumberId ${phoneNumberId}`);
-        await this.processMessageForTenant(message, phoneNumberId, cached.tenantId, cached.settingsId);
+        await this.processMessageForTenant(message, phoneNumberId, cached.tenantId, cached.settingsId, profileName);
         return;
       }
 
@@ -872,7 +894,7 @@ export class WhatsappService {
             timestamp: Date.now()
           });
 
-          await this.processMessageForTenant(message, phoneNumberId, tenant.id, settings.id);
+          await this.processMessageForTenant(message, phoneNumberId, tenant.id, settings.id, profileName);
           return;
         }
       }
@@ -1053,40 +1075,40 @@ export class WhatsappService {
   //   }
   // }
 
-  private async processMessageForTenant(message: any, phoneNumberId: string, tenantId: number, settingsId: number) {
+  private async processMessageForTenant(message: any, phoneNumberId: string, tenantId: number, settingsId: number, profileName?: string | null,) {
     const dbUrl = await this.getTenantDbUrl(tenantId);
     const tenantClient = this.tenantPrisma.getTenantClient(tenantId.toString(), dbUrl);
- 
+
     const from = message.from;
     const messageId = message.id;
     let text = message.text?.body;
- 
+
     const image = message.image;
     const video = message.video;
     const document = message.document;
     const audio = message.audio;
- 
+
     let mediaType: string | null = null;
     let mediaUrl: string | null = null;
- 
+
     this.logger.log(`📨 Webhook received - Phone: ${from}, Type: ${message.type}, Text: ${text || 'N/A'}`);
     this.logger.log(`Incoming media debug: image=${!!image}, video=${!!video}, document=${!!document}, audio=${!!audio}`);
- 
+
     const whatsappSettings = await tenantClient.whatsAppSettings.findFirst({
       where: { phoneNumberId }
     });
- 
+
     if (!whatsappSettings) {
       this.logger.warn(`No WhatsApp settings found for phoneNumberId: ${phoneNumberId}`);
       return;
     }
- 
+
     const apiUrl = process.env.WHATSAPP_API_URL;
- 
+
     if (!apiUrl) {
       throw new Error('WHATSAPP_API_URL is missing in env');
     }
- 
+
     if (image) {
       mediaType = 'image';
       mediaUrl = await this.downloadMediaDirect(
@@ -1116,9 +1138,9 @@ export class WhatsappService {
         apiUrl
       );
     }
- 
+
     this.logger.log(`Resolved media => type=${mediaType}, url=${mediaUrl}`);
- 
+
     const routing = await this.phoneRouter.routeMessage(
       phoneNumberId,
       message,
@@ -1127,11 +1149,11 @@ export class WhatsappService {
       tenantId
     );
     this.logger.log(`📍 Routing: ${routing.route} for phone ${phoneNumberId}`);
- 
+
     if (message.type === 'order') {
       const order = message.order;
       this.logger.log('🛒 Meta Catalog order received:', JSON.stringify(order, null, 2));
- 
+
       const metaCatalogService = this.ecommerceService['metaCatalogService'];
       if (metaCatalogService) {
         await metaCatalogService.handleOrderMessage(from, whatsappSettings.phoneNumberId, order, tenantId);
@@ -1139,26 +1161,26 @@ export class WhatsappService {
       }
       return;
     }
- 
+
     if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
       const buttonTitle = message.interactive.button_reply.title;
       text = buttonTitle; // Use button title instead of ID
       console.log(`[WhatsappService] Button clicked: ${buttonTitle} (ID: ${message.interactive.button_reply.id})`);
     }
- 
+
     if (message.type === 'interactive' && message.interactive?.type === 'list_reply') {
       text = message.interactive.list_reply.id;
     }
- 
+
     const existingMessage = await tenantClient.whatsAppMessage.findUnique({
       where: { messageId }
     });
- 
+
     if (existingMessage) {
       this.logger.log(`Message ${messageId} already exists, skipping`);
       return;
     }
- 
+
     await tenantClient.whatsAppMessage.create({
       data: {
         messageId,
@@ -1170,19 +1192,25 @@ export class WhatsappService {
         direction: 'incoming',
         status: 'received',
         phoneNumberId,
+        profileName: profileName || null,
       }
     });
- 
+    await this.upsertContactFromIncomingMessage(
+      tenantClient,
+      from,
+      phoneNumberId,
+      profileName,
+    );
     this.logger.log(`✓ Message stored successfully`);
- 
+
     if (text) {
       const lowerText = text.toLowerCase().trim();
       const currentStep = await this.ecommerceService['sessionService'].getStep(from, tenantId);
- 
+
       // PRIORITY 1: Ecommerce checkout flow
       if (this.isEcommerceCheckoutStep(currentStep)) {
         this.logger.log(`🛒 Ecommerce checkout step detected: ${currentStep}`);
- 
+
         const orderResult = await this.ecommerceService.createOrderFromMessage(
           from,
           text,
@@ -1190,7 +1218,7 @@ export class WhatsappService {
           whatsappSettings.accessToken,
           whatsappSettings.phoneNumberId
         );
- 
+
         if (
           orderResult === 'awaiting_name' ||
           orderResult === 'awaiting_address' ||
@@ -1203,12 +1231,12 @@ export class WhatsappService {
           return;
         }
       }
- 
+
       if (routing.route === 'campaigns-only') {
         this.logger.log('⛔ Campaigns-only number - ignoring incoming message');
         return;
       }
- 
+
       // 🔥 PRIORITY 1: Check Quick Replies first
       this.logger.log('🔍 [Priority 1] Checking Quick Replies...');
       const quickReplyHandled = await this.sessionService.handleInteractiveMenu(
@@ -1265,7 +1293,7 @@ export class WhatsappService {
           whatsappSettings.accessToken,
           whatsappSettings.phoneNumberId
         );
- 
+
         if (flowResult?.success) {
           this.logger.log(`✅ [Priority 2] Flow triggered: ${flowResult.trigger.name}`);
           return;
@@ -1273,10 +1301,10 @@ export class WhatsappService {
       } catch (error) {
         this.logger.error('Flow trigger error:', error);
       }
- 
+
       // 🔥 PRIORITY 3: Check Meta Catalog (Ecommerce)
       this.logger.log('🔍 [Priority 3] Checking Meta Catalog...');
-     
+
       // 🔥 ECOMMERCE NUMBER: Route to catalog
       if (routing.route === 'ecommerce') {
         await this.ecommerceService.handleIncomingMessage(
@@ -1289,7 +1317,7 @@ export class WhatsappService {
         this.logger.log('✅ [Priority 3] Ecommerce route handled');
         return;
       }
- 
+
       // Check for ecommerce keywords
       if (this.isEcommerceMessage(lowerText)) {
         await this.ecommerceService.handleIncomingMessage(
@@ -1302,7 +1330,7 @@ export class WhatsappService {
         this.logger.log(`✅ [Priority 3] Ecommerce keyword handled`);
         return;
       }
- 
+
       // 🔥 PRIORITY 4: AI Chatbot (only if assigned to ai-bot route)
       if (routing.route === 'ai-bot') {
         this.logger.log('🔍 [Priority 4] Routing to AI Chatbot...');
@@ -1310,7 +1338,7 @@ export class WhatsappService {
           message: text,
           phone: from
         });
- 
+
         if (chatResponse.response) {
           await this.sendMessageDirect(
             from,
@@ -1323,12 +1351,12 @@ export class WhatsappService {
         }
         return;
       }
- 
+
       // Quick reply route
       if (routing.route === 'quick-reply') {
         const session = await this.ecommerceService['sessionService'].getSession(from, tenantId);
         const paymentMethod = session?.paymentMethod;
- 
+
         if (currentStep === 'confirm_details' && paymentMethod === 'COD') {
           const orderResult = await this.ecommerceService.createOrderFromMessage(
             from,
@@ -1337,7 +1365,7 @@ export class WhatsappService {
             whatsappSettings.accessToken,
             whatsappSettings.phoneNumberId
           );
- 
+
           if (
             orderResult === 'order_placed' ||
             orderResult === 'awaiting_name' ||
@@ -1349,7 +1377,7 @@ export class WhatsappService {
             return;
           }
         }
- 
+
         // IMPORTANT: Meta flow only if NOT in ecommerce checkout
         if (!this.isEcommerceCheckoutStep(currentStep)) {
           const metaCatalogService = this.ecommerceService['metaCatalogService'];
@@ -1366,7 +1394,7 @@ export class WhatsappService {
             }
           }
         }
-       
+
         // Check if user is in Meta Catalog order flow
         const metaCatalogService = this.ecommerceService['metaCatalogService'];
         if (metaCatalogService) {
@@ -1376,7 +1404,7 @@ export class WhatsappService {
             return;
           }
         }
-       
+
         await this.sessionService.handleInteractiveMenu(from, text, tenantId, // ✅ Use tenantId
           async (to, msg, imageUrl) => {
             if (imageUrl) {
@@ -1411,7 +1439,7 @@ export class WhatsappService {
         );
         return;
       }
- 
+
       // IMPORTANT: Meta flow only if NOT in ecommerce checkout
       if (!this.isEcommerceCheckoutStep(currentStep)) {
         const metaCatalogService = this.ecommerceService['metaCatalogService'];
@@ -1422,14 +1450,14 @@ export class WhatsappService {
             text,
             tenantId
           );
- 
+
           if (handled) {
             this.logger.log('✅ Meta Catalog order flow handled');
             return;
           }
         }
       }
- 
+
       const orderResult = await this.ecommerceService.createOrderFromMessage(
         from,
         text,
@@ -1437,7 +1465,7 @@ export class WhatsappService {
         whatsappSettings.accessToken,
         whatsappSettings.phoneNumberId
       );
- 
+
       if (
         orderResult === 'awaiting_name' ||
         orderResult === 'awaiting_address' ||
@@ -1449,7 +1477,7 @@ export class WhatsappService {
         this.logger.log(`✅ Ecommerce order flow handled with result: ${orderResult}`);
         return;
       }
- 
+
       await this.sessionService.handleInteractiveMenu(
         from,
         text,
@@ -1937,7 +1965,61 @@ export class WhatsappService {
     // If already has country code, return as is
     return cleanPhone;
   }
-
+  private async upsertContactFromIncomingMessage(
+    prismaClient: any,
+    phone: string,
+    phoneNumberId?: string | null,
+    profileName?: string | null,
+  ) {
+    const formattedPhone = this.formatPhoneNumber(phone);
+  
+    const normalizedProfileName =
+      profileName &&
+      !['null', 'undefined', 'unknown'].includes(profileName.trim().toLowerCase()) &&
+      profileName.trim() !== formattedPhone
+        ? profileName.trim()
+        : '';
+  
+    const fallbackName = normalizedProfileName || formattedPhone;
+  
+    const existingContact = await prismaClient.contact.findFirst({
+      where: {
+        phone: formattedPhone,
+        phoneNumberId: phoneNumberId ?? null,
+      },
+    });
+  
+    if (existingContact) {
+      const existingName =
+        existingContact.name &&
+        !['null', 'undefined', 'unknown'].includes(existingContact.name.trim().toLowerCase()) &&
+        existingContact.name.trim() !== formattedPhone
+          ? existingContact.name.trim()
+          : '';
+  
+      await prismaClient.contact.update({
+        where: { id: existingContact.id },
+        data: {
+          name: existingName || fallbackName,
+          lastMessageDate: new Date(),
+          isActive: true,
+        },
+      });
+  
+      return;
+    }
+  
+    await prismaClient.contact.create({
+      data: {
+        name: fallbackName,
+        phone: formattedPhone,
+        phoneNumberId: phoneNumberId ?? null,
+        groupId: null,
+        lastMessageDate: new Date(),
+        isActive: true,
+      },
+    });
+  }
   private getErrorMessage(error: any): string {
     if (error.response?.data?.error) {
       const apiError = error.response.data.error;

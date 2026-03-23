@@ -127,6 +127,7 @@ export class WhatsappController {
               const message = change.value.messages?.[0];
               const phoneNumberId = change.value.metadata?.phone_number_id;
               const displayPhoneNumber = change.value.metadata?.display_phone_number;
+              const profileName = change.value.contacts?.[0]?.profile?.name || null;
               
               console.log(`📞 Phone Number ID: ${phoneNumberId}`);
               console.log(`📞 Display Phone: ${displayPhoneNumber}`);
@@ -179,7 +180,7 @@ export class WhatsappController {
                  
                   if (userId) {
                     console.log(`✓ Processing message for user ID: ${userId}`);
-                    await this.whatsappService.handleIncomingMessage(message, userId);
+                    await this.whatsappService.handleIncomingMessage(message, userId, profileName);
                   } else {
                     console.log('✗ No user found for phone number ID:', phoneNumberId);
                   }
@@ -259,6 +260,7 @@ export class WhatsappController {
               const message = change.value.messages?.[0];
               const phoneNumberId = change.value.metadata?.phone_number_id;
               const displayPhoneNumber = change.value.metadata?.display_phone_number;
+              const profileName = change.value.contacts?.[0]?.profile?.name || null;
               
               console.log(`📞 Phone Number ID: ${phoneNumberId}`);
               console.log(`📞 Display Phone: ${displayPhoneNumber}`);
@@ -295,7 +297,7 @@ export class WhatsappController {
                 try {
                   console.log('Processing message for phone number ID:', phoneNumberId);
                   
-                  await this.whatsappService.handleIncomingMessageWithoutContext(message, phoneNumberId);
+                  await this.whatsappService.handleIncomingMessageWithoutContext(message, phoneNumberId, profileName);
                 } catch (msgError) {
                   console.error('Error processing message:', msgError);
                 }

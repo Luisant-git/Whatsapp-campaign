@@ -12,6 +12,8 @@ const FlowAppointments = () => {
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const { showToast } = useToast();
+  const [fromDate, setFromDate] = useState('');  //date filter for export 
+  const [toDate, setToDate] = useState('');
 
   useEffect(() => {
     fetchAppointments();
@@ -79,18 +81,27 @@ const FlowAppointments = () => {
     setShowDetails(true);
   };
 
+  const clearDateFilters = () => {
+    setFromDate('');
+    setToDate('');
+  };
+
   const exportAppointments = () => {
+    if (filteredAppointments.length === 0) {
+      showToast('No appointments to export', 'error');
+      return;
+    }
     const csvContent = [
       ['Name', 'Phone', 'Service', 'Date', 'Time', 'Business Info', 'Status', 'Created At'],
       ...filteredAppointments.map(apt => [
-        apt.name,
-        apt.phone || apt.email,
-        formatDepartment(apt.department),
-        apt.date,
-        apt.time,
-        apt.moreDetails || '',
-        apt.status || 'confirmed',
-        new Date(apt.createdAt).toLocaleDateString()
+        `"${apt.name || ''}"`,
+        `"${apt.phone || apt.email || ''}"`,
+        `"${formatDepartment(apt.department) || ''}"`,
+        `"${apt.date || ''}"`,
+        `"${apt.time || ''}"`,
+        `"${(apt.moreDetails || '').replace(/"/g, '""')}"`,
+        `"${apt.status || 'confirmed'}"`,
+        `"${apt.createdAt ? new Date(apt.createdAt).toLocaleDateString() : ''}"`
       ])
     ].map(row => row.join(',')).join('\n');
 
@@ -98,21 +109,24 @@ const FlowAppointments = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `whatsapp-business-appointments-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `whatsapp-business-appointments-${fromDate || 'all'}-to-${toDate || 'all'}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
 
   const filteredAppointments = appointments.filter(appointment => {
     const matchesSearch = 
-      appointment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      appointment.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      appointment.phone.includes(searchTerm) ||
-      appointment.department.toLowerCase().includes(searchTerm.toLowerCase());
+      appointment.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      appointment.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      appointment.phone?.includes(searchTerm) ||
+      appointment.department?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesFilter = filterStatus === 'all' || appointment.status === filterStatus;
+    const appointmentDate = appointment.date;
+    const matchesFromDate = fromDate ? appointmentDate >= fromDate : true;
+    const matchesToDate = toDate ? appointmentDate <= toDate : true;
     
-    return matchesSearch && matchesFilter;
+    return matchesSearch && matchesFilter && matchesFromDate && matchesToDate;
   });
 
   const getStatusColor = (status) => {
@@ -169,9 +183,9 @@ const FlowAppointments = () => {
           <h2>WhatsApp Business Appointments</h2>
           <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px' }}>Manage demo requests and service inquiries</p>
         </div>
-        <button className="flow-export-btn" onClick={exportAppointments}>
+        {/* <button className="flow-export-btn" onClick={exportAppointments}>
           <Download size={18} /> Export Report
-        </button>
+        </button> */}
       </div>
 
       {/* Stats Cards */}
@@ -224,33 +238,86 @@ const FlowAppointments = () => {
       </div>
 
       {/* Filters and Search */}
-      <div className="flow-filters-section">
-        <div className="flow-search-container">
-          <Search className="flow-search-icon" size={18} />
-          <input
-            type="text"
-            placeholder="Search appointments..."
-            className="flow-search-input"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        
-        <select
-          className="flow-filter-select"
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-        >
-          <option value="all">All Status ({appointments.length})</option>
-          <option value="confirmed">Confirmed ({appointments.filter(apt => apt.status === 'confirmed' || !apt.status).length})</option>
-          <option value="pending">Pending ({appointments.filter(apt => apt.status === 'pending').length})</option>
-          <option value="cancelled">Cancelled ({appointments.filter(apt => apt.status === 'cancelled').length})</option>
-        </select>
-        
-        <div className="flow-total-count">
-          Showing: {filteredAppointments.length} Appointment{filteredAppointments.length !== 1 ? 's' : ''}
-        </div>
-      </div>
+      <div
+  className="flow-filters-section"
+  style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', width: '100%' }}
+>
+  <div className="flow-search-container" style={{ minWidth: '220px', flex: '1' }}>
+    <Search className="flow-search-icon" size={18} />
+    <input
+      type="text"
+      placeholder="Search appointments..."
+      className="flow-search-input"
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+    />
+  </div>
+
+  <select
+    className="flow-filter-select"
+    value={filterStatus}
+    onChange={(e) => setFilterStatus(e.target.value)}
+    style={{ minWidth: '170px' }}
+  >
+    <option value="all">All Status ({appointments.length})</option>
+    <option value="confirmed">
+      Confirmed ({appointments.filter(apt => apt.status === 'confirmed' || !apt.status).length})
+    </option>
+    <option value="pending">
+      Pending ({appointments.filter(apt => apt.status === 'pending').length})
+    </option>
+    <option value="cancelled">
+      Cancelled ({appointments.filter(apt => apt.status === 'cancelled').length})
+    </option>
+  </select>
+
+  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+    <label style={{ fontSize: '13px', color: '#6b7280', whiteSpace: 'nowrap' }}>
+      From:
+    </label>
+    <input
+      type="date"
+      className="flow-filter-select"
+      value={fromDate}
+      onChange={(e) => setFromDate(e.target.value)}
+      style={{ minWidth: '150px' }}
+    />
+  </div>
+
+  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+    <label style={{ fontSize: '13px', color: '#6b7280', whiteSpace: 'nowrap' }}>
+      To:
+    </label>
+    <input
+      type="date"
+      className="flow-filter-select"
+      value={toDate}
+      onChange={(e) => setToDate(e.target.value)}
+      style={{ minWidth: '150px' }}
+    />
+  </div>
+
+  <button
+    className="flow-export-btn"
+    onClick={exportAppointments}
+    style={{ height: '40px', padding: '0 14px' }}
+  >
+    <Download size={18} /> Export
+  </button>
+
+  <button
+    type="button"
+    className="flow-export-btn"
+    onClick={clearDateFilters}
+    style={{ height: '40px', padding: '0 14px' }}
+  >
+    Clear
+  </button>
+
+  <div className="flow-total-count" style={{ whiteSpace: 'nowrap' }}>
+    Showing: {filteredAppointments.length} Appointment{filteredAppointments.length !== 1 ? 's' : ''}
+  </div>
+</div>
 
       {/* Appointments Table */}
       <div className="flow-table-container">

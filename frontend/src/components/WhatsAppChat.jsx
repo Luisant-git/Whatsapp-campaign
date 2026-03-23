@@ -417,6 +417,7 @@ useEffect(() => {
         if (!uniqueChats[chatKey]) {
           uniqueChats[chatKey] = {
             phone: msg.from,
+            name: msg.customerName || msg.contactName || msg.profileName || msg.from,
             businessNumber: msg.displayPhoneNumber,
             lastMessage: msg.message || 'Media',
             lastTime: msg.createdAt,
@@ -426,6 +427,8 @@ useEffect(() => {
         if (new Date(msg.createdAt) > new Date(uniqueChats[chatKey].lastTime)) {
           uniqueChats[chatKey].lastMessage = msg.message || 'Media';
           uniqueChats[chatKey].lastTime = msg.createdAt;
+          uniqueChats[chatKey].name =
+            msg.customerName || msg.contactName || msg.profileName || uniqueChats[chatKey].phone;
         }
         if (
           msg.direction === 'incoming' &&
@@ -794,7 +797,10 @@ useEffect(() => {
     }
   };
   const filteredChats = chats
-    .filter((chat) => chat.phone.toLowerCase().includes(searchQuery.toLowerCase()))
+  .filter((chat) =>
+    (chat.phone || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (chat.name || '').toLowerCase().includes(searchQuery.toLowerCase())
+  )
     .filter((chat) => {
       if (selectedLabel === "all") return true;
 
@@ -809,7 +815,7 @@ useEffect(() => {
       if (selectedBusinessNumber === 'all') return true;
       return chat.businessNumber === selectedBusinessNumber;
     });
-
+    const selectedChatData = chats.find((chat) => chat.phone === selectedChat);
   // Delete message functions
   const toggleMessageSelection = (messageId) => {
     setSelectedMessages(prev => {
@@ -1054,7 +1060,7 @@ useEffect(() => {
             </svg>
             <input
               type="text"
-              placeholder="Search number..."
+              placeholder="Search number or name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -1144,10 +1150,13 @@ useEffect(() => {
             >
               <div className="chat-avatar">{chat.phone.slice(-4)}</div>
               <div className="chat-info">
-                <div className="chat-phone">
-                  {chat.phone}
-                  {chat.unreadCount > 0 && <span className="unread-badge">{chat.unreadCount}</span>}
-                </div>
+              <div className="chat-phone">
+  {chat.name || chat.phone}
+  {chat.unreadCount > 0 && <span className="unread-badge">{chat.unreadCount}</span>}
+</div>
+<div style={{ fontSize: '12px', color: '#667781', marginTop: '2px' }}>
+  {chat.phone}
+</div>
                 {chat.businessNumber && (
                   <div style={{
                     fontSize: '11px',
@@ -1334,7 +1343,12 @@ useEffect(() => {
                 {!isSelectionMode ? (
                   <>
                     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#111b21', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedChat}</h3>
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#111b21', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+  {selectedChatData?.name || selectedChat}
+</h3>
+<div style={{ fontSize: '12px', color: '#667781', marginTop: '2px' }}>
+  {selectedChat}
+</div>
                       {businessNumbers[selectedChat] && (
                         <div style={{
                           fontSize: '12px',

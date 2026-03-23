@@ -1219,6 +1219,9 @@ export class WhatsappService {
             this.logger.error('[Priority 0] Meta Catalog error:', error.message);
           }
         }
+        // If Meta Catalog didn't handle it, clear session and continue
+        this.logger.log(`🔄 Meta Catalog didn't handle "${text}" - clearing session`);
+        await this.ecommerceService['sessionService'].clearSession(from, tenantId);
       }
  
       // PRIORITY 1: Ecommerce checkout flow
@@ -1251,6 +1254,9 @@ export class WhatsappService {
         return;
       }
  
+      // 🔥 Check if user is in Meta Catalog order flow and wants to exit
+      // This is now handled in Priority 0, so we can remove this duplicate check
+
       // 🔥 PRIORITY 1: Check Quick Replies first
       this.logger.log('🔍 [Priority 1] Checking Quick Replies...');
       const quickReplyHandled = await this.sessionService.handleInteractiveMenu(

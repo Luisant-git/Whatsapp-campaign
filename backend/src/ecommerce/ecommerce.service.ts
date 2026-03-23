@@ -290,7 +290,7 @@ async deleteVariant(id: number) {
     let shippingAmount = 0;
   
     if (customerState) {
-      const shippingRate = await this.prisma.shippingRate.findUnique({
+      const shippingRate = await client.shippingRate.findUnique({
         where: { state: customerState.toUpperCase() },
       });
       shippingAmount = shippingRate?.flatShippingRate || 0;

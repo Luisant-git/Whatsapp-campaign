@@ -343,11 +343,11 @@ export class MetaCatalogService {
     }, userId);
     
     // Check if customer exists
-    const existingCustomer = await this.customerDetailsFlowService.getCustomerByPhone(phone, userId);
+    const existingCustomer = await this.ecommerceService.getCustomerByPhone(phone, userId);
     
     if (existingCustomer) {
       // Show existing customer details with options
-      await this.sendCustomerDetailsConfirmation(phone, phoneNumberId, existingCustomer);
+      await this.sendCustomerDetailsConfirmation(phone, phoneNumberId, existingCustomer, userId);
     } else {
       // Send customer details flow for new customer
       if (process.env.CUSTOMER_FLOW_ID) {
@@ -607,15 +607,29 @@ export class MetaCatalogService {
     }
   }
 
-  private async sendCustomerDetailsConfirmation(phone: string, phoneNumberId: string, customer: any) {
+  private async sendCustomerDetailsConfirmation(phone: string, phoneNumberId: string, customer: any, userId: number) {
     try {
       const name = customer.customerName || 'Not provided';
-      let address = customer.customerAddress || 'Not provided';
+      const city = customer.customerCity || '';
+      const state = customer.customerState || '';
+      const pincode = customer.customerPincode || '';
       
-      // Clean up address by removing 'undefined' strings
+      // Build full address
+      let address = customer.customerAddress || 'Not provided';
       if (address !== 'Not provided') {
-        address = address.split(',').map(part => part.trim()).filter(part => part && part !== 'undefined').join(', ');
+        const addressParts = [customer.customerAddress, city, state, pincode].filter(p => p && p !== 'undefined');
+        address = addressParts.join(', ');
       }
+      
+      // Save customer details to session for later use
+      await this.sessionService.setSession(phone, {
+        customerName: customer.customerName,
+        customerAddress: customer.customerAddress,
+        customerCity: customer.customerCity,
+        customerState: customer.customerState,
+        customerPincode: customer.customerPincode,
+        step: 'confirm_details'
+      }, userId);
       
       await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,

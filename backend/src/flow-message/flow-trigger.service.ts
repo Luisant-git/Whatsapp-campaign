@@ -43,7 +43,7 @@ export class FlowTriggerService {
               flow_message_version: '3',
               flow_token: flowToken,
               flow_id: flowId,
-              flow_cta: 'Complete Order',
+              flow_cta: 'Fill order details',
               flow_action: 'data_exchange'
             }
           }

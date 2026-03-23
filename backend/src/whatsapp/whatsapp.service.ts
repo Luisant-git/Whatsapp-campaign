@@ -1141,9 +1141,10 @@ export class WhatsappService {
     }
  
     if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
+      const buttonId = message.interactive.button_reply.id;
       const buttonTitle = message.interactive.button_reply.title;
-      text = buttonTitle; // Use button title instead of ID
-      console.log(`[WhatsappService] Button clicked: ${buttonTitle} (ID: ${message.interactive.button_reply.id})`);
+      text = buttonId; // Use button ID for processing
+      console.log(`[WhatsappService] Button clicked: ${buttonTitle} (ID: ${buttonId})`);
     }
  
     if (message.type === 'interactive' && message.interactive?.type === 'list_reply') {

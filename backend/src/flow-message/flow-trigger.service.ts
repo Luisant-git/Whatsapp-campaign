@@ -20,12 +20,14 @@ export class FlowTriggerService {
     to,
     phoneNumberId,
     flowId,
-    flowToken
+    flowToken,
+    bodyText
   }: {
     to: string;
     phoneNumberId: string;
     flowId: string;
     flowToken: string;
+    bodyText?: string;
   }) {
     try {
       const payload = {
@@ -35,7 +37,7 @@ export class FlowTriggerService {
         interactive: {
           type: 'flow',
           body: {
-            text: '🛒 Please complete your order details'
+            text: bodyText || '🛒 Please complete your order details'
           },
           action: {
             name: 'flow',

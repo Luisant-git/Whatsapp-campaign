@@ -402,7 +402,8 @@ export class MetaCatalogService {
               to: phone,
               phoneNumberId,
               flowId: process.env.CUSTOMER_FLOW_ID,
-              flowToken: `order_${Date.now()}`
+              flowToken: `order_${Date.now()}`,
+              bodyText: '📝 Update your order details'
             });
           } else {
             await this.sendTextMessage(phone, phoneNumberId, '📝 Please provide your updated details.');
@@ -424,7 +425,8 @@ export class MetaCatalogService {
               to: phone,
               phoneNumberId,
               flowId: process.env.CUSTOMER_FLOW_ID,
-              flowToken: `order_${Date.now()}`
+              flowToken: `order_${Date.now()}`,
+              bodyText: '🎁 Enter recipient order details'
             });
           } else {
             await this.sendTextMessage(phone, phoneNumberId, '🎁 Ordering for someone else! Please provide recipient\'s details.');
@@ -541,7 +543,7 @@ export class MetaCatalogService {
             }
           } else {
             const productList = cartProducts.map(p => `${p.name} (x${p.quantity}) - ₹${p.price * p.quantity}`).join('\n');
-            const confirmationMessage = `✅ *Order Confirmed*\n\n${productList}\n\nTotal: ₹${totalAmount}\nPayment: Cash on Delivery\n\n*Delivery Details:*\nName: ${session.customerName}\nAddress: ${session.customerAddress}\nCity: ${session.customerCity}\nState: ${fullStateName}\nPincode: ${session.customerPincode}\n\nOur team will contact you soon 🙂`;
+            const confirmationMessage = `✅ *Order Confirmed*\n\n${productList}\n\nTotal: ₹${totalAmount}\nPayment: Cash on Delivery\n\n*Delivery Details:*\nName: ${session.customerName}\nAddress: ${session.customerAddress}\nCity: ${session.customerCity}\nState: ${fullStateName}\nPincode: ${session.customerPincode}\n\nOur team will contact you soon 😊`;
             await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
           }
           
@@ -812,7 +814,7 @@ export class MetaCatalogService {
       } else {
         // COD confirmation with detailed address
         const productList = cartProducts.map(p => `${p.name} (x${p.quantity}) - ₹${p.price * p.quantity}`).join('\n');
-        const confirmationMessage = `✅ *Order Confirmed*\n\n${productList}\n\nTotal: ₹${totalAmount}\nPayment: Cash on Delivery\n\n*Delivery Details:*\nName: ${customerData.customerName}\nAddress: ${customerData.customerAddress}\nCity: ${customerData.customerCity}\nState: ${fullStateName}\nPincode: ${customerData.customerPincode}\n\nOur team will contact you soon 🙂`;
+        const confirmationMessage = `✅ *Order Confirmed*\n\n${productList}\n\nTotal: ₹${totalAmount}\nPayment: Cash on Delivery\n\n*Delivery Details:*\nName: ${customerData.customerName}\nAddress: ${customerData.customerAddress}\nCity: ${customerData.customerCity}\nState: ${fullStateName}\nPincode: ${customerData.customerPincode}\n\nOur team will contact you soon 😊`;
         await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
       }
       

@@ -852,8 +852,20 @@ export class WhatsappService {
         return;
       }
 
-      // Cache miss - find tenant
-      const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
+      // Cache miss - find tenant with retry logic
+      let tenants;
+      let retries = 3;
+      while (retries > 0) {
+        try {
+          tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
+          break;
+        } catch (error) {
+          retries--;
+          if (retries === 0) throw error;
+          this.logger.warn(`Database connection error, retrying... (${retries} attempts left)`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
 
       for (const tenant of tenants) {
         const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;

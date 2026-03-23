@@ -1190,7 +1190,15 @@ export class WhatsappService {
  
     if (text) {
       const lowerText = text.toLowerCase().trim();
-      const currentStep = await this.ecommerceService['sessionService'].getStep(from, tenantId);
+      
+      // Get current step FIRST before any processing
+      let currentStep;
+      try {
+        currentStep = await this.ecommerceService['sessionService'].getStep(from, tenantId);
+        this.logger.log(`Current step for ${from}: ${currentStep}`);
+      } catch (error) {
+        this.logger.error('Error getting step:', error.message);
+      }
  
       // PRIORITY 0: Check Meta Catalog responses FIRST (before ecommerce checkout)
       if (currentStep === 'confirm_details' || currentStep === 'awaiting_payment_method') {

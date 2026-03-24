@@ -493,6 +493,15 @@ export class MetaCatalogService {
         
         await this.sessionService.setPaymentMethod(phone, paymentMethod, userId);
         const session = await this.sessionService.getSession(phone, userId);
+        
+        console.log(`[Meta Catalog] Session retrieved:`, {
+          hasSession: !!session,
+          cartProductsCount: session?.cartProducts?.length || 0,
+          totalAmount: session?.totalAmount,
+          step: session?.step,
+          customerName: session?.customerName
+        });
+        
         const cartProducts = session?.cartProducts || [];
         const totalAmount = session?.totalAmount || 0;
         

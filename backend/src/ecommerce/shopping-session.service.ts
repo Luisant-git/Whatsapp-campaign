@@ -41,6 +41,13 @@ export class ShoppingSessionService {
     
     const cacheKey = `${tenantId}:${phone}`;
     
+    console.log(`[ShoppingSession] setSession called for ${phone}:`, {
+      hasCartProducts: !!data.cartProducts,
+      cartCount: data.cartProducts?.length,
+      totalAmount: data.totalAmount,
+      step: data.step
+    });
+    
     // Create lock promise
     const lockPromise = (async () => {
       const existing = this.memoryCache.get(cacheKey);
@@ -51,6 +58,12 @@ export class ShoppingSessionService {
         ...existing, 
         ...data
       };
+      
+      console.log(`[ShoppingSession] Merged session data:`, {
+        hasCartProducts: !!sessionData.cartProducts,
+        cartCount: sessionData.cartProducts?.length,
+        totalAmount: sessionData.totalAmount
+      });
       
       // Update memory cache immediately
       this.memoryCache.set(cacheKey, sessionData);

@@ -263,15 +263,49 @@ export class EcommerceController {
   @UseGuards(SessionGuard)
   @Post('products/:id/sync-meta')
   async syncProductToMeta(@Param('id') id: string, @Body() body: any, @Request() req) {
+    try {
+      const product = await this.ecommerceService.getProduct(+id);
+      
+      if (!product) {
+        return { success: false, error: 'Product not found' };
+      }
+
+      // Start sync in background (don't await)
+      this.metaCatalogService.syncProductToCatalog(product, body)
+        .then(async (result) => {
+          // Update product after successful sync
+          await this.ecommerceService.updateProduct(+id, {
+            metaProductId: result.metaProductId,
+            source: 'uploaded',
+          });
+          console.log(`[Meta Sync] Product ${id} synced successfully:`, result.metaProductId);
+        })
+        .catch((error) => {
+          console.error(`[Meta Sync] Product ${id} sync failed:`, error.message);
+        });
+
+      // Return immediately
+      return { 
+        success: true, 
+        message: 'Product sync started. This may take a few moments.',
+        productId: +id 
+      };
+    } catch (error) {
+      console.error('[Sync Meta] Error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  @UseGuards(SessionGuard)
+  @Get('products/:id/sync-status')
+  async getSyncStatus(@Param('id') id: string) {
     const product = await this.ecommerceService.getProduct(+id);
-    const result = await this.metaCatalogService.syncProductToCatalog(product, body);
-
-    await this.ecommerceService.updateProduct(+id, {
-      metaProductId: result.metaProductId,
-      source: 'uploaded',
-    });
-
-    return result;
+    return {
+      productId: +id,
+      synced: !!product?.metaProductId,
+      metaProductId: product?.metaProductId,
+      source: product?.source,
+    };
   }
 
   @Post('sync-from-meta')

@@ -381,9 +381,10 @@ export class MetaCatalogService {
       }
       
       if (product) {
-        console.log(`[Meta Catalog] Adding product to cart: ${product.name} (ID: ${product.id}, Price: ${product.price})`);
-        cartProducts.push({ ...product, quantity });
-        totalAmount += product.price * quantity;
+        const effectivePrice = product.salePrice || product.price;
+        console.log(`[Meta Catalog] Adding product to cart: ${product.name} (ID: ${product.id}, Price: ${product.price}, Sale Price: ${product.salePrice}, Using: ${effectivePrice})`);
+        cartProducts.push({ ...product, quantity, effectivePrice });
+        totalAmount += effectivePrice * quantity;
       } else {
         console.log(`[Meta Catalog] ⚠️ Product not found for catalogItemId: "${catalogItemId}"`);
       }
@@ -587,7 +588,7 @@ export class MetaCatalogService {
           const orderItems = cartProducts.map(cartItem => ({
             productId: cartItem.productId || cartItem.id,
             quantity: cartItem.quantity || 1,
-            price: cartItem.price
+            price: cartItem.effectivePrice || cartItem.salePrice || cartItem.price
           }));
           
           // Create single order with all items including full state name
@@ -629,7 +630,7 @@ export class MetaCatalogService {
               await this.sendTextMessage(phone, phoneNumberId, `✅ *Order Placed*\n\n${productList}\nTotal: ₹${totalAmount}\n\nOur team will send you payment link shortly 📞`);
             }
           } else {
-            const productList = cartProducts.map(p => `${p.name} (x${p.quantity}) - ₹${p.price * p.quantity}`).join('\n');
+            const productList = cartProducts.map(p => `${p.name} (x${p.quantity}) - ₹${(p.effectivePrice || p.salePrice || p.price) * p.quantity}`).join('\n');
             const confirmationMessage = `✅ *Order Confirmed*\n\n${productList}\n\nTotal: ₹${totalAmount}\nPayment: Cash on Delivery\n\n*Delivery Details:*\nName: ${session.customerName}\nAddress: ${session.customerAddress}\nCity: ${session.customerCity}\nState: ${fullStateName}\nPincode: ${session.customerPincode}\n\nOur team will contact you soon 😊`;
             await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
           }
@@ -879,7 +880,7 @@ export class MetaCatalogService {
       const orderItems = cartProducts.map(cartItem => ({
         productId: cartItem.productId || cartItem.id,
         quantity: cartItem.quantity || 1,
-        price: cartItem.price
+        price: cartItem.effectivePrice || cartItem.salePrice || cartItem.price
       }));
       
       // Create order with individual address fields
@@ -922,7 +923,7 @@ export class MetaCatalogService {
         }
       } else {
         // COD confirmation with detailed address
-        const productList = cartProducts.map(p => `${p.name} (x${p.quantity}) - ₹${p.price * p.quantity}`).join('\n');
+        const productList = cartProducts.map(p => `${p.name} (x${p.quantity}) - ₹${(p.effectivePrice || p.salePrice || p.price) * p.quantity}`).join('\n');
         const confirmationMessage = `✅ *Order Confirmed*\n\n${productList}\n\nTotal: ₹${totalAmount}\nPayment: Cash on Delivery\n\n*Delivery Details:*\nName: ${customerData.customerName}\nAddress: ${customerData.customerAddress}\nCity: ${customerData.customerCity}\nState: ${fullStateName}\nPincode: ${customerData.customerPincode}\n\nOur team will contact you soon 😊`;
         await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
       }

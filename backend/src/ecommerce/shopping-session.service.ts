@@ -121,6 +121,12 @@ export class ShoppingSessionService {
     // Check memory cache first
     const cached = this.memoryCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < 30 * 60 * 1000) {
+      console.log(`[ShoppingSession] getSession from cache for ${phone}:`, {
+        hasCartProducts: !!cached.cartProducts,
+        cartCount: cached.cartProducts?.length,
+        totalAmount: cached.totalAmount,
+        step: cached.step
+      });
       return cached;
     }
     

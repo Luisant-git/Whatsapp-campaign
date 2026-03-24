@@ -420,6 +420,15 @@ export class MetaCatalogService {
         const response = message.toLowerCase();
         console.log(`[Meta Catalog] In confirm_details step, response: "${response}", original: "${message}"`);
         
+        // Log current session state before processing
+        const currentSession = await this.sessionService.getSession(phone, userId);
+        console.log(`[Meta Catalog] Current session before confirm_details action:`, {
+          hasCartProducts: !!currentSession?.cartProducts,
+          cartCount: currentSession?.cartProducts?.length,
+          totalAmount: currentSession?.totalAmount,
+          step: currentSession?.step
+        });
+        
         if (response === 'confirm' || response === 'use my details' || message === 'Use My Details') {
           console.log(`[Meta Catalog] Matched 'Use My Details' - sending payment method selection`);
           await this.sendPaymentMethodSelection(phone, phoneNumberId, userId);

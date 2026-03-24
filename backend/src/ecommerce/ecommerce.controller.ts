@@ -306,7 +306,7 @@ export class EcommerceController {
   }
 
   @Post('products/:id/sync-meta')
-  syncProductToMeta(@Param('id') id: string, @Body() body: any, @Request() req) {
+  async syncProductToMeta(@Param('id') id: string, @Body() body: any, @Request() req) {
     try {
       console.log(`[Meta Sync] === ENDPOINT HIT ===`);
       console.log(`[Meta Sync] Product ID: ${id}`);
@@ -329,21 +329,33 @@ export class EcommerceController {
         };
       }
 
-      console.log(`[Meta Sync] Spawning background sync for product ${productId}`);
+      console.log(`[Meta Sync] Starting sync for product ${productId}`);
 
-      // Immediately spawn background process without awaiting
-      setTimeout(() => {
-        this.performMetaSync(productId, body, tenantId).catch(err => {
-          console.error(`[Meta Sync] Failed for product ${productId}:`, err.message);
-        });
-      }, 0);
+      // Wait for sync to complete
+      const product = await this.ecommerceService.getProduct(productId, tenantId);
+      
+      if (!product) {
+        console.error(`[Meta Sync] Product ${productId} not found`);
+        return {
+          success: false,
+          error: 'Product not found',
+          productId: productId
+        };
+      }
 
-      console.log(`[Meta Sync] Returning immediate response for product ${productId}`);
-
-      // Return immediately - synchronously
+      const result = await this.metaCatalogService.syncProductToCatalog(product, body);
+      
+      await this.ecommerceService.updateProduct(productId, {
+        metaProductId: result.metaProductId,
+        source: 'uploaded',
+      }, tenantId);
+      
+      console.log(`[Meta Sync] Product ${productId} synced successfully:`, result.metaProductId);
+      
       return { 
         success: true, 
-        message: 'Product sync queued. Check backend logs for status.',
+        message: 'Product synced to Meta Catalog successfully',
+        metaProductId: result.metaProductId,
         productId: productId 
       };
     } catch (error) {

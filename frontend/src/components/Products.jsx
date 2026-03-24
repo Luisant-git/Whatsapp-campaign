@@ -521,20 +521,32 @@ export default function Products() {
       setLoading(true);
       
       try {
+        // Wait for sync to complete
         const syncResponse = await ecommerceApi.syncProductToMeta(productId, metaPayload);
         console.log('[Meta Sync] Response:', syncResponse.data);
         
         setLoading(false);
-        alert('✅ Product created and synced to Meta Catalog successfully!');
+        
+        // Only show alert after upload is complete
+        alert('✅ Product created and uploaded to Meta Catalog successfully!');
+        
       } catch (syncError) {
-        console.warn('[Meta Sync] Sync request failed, but product was created:', syncError);
+        console.error('[Meta Sync] Sync failed:', syncError);
         setLoading(false);
         
-        // Even if sync fails, product was created successfully
-        if (syncError.response?.status === 502) {
-          alert('✅ Product created successfully!\n\n⚠️ Meta sync is taking longer than expected.\nThe sync is running in the background.\n\nCheck backend logs: pm2 logs backend');
+        const errorMsg = syncError.response?.data?.error || syncError.response?.data?.message || syncError.message;
+        
+        // Show specific error messages
+        if (errorMsg.includes('Meta Catalog ID') || errorMsg.includes('Access Token')) {
+          alert('❌ Meta Catalog not configured.\n\nPlease check backend .env file.');
+        } else if (errorMsg.includes('authentication') || errorMsg.includes('401') || errorMsg.includes('403')) {
+          alert('❌ Meta API authentication failed.\n\nAccess token may be expired.');
+        } else if (errorMsg.includes('rate limit')) {
+          alert('❌ Meta API rate limit exceeded.\n\nPlease wait and try again.');
+        } else if (syncError.response?.status === 502 || syncError.code === 'ECONNABORTED') {
+          alert('⚠️ Upload is taking longer than expected.\n\nProduct created in database but Meta sync may still be processing.\n\nCheck if product appears in Meta Catalog after a few minutes.');
         } else {
-          alert('✅ Product created successfully!\n\n⚠️ Meta sync failed: ' + (syncError.response?.data?.message || syncError.message) + '\n\nYou can try syncing again from the products list.');
+          alert('❌ Failed to upload to Meta Catalog:\n\n' + errorMsg);
         }
       }
 

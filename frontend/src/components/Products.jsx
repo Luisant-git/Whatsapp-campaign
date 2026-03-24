@@ -516,10 +516,23 @@ export default function Products() {
       };
 
       console.log('[Meta Sync] Sending to Meta:', metaPayload);
-      const syncResponse = await ecommerceApi.syncProductToMeta(productId, metaPayload);
-      console.log('[Meta Sync] Response:', syncResponse.data);
+      
+      try {
+        const syncResponse = await ecommerceApi.syncProductToMeta(productId, metaPayload);
+        console.log('[Meta Sync] Response:', syncResponse.data);
+        
+        alert('✅ Product created and syncing to Meta Catalog!\n\nThe product is being uploaded to Meta in the background.\nCheck backend logs: pm2 logs backend');
+      } catch (syncError) {
+        console.warn('[Meta Sync] Sync request failed, but product was created:', syncError);
+        
+        // Even if sync fails, product was created successfully
+        if (syncError.response?.status === 502) {
+          alert('✅ Product created successfully!\n\n⚠️ Meta sync is taking longer than expected.\nThe sync is running in the background.\n\nCheck backend logs: pm2 logs backend');
+        } else {
+          alert('✅ Product created successfully!\n\n⚠️ Meta sync failed: ' + (syncError.response?.data?.message || syncError.message) + '\n\nYou can try syncing again from the products list.');
+        }
+      }
 
-      alert('✅ Product created and syncing to Meta Catalog!\n\nThe product is being uploaded to Meta in the background. This may take a few moments.');
       setMetaForm(emptyMetaForm);
       setShowMetaModal(false);
       loadData();

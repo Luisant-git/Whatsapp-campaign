@@ -359,15 +359,25 @@ export class MetaCatalogService {
       console.log(`[Meta Catalog] Looking for product with catalogItemId: "${catalogItemId}"`);
       
       let product;
+      
+      // 1. Try numeric product_XX format
       if (catalogItemId?.startsWith('product_')) {
         const prodId = parseInt(catalogItemId.replace('product_', ''));
         console.log(`[Meta Catalog] Extracted product ID: ${prodId}`);
         product = allProducts.find(p => p.id === prodId);
         console.log(`[Meta Catalog] Product found by ID: ${!!product}`);
       }
+      
+      // 2. Try metaProductId
       if (!product) {
         product = allProducts.find(p => p.metaProductId === catalogItemId);
         console.log(`[Meta Catalog] Product found by metaProductId: ${!!product}`);
+      }
+      
+      // 3. Try contentId (for custom IDs like q34nfqc68g)
+      if (!product) {
+        product = allProducts.find(p => p.contentId === catalogItemId);
+        console.log(`[Meta Catalog] Product found by contentId: ${!!product}`);
       }
       
       if (product) {

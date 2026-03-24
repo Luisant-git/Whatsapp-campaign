@@ -108,13 +108,18 @@
 }
 
 .plans-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
+  display: flex;
+  justify-content: center;
 }
 
+.plans-grid .plan-card {
+  width: 50%;
+}
+@media (max-width: 768px) {
+  .plans-grid .plan-card {
+    width: 100%;
+  }
+}
 .plan-card {
   background: white;
   border: 2px solid #e0e0e0;

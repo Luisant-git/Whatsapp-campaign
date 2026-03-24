@@ -837,15 +837,25 @@ export class WhatsappService {
             displayPhoneNumber = settings?.name || msg.phoneNumberId || null;
           }
         }
+        const normalizedFrom = this.formatPhoneNumber(msg.from);
 
-        const contact = await this.prisma.contact.findFirst({
+        let contact = await this.prisma.contact.findFirst({
           where: {
-            phone: msg.from,
+            phone: normalizedFrom,
             phoneNumberId: msg.phoneNumberId || undefined,
           },
           select: { name: true },
         });
-
+        
+        if (!contact) {
+          contact = await this.prisma.contact.findFirst({
+            where: {
+              phone: normalizedFrom,
+            },
+            select: { name: true },
+          });
+        }
+        
         contactName = contact?.name || null;
 
         return {

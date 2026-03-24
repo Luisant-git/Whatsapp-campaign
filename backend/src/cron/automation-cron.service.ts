@@ -160,7 +160,6 @@ export class AutomationCronService {
             logMessage: `Auto Template ${settings.templateName} sent to ${contact.name || contact.phone}`,
           },
         );
-
         await tenantClient.runDailyAutomationLog.upsert({
           where: {
             runDailyAutomationId_sentDate: {

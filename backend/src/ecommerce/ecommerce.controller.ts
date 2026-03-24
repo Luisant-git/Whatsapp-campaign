@@ -260,8 +260,9 @@ export class EcommerceController {
     return this.ecommerceService.updateOrderStatus(+id, body.status, req.session.userId);
   }
 
+  @UseGuards(SessionGuard)
   @Post('products/:id/sync-meta')
-  async syncProductToMeta(@Param('id') id: string, @Body() body: any) {
+  async syncProductToMeta(@Param('id') id: string, @Body() body: any, @Request() req) {
     const product = await this.ecommerceService.getProduct(+id);
     const result = await this.metaCatalogService.syncProductToCatalog(product, body);
 

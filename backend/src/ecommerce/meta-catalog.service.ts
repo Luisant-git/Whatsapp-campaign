@@ -346,6 +346,9 @@ export class MetaCatalogService {
     console.log(`[Meta Catalog] Total products in cart: ${productItems.length}`);
     
     const allProducts = await this.ecommerceService.getProducts(undefined, userId);
+    console.log(`[Meta Catalog] Total products in database: ${allProducts.length}`);
+    console.log(`[Meta Catalog] Sample products:`, allProducts.slice(0, 3).map(p => ({ id: p.id, name: p.name, metaProductId: p.metaProductId })));
+    
     const cartProducts: any[] = [];
     let totalAmount = 0;
     
@@ -353,22 +356,31 @@ export class MetaCatalogService {
       const catalogItemId = item.catalog_item_id || item.product_retailer_id;
       const quantity = item.quantity || 1;
       
+      console.log(`[Meta Catalog] Looking for product with catalogItemId: "${catalogItemId}"`);
+      
       let product;
       if (catalogItemId?.startsWith('product_')) {
         const prodId = parseInt(catalogItemId.replace('product_', ''));
+        console.log(`[Meta Catalog] Extracted product ID: ${prodId}`);
         product = allProducts.find(p => p.id === prodId);
+        console.log(`[Meta Catalog] Product found by ID: ${!!product}`);
       }
       if (!product) {
         product = allProducts.find(p => p.metaProductId === catalogItemId);
+        console.log(`[Meta Catalog] Product found by metaProductId: ${!!product}`);
       }
       
       if (product) {
+        console.log(`[Meta Catalog] Adding product to cart: ${product.name} (ID: ${product.id}, Price: ${product.price})`);
         cartProducts.push({ ...product, quantity });
         totalAmount += product.price * quantity;
+      } else {
+        console.log(`[Meta Catalog] ⚠️ Product not found for catalogItemId: "${catalogItemId}"`);
       }
     }
     
     console.log(`[Meta Catalog] Cart products:`, cartProducts.map(p => ({ name: p.name, qty: p.quantity })));
+    console.log(`[Meta Catalog] Total amount: ${totalAmount}`);
     
     // Save cart to session
     await this.sessionService.setSession(phone, { 

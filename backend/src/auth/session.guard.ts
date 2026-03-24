@@ -23,10 +23,18 @@ export class SessionGuard implements CanActivate {
     const authHeader = request.get('authorization');
 
     // 🔍 Debug session
-    console.log('SessionGuard - Session data:', {
-      userId: session?.userId,
-      tenantId: session?.tenantId,
-      userType: session?.userType
+    console.log('SessionGuard - Full debug:', {
+      method: request.method,
+      url: request.url,
+      cookies: request.headers.cookie,
+      sessionID: request.sessionID,
+      session: {
+        userId: session?.userId,
+        tenantId: session?.tenantId,
+        userType: session?.userType
+      },
+      origin,
+      authHeader: authHeader ? 'present' : 'missing'
     });
 
     // Check if accessing via custom domain (based on origin)

@@ -214,6 +214,9 @@ export class EcommerceService {
  // ecommerce.service.ts - ADD/REPLACE these variant functions
 
 async createVariant(data: any) {
+  // Generate contentId before creation if not provided
+  const contentId = data.contentId || `variant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
   const variant = await this.prisma.productVariant.create({
     data: {
       productId: data.productId,
@@ -224,19 +227,11 @@ async createVariant(data: any) {
       stock: data.stock ?? 0,   
       imageUrl: data.imageUrl,
       link: data.link,
-      contentId: data.contentId || null,
+      contentId: contentId,
       availability: data.availability ?? true,
       isActive: data.isActive ?? true,
     },
   });
-
-  // Auto-generate contentId if not provided
-  if (!variant.contentId) {
-    return this.prisma.productVariant.update({
-      where: { id: variant.id },
-      data: { contentId: `variant_${variant.id}` },
-    });
-  }
 
   return variant;
 }

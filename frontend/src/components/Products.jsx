@@ -517,13 +517,18 @@ export default function Products() {
 
       console.log('[Meta Sync] Sending to Meta:', metaPayload);
       
+      // Show loading state
+      setLoading(true);
+      
       try {
         const syncResponse = await ecommerceApi.syncProductToMeta(productId, metaPayload);
         console.log('[Meta Sync] Response:', syncResponse.data);
         
-        alert('✅ Product created and syncing to Meta Catalog!\n\nThe product is being uploaded to Meta in the background.\nCheck backend logs: pm2 logs backend');
+        setLoading(false);
+        alert('✅ Product created and synced to Meta Catalog successfully!');
       } catch (syncError) {
         console.warn('[Meta Sync] Sync request failed, but product was created:', syncError);
+        setLoading(false);
         
         // Even if sync fails, product was created successfully
         if (syncError.response?.status === 502) {

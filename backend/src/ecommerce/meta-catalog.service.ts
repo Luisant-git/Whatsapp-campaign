@@ -188,6 +188,10 @@ export class MetaCatalogService {
         ? String(meta.contentId).trim()
         : product.contentId || `product_${product.id}`;
 
+      // Meta API doesn't support PATCH/PUT for products
+      // We need to DELETE the old product and CREATE a new one with same retailer_id
+      // This preserves the product in the catalog with updated information
+      
       const payload: any = {
         retailer_id: baseRetailerId,
         name: meta?.name || product.name,
@@ -202,13 +206,31 @@ export class MetaCatalogService {
         url: meta?.link || product.link || imageUrl,
       };
 
-      console.log('[Meta Update] Updating product with metaProductId:', product.metaProductId);
+      console.log('[Meta Update] Updating product with payload:', payload);
+      
+      // Delete old product first if metaProductId exists
+      if (product.metaProductId) {
+        try {
+          await this.axiosInstance.delete(
+            `${this.apiUrl}/${product.metaProductId}`,
+          );
+          console.log('[Meta Update] Old product deleted:', product.metaProductId);
+        } catch (deleteError) {
+          console.log('[Meta Update] Could not delete old product (may not exist):', deleteError.message);
+        }
+      }
+      
+      // Create new product with same retailer_id
       const response = await this.axiosInstance.post(
         `${this.apiUrl}/${this.catalogId}/products`,
         payload,
       );
 
       console.log('[Meta Update] Product updated successfully:', response.data.id);
+      
+      // Clear cache after update
+      this.catalogCache = null;
+      
       return { success: true, data: response.data, metaProductId: response.data.id };
     } catch (error) {
       const errorMsg = error.response?.data?.error?.message || error.message;

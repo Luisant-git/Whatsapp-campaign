@@ -162,10 +162,19 @@ export class EcommerceController {
     
     // Auto-sync to Meta Catalog if product was previously synced
     if (updatedProduct.metaProductId) {
-      setTimeout(() => {
-        this.metaCatalogService.updateProductInCatalog(updatedProduct, body).catch(err => {
+      setTimeout(async () => {
+        try {
+          const result = await this.metaCatalogService.updateProductInCatalog(updatedProduct, body);
+          // Update the metaProductId in case it changed (delete + recreate)
+          if (result.metaProductId !== updatedProduct.metaProductId) {
+            await this.ecommerceService.updateProduct(+id, {
+              metaProductId: result.metaProductId
+            }, req.session?.userId);
+          }
+          console.log(`[Meta Sync] Product ${id} updated in Meta Catalog`);
+        } catch (err) {
           console.error(`[Meta Sync] Auto-update failed for product ${id}:`, err.message);
-        });
+        }
       }, 0);
     }
     

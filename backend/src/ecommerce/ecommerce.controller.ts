@@ -427,16 +427,24 @@ export class EcommerceController {
         return;
       }
 
-      const result = await this.metaCatalogService.syncProductToCatalog(product, {
-        ...body,
-        variants: [variant]
-      });
+      // Get the parent product's retailer_id to use as item_group_id
+      const parentRetailerId = product.contentId || `product_${product.id}`;
+      
+      console.log(`[Meta Sync] Syncing variant ${variantId} with parent group: ${parentRetailerId}`);
+
+      // Sync variant with proper item_group_id linking to parent
+      const result = await this.metaCatalogService.syncVariantToCatalog(
+        variant,
+        product,
+        parentRetailerId,
+        body
+      );
 
       await this.ecommerceService.updateVariant(variantId, {
-        metaProductId: result.results?.[0]?.metaId,
+        metaProductId: result.metaProductId,
       });
 
-      console.log(`[Meta Sync] Variant ${variantId} synced:`, result.results?.[0]?.metaId);
+      console.log(`[Meta Sync] Variant ${variantId} synced as part of group ${parentRetailerId}:`, result.metaProductId);
     } catch (error) {
       console.error(`[Meta Sync] Variant ${variantId} error:`, error.message);
       throw error;

@@ -321,6 +321,72 @@ export class MetaCatalogService {
       throw new Error(errorMsg || 'Failed to delete product from Meta Catalog');
     }
   }
+
+  async syncVariantToCatalog(variant: any, parentProduct: any, parentRetailerId: string, meta?: any) {
+    try {
+      if (!this.catalogId || !this.accessToken) {
+        throw new Error('Meta Catalog ID or Access Token not configured');
+      }
+
+      console.log('[Meta Sync Variant] Starting sync for variant:', variant.id, 'parent:', parentRetailerId);
+
+      // Use variant image if available, otherwise use parent product image
+      const imageUrl = variant.imageUrl?.startsWith('http')
+        ? variant.imageUrl
+        : parentProduct.imageUrl?.startsWith('http')
+        ? parentProduct.imageUrl
+        : `${process.env.UPLOAD_URL}${variant.imageUrl || parentProduct.imageUrl}`;
+
+      const toCents = (val: any) => {
+        const n = typeof val === 'string' ? parseFloat(val) : val;
+        if (n === undefined || n === null || Number.isNaN(n)) return undefined;
+        return Math.round(n * 100);
+      };
+
+      const metaAvailability = (isActive: boolean, availability: boolean) => {
+        if (!isActive) return 'out of stock';
+        return availability ? 'in stock' : 'out of stock';
+      };
+
+      // Variant retailer_id
+      const variantRetailerId = variant.contentId || `${parentRetailerId}_v${variant.id}`;
+
+      const payload: any = {
+        retailer_id: variantRetailerId,
+        item_group_id: parentRetailerId, // Link to parent product
+        name: meta?.name || variant.name,
+        description: meta?.description || variant.description || parentProduct.description || variant.name,
+        price: toCents(meta?.price ?? variant.price),
+        sale_price: toCents(meta?.salePrice ?? variant.salePrice),
+        currency: 'INR',
+        availability: metaAvailability(
+          meta?.isActive ?? variant.isActive ?? true,
+          meta?.availability ?? variant.availability ?? true
+        ),
+        condition: 'new',
+        brand: 'Store',
+        image_url: imageUrl,
+        url: meta?.link || variant.link || parentProduct.link || imageUrl,
+      };
+
+      console.log('[Meta Sync Variant] Uploading variant with item_group_id:', parentRetailerId);
+      const response = await this.axiosInstance.post(
+        `${this.apiUrl}/${this.catalogId}/products`,
+        payload,
+      );
+
+      console.log('[Meta Sync Variant] Variant uploaded successfully:', response.data.id);
+      
+      // Clear cache
+      this.catalogCache = null;
+      
+      return { success: true, metaProductId: response.data.id, retailerId: variantRetailerId };
+    } catch (error) {
+      const errorMsg = error.response?.data?.error?.message || error.message;
+      console.error('[Meta Sync Variant Error]', errorMsg);
+      throw new Error(errorMsg || 'Failed to sync variant to Meta Catalog');
+    }
+  }
   async fetchProductsFromMeta() {
     try {
       const response = await axios.get(

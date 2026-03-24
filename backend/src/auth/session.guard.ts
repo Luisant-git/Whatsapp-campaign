@@ -22,6 +22,13 @@ export class SessionGuard implements CanActivate {
     const origin = request.get('origin') || request.get('referer');
     const authHeader = request.get('authorization');
 
+    // 🔍 Debug session
+    console.log('SessionGuard - Session data:', {
+      userId: session?.userId,
+      tenantId: session?.tenantId,
+      userType: session?.userType
+    });
+
     // Check if accessing via custom domain (based on origin)
     let tenant: any = null;
     let isDomainBasedAccess = false;

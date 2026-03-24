@@ -13,58 +13,12 @@ async function bootstrap() {
   // ✅ Trust proxy (Nginx)
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
-  // ✅ CORS (ONLY HERE — not in Nginx)
+  // ✅ CORS (simplified - allow all origins dynamically)
   app.enableCors({
-    origin: (origin, callback) => {
-      console.log('🔍 Incoming Origin:', origin);
-      
-      // Allow requests without origin (Postman, mobile apps, server-to-server)
-      if (!origin) {
-        console.log('✅ Allowed: No origin (server-to-server or Postman)');
-        return callback(null, true);
-      }
-
-      const allowedOrigins = [
-        'http://localhost:5173',
-        'http://localhost:5174',
-        'https://whatsapp.luisant.cloud',
-        'https://whatsapp.admin.luisant.cloud',
-        'https://crm.luisant.in',
-        'https://business.facebook.com', 
-        'https://www.facebook.com', 
-      ];
-
-      // Allow exact matches
-      if (allowedOrigins.includes(origin)) {
-        console.log('✅ Allowed: Exact match -', origin);
-        return callback(null, true);
-      }
-
-      // Allow subdomains of luisant.in & luisant.cloud
-      if (origin.match(/^https?:\/\/[\w-]+\.(luisant\.(in|cloud))$/)) {
-        console.log('✅ Allowed: Subdomain match -', origin);
-        return callback(null, true);
-      }
-
-      console.log('❌ Blocked by CORS:', origin);
-      return callback(new Error('Not allowed by CORS'));
-    },
+    origin: true, 
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Origin', 'Content-Type', 'Accept', 'Authorization'],
-  });
-
-  // ✅ Global OPTIONS handler (for preflight)
-  app.use((req, res, next) => {
-    if (req.method === 'OPTIONS') {
-      console.log('🔧 Handling OPTIONS preflight for:', req.path);
-      res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-      res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-      res.header('Access-Control-Allow-Headers', 'Origin,Content-Type,Accept,Authorization');
-      res.header('Access-Control-Allow-Credentials', 'true');
-      return res.sendStatus(200);
-    }
-    next();
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
   });
 
   // ✅ Cookie parser

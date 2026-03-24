@@ -10,22 +10,10 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // ✅ TRUST PROXY
+  // ✅ Trust proxy (Nginx)
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
-  // ✅ GLOBAL OPTIONS HANDLER (VERY IMPORTANT)
-  app.use((req, res, next) => {
-    if (req.method === 'OPTIONS') {
-      res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-      res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-      res.header('Access-Control-Allow-Credentials', 'true');
-      return res.sendStatus(200);
-    }
-    next();
-  });
-
-  // ✅ CORS (FINAL)
+  // ✅ CORS
   app.enableCors({
     origin: true,
     credentials: true,

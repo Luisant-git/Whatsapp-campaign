@@ -265,14 +265,32 @@ export class EcommerceController {
   @Post('products/:id/sync-meta')
   syncProductToMeta(@Param('id') id: string, @Body() body: any, @Request() req) {
     try {
+      console.log(`[Meta Sync] === ENDPOINT HIT ===`);
+      console.log(`[Meta Sync] Product ID: ${id}`);
+      console.log(`[Meta Sync] Session:`, {
+        userId: req.session?.userId,
+        tenantId: req.session?.tenantId,
+        userType: req.session?.userType
+      });
+
       const userId = req.session?.userId;
+      const tenantId = req.session?.tenantId;
       const productId = +id;
 
-      console.log(`[Meta Sync] Received sync request for product ${productId}`);
+      if (!tenantId) {
+        console.error('[Meta Sync] No tenantId in session!');
+        return {
+          success: false,
+          error: 'No tenant context. Please login again.',
+          productId: productId
+        };
+      }
+
+      console.log(`[Meta Sync] Spawning background sync for product ${productId}`);
 
       // Immediately spawn background process without awaiting
       setTimeout(() => {
-        this.performMetaSync(productId, body, userId).catch(err => {
+        this.performMetaSync(productId, body, tenantId).catch(err => {
           console.error(`[Meta Sync] Failed for product ${productId}:`, err.message);
         });
       }, 0);
@@ -295,11 +313,11 @@ export class EcommerceController {
     }
   }
 
-  private async performMetaSync(productId: number, body: any, userId?: number) {
+  private async performMetaSync(productId: number, body: any, tenantId: number) {
     try {
-      console.log(`[Meta Sync] Starting background sync for product ${productId}`);
+      console.log(`[Meta Sync] Starting background sync for product ${productId}, tenant ${tenantId}`);
       
-      const product = await this.ecommerceService.getProduct(productId, userId);
+      const product = await this.ecommerceService.getProduct(productId, tenantId);
       
       if (!product) {
         console.error(`[Meta Sync] Product ${productId} not found`);
@@ -311,7 +329,7 @@ export class EcommerceController {
       await this.ecommerceService.updateProduct(productId, {
         metaProductId: result.metaProductId,
         source: 'uploaded',
-      }, userId);
+      }, tenantId);
       
       console.log(`[Meta Sync] Product ${productId} synced successfully:`, result.metaProductId);
     } catch (error) {

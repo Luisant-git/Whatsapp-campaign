@@ -213,11 +213,13 @@ export class EcommerceService {
 
  // ecommerce.service.ts - ADD/REPLACE these variant functions
 
-async createVariant(data: any) {
+async createVariant(data: any, userId?: number) {
+  const client = userId ? await this.getTenantClient(userId) : this.prisma;
+  
   // Generate contentId before creation if not provided
   const contentId = data.contentId || `variant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   
-  const variant = await this.prisma.productVariant.create({
+  const variant = await client.productVariant.create({
     data: {
       productId: data.productId,
       name: data.name,
@@ -236,20 +238,24 @@ async createVariant(data: any) {
   return variant;
 }
 
-async getVariants(productId: number) {
-  return this.prisma.productVariant.findMany({
+async getVariants(productId: number, userId?: number) {
+  const client = userId ? await this.getTenantClient(userId) : this.prisma;
+  return client.productVariant.findMany({
     where: { productId, isActive: true },
     orderBy: { createdAt: 'asc' },
   });
 }
 
-async getVariant(id: number) {
-  return this.prisma.productVariant.findUnique({
+async getVariant(id: number, userId?: number) {
+  const client = userId ? await this.getTenantClient(userId) : this.prisma;
+  return client.productVariant.findUnique({
     where: { id },
   });
 }
 
-async updateVariant(id: number, data: any) {
+async updateVariant(id: number, data: any, userId?: number) {
+  const client = userId ? await this.getTenantClient(userId) : this.prisma;
+  
   const parseBoolean = (value: any): boolean => {
     if (typeof value === 'boolean') return value;
     if (typeof value === 'string') return value.toLowerCase() === 'true';
@@ -271,14 +277,15 @@ async updateVariant(id: number, data: any) {
   if (data.availability !== undefined) cleanedData.availability = parseBoolean(data.availability);
   if (data.isActive !== undefined) cleanedData.isActive = parseBoolean(data.isActive);
 
-  return this.prisma.productVariant.update({
+  return client.productVariant.update({
     where: { id },
     data: cleanedData,
   });
 }
 
-async deleteVariant(id: number) {
-  return this.prisma.productVariant.update({
+async deleteVariant(id: number, userId?: number) {
+  const client = userId ? await this.getTenantClient(userId) : this.prisma;
+  return client.productVariant.update({
     where: { id },
     data: { isActive: false },
   });

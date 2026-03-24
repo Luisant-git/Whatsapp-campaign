@@ -244,12 +244,12 @@ export class EcommerceController {
       availability: body.availability === 'true' || body.availability === true,
       isActive: body.isActive !== 'false' && body.isActive !== false,
     };
-    return this.ecommerceService.createVariant(data);
+    return this.ecommerceService.createVariant(data, req.session?.userId);
   }
 
   @Get('products/:productId/variants')
   getVariants(@Param('productId') productId: string, @Request() req) {
-    return this.ecommerceService.getVariants(+productId);
+    return this.ecommerceService.getVariants(+productId, req.session?.userId);
   }
 
   @Put('variants/:id')
@@ -284,12 +284,12 @@ export class EcommerceController {
     if (file) {
       data.imageUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
     }
-    return this.ecommerceService.updateVariant(+id, data);
+    return this.ecommerceService.updateVariant(+id, data, req.session?.userId);
   }
 
   @Delete('variants/:id')
   deleteVariant(@Param('id') id: string, @Request() req) {
-    return this.ecommerceService.deleteVariant(+id);
+    return this.ecommerceService.deleteVariant(+id, req.session?.userId);
   }
 
   @Post('orders')
@@ -417,7 +417,7 @@ export class EcommerceController {
 
   private async performVariantMetaSync(variantId: number, body: any, tenantId: number) {
     try {
-      const variant = await this.ecommerceService.getVariant(variantId);
+      const variant = await this.ecommerceService.getVariant(variantId, tenantId);
       if (!variant) {
         console.error(`[Meta Sync] Variant ${variantId} not found`);
         return;
@@ -444,7 +444,7 @@ export class EcommerceController {
 
       await this.ecommerceService.updateVariant(variantId, {
         metaProductId: result.metaProductId,
-      });
+      }, tenantId);
 
       console.log(`[Meta Sync] Variant ${variantId} synced as part of group ${parentRetailerId}:`, result.metaProductId);
     } catch (error) {

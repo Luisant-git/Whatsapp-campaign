@@ -95,6 +95,7 @@ export class EcommerceController {
   async createProduct(
     @UploadedFile() file: Express.Multer.File,
     @Body() body: any,
+    @Request() req,
   ) {
     const data = {
       name: body.name,
@@ -110,7 +111,7 @@ export class EcommerceController {
         body.availability === 'true' || body.availability === true,
       isActive: body.isActive !== 'false' && body.isActive !== false,
     };
-    return this.ecommerceService.createProduct(data);
+    return this.ecommerceService.createProduct(data, req.session?.userId);
   }
 
   @Get('products')
@@ -139,6 +140,7 @@ export class EcommerceController {
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
     @Body() body: any,
+    @Request() req,
   ) {
     const data: any = {
       name: body.name,
@@ -156,7 +158,7 @@ export class EcommerceController {
     if (file) {
       data.imageUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
     }
-    return this.ecommerceService.updateProduct(+id, data);
+    return this.ecommerceService.updateProduct(+id, data, req.session?.userId);
   }
 
   @Delete('products/:id')

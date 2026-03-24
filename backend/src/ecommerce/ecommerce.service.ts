@@ -68,8 +68,9 @@ export class EcommerceService {
   }
 
   // Products
-  async createProduct(data: any) {
-    const product = await this.prisma.product.create({ 
+  async createProduct(data: any, userId?: number) {
+    const client = userId ? await this.getTenantClient(userId) : this.prisma;
+    const product = await client.product.create({ 
       data,
       include: {
         subCategory: { include: { category: true } },
@@ -79,7 +80,7 @@ export class EcommerceService {
   
     // Auto-generate contentId if not provided
     if (!product.contentId) {
-      return this.prisma.product.update({
+      return client.product.update({
         where: { id: product.id },
         data: { contentId: `product_${product.id}` },
         include: {
@@ -149,7 +150,8 @@ export class EcommerceService {
     });
   }
 
-  async updateProduct(id: number, data: any) {
+  async updateProduct(id: number, data: any, userId?: number) {
+    const client = userId ? await this.getTenantClient(userId) : this.prisma;
     // Parse booleans - FormData sends "false" as string which is truthy
     const parseBoolean = (value: any): boolean => {
       if (typeof value === 'boolean') return value;
@@ -166,6 +168,8 @@ export class EcommerceService {
     if (data.link !== undefined) cleanedData.link = data.link || null;
     if (data.contentId !== undefined) cleanedData.contentId = data.contentId || null;
     if (data.imageUrl !== undefined) cleanedData.imageUrl = data.imageUrl;
+    if (data.metaProductId !== undefined) cleanedData.metaProductId = data.metaProductId;
+    if (data.source !== undefined) cleanedData.source = data.source;
   
     // Number fields
     if (data.price !== undefined) cleanedData.price = parseFloat(data.price);
@@ -176,7 +180,7 @@ export class EcommerceService {
     if (data.availability !== undefined) cleanedData.availability = parseBoolean(data.availability);
     if (data.isActive !== undefined) cleanedData.isActive = parseBoolean(data.isActive);
   
-    return this.prisma.product.update({
+    return client.product.update({
       where: { id },
       data: cleanedData,
       include: {

@@ -158,11 +158,45 @@ export class EcommerceController {
     if (file) {
       data.imageUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
     }
-    return this.ecommerceService.updateProduct(+id, data, req.session?.userId);
+    const updatedProduct = await this.ecommerceService.updateProduct(+id, data, req.session?.userId);
+    
+    // Auto-sync to Meta Catalog if product was previously synced
+    if (updatedProduct.metaProductId) {
+      setTimeout(() => {
+        this.metaCatalogService.updateProductInCatalog(updatedProduct, body).catch(err => {
+          console.error(`[Meta Sync] Auto-update failed for product ${id}:`, err.message);
+        });
+      }, 0);
+    }
+    
+    return updatedProduct;
   }
 
   @Delete('products/:id')
-  deleteProduct(@Param('id') id: string) {
+  async deleteProduct(@Param('id') id: string, @Request() req) {
+    const product = await this.ecommerceService.getProduct(+id, req.session?.userId);
+    
+    // Delete from Meta Catalog if product was synced
+    if (product?.metaProductId || product?.contentId) {
+      setTimeout(async () => {
+        try {
+          // Try deleting by metaProductId first
+          if (product.metaProductId) {
+            await this.metaCatalogService.deleteProductFromCatalog(product.metaProductId);
+          } 
+          // Fallback to retailer_id (contentId or product_XX format)
+          else if (product.contentId) {
+            await this.metaCatalogService.deleteProductByRetailerId(product.contentId);
+          } else {
+            await this.metaCatalogService.deleteProductByRetailerId(`product_${product.id}`);
+          }
+          console.log(`[Meta Sync] Product ${id} deleted from Meta Catalog`);
+        } catch (err) {
+          console.error(`[Meta Sync] Auto-delete failed for product ${id}:`, err.message);
+        }
+      }, 0);
+    }
+    
     return this.ecommerceService.deleteProduct(+id);
   }
 

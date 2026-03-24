@@ -113,10 +113,10 @@ export class MetaCatalogService {
         description: meta?.description || product.description || product.name,
   
         price: toCents(meta?.price ?? product.price),
-        sale_price: toCents(meta?.salePrice),
+        sale_price: toCents(meta?.salePrice ?? product.salePrice),
   
         currency: 'INR',
-        availability: metaAvailability(meta?.isActive ?? true, meta?.availability ?? true),
+        availability: metaAvailability(meta?.isActive ?? product.isActive ?? true, meta?.availability ?? product.availability ?? true),
   
         condition: 'new',
         brand: 'Store',
@@ -158,6 +158,145 @@ export class MetaCatalogService {
       }
       
       throw new Error(errorMsg || 'Failed to sync to Meta Catalog');
+    }
+  }
+
+  async updateProductInCatalog(product: any, meta?: any) {
+    try {
+      if (!this.catalogId || !this.accessToken) {
+        throw new Error('Meta Catalog ID or Access Token not configured');
+      }
+
+      console.log('[Meta Update] Starting update for product:', product.id, 'metaProductId:', product.metaProductId);
+
+      const imageUrl = product.imageUrl?.startsWith('http')
+        ? product.imageUrl
+        : `${process.env.UPLOAD_URL}${product.imageUrl}`;
+
+      const toCents = (val: any) => {
+        const n = typeof val === 'string' ? parseFloat(val) : val;
+        if (n === undefined || n === null || Number.isNaN(n)) return undefined;
+        return Math.round(n * 100);
+      };
+
+      const metaAvailability = (isActive: boolean, availability: boolean) => {
+        if (!isActive) return 'out of stock';
+        return availability ? 'in stock' : 'out of stock';
+      };
+
+      const baseRetailerId = (meta?.contentId && String(meta.contentId).trim())
+        ? String(meta.contentId).trim()
+        : product.contentId || `product_${product.id}`;
+
+      const payload: any = {
+        retailer_id: baseRetailerId,
+        name: meta?.name || product.name,
+        description: meta?.description || product.description || product.name,
+        price: toCents(meta?.price ?? product.price),
+        sale_price: toCents(meta?.salePrice ?? product.salePrice),
+        currency: 'INR',
+        availability: metaAvailability(meta?.isActive ?? product.isActive ?? true, meta?.availability ?? product.availability ?? true),
+        condition: 'new',
+        brand: 'Store',
+        image_url: imageUrl,
+        url: meta?.link || product.link || imageUrl,
+      };
+
+      console.log('[Meta Update] Updating product with metaProductId:', product.metaProductId);
+      const response = await this.axiosInstance.post(
+        `${this.apiUrl}/${this.catalogId}/products`,
+        payload,
+      );
+
+      console.log('[Meta Update] Product updated successfully:', response.data.id);
+      return { success: true, data: response.data, metaProductId: response.data.id };
+    } catch (error) {
+      const errorMsg = error.response?.data?.error?.message || error.message;
+      console.error('[Meta Update Error]', errorMsg);
+      throw new Error(errorMsg || 'Failed to update product in Meta Catalog');
+    }
+  }
+
+  async deleteProductFromCatalog(metaProductId: string) {
+    try {
+      if (!this.catalogId || !this.accessToken) {
+        throw new Error('Meta Catalog ID or Access Token not configured');
+      }
+
+      console.log('[Meta Delete] Deleting product with metaProductId:', metaProductId);
+
+      // Meta API requires DELETE request to specific product endpoint
+      const response = await this.axiosInstance.delete(
+        `${this.apiUrl}/${metaProductId}`,
+      );
+
+      console.log('[Meta Delete] Product deleted successfully:', metaProductId);
+      
+      // Clear cache after deletion
+      this.catalogCache = null;
+      
+      return { success: true, metaProductId };
+    } catch (error) {
+      const errorMsg = error.response?.data?.error?.message || error.message;
+      const errorCode = error.response?.status;
+      
+      console.error('[Meta Delete Error]', {
+        status: errorCode,
+        message: errorMsg,
+        metaProductId: metaProductId
+      });
+      
+      // If product not found (404), consider it already deleted
+      if (errorCode === 404) {
+        console.log('[Meta Delete] Product not found in catalog, considering as deleted');
+        return { success: true, metaProductId, note: 'Product not found in catalog' };
+      }
+      
+      throw new Error(errorMsg || 'Failed to delete product from Meta Catalog');
+    }
+  }
+
+  async deleteProductByRetailerId(retailerId: string) {
+    try {
+      if (!this.catalogId || !this.accessToken) {
+        throw new Error('Meta Catalog ID or Access Token not configured');
+      }
+
+      console.log('[Meta Delete] Deleting product by retailer_id:', retailerId);
+
+      // First, find the product by retailer_id
+      const products = await axios.get(
+        `${this.apiUrl}/${this.catalogId}/products?fields=id,retailer_id`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+          },
+          timeout: 30000,
+        }
+      );
+
+      const product = products.data.data.find(p => p.retailer_id === retailerId);
+      
+      if (!product) {
+        console.log('[Meta Delete] Product not found with retailer_id:', retailerId);
+        return { success: true, retailerId, note: 'Product not found' };
+      }
+
+      // Delete using the Meta product ID
+      await this.axiosInstance.delete(
+        `${this.apiUrl}/${product.id}`,
+      );
+
+      console.log('[Meta Delete] Product deleted successfully by retailer_id:', retailerId);
+      
+      // Clear cache after deletion
+      this.catalogCache = null;
+      
+      return { success: true, retailerId, metaProductId: product.id };
+    } catch (error) {
+      const errorMsg = error.response?.data?.error?.message || error.message;
+      console.error('[Meta Delete Error]', errorMsg);
+      throw new Error(errorMsg || 'Failed to delete product from Meta Catalog');
     }
   }
   async fetchProductsFromMeta() {

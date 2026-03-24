@@ -421,6 +421,12 @@ export default function Products() {
       return;
     }
 
+    // Validate Meta credentials first
+    if (!process.env.META_CATALOG_ID || !process.env.META_ACCESS_TOKEN) {
+      alert('❌ Meta Catalog credentials not configured. Please contact administrator.');
+      return;
+    }
+
     const img = new Image();
     const imageUrl = URL.createObjectURL(metaForm.image);
 
@@ -515,14 +521,27 @@ export default function Products() {
         })),
       };
 
-      await ecommerceApi.syncProductToMeta(productId, metaPayload);
+      console.log('[Meta Sync] Sending to Meta:', metaPayload);
+      const syncResponse = await ecommerceApi.syncProductToMeta(productId, metaPayload);
+      console.log('[Meta Sync] Response:', syncResponse.data);
 
-      alert('✅ Product created and synced to Meta Catalog!');
+      alert('✅ Product created and syncing to Meta Catalog!\n\nThe product is being uploaded to Meta in the background. This may take a few moments.');
       setMetaForm(emptyMetaForm);
       setShowMetaModal(false);
       loadData();
     } catch (error) {
-      alert('❌ Failed: ' + (error.response?.data?.message || error.message));
+      console.error('[Meta Sync Error]:', error);
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message;
+      
+      if (errorMessage.includes('Meta Catalog ID') || errorMessage.includes('Access Token')) {
+        alert('❌ Meta Catalog not configured properly.\n\nPlease check:\n1. META_CATALOG_ID is set\n2. META_ACCESS_TOKEN is valid\n3. Token has catalog_management permission');
+      } else if (errorMessage.includes('authentication') || errorMessage.includes('401') || errorMessage.includes('403')) {
+        alert('❌ Meta API authentication failed.\n\nYour access token may be expired or invalid.\nPlease update META_ACCESS_TOKEN in backend .env file.');
+      } else if (errorMessage.includes('rate limit')) {
+        alert('❌ Meta API rate limit exceeded.\n\nPlease wait a few minutes and try again.');
+      } else {
+        alert('❌ Failed to sync to Meta Catalog:\n\n' + errorMessage);
+      }
     } finally {
       setLoading(false);
     }

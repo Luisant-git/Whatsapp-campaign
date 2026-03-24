@@ -91,20 +91,35 @@ const FlowAppointments = () => {
       showToast('No appointments to export', 'error');
       return;
     }
+
+    const formatDate = (date) => {
+      if (!date) return '';
+      const d = new Date(date);
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+
     const csvContent = [
       ['Name', 'Phone', 'Service', 'Date', 'Time', 'Business Info', 'Status', 'Created At'],
-      ...filteredAppointments.map(apt => [
-        `"${apt.name || ''}"`,
-        `"${apt.phone || apt.email || ''}"`,
-        `"${formatDepartment(apt.department) || ''}"`,
-        `"${apt.date || ''}"`,
-        `"${apt.time || ''}"`,
-        `"${(apt.moreDetails || '').replace(/"/g, '""')}"`,
-        `"${apt.status || 'confirmed'}"`,
-        `"${apt.createdAt ? new Date(apt.createdAt).toLocaleDateString() : ''}"`
-      ])
+      ...filteredAppointments.map(apt => {
+        const phoneOrEmail = apt.phone
+          ? `="\t${apt.phone}"`
+          : `"${apt.email || ''}"`;
+    
+        return [
+          `"${apt.name || ''}"`,
+          phoneOrEmail,
+          `"${formatDepartment(apt.department) || ''}"`,
+          `"${formatDate(apt.date)}"`,
+          `="${apt.time || ''}"`,
+          `"${(apt.moreDetails || '').replace(/"/g, '""')}"`,
+          `"${apt.status || 'confirmed'}"`,
+          `"${formatDate(apt.createdAt)}"`
+        ];
+      })
     ].map(row => row.join(',')).join('\n');
-
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -115,17 +130,17 @@ const FlowAppointments = () => {
   };
 
   const filteredAppointments = appointments.filter(appointment => {
-    const matchesSearch = 
+    const matchesSearch =
       appointment.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       appointment.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       appointment.phone?.includes(searchTerm) ||
       appointment.department?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesFilter = filterStatus === 'all' || appointment.status === filterStatus;
     const appointmentDate = appointment.date;
     const matchesFromDate = fromDate ? appointmentDate >= fromDate : true;
     const matchesToDate = toDate ? appointmentDate <= toDate : true;
-    
+
     return matchesSearch && matchesFilter && matchesFromDate && matchesToDate;
   });
 
@@ -199,7 +214,7 @@ const FlowAppointments = () => {
             <p className="flow-stat-number">{appointments.length}</p>
           </div>
         </div>
-        
+
         <div className="flow-stat-card">
           <div className="flow-stat-icon confirmed">
             <Clock size={24} />
@@ -211,7 +226,7 @@ const FlowAppointments = () => {
             </p>
           </div>
         </div>
-        
+
         <div className="flow-stat-card">
           <div className="flow-stat-icon pending">
             <User size={24} />
@@ -223,7 +238,7 @@ const FlowAppointments = () => {
             </p>
           </div>
         </div>
-        
+
         <div className="flow-stat-card">
           <div className="flow-stat-icon today">
             <Calendar size={24} />
@@ -239,85 +254,85 @@ const FlowAppointments = () => {
 
       {/* Filters and Search */}
       <div
-  className="flow-filters-section"
-  style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', width: '100%' }}
->
-  <div className="flow-search-container" style={{ minWidth: '220px', flex: '1' }}>
-    <Search className="flow-search-icon" size={18} />
-    <input
-      type="text"
-      placeholder="Search appointments..."
-      className="flow-search-input"
-      value={searchTerm}
-      onChange={(e) => setSearchTerm(e.target.value)}
-    />
-  </div>
+        className="flow-filters-section"
+        style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', width: '100%' }}
+      >
+        <div className="flow-search-container" style={{ minWidth: '220px', flex: '1' }}>
+          <Search className="flow-search-icon" size={18} />
+          <input
+            type="text"
+            placeholder="Search appointments..."
+            className="flow-search-input"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
 
-  <select
-    className="flow-filter-select"
-    value={filterStatus}
-    onChange={(e) => setFilterStatus(e.target.value)}
-    style={{ minWidth: '170px' }}
-  >
-    <option value="all">All Status ({appointments.length})</option>
-    <option value="confirmed">
-      Confirmed ({appointments.filter(apt => apt.status === 'confirmed' || !apt.status).length})
-    </option>
-    <option value="pending">
-      Pending ({appointments.filter(apt => apt.status === 'pending').length})
-    </option>
-    <option value="cancelled">
-      Cancelled ({appointments.filter(apt => apt.status === 'cancelled').length})
-    </option>
-  </select>
+        <select
+          className="flow-filter-select"
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          style={{ minWidth: '170px' }}
+        >
+          <option value="all">All Status ({appointments.length})</option>
+          <option value="confirmed">
+            Confirmed ({appointments.filter(apt => apt.status === 'confirmed' || !apt.status).length})
+          </option>
+          <option value="pending">
+            Pending ({appointments.filter(apt => apt.status === 'pending').length})
+          </option>
+          <option value="cancelled">
+            Cancelled ({appointments.filter(apt => apt.status === 'cancelled').length})
+          </option>
+        </select>
 
-  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-    <label style={{ fontSize: '13px', color: '#6b7280', whiteSpace: 'nowrap' }}>
-      From:
-    </label>
-    <input
-      type="date"
-      className="flow-filter-select"
-      value={fromDate}
-      onChange={(e) => setFromDate(e.target.value)}
-      style={{ minWidth: '150px' }}
-    />
-  </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <label style={{ fontSize: '13px', color: '#6b7280', whiteSpace: 'nowrap' }}>
+            From:
+          </label>
+          <input
+            type="date"
+            className="flow-filter-select"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            style={{ minWidth: '150px' }}
+          />
+        </div>
 
-  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-    <label style={{ fontSize: '13px', color: '#6b7280', whiteSpace: 'nowrap' }}>
-      To:
-    </label>
-    <input
-      type="date"
-      className="flow-filter-select"
-      value={toDate}
-      onChange={(e) => setToDate(e.target.value)}
-      style={{ minWidth: '150px' }}
-    />
-  </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <label style={{ fontSize: '13px', color: '#6b7280', whiteSpace: 'nowrap' }}>
+            To:
+          </label>
+          <input
+            type="date"
+            className="flow-filter-select"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            style={{ minWidth: '150px' }}
+          />
+        </div>
 
-  <button
-    className="flow-export-btn"
-    onClick={exportAppointments}
-    style={{ height: '40px', padding: '0 14px' }}
-  >
-    <Download size={18} /> Export
-  </button>
+        <button
+          className="flow-export-btn"
+          onClick={exportAppointments}
+          style={{ height: '40px', padding: '0 14px' }}
+        >
+          <Download size={18} /> Export
+        </button>
 
-  <button
-    type="button"
-    className="flow-export-btn"
-    onClick={clearDateFilters}
-    style={{ height: '40px', padding: '0 14px' }}
-  >
-    Clear
-  </button>
+        <button
+          type="button"
+          className="flow-export-btn"
+          onClick={clearDateFilters}
+          style={{ height: '40px', padding: '0 14px' }}
+        >
+          Clear
+        </button>
 
-  <div className="flow-total-count" style={{ whiteSpace: 'nowrap' }}>
-    Showing: {filteredAppointments.length} Appointment{filteredAppointments.length !== 1 ? 's' : ''}
-  </div>
-</div>
+        <div className="flow-total-count" style={{ whiteSpace: 'nowrap' }}>
+          Showing: {filteredAppointments.length} Appointment{filteredAppointments.length !== 1 ? 's' : ''}
+        </div>
+      </div>
 
       {/* Appointments Table */}
       <div className="flow-table-container">
@@ -404,28 +419,28 @@ const FlowAppointments = () => {
                 ×
               </button>
             </div>
-            
+
             <div className="flow-modal-body">
               <div className="flow-detail-item">
                 <label className="flow-detail-label">Customer Name</label>
                 <p className="flow-detail-value">{selectedAppointment.name}</p>
               </div>
-              
+
               <div className="flow-detail-item">
                 <label className="flow-detail-label">Mobile Number</label>
                 <p className="flow-detail-value">{selectedAppointment.phone || selectedAppointment.email}</p>
               </div>
-              
+
               <div className="flow-detail-item">
                 <label className="flow-detail-label">Service Requested</label>
                 <p className="flow-detail-value">{formatDepartment(selectedAppointment.department)}</p>
               </div>
-              
+
               <div className="flow-detail-item">
                 <label className="flow-detail-label">Appointment Date & Time</label>
                 <p className="flow-detail-value">{selectedAppointment.date} at {selectedAppointment.time}</p>
               </div>
-              
+
               {selectedAppointment.moreDetails && (
                 <div className="flow-detail-item">
                   <label className="flow-detail-label">Business Information</label>
@@ -434,7 +449,7 @@ const FlowAppointments = () => {
                   </p>
                 </div>
               )}
-              
+
               <div className="flow-detail-item">
                 <label className="flow-detail-label">Booked On</label>
                 <p className="flow-detail-value">
@@ -442,7 +457,7 @@ const FlowAppointments = () => {
                 </p>
               </div>
             </div>
-            
+
             <div className="flow-modal-footer">
               <button
                 onClick={() => setShowDetails(false)}

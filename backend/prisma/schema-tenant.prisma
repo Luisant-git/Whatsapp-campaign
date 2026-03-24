@@ -103,7 +103,7 @@ model RunDailyAutomation {
   anniversary            DateTime?
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
-  contact                Contact                 @relation(fields: [contactId], references: [id])
+  contact                 Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
   whatsAppSettings       WhatsAppSettings        @relation(fields: [whatsAppSettingsId], references: [id])
   runDailyAutomationLogs RunDailyAutomationLog[]
 
@@ -227,7 +227,7 @@ model ChatNote {
   contactId   Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  contact     Contact? @relation(fields: [contactId], references: [id])
+  contact       Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@index([phone])
   @@index([contactId])

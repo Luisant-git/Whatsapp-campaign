@@ -223,15 +223,15 @@ const AutomationTemplateManager = () => {
     return new Set((summaryGroups || []).map((g) => Number(g.whatsAppSettingsId)));
   }, [summaryGroups]);
 
-  const normalTemplates = useMemo(() => {
-    return (allSettings || []).filter((s) => !automationIds.has(Number(s.id)));
-  }, [allSettings, automationIds]);
+  // const normalTemplates = useMemo(() => {
+  //   return (allSettings || []).filter((s) => !automationIds.has(Number(s.id)));
+  // }, [allSettings, automationIds]);
 
   const automationTemplates = useMemo(() => {
     return (allSettings || []).filter((s) => automationIds.has(Number(s.id)));
   }, [allSettings, automationIds]);
 
-  const visibleSettings = activeTab === "automation" ? automationTemplates : normalTemplates;
+  const visibleSettings = automationTemplates;
 
   const enabledBadgesBySettingsId = useMemo(() => {
     const map = new Map();
@@ -529,10 +529,9 @@ const AutomationTemplateManager = () => {
           }
         }
 
-        // If user removed ALL rules (editing) -> becomes normal
         if (editingId && nextRules.length === 0) {
-          showSuccess("All rules removed. Template moved to Normal Templates.");
-          setActiveTab("normal");
+          showSuccess("All rules removed. Template will move to settings.");
+        
         } else {
           setActiveTab("automation");
         }
@@ -624,7 +623,7 @@ const AutomationTemplateManager = () => {
       </div>
 
       <div className="settings-list">
-        <h2>{activeTab === "automation" ? "Automation Templates" : "Normal Templates"}</h2>
+        
 
         {visibleSettings.length === 0 ? (
           <p style={{ color: "#64748b" }}>No templates found.</p>

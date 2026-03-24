@@ -159,12 +159,36 @@ export class SubscriptionService {
   }
 
   async getAllOrders() {
+    const now = new Date();
+  
+    await this.prisma.subscriptionOrder.updateMany({
+      where: {
+        status: 'active',
+        endDate: { lt: now },
+      },
+      data: {
+        status: 'expired',
+        isCurrentPlan: false,
+      },
+    });
+  
+    await this.prisma.tenant.updateMany({
+      where: {
+        subscriptionEndDate: { lt: now },
+      },
+      data: {
+        subscriptionId: null,
+        subscriptionStartDate: null,
+        subscriptionEndDate: null,
+      },
+    });
+  
     return this.prisma.subscriptionOrder.findMany({
       include: {
         tenant: { select: { id: true, email: true, name: true } },
-        plan: true
+        plan: true,
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 

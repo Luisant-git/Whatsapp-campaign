@@ -688,7 +688,16 @@ export class MetaCatalogService {
           timeout: 30000, // 30 seconds
         }
       );
-      await this.sessionService.setSession(phone, { step: 'awaiting_payment_method' }, userId);
+      
+      // Get existing session to preserve cart data
+      const existingSession = await this.sessionService.getSession(phone, userId);
+      
+      // Update step while preserving cart data
+      await this.sessionService.setSession(phone, { 
+        step: 'awaiting_payment_method',
+        cartProducts: existingSession?.cartProducts, // Preserve cart
+        totalAmount: existingSession?.totalAmount    // Preserve total
+      }, userId);
     } catch (error) {
       console.error('Send payment method error:', error.response?.data || error.message);
     }
@@ -708,13 +717,18 @@ export class MetaCatalogService {
         address = addressParts.join(', ');
       }
       
-      // Save customer details to session for later use
+      // Get existing session to preserve cart data
+      const existingSession = await this.sessionService.getSession(phone, userId);
+      
+      // Save customer details to session for later use, preserving cart data
       await this.sessionService.setSession(phone, {
         customerName: customer.customerName,
         customerAddress: customer.customerAddress,
         customerCity: customer.customerCity,
         customerState: customer.customerState,
         customerPincode: customer.customerPincode,
+        cartProducts: existingSession?.cartProducts, // Preserve cart
+        totalAmount: existingSession?.totalAmount,   // Preserve total
         step: 'confirm_details'
       }, userId);
       

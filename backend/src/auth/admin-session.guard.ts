@@ -12,6 +12,12 @@ import {
   
     async canActivate(context: ExecutionContext): Promise<boolean> {
       const request = context.switchToHttp().getRequest();
+  
+      // 🔥 Allow preflight requests
+      if (request.method === 'OPTIONS') {
+        return true;
+      }
+  
       const session = request.session;
   
       console.log('=== ADMIN SESSION GUARD ===');

@@ -12,6 +12,12 @@ export class SessionGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
+
+    // 🔥 Allow preflight requests
+    if (request.method === 'OPTIONS') {
+      return true;
+    }
+
     const session = request.session;
     const origin = request.get('origin') || request.get('referer');
     const authHeader = request.get('authorization');

@@ -195,7 +195,12 @@ export class ShoppingSessionService {
   }
 
   async setPaymentMethod(phone: string, method: string, tenantId?: number) {
-    await this.setSession(phone, { paymentMethod: method }, tenantId);
+    const existingSession = await this.getSession(phone, tenantId);
+    await this.setSession(phone, { 
+      paymentMethod: method,
+      cartProducts: existingSession?.cartProducts,
+      totalAmount: existingSession?.totalAmount
+    }, tenantId);
   }
 
   async getPaymentMethod(phone: string, tenantId?: number): Promise<string | undefined> {

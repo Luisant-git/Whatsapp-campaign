@@ -13,6 +13,7 @@ export class MetaCatalogService {
   private readonly apiUrl = 'https://graph.facebook.com/v18.0';
   private catalogCache: { products: any[], timestamp: number } | null = null;
   private readonly CACHE_TTL = 300000; // 5 minutes
+  private readonly axiosInstance;
 
   constructor(
     private ecommerceService: EcommerceService,
@@ -20,10 +21,26 @@ export class MetaCatalogService {
     private razorpayService: RazorpayService,
     private flowTriggerService: FlowTriggerService,
     private customerDetailsFlowService: CustomerDetailsFlowService
-  ) {}
+  ) {
+    // Create dedicated axios instance with proper timeout
+    this.axiosInstance = axios.create({
+      timeout: 30000, // 30 seconds
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+  }
 
   async syncProductToCatalog(product: any, meta?: any) {
     try {
+      // Validate Meta credentials
+      if (!this.catalogId || !this.accessToken) {
+        throw new Error('Meta Catalog ID or Access Token not configured');
+      }
+
+      console.log('[Meta Sync] Starting sync for product:', product.id);
+
       const imageUrl = product.imageUrl?.startsWith('http')
         ? product.imageUrl
         : `${process.env.UPLOAD_URL}${product.imageUrl}`;
@@ -76,17 +93,13 @@ export class MetaCatalogService {
             url: v?.link || meta?.link || product.link || imageUrl,
           };
   
-          const resp = await axios.post(
+          console.log(`[Meta Sync] Uploading variant ${i + 1}/${meta.variants.length}:`, variantRetailerId);
+          const resp = await this.axiosInstance.post(
             `${this.apiUrl}/${this.catalogId}/products`,
             payload,
-            {
-              headers: {
-                Authorization: `Bearer ${this.accessToken}`,
-                'Content-Type': 'application/json',
-              },
-            },
           );
   
+          console.log(`[Meta Sync] Variant uploaded successfully:`, resp.data?.id);
           results.push({ retailer_id: variantRetailerId, metaId: resp.data?.id });
         }
   
@@ -111,21 +124,40 @@ export class MetaCatalogService {
         url: meta?.link || product.link || imageUrl,
       };
   
-      const response = await axios.post(
+      console.log('[Meta Sync] Uploading product:', baseRetailerId);
+      const response = await this.axiosInstance.post(
         `${this.apiUrl}/${this.catalogId}/products`,
         payload,
-        {
-          headers: {
-            Authorization: `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        },
       );
   
+      console.log('[Meta Sync] Product uploaded successfully:', response.data.id);
       return { success: true, data: response.data, metaProductId: response.data.id };
     } catch (error) {
-      console.error('Meta Catalog sync error:', error.response?.data || error.message);
-      throw new Error(error.response?.data?.error?.message || 'Failed to sync to Meta Catalog');
+      const errorMsg = error.response?.data?.error?.message || error.message;
+      const errorCode = error.response?.status;
+      const errorDetails = error.response?.data;
+      
+      console.error('[Meta Sync Error]', {
+        status: errorCode,
+        message: errorMsg,
+        details: errorDetails,
+        catalogId: this.catalogId,
+        hasToken: !!this.accessToken,
+        errorCode: error.code,
+      });
+      
+      // Provide specific error messages
+      if (errorCode === 401 || errorCode === 403) {
+        throw new Error('Meta API authentication failed. Check your access token and permissions.');
+      } else if (errorCode === 429) {
+        throw new Error('Meta API rate limit exceeded. Please try again later.');
+      } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+        throw new Error('Meta API request timed out. Please try again.');
+      } else if (error.code === 'ECONNREFUSED') {
+        throw new Error('Cannot connect to Meta API. Check your internet connection.');
+      }
+      
+      throw new Error(errorMsg || 'Failed to sync to Meta Catalog');
     }
   }
   async fetchProductsFromMeta() {
@@ -136,6 +168,7 @@ export class MetaCatalogService {
           headers: {
             'Authorization': `Bearer ${this.accessToken}`,
           },
+          timeout: 30000, // 30 seconds
         }
       );
       return response.data.data;
@@ -228,6 +261,7 @@ export class MetaCatalogService {
             headers: {
               'Authorization': `Bearer ${this.accessToken}`,
             },
+            timeout: 30000, // 30 seconds
           }
         );
         // Update cache
@@ -287,6 +321,7 @@ export class MetaCatalogService {
             'Authorization': `Bearer ${this.accessToken}`,
             'Content-Type': 'application/json',
           },
+          timeout: 30000, // 30 seconds
         }
       );
 
@@ -579,6 +614,7 @@ export class MetaCatalogService {
             'Authorization': `Bearer ${this.accessToken}`,
             'Content-Type': 'application/json',
           },
+          timeout: 30000, // 30 seconds
         }
       );
       console.log(`[Meta Catalog] Message sent successfully:`, response.data);
@@ -627,6 +663,7 @@ export class MetaCatalogService {
             'Authorization': `Bearer ${this.accessToken}`,
             'Content-Type': 'application/json',
           },
+          timeout: 30000, // 30 seconds
         }
       );
       await this.sessionService.setSession(phone, { step: 'awaiting_payment_method' }, userId);
@@ -702,6 +739,7 @@ export class MetaCatalogService {
             'Authorization': `Bearer ${this.accessToken}`,
             'Content-Type': 'application/json',
           },
+          timeout: 30000, // 30 seconds
         }
       );
     } catch (error) {

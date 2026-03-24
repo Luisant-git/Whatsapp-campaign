@@ -8,7 +8,15 @@ import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: true,
+  });
+
+  // ✅ Set server timeout to prevent 502 errors
+  const server = app.getHttpServer();
+  server.setTimeout(120000); // 2 minutes
+  server.keepAliveTimeout = 65000; // 65 seconds
+  server.headersTimeout = 66000; // 66 seconds
 
   // ✅ Trust proxy (Nginx)
   app.getHttpAdapter().getInstance().set('trust proxy', 1);

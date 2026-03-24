@@ -16,8 +16,13 @@ async function bootstrap() {
   // ✅ CORS (ONLY HERE — not in Nginx)
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow requests without origin (Postman, mobile apps)
-      if (!origin) return callback(null, true);
+      console.log('🔍 Incoming Origin:', origin);
+      
+      // Allow requests without origin (Postman, mobile apps, server-to-server)
+      if (!origin) {
+        console.log('✅ Allowed: No origin (server-to-server or Postman)');
+        return callback(null, true);
+      }
 
       const allowedOrigins = [
         'http://localhost:5173',
@@ -31,11 +36,13 @@ async function bootstrap() {
 
       // Allow exact matches
       if (allowedOrigins.includes(origin)) {
+        console.log('✅ Allowed: Exact match -', origin);
         return callback(null, true);
       }
 
       // Allow subdomains of luisant.in & luisant.cloud
       if (origin.match(/^https?:\/\/[\w-]+\.(luisant\.(in|cloud))$/)) {
+        console.log('✅ Allowed: Subdomain match -', origin);
         return callback(null, true);
       }
 

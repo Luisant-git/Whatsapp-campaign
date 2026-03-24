@@ -421,12 +421,6 @@ export default function Products() {
       return;
     }
 
-    // Validate Meta credentials first
-    if (!process.env.META_CATALOG_ID || !process.env.META_ACCESS_TOKEN) {
-      alert('❌ Meta Catalog credentials not configured. Please contact administrator.');
-      return;
-    }
-
     const img = new Image();
     const imageUrl = URL.createObjectURL(metaForm.image);
 

@@ -22,6 +22,8 @@ const SubscriptionOrders = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
 
   const { showToast } = useToast();
 
@@ -31,7 +33,7 @@ const SubscriptionOrders = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, entriesPerPage]);
+  }, [searchTerm, entriesPerPage, statusFilter]);
 
   const fetchInitialData = async () => {
     try {
@@ -103,17 +105,39 @@ const SubscriptionOrders = () => {
     return status === 'active'
       ? 'active'
       : status === 'expired'
-      ? 'expired'
-      : status === 'pending'
-      ? 'pending'
-      : 'cancelled';
+        ? 'expired'
+        : status === 'pending'
+          ? 'pending'
+          : 'cancelled';
   };
 
-  const filteredOrders = orders.filter((order) =>
-    (order.tenant?.name || '')
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-  );
+  const getEffectiveStatus = (order) => {
+    if (order.status !== 'active') return order.status;
+
+    const today = new Date();
+    const endDate = new Date(order.endDate);
+
+    today.setHours(0, 0, 0, 0);
+    endDate.setHours(0, 0, 0, 0);
+
+    return endDate < today ? 'expired' : 'active';
+  };
+
+  const filteredOrders = orders
+    .filter((order) =>
+      (order.tenant?.name || '')
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
+    )
+    .filter((order) => {
+      const effectiveStatus = getEffectiveStatus(order);
+
+      if (statusFilter === 'active') return effectiveStatus === 'active';
+      if (statusFilter === 'inactive') {
+        return effectiveStatus === 'expired' || effectiveStatus === 'cancelled';
+      }
+      return true;
+    });
 
   const totalPages = Math.ceil(filteredOrders.length / entriesPerPage) || 1;
 
@@ -129,11 +153,11 @@ const SubscriptionOrders = () => {
       <div className="page-header">
         <div>
           <h1>Subscription Orders</h1>
-          
+
         </div>
-        <button className="btn-create" onClick={() => setShowCreateModal(true)}>
+        {/* <button className="btn-create" onClick={() => setShowCreateModal(true)}>
           <Plus size={16} /> Create Subscription
-        </button>
+        </button> */}
       </div>
 
       <div className="orders-toolbar">
@@ -158,6 +182,17 @@ const SubscriptionOrders = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+        </div>
+        <div className="entries-control">
+          <label>Status</label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
         </div>
       </div>
 
@@ -192,8 +227,8 @@ const SubscriptionOrders = () => {
                   <td>{formatDate(order.startDate)}</td>
                   <td>{formatDate(order.endDate)}</td>
                   <td>
-                    <span className={`status-badge ${getStatusClass(order.status)}`}>
-                      {order.status}
+                    <span className={`status-badge ${getStatusClass(getEffectiveStatus(order))}`}>
+                      {getEffectiveStatus(order)}
                     </span>
                   </td>
                   <td>{formatDate(order.createdAt)}</td>
@@ -240,8 +275,8 @@ const SubscriptionOrders = () => {
                 <span className="user-email">{order.tenant?.email || 'N/A'}</span>
               </div>
 
-              <span className={`status-badge ${getStatusClass(order.status)}`}>
-                {order.status}
+              <span className={`status-badge ${getStatusClass(getEffectiveStatus(order))}`}>
+                {getEffectiveStatus(order)}
               </span>
             </div>
 

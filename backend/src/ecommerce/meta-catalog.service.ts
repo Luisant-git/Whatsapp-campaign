@@ -477,12 +477,20 @@ export class MetaCatalogService {
       
       if (step === 'awaiting_payment_method') {
         const method = message.toLowerCase();
-        if (method !== 'payment_razorpay' && method !== 'payment_cod' && method !== 'pay online' && method !== 'cash on delivery' && message !== 'Pay Online' && message !== 'Cash on Delivery') {
+        const originalMessage = message;
+        
+        // Check if it's a valid payment method selection
+        const isRazorpay = method === 'payment_razorpay' || method === 'pay online' || originalMessage === 'Pay Online';
+        const isCOD = method === 'payment_cod' || method === 'cash on delivery' || originalMessage === 'Cash on Delivery';
+        
+        if (!isRazorpay && !isCOD) {
           await this.sendTextMessage(phone, phoneNumberId, '❌ Invalid option. Please choose a payment method.');
           return true;
         }
         
-        const paymentMethod = (method === 'payment_razorpay' || method === 'pay online' || message === 'Pay Online') ? 'razorpay' : 'cod';
+        const paymentMethod = isRazorpay ? 'razorpay' : 'cod';
+        console.log(`[Meta Catalog] Payment method selected: ${paymentMethod}`);
+        
         await this.sessionService.setPaymentMethod(phone, paymentMethod, userId);
         const session = await this.sessionService.getSession(phone, userId);
         const cartProducts = session?.cartProducts || [];

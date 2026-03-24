@@ -41,6 +41,7 @@ async function bootstrap() {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        domain: process.env.NODE_ENV === 'production' ? '.luisant.cloud' : undefined, // Share cookie across subdomains
         maxAge: 24 * 60 * 60 * 1000,
       },
       proxy: true,

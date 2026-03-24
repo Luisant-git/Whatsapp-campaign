@@ -18,14 +18,120 @@ import "../styles/QuickReply.css";
 const DEFAULT_API_URL = "https://graph.facebook.com/v20.0";
 
 const LANGUAGE_OPTIONS = [
+  { label: "Afrikaans", value: "af" },
+  { label: "Albanian", value: "sq" },
+  { label: "Arabic", value: "ar" },
+  { label: "Arabic (Egypt)", value: "ar_EG" },
+  { label: "Arabic (UAE)", value: "ar_AE" },
+  { label: "Arabic (Lebanon)", value: "ar_LB" },
+  { label: "Arabic (Morocco)", value: "ar_MA" },
+  { label: "Arabic (Qatar)", value: "ar_QA" },
+  { label: "Azerbaijani", value: "az" },
+  { label: "Belarusian", value: "be_BY" },
+  { label: "Bengali", value: "bn" },
+  { label: "Bengali (India)", value: "bn_IN" },
+  { label: "Bulgarian", value: "bg" },
+  { label: "Catalan", value: "ca" },
+  { label: "Chinese (China)", value: "zh_CN" },
+  { label: "Chinese (Hong Kong)", value: "zh_HK" },
+  { label: "Chinese (Taiwan)", value: "zh_TW" },
+  { label: "Croatian", value: "hr" },
+  { label: "Czech", value: "cs" },
+  { label: "Danish", value: "da" },
+  { label: "Dari", value: "prs_AF" },
+  { label: "Dutch", value: "nl" },
+  { label: "Dutch (Belgium)", value: "nl_BE" },
   { label: "English", value: "en" },
-  { label: "Tamil", value: "ta" },
+  { label: "English (UK)", value: "en_GB" },
+  { label: "English (US)", value: "en_US" },
+  { label: "English (UAE)", value: "en_AE" },
+  { label: "English (Australia)", value: "en_AU" },
+  { label: "English (Canada)", value: "en_CA" },
+  { label: "English (Ghana)", value: "en_GH" },
+  { label: "English (Ireland)", value: "en_IE" },
+  { label: "English (India)", value: "en_IN" },
+  { label: "English (Jamaica)", value: "en_JM" },
+  { label: "English (Malaysia)", value: "en_MY" },
+  { label: "English (New Zealand)", value: "en_NZ" },
+  { label: "English (Qatar)", value: "en_QA" },
+  { label: "English (Singapore)", value: "en_SG" },
+  { label: "English (Uganda)", value: "en_UG" },
+  { label: "English (South Africa)", value: "en_ZA" },
+  { label: "Estonian", value: "et" },
+  { label: "Filipino", value: "fil" },
+  { label: "Finnish", value: "fi" },
+  { label: "French", value: "fr" },
+  { label: "French (Belgium)", value: "fr_BE" },
+  { label: "French (Canada)", value: "fr_CA" },
+  { label: "French (Switzerland)", value: "fr_CH" },
+  { label: "French (Ivory Coast)", value: "fr_CI" },
+  { label: "French (Morocco)", value: "fr_MA" },
+  { label: "Georgian", value: "ka" },
+  { label: "German", value: "de" },
+  { label: "German (Austria)", value: "de_AT" },
+  { label: "German (Switzerland)", value: "de_CH" },
+  { label: "Greek", value: "el" },
+  { label: "Gujarati", value: "gu" },
+  { label: "Hausa", value: "ha" },
+  { label: "Hebrew", value: "he" },
   { label: "Hindi", value: "hi" },
-  { label: "English (US) - en_US", value: "en_US" },
-  { label: "English (UK) - en_GB", value: "en_GB" },
+  { label: "Hungarian", value: "hu" },
+  { label: "Indonesian", value: "id" },
+  { label: "Irish", value: "ga" },
+  { label: "Italian", value: "it" },
+  { label: "Japanese", value: "ja" },
+  { label: "Kannada", value: "kn" },
+  { label: "Kazakh", value: "kk" },
+  { label: "Kinyarwanda", value: "rw_RW" },
+  { label: "Korean", value: "ko" },
+  { label: "Kyrgyz", value: "ky_KG" },
+  { label: "Lao", value: "lo" },
+  { label: "Latvian", value: "lv" },
+  { label: "Lithuanian", value: "lt" },
+  { label: "Macedonian", value: "mk" },
+  { label: "Malay", value: "ms" },
+  { label: "Malayalam", value: "ml" },
+  { label: "Marathi", value: "mr" },
+  { label: "Norwegian", value: "nb" },
+  { label: "Pashto", value: "ps_AF" },
+  { label: "Persian", value: "fa" },
+  { label: "Polish", value: "pl" },
+  { label: "Portuguese (Brazil)", value: "pt_BR" },
+  { label: "Portuguese (Portugal)", value: "pt_PT" },
+  { label: "Punjabi", value: "pa" },
+  { label: "Romanian", value: "ro" },
+  { label: "Russian", value: "ru" },
+  { label: "Serbian", value: "sr" },
+  { label: "Sinhala", value: "si_LK" },
+  { label: "Slovak", value: "sk" },
+  { label: "Slovenian", value: "sl" },
+  { label: "Spanish", value: "es" },
+  { label: "Spanish (Argentina)", value: "es_AR" },
+  { label: "Spanish (Chile)", value: "es_CL" },
+  { label: "Spanish (Colombia)", value: "es_CO" },
+  { label: "Spanish (Costa Rica)", value: "es_CR" },
+  { label: "Spanish (Dominican Republic)", value: "es_DO" },
+  { label: "Spanish (Ecuador)", value: "es_EC" },
+  { label: "Spanish (Honduras)", value: "es_HN" },
+  { label: "Spanish (Mexico)", value: "es_MX" },
+  { label: "Spanish (Panama)", value: "es_PA" },
+  { label: "Spanish (Peru)", value: "es_PE" },
+  { label: "Spanish (Spain)", value: "es_ES" },
+  { label: "Spanish (Uruguay)", value: "es_UY" },
+  { label: "Swahili", value: "sw" },
+  { label: "Swedish", value: "sv" },
+  { label: "Tamil", value: "ta" },
+  { label: "Telugu", value: "te" },
+  { label: "Thai", value: "th" },
+  { label: "Turkish", value: "tr" },
+  { label: "Ukrainian", value: "uk" },
+  { label: "Urdu", value: "ur" },
+  { label: "Uzbek", value: "uz" },
+  { label: "Vietnamese", value: "vi" },
+  { label: "Zulu", value: "zu" },
 ];
 
-const DAY_OPTIONS = [0, 1, 2, 3, 5, 7, 10, 14, 30, 60, 90, 180, 365];
+const DAY_OPTIONS = Array.from({ length: 16 }, (_, i) => i);
 
 function isVideo(url = "") {
   return /\.(mp4|avi|mov|webm)$/i.test(url);
@@ -481,16 +587,16 @@ const AutomationTemplateManager = () => {
     <div className="settings-container">
       <div className="settings-header">
         <div>
-          <h1>Templates</h1>
+          <h1>Automation Templates</h1>
          
         </div>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
          
-
+{/* 
           <button className="btn-secondary" onClick={handleAddNormal}>
             <Plus size={16} /> Add Normal Template
-          </button>
+          </button> */}
 
           <button className="btn-primary" onClick={handleAddAutomation}>
             <Plus size={16} /> Add Automation Template
@@ -500,19 +606,21 @@ const AutomationTemplateManager = () => {
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-        <button
-          className={activeTab === "automation" ? "btn-primary" : "btn-outline"}
-          onClick={() => setActiveTab("automation")}
-        >
-          Automation Templates ({automationTemplates.length})
-        </button>
 
-        <button
+      {/* <button
           className={activeTab === "normal" ? "btn-primary" : "btn-outline"}
           onClick={() => setActiveTab("normal")}
         >
           Normal Templates ({normalTemplates.length})
-        </button>
+        </button> */}
+        {/* <button
+          className={activeTab === "automation" ? "btn-primary" : "btn-outline"}
+          onClick={() => setActiveTab("automation")}
+        >
+          Automation Templates ({automationTemplates.length})
+        </button> */}
+
+        
       </div>
 
       <div className="settings-list">

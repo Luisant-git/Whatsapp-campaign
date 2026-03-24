@@ -1,17 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { getSubscriptions, getCurrentPlan, subscribeToPlan, getUserOrders } from '../api/subscription';
+import { getCurrentPlan, getUserOrders } from '../api/subscription';
 import { Check, Clock, CheckCircle, XCircle, AlertCircle, Users } from 'lucide-react';
-import toast from 'react-hot-toast';
 import '../styles/Subscription.css';
 
 const Subscription = () => {
-  const [plans, setPlans] = useState([]);
   const [currentPlan, setCurrentPlan] = useState(null);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [showDowngradeModal, setShowDowngradeModal] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState(null);
   const [activeTab, setActiveTab] = useState('plans');
 
   useEffect(() => {
@@ -20,44 +15,16 @@ const Subscription = () => {
 
   const fetchData = async () => {
     try {
-      const [plansData, currentData, ordersData] = await Promise.all([
-        getSubscriptions(),
+      const [currentData, ordersData] = await Promise.all([
         getCurrentPlan(),
         getUserOrders()
       ]);
-      setPlans(plansData);
       setCurrentPlan(currentData);
       setOrders(ordersData);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSubscribeClick = (plan) => {
-    // Check if user has current plan and trying to downgrade
-    if (currentPlan?.subscription && currentPlan.isActive) {
-      if (plan.price < currentPlan.subscription.price) {
-        setSelectedPlan(plan);
-        setShowDowngradeModal(true);
-        return;
-      }
-    }
-    
-    setSelectedPlan(plan);
-    setShowConfirmModal(true);
-  };
-
-  const confirmSubscription = async () => {
-    try {
-      await subscribeToPlan(selectedPlan.id);
-      toast.success('Subscribed successfully!');
-      setShowConfirmModal(false);
-      setSelectedPlan(null);
-      fetchData();
-    } catch (error) {
-      toast.error('Failed to subscribe');
     }
   };
 
@@ -103,20 +70,19 @@ const Subscription = () => {
                 <span className="value">₹{currentPlan.subscription.price}</span>
               </div>
               <div className="info-item">
-  <span className="label">User Limit</span>
-  <span className="value">
-    {currentPlan.subscription.userLimit} Users
-  </span>
-</div>
-
+                <span className="label">User Limit</span>
+                <span className="value">
+                  {currentPlan.subscription.userLimit} Users
+                </span>
+              </div>
             </div>
           </div>
         </div>
       )}
 
       <div className="subscription-header">
-        <h1>{currentPlan?.subscription ? 'Upgrade Your Plan' : 'Choose Your Plan'}</h1>
-        <p>Select the perfect plan for your business needs</p>
+        <h1>My Plan</h1>
+        <p>View your current subscription details</p>
       </div>
 
       <div className="tabs">
@@ -124,7 +90,7 @@ const Subscription = () => {
           className={`tab ${activeTab === 'plans' ? 'active' : ''}`}
           onClick={() => setActiveTab('plans')}
         >
-          Available Plans
+          My Plan
         </button>
         <button 
           className={`tab ${activeTab === 'history' ? 'active' : ''}`}
@@ -136,41 +102,44 @@ const Subscription = () => {
 
       {activeTab === 'plans' && (
         <div className="plans-grid">
-          {plans.map((plan) => (
-            <div key={plan.id} className={`plan-card ${currentPlan?.subscription?.id === plan.id ? 'current' : ''}`}>
-              <h3>{plan.name}</h3>
+          {currentPlan?.subscription ? (
+            <div className="plan-card current">
+              <h3>{currentPlan.subscription.name}</h3>
               <div className="plan-price">
                 <span className="currency">₹</span>
-                <span className="amount">{plan.price}</span>
-                <span className="duration">/{plan.duration} days</span>
+                <span className="amount">{currentPlan.subscription.price}</span>
+                <span className="duration">/{currentPlan.subscription.duration} days</span>
               </div>
-              <div className="plan-userLimitRow">
-  <div className="plan-userLeft">
-    <span className="plan-userIcon">
-      <Users size={16} />
-    </span>
-    <span className="plan-userText">User limit</span>
-  </div>
 
-  <span className="plan-userPill">Up to {plan.userLimit} users</span>
-</div>
+              <div className="plan-userLimitRow">
+                <div className="plan-userLeft">
+                  <span className="plan-userIcon">
+                    <Users size={16} />
+                  </span>
+                  <span className="plan-userText">User limit</span>
+                </div>
+
+                <span className="plan-userPill">
+                  Up to {currentPlan.subscription.userLimit} users
+                </span>
+              </div>
+
               <ul className="plan-features">
-                {plan.features.map((feature, index) => (
+                {currentPlan.subscription.features?.map((feature, index) => (
                   <li key={index}>
                     <Check size={18} />
                     <span>{feature}</span>
                   </li>
                 ))}
               </ul>
-              <button 
-                className="btn-subscribe" 
-                onClick={() => handleSubscribeClick(plan)}
-                disabled={currentPlan?.subscription?.id === plan.id && currentPlan?.isActive}
-              >
-                {currentPlan?.subscription?.id === plan.id && currentPlan?.isActive ? 'Current Plan' : 'Subscribe Now'}
+
+              <button className="btn-subscribe" disabled>
+                {currentPlan.isActive ? 'Current Plan' : 'Expired Plan'}
               </button>
             </div>
-          ))}
+          ) : (
+            <div className="empty-state">No current subscription found</div>
+          )}
         </div>
       )}
 
@@ -218,47 +187,6 @@ const Subscription = () => {
               ))}
             </div>
           )}
-        </div>
-      )}
-
-      {showConfirmModal && selectedPlan && (
-        <div className="modal-overlay" onClick={() => setShowConfirmModal(false)}>
-          <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Confirm Subscription</h3>
-            <div className="modal-plan-info">
-              <p className="plan-name">{selectedPlan.name}</p>
-              <p className="plan-price">₹{selectedPlan.price} for {selectedPlan.duration} days</p>
-              <p className="plan-user-limit">
-  User Limit: {selectedPlan.userLimit} Users
-</p>
-
-            </div>
-            <p className="confirm-text">Are you sure you want to subscribe to this plan?</p>
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => setShowConfirmModal(false)}>Cancel</button>
-              <button className="btn-confirm" onClick={confirmSubscription}>Confirm</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showDowngradeModal && selectedPlan && (
-        <div className="modal-overlay" onClick={() => setShowDowngradeModal(false)}>
-          <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>⚠️ Downgrade Not Allowed</h3>
-            <div className="modal-plan-info">
-              <p className="downgrade-text">
-                You are trying to downgrade from <strong>{currentPlan?.subscription?.name}</strong> (₹{currentPlan?.subscription?.price}) 
-                to <strong>{selectedPlan.name}</strong> (₹{selectedPlan.price}).
-              </p>
-              <p className="downgrade-text">
-                Downgrades are not permitted. You can only upgrade to a higher plan.
-              </p>
-            </div>
-            <div className="modal-actions">
-              <button className="btn-confirm" onClick={() => setShowDowngradeModal(false)}>Understood</button>
-            </div>
-          </div>
         </div>
       )}
     </div>

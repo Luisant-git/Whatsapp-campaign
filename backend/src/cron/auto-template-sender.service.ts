@@ -7,7 +7,7 @@ export type MinimalSettings = {
   accessToken: string;
   apiUrl: string;
   language?: string | null;
-  headerImageUrl?: string | null; // can hold image or video URL
+  headerImageUrl?: string | null;
 };
 
 function isVideo(url = '') {
@@ -17,7 +17,6 @@ function isVideo(url = '') {
 function buildComponents(bodyParams: string[], headerMediaUrl?: string) {
   const components: any[] = [];
 
-  // Header media support
   if (headerMediaUrl) {
     if (isVideo(headerMediaUrl)) {
       components.push({
@@ -46,7 +45,6 @@ function buildComponents(bodyParams: string[], headerMediaUrl?: string) {
     }
   }
 
-  // Body params support
   if (bodyParams.length > 0) {
     components.push({
       type: 'body',
@@ -97,12 +95,12 @@ export class AutoTemplateSenderService {
       bodyParams,
       settings.headerImageUrl || undefined,
     );
-  
+
     this.logger.log(
-      `Sending template=${templateName}, to=${to}, headerImageUrl=${settings.headerImageUrl || 'EMPTY'}`
+      `Sending template=${templateName}, to=${to}, headerImageUrl=${settings.headerImageUrl || 'EMPTY'}`,
     );
     this.logger.log(`Components: ${JSON.stringify(components)}`);
-  
+
     return axios.post(
       `${settings.apiUrl}/${settings.phoneNumberId}/messages`,
       {
@@ -169,7 +167,6 @@ export class AutoTemplateSenderService {
         | string
         | undefined;
 
-      // Retry only for body param mismatch
       if (code === 132000) {
         const expected = parseExpectedParams(details);
         if (expected != null) {

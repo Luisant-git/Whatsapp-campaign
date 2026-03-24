@@ -229,6 +229,7 @@ export class EcommerceController {
     @Param('productId') productId: string,
     @UploadedFile() file: Express.Multer.File,
     @Body() body: any,
+    @Request() req,
   ) {
     const data = {
       productId: +productId,
@@ -247,7 +248,7 @@ export class EcommerceController {
   }
 
   @Get('products/:productId/variants')
-  getVariants(@Param('productId') productId: string) {
+  getVariants(@Param('productId') productId: string, @Request() req) {
     return this.ecommerceService.getVariants(+productId);
   }
 
@@ -267,6 +268,7 @@ export class EcommerceController {
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
     @Body() body: any,
+    @Request() req,
   ) {
     const data: any = {
       name: body.name,
@@ -286,7 +288,7 @@ export class EcommerceController {
   }
 
   @Delete('variants/:id')
-  deleteVariant(@Param('id') id: string) {
+  deleteVariant(@Param('id') id: string, @Request() req) {
     return this.ecommerceService.deleteVariant(+id);
   }
 

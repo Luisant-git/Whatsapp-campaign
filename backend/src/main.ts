@@ -10,6 +10,14 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // ✅ Allow OPTIONS globally before everything
+  app.use((req, res, next) => {
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
   // ✅ Trust proxy (Nginx)
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 

@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   IoCheckmarkOutline,
   IoCloseSharp,
   IoSendSharp,
 } from "react-icons/io5";
 import { sendBulkMessages } from "../api/whatsapp";
-import { getSettings } from "../api/auth";
+import { getAllSettings, getSettings } from "../api/auth";
 import { groupAPI } from "../api/group";
 import { useToast } from "../contexts/ToastContext";
 import "../styles/BulkWhatsApps.scss";
@@ -23,6 +23,7 @@ const BulkWhatsApp = () => {
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState("");
   const [groupContactsCount, setGroupContactsCount] = useState(0);
+  const [settings, setSettings] = useState([]);
 
   const daysOfWeek = [
     { value: "sunday", label: "Sunday" },
@@ -38,8 +39,10 @@ const BulkWhatsApp = () => {
     // Fetch WhatsApp template details
     const fetchSettings = async () => {
       try {
-        const settings = await getSettings();
-        if (settings?.templateName) setTemplateName(settings.templateName);
+        const data = await getAllSettings();
+        const settingsList = Array.isArray(data) ? data : [];
+        setSettings(settingsList);
+    
       } catch (error) {
         console.error("Failed to fetch settings", error);
       }
@@ -61,6 +64,9 @@ const BulkWhatsApp = () => {
     };
     fetchGroups();
   }, []);
+  const uniqueTemplateNames = useMemo(() => {
+    return [...new Set(settings.map((item) => item.templateName).filter(Boolean))];
+  }, [settings]);
 
   const handleDayToggle = (day) =>
     setScheduledDays((prev) =>
@@ -118,8 +124,8 @@ const BulkWhatsApp = () => {
       showError("Please enter a campaign name");
       return;
     }
-    if (!templateName.trim()) {
-      showError("Template name is required. Check your settings.");
+    if (!templateName) {
+      showError("Please select a template");
       return;
     }
     if (scheduleType === "time-based" && scheduledDays.length === 0) {
@@ -211,12 +217,18 @@ const BulkWhatsApp = () => {
             <label className="form-label">
               Template Name <span className="required">*</span>
             </label>
-            <input
-              type="text"
-              className="form-input"
-              value={templateName}
-              disabled
-            />
+            <select
+  className="form-input"
+  value={templateName}
+  onChange={(e) => setTemplateName(e.target.value)}
+>
+  <option value="">Select a Template</option>
+  {uniqueTemplateNames.map((name, index) => (
+    <option key={`template-${index}`} value={name}>
+      {name}
+    </option>
+  ))}
+</select>
           </div>
 
           {/* Schedule Type */}

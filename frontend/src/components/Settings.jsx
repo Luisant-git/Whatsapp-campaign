@@ -678,14 +678,14 @@ const Settings = ({ onNavigate }) => {
                         <Eye size={16} /> View Details
                       </button>
                     )}
-                    {!config.isDefault && (
-                      <button
-                        onClick={() => handleSetDefault(config.id)}
-                        className="btn-outline"
-                      >
-                        Set Default
-                      </button>
-                    )}
+                    {/* {!config.isDefault && (
+                      // <button
+                      //   onClick={() => handleSetDefault(config.id)}
+                      //   className="btn-outline"
+                      // >
+                      //   Set Default
+                      // </button>
+                    )} */}
                     <button
                       onClick={() => handleDelete(config.id)}
                       className="btn-danger"
@@ -1073,7 +1073,7 @@ const Settings = ({ onNavigate }) => {
                 )}
               </div>
 
-              <div className="form-group">
+              {/* <div className="form-group">
                 <label className="checkbox-label">
                   <input
                     type="checkbox"
@@ -1084,7 +1084,7 @@ const Settings = ({ onNavigate }) => {
                   />
                   Set as default configuration
                 </label>
-              </div>
+              </div> */}
 
               <div className="form-actions">
                 <button className="btn-secondary" onClick={resetForm}>

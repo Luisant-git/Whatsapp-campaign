@@ -565,11 +565,11 @@ const AutomationTemplateManager = () => {
                       Edit
                     </button>
 
-                    {!config.isDefault && (
+                    {/* {!config.isDefault && (
                       <button className="btn-outline" onClick={() => handleSetDefault(config.id)}>
                         Set Default
                       </button>
-                    )}
+                    )} */}
 
                     <button className="btn-danger" onClick={() => handleDelete(config.id)}>
                       <Trash2 size={16} />
@@ -923,7 +923,7 @@ const AutomationTemplateManager = () => {
                   </div>
                 )}
               </div>
-
+{/* 
               <div className="form-group">
                 <label className="checkbox-label">
                   <input
@@ -933,7 +933,7 @@ const AutomationTemplateManager = () => {
                   />
                   Set as default configuration
                 </label>
-              </div>
+              </div> */}
 
               <div className="form-actions">
                 <button className="btn-secondary" onClick={resetForm}>

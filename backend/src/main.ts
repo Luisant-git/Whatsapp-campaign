@@ -54,6 +54,19 @@ async function bootstrap() {
     allowedHeaders: ['Origin', 'Content-Type', 'Accept', 'Authorization'],
   });
 
+  // ✅ Global OPTIONS handler (for preflight)
+  app.use((req, res, next) => {
+    if (req.method === 'OPTIONS') {
+      console.log('🔧 Handling OPTIONS preflight for:', req.path);
+      res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+      res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Origin,Content-Type,Accept,Authorization');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
   // ✅ Cookie parser
   app.use(cookieParser());
 

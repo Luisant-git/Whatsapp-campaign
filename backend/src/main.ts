@@ -47,11 +47,6 @@ async function bootstrap() {
     allowedHeaders: ['Origin', 'Content-Type', 'Accept', 'Authorization'],
   });
 
-  // ✅ Handle preflight (extra safety)
-app.getHttpAdapter().getInstance().options('*', (req, res) => {
-  res.sendStatus(200);
-});
-
   // ✅ Cookie parser
   app.use(cookieParser());
 

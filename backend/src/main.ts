@@ -26,27 +26,32 @@ async function bootstrap() {
 
   // ✅ Postgres session store
   const PgSession = connectPgSimple(session);
-  app.use(
-    session({
-      store: new PgSession({
-        conString: process.env.CENTRAL_DATABASE_URL,
-        tableName: 'session',
-        createTableIfMissing: true,
-      }),
-      name: 'user.sid',
-      secret: process.env.SESSION_SECRET || 'keyboardcat',
-      resave: false,
-      saveUninitialized: false,
-      cookie: {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        domain: process.env.NODE_ENV === 'production' ? '.luisant.cloud' : undefined, // Share cookie across subdomains
-        maxAge: 24 * 60 * 60 * 1000,
-      },
-      proxy: true,
+  
+  const sessionConfig: any = {
+    store: new PgSession({
+      conString: process.env.CENTRAL_DATABASE_URL,
+      tableName: 'session',
+      createTableIfMissing: true,
     }),
-  );
+    name: 'user.sid',
+    secret: process.env.SESSION_SECRET || 'keyboardcat',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 24 * 60 * 60 * 1000,
+    },
+    proxy: true,
+  };
+  
+  // Share cookie across subdomains in production
+  if (process.env.NODE_ENV === 'production') {
+    sessionConfig.cookie.domain = '.luisant.cloud';
+  }
+  
+  app.use(session(sessionConfig));
 
   // ✅ Static uploads
   const uploadsPath =

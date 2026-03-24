@@ -263,44 +263,61 @@ export class EcommerceController {
   }
 
   @Post('products/:id/sync-meta')
-  async syncProductToMeta(@Param('id') id: string, @Body() body: any, @Request() req) {
-    const userId = req.session?.userId;
-    const productId = +id;
+  syncProductToMeta(@Param('id') id: string, @Body() body: any, @Request() req) {
+    try {
+      const userId = req.session?.userId;
+      const productId = +id;
 
-    // Return response IMMEDIATELY before doing anything
-    const response = { 
-      success: true, 
-      message: 'Product sync started in background.',
-      productId: productId 
-    };
+      console.log(`[Meta Sync] Received sync request for product ${productId}`);
 
-    // Schedule background sync after response is sent
-    process.nextTick(async () => {
-      try {
-        console.log(`[Meta Sync] Background sync starting for product ${productId}`);
-        
-        const product = await this.ecommerceService.getProduct(productId, userId);
-        
-        if (!product) {
-          console.error(`[Meta Sync] Product ${productId} not found`);
-          return;
-        }
+      // Immediately spawn background process without awaiting
+      setTimeout(() => {
+        this.performMetaSync(productId, body, userId).catch(err => {
+          console.error(`[Meta Sync] Failed for product ${productId}:`, err.message);
+        });
+      }, 0);
 
-        const result = await this.metaCatalogService.syncProductToCatalog(product, body);
-        
-        // Update product after successful sync
-        await this.ecommerceService.updateProduct(productId, {
-          metaProductId: result.metaProductId,
-          source: 'uploaded',
-        }, userId);
-        
-        console.log(`[Meta Sync] Product ${productId} synced successfully:`, result.metaProductId);
-      } catch (error) {
-        console.error(`[Meta Sync] Product ${productId} sync failed:`, error.message);
+      console.log(`[Meta Sync] Returning immediate response for product ${productId}`);
+
+      // Return immediately - synchronously
+      return { 
+        success: true, 
+        message: 'Product sync queued. Check backend logs for status.',
+        productId: productId 
+      };
+    } catch (error) {
+      console.error('[Meta Sync] Error in sync endpoint:', error);
+      return {
+        success: false,
+        error: error.message || 'Unknown error',
+        productId: +id
+      };
+    }
+  }
+
+  private async performMetaSync(productId: number, body: any, userId?: number) {
+    try {
+      console.log(`[Meta Sync] Starting background sync for product ${productId}`);
+      
+      const product = await this.ecommerceService.getProduct(productId, userId);
+      
+      if (!product) {
+        console.error(`[Meta Sync] Product ${productId} not found`);
+        return;
       }
-    });
 
-    return response;
+      const result = await this.metaCatalogService.syncProductToCatalog(product, body);
+      
+      await this.ecommerceService.updateProduct(productId, {
+        metaProductId: result.metaProductId,
+        source: 'uploaded',
+      }, userId);
+      
+      console.log(`[Meta Sync] Product ${productId} synced successfully:`, result.metaProductId);
+    } catch (error) {
+      console.error(`[Meta Sync] Product ${productId} sync error:`, error.message);
+      throw error;
+    }
   }
 
   @UseGuards(SessionGuard)

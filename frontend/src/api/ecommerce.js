@@ -49,6 +49,7 @@ export const ecommerceApi = {
        headers: { 'Content-Type': 'multipart/form-data' },
      }),
    deleteVariant: (id) => api.delete(`/ecommerce/variants/${id}`),
+   syncVariantToMeta: (id, payload = {}) => api.post(`/ecommerce/variants/${id}/sync-meta`, payload),
   // Orders
   getOrders: () => api.get('/ecommerce/orders'),
   updateOrderStatus: (id, status) => api.put(`/ecommerce/orders/${id}/status`, { status }),

@@ -271,6 +271,8 @@ async updateVariant(id: number, data: any) {
   if (data.imageUrl !== undefined) cleanedData.imageUrl = data.imageUrl;
   if (data.link !== undefined) cleanedData.link = data.link;
   if (data.contentId !== undefined) cleanedData.contentId = data.contentId;
+  if (data.metaProductId !== undefined) cleanedData.metaProductId = data.metaProductId;
+  if (data.source !== undefined) cleanedData.source = data.source;
   if (data.availability !== undefined) cleanedData.availability = parseBoolean(data.availability);
   if (data.isActive !== undefined) cleanedData.isActive = parseBoolean(data.isActive);
 

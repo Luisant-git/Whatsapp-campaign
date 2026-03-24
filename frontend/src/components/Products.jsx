@@ -626,6 +626,32 @@ export default function Products() {
     }
   };
 
+  const handleSyncVariantToMeta = async (variant, product) => {
+    if (!confirm(`Sync variant "${variant.name}" to Meta Catalog?`)) return;
+    
+    try {
+      setLoading(true);
+      const payload = {
+        name: variant.name,
+        description: variant.description,
+        price: variant.price,
+        salePrice: variant.salePrice,
+        availability: variant.availability,
+        isActive: variant.isActive,
+        contentId: variant.contentId,
+        link: variant.link,
+      };
+      
+      await ecommerceApi.syncVariantToMeta(variant.id, payload);
+      alert(`✅ Variant "${variant.name}" synced to Meta Catalog!`);
+      loadData();
+    } catch (error) {
+      alert(`❌ Failed to sync variant: ${error.response?.data?.message || error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSyncFromMeta = async () => {
     try {
       const result = await ecommerceApi.syncFromMeta();
@@ -1085,7 +1111,7 @@ export default function Products() {
                               <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>
                                 ID: {variant.contentId || 'Not set'}
                               </div>
-                              <div style={{ fontSize: '11px', marginTop: '2px' }}>
+                              <div style={{ fontSize: '11px', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <span
                                   style={{
                                     color: variant.availability ? '#22c55e' : '#ef4444',
@@ -1093,7 +1119,40 @@ export default function Products() {
                                 >
                                   {variant.availability ? '● In Stock' : '● Out of Stock'}
                                 </span>
+                                {hasMetaCatalogPermission && variant.metaProductId && (
+                                  <span
+                                    style={{
+                                      fontSize: '10px',
+                                      padding: '2px 6px',
+                                      borderRadius: '4px',
+                                      background: '#d1fae5',
+                                      color: '#065f46',
+                                    }}
+                                  >
+                                    On Meta
+                                  </span>
+                                )}
                               </div>
+                              {hasMetaCatalogPermission && !variant.metaProductId && (
+                                <button
+                                  onClick={() => handleSyncVariantToMeta(variant, prod)}
+                                  style={{
+                                    marginTop: '8px',
+                                    background: '#25d366',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '11px',
+                                    fontWeight: '500',
+                                  }}
+                                  title="Sync to Meta Catalog"
+                                >
+                                  <Upload size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                                  Sync to Meta
+                                </button>
+                              )}
                             </div>
                           </div>
                         ))}

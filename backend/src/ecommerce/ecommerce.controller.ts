@@ -338,6 +338,56 @@ export class EcommerceController {
     }
   }
 
+  @Post('variants/:id/sync-meta')
+  syncVariantToMeta(@Param('id') id: string, @Body() body: any, @Request() req) {
+    try {
+      const tenantId = req.session?.tenantId;
+      if (!tenantId) {
+        return { success: false, error: 'No tenant context' };
+      }
+
+      setTimeout(() => {
+        this.performVariantMetaSync(+id, body, tenantId).catch(err => {
+          console.error(`[Meta Sync] Variant ${id} sync failed:`, err.message);
+        });
+      }, 0);
+
+      return { success: true, message: 'Variant sync queued', variantId: +id };
+    } catch (error) {
+      return { success: false, error: error.message, variantId: +id };
+    }
+  }
+
+  private async performVariantMetaSync(variantId: number, body: any, tenantId: number) {
+    try {
+      const variant = await this.ecommerceService.getVariant(variantId);
+      if (!variant) {
+        console.error(`[Meta Sync] Variant ${variantId} not found`);
+        return;
+      }
+
+      const product = await this.ecommerceService.getProduct(variant.productId, tenantId);
+      if (!product) {
+        console.error(`[Meta Sync] Product ${variant.productId} not found`);
+        return;
+      }
+
+      const result = await this.metaCatalogService.syncProductToCatalog(product, {
+        ...body,
+        variants: [variant]
+      });
+
+      await this.ecommerceService.updateVariant(variantId, {
+        metaProductId: result.results?.[0]?.metaId,
+      });
+
+      console.log(`[Meta Sync] Variant ${variantId} synced:`, result.results?.[0]?.metaId);
+    } catch (error) {
+      console.error(`[Meta Sync] Variant ${variantId} error:`, error.message);
+      throw error;
+    }
+  }
+
   @UseGuards(SessionGuard)
   @Get('products/:id/sync-status')
   async getSyncStatus(@Param('id') id: string) {

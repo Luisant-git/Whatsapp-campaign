@@ -595,6 +595,11 @@ export class MetaCatalogService {
           }
           
           await this.sessionService.clearSession(phone, userId);
+          console.log(`[Meta Catalog] Order processing completed successfully`);
+          return true;
+        } else {
+          console.log(`[Meta Catalog] No cart products or session found`);
+          await this.sendTextMessage(phone, phoneNumberId, '❌ Session expired. Please start shopping again.');
           return true;
         }
       }

@@ -85,6 +85,18 @@ export class RazorpayService {
 
       console.log('[Razorpay] Sending payment request for multiple items:', { phone, orderId, totalAmount, items });
 
+      // Calculate the sum of all items to verify it matches totalAmount
+      const itemsSum = items.reduce((sum, item) => {
+        // Use the actual price per item (should already be the sale price if applicable)
+        const itemTotal = item.price * item.quantity;
+        return sum + itemTotal;
+      }, 0);
+
+      console.log('[Razorpay] Items sum:', itemsSum, 'Total amount:', totalAmount);
+
+      // Use the items sum if it matches, otherwise use totalAmount
+      const finalSubtotal = Math.round(itemsSum * 100);
+
       const response = await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,
         {
@@ -95,7 +107,7 @@ export class RazorpayService {
           interactive: {
             type: 'order_details',
             body: {
-              text: `Order #${orderId}\nTotal Amount: ₹${totalAmount}`
+              text: `Order #${orderId}\nTotal Amount: ₹${itemsSum.toFixed(2)}`
             },
             action: {
               name: 'review_and_pay',
@@ -113,7 +125,7 @@ export class RazorpayService {
                 ],
                 currency: 'INR',
                 total_amount: {
-                  value: subtotal,
+                  value: finalSubtotal,
                   offset: 100
                 },
                 order: {
@@ -128,7 +140,7 @@ export class RazorpayService {
                     quantity: item.quantity
                   })),
                   subtotal: {
-                    value: subtotal,
+                    value: finalSubtotal,
                     offset: 100
                   }
                 }

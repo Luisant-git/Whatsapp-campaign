@@ -876,7 +876,7 @@ export class MetaCatalogService {
             try {
               const items = cartProducts.map(p => ({
                 name: p.name,
-                price: p.price,
+                price: p.effectivePrice || p.salePrice || p.price, // Use sale price if available
                 quantity: p.quantity
               }));
               

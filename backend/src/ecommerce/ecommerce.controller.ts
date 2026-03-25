@@ -26,6 +26,16 @@ export class EcommerceController {
     private metaCatalogService: MetaCatalogService,
   ) { }
 
+  @Get('debug/session')
+  debugSession(@Request() req) {
+    return {
+      session: req.session,
+      userId: req.session?.userId,
+      tenantId: req.session?.tenantId,
+      userType: req.session?.userType,
+    };
+  }
+
   @Get('payment-callback')
   async paymentCallback(@Query() query: any) {
     const { razorpay_payment_id, razorpay_payment_link_id } = query;
@@ -234,17 +244,17 @@ export class EcommerceController {
     try {
       console.log('[Create Variant] Request received:', {
         productId,
-        body,
+        bodyKeys: Object.keys(body),
         hasFile: !!file,
-        session: req.session,
         userId: req.session?.userId,
+        sessionId: req.session?.id,
       });
 
       const data = {
         productId: +productId,
         name: body.name,
         description: body.description || null,
-        price: parseFloat(body.price),
+        price: body.price ? parseFloat(body.price) : 0,
         salePrice: body.salePrice ? parseFloat(body.salePrice) : null,
         stock: body.stock ? parseInt(body.stock) : 0,
         imageUrl: file ? `${process.env.UPLOAD_URL}/${file.filename}` : null,
@@ -258,11 +268,15 @@ export class EcommerceController {
       
       const result = await this.ecommerceService.createVariant(data, req.session?.userId);
       
-      console.log('[Create Variant] Success:', result);
+      console.log('[Create Variant] Success:', result.id);
       
       return result;
     } catch (error) {
-      console.error('[Create Variant] Error:', error.message, error.stack);
+      console.error('[Create Variant] Error:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      });
       throw error;
     }
   }

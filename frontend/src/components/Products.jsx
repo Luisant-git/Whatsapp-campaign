@@ -250,10 +250,13 @@ export default function Products() {
           variantFormData.append('stock', v.stock || '0');
           variantFormData.append('salePrice', v.salePrice || '');
           variantFormData.append('link', v.link || '');
-          variantFormData.append(
-            'contentId',
-            v.contentId || `${form.contentId || `product_${productId}`}_v${i + 1}`
-          );
+          
+          // Only send contentId if it's explicitly set and not empty
+          if (v.contentId && v.contentId.trim() !== '') {
+            variantFormData.append('contentId', v.contentId.trim());
+          }
+          // Don't send contentId at all if empty - let backend generate unique one
+          
           // ✅ FIX: Variant booleans too
           variantFormData.append('availability', v.availability === true ? 'true' : 'false');
           variantFormData.append('isActive', v.isActive === true ? 'true' : 'false');
@@ -478,10 +481,13 @@ export default function Products() {
         variantFormData.append('stock', v.stock || '0');
         variantFormData.append('salePrice', v.salePrice || '');
         variantFormData.append('link', v.link || '');
-        variantFormData.append(
-          'contentId',
-          v.contentId || `${metaForm.contentId || `product_${productId}`}_v${i + 1}`
-        );
+        
+        // Only send contentId if it's explicitly set and not empty
+        if (v.contentId && v.contentId.trim() !== '') {
+          variantFormData.append('contentId', v.contentId.trim());
+        }
+        // Don't send contentId at all if empty - let backend generate unique one
+        
         // ✅ FIX
         variantFormData.append('availability', v.availability === true ? 'true' : 'false');
         variantFormData.append('isActive', v.isActive === true ? 'true' : 'false');

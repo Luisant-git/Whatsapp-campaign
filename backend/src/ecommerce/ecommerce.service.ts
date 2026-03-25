@@ -230,7 +230,22 @@ async createVariant(data: any, userId?: number) {
     console.log('[Service] Got client, creating variant...');
     
     // Generate contentId before creation if not provided
-    const contentId = data.contentId || `variant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Make it more unique to avoid conflicts
+    let contentId = data.contentId;
+    
+    if (!contentId || contentId.trim() === '') {
+      contentId = `variant_${data.productId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+    
+    // Check if contentId already exists and make it unique if needed
+    const existingVariant = await client.productVariant.findUnique({
+      where: { contentId: contentId }
+    });
+    
+    if (existingVariant) {
+      console.log('[Service] ContentId already exists, generating new one');
+      contentId = `variant_${data.productId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
     
     const variant = await client.productVariant.create({
       data: {

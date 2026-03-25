@@ -223,7 +223,7 @@ export class AdminService {
 
 
 
-        subscriptionId: createUserDto.subscriptionId ?? null,
+        subscriptionId: null,
 
       },
       select: {
@@ -262,7 +262,70 @@ export class AdminService {
       throw new Error(`Failed to create tenant database: ${error.message}`);
     }
 
-    return { message: 'User registered successfully', user };
+    if (createUserDto.subscriptionId) {
+      const plan = await this.prisma.subscriptionPlan.findUnique({
+        where: { id: Number(createUserDto.subscriptionId) },
+      });
+    
+      if (!plan) {
+        throw new NotFoundException('Subscription plan not found');
+      }
+    
+      const startDate = new Date();
+      const endDate = new Date(
+        startDate.getTime() + plan.duration * 24 * 60 * 60 * 1000
+      );
+    
+      await this.prisma.subscriptionOrder.updateMany({
+        where: { tenantId: user.id },
+        data: { isCurrentPlan: false },
+      });
+    
+      await this.prisma.subscriptionOrder.create({
+        data: {
+          tenantId: user.id,
+          planId: plan.id,
+          amount: plan.price,
+          startDate,
+          endDate,
+          status: 'active',
+          isCurrentPlan: true,
+        },
+      });
+    
+      await this.prisma.tenant.update({
+        where: { id: user.id },
+        data: {
+          subscriptionId: plan.id,
+          subscriptionStartDate: startDate,
+          subscriptionEndDate: endDate,
+        },
+      });
+    }
+    
+    const updatedUser = await this.prisma.tenant.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        isActive: true,
+        createdAt: true,
+        companyName: true,
+        contactPersonName: true,
+        phoneNumber: true,
+        companyAddress: true,
+        city: true,
+        pincode: true,
+        state: true,
+        country: true,
+        subscriptionId: true,
+        subscriptionStartDate: true,
+        subscriptionEndDate: true,
+      },
+    });
+    
+    return { message: 'User registered successfully', user: updatedUser };
   }
 
   async toggleUserChatbot(userId: number) {
@@ -669,7 +732,7 @@ async getSubUserById(id: number) {
         isActive: true,
         domain: true,
       },
-      orderBy: { id: 'asc' },
+      orderBy: { id: 'desc' },
     });
 
     return {

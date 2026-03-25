@@ -121,7 +121,11 @@ const Profile = () => {
               <h3>Member Since</h3>
               <p>
                 {profile?.createdAt
-                  ? new Date(profile.createdAt).toLocaleDateString()
+                  ? new Date(profile.createdAt).toLocaleDateString('en-IN', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                  })
                   : 'Unknown'}
               </p>
             </div>

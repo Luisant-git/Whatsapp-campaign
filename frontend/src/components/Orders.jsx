@@ -45,7 +45,6 @@ const [toDate, setToDate] = useState('');
       City: order.customerCity || 'N/A',
       State: order.customerState || 'N/A',
       Pincode: order.customerPincode || 'N/A',
-      Product: order.items?.[0]?.product?.name || 'N/A',
       Product: order.items?.map((item) => item.product?.name).join(', ') || 'N/A',
       Quantity: order.items?.reduce((total, item) => total + item.quantity, 0) || 0,
       Amount: `₹${order.totalAmount}`,

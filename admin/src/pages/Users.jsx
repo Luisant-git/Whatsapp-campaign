@@ -8,6 +8,8 @@ import {
   updateAdminUser,
 } from '../api/Company';
 import { useToast } from '../contexts/ToastContext';
+import { createUserSubscription } from '../api/subscription';
+
 
 const initialFormData = {
   name: '',
@@ -120,7 +122,6 @@ export default function Users() {
     setError('');
     resetForm();
   };
-
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setError('');
@@ -136,7 +137,25 @@ export default function Users() {
 
       if (editingCompany) {
         await updateAdminUser(editingCompany.id, payload);
-        showToast('Company updated successfully', 'success');
+
+        const oldSubId = editingCompany.subscriptionId
+          ? String(editingCompany.subscriptionId)
+          : '';
+        const newSubId = formData.subscriptionId;
+
+        if (newSubId && newSubId !== oldSubId) {
+          try {
+            await createUserSubscription(editingCompany.id, {
+              planId: parseInt(newSubId),
+            });
+            showToast('Company updated and subscription renewed successfully', 'success');
+          } catch (subErr) {
+            console.error('Subscription error:', subErr);
+            showToast('Company updated but subscription renewal failed', 'warning');
+          }
+        } else {
+          showToast('Company updated successfully', 'success');
+        }
       } else {
         await createAdminUser(payload);
         showToast('Company created successfully', 'success');
@@ -174,7 +193,12 @@ export default function Users() {
 
   const isSubscriptionActive = (user) => {
     if (!user.subscriptionId) return false;
-    if (!user.subscriptionStartDate || !user.subscriptionEndDate) return false;
+
+    // If subscription exists but dates are missing,
+    // treat it as active based on company status
+    if (!user.subscriptionStartDate || !user.subscriptionEndDate) {
+      return true;
+    }
 
     const today = new Date();
     const startDate = new Date(user.subscriptionStartDate);
@@ -186,9 +210,13 @@ export default function Users() {
 
     return today >= startDate && today <= endDate;
   };
-
   const getFinalStatus = (user) => {
     return !!user.isActive && isSubscriptionActive(user);
+  };
+
+  const getSelectedPlanDetails = () => {
+    if (!formData.subscriptionId) return null;
+    return subscriptions.find(s => String(s.id) === formData.subscriptionId);
   };
 
   const filteredUsers = users
@@ -285,9 +313,8 @@ export default function Users() {
                   <td>{getSubscriptionName(user)}</td>
                   <td>
                     <span
-                      className={`status-badge ${
-                        getFinalStatus(user) ? 'active' : 'inactive'
-                      }`}
+                      className={`status-badge ${getFinalStatus(user) ? 'active' : 'inactive'
+                        }`}
                     >
                       {getFinalStatus(user) ? 'Active' : 'Inactive'}
                     </span>
@@ -314,10 +341,10 @@ export default function Users() {
                         onClick={() => openEditModal(user)}
                         title="Edit"
                       >
-                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                          </svg>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                          <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
                       </button>
                     </div>
                   </td>
@@ -346,9 +373,8 @@ export default function Users() {
               </div>
 
               <span
-                className={`status-badge ${
-                  getFinalStatus(user) ? 'active' : 'inactive'
-                }`}
+                className={`status-badge ${getFinalStatus(user) ? 'active' : 'inactive'
+                  }`}
               >
                 {getFinalStatus(user) ? 'Active' : 'Inactive'}
               </span>
@@ -391,9 +417,9 @@ export default function Users() {
                 onClick={() => openEditModal(user)}
                 title="Edit"
               > <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-              <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-            </svg>
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
               </button>
             </div>
           </div>
@@ -466,9 +492,19 @@ export default function Users() {
                 <input
                   type="text"
                   value={formData.phoneNumber}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phoneNumber: e.target.value })
-                  }
+                  maxLength={10}
+                  onChange={(e) => {
+                    let value = e.target.value;
+
+                    // Remove non-digits
+                    value = value.replace(/\D/g, '');
+
+                    // Allow only up to 10 digits
+                    if (value.length <= 10) {
+                      setFormData({ ...formData, phoneNumber: value });
+                    }
+                  }}
+
                 />
               </div>
 
@@ -531,7 +567,7 @@ export default function Users() {
               </div>
 
               <div className="form-group">
-                <label>Subscription Plan</label>
+                <label>Subscription Plan {!editingCompany && '*'}</label>
                 <select
                   value={formData.subscriptionId}
                   onChange={(e) =>
@@ -540,15 +576,55 @@ export default function Users() {
                       subscriptionId: e.target.value,
                     })
                   }
+                  required={!editingCompany}
                 >
                   <option value="">Select Subscription</option>
                   {subscriptions.map((sub) => (
                     <option key={sub.id} value={sub.id}>
-                      {sub.name}
+                      {sub.name} - ₹{sub.price} ({sub.duration} days)
                     </option>
                   ))}
                 </select>
               </div>
+
+              {/* Plan Preview - Add this below the select */}
+              {formData.subscriptionId && (
+                <div style={{
+                  marginTop: '12px',
+                  padding: '12px',
+                  background: '#f0f9ff',
+                  border: '1px solid #bae6fd',
+                  borderRadius: '8px',
+                }}>
+                  {(() => {
+                    const plan = getSelectedPlanDetails();
+                    if (!plan) return null;
+                    return (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <strong style={{ color: '#0369a1' }}>{plan.name}</strong>
+                          <strong style={{ color: '#0ea5e9' }}>₹{plan.price}</strong>
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#64748b' }}>
+                          Duration: {plan.duration} days | User Limit: {plan.userLimit || 'Unlimited'}
+                        </div>
+                        {!editingCompany && (
+                          <div style={{
+                            marginTop: '10px',
+                            padding: '8px',
+                            background: '#dcfce7',
+                            color: '#166534',
+                            borderRadius: '6px',
+                            fontSize: '13px',
+                          }}>
+                            ✓ Subscription will be auto-activated on creation
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
 
               <div className="form-group">
                 <label>Admin Name</label>
@@ -589,70 +665,69 @@ export default function Users() {
                   minLength="6"
                 />
               </div>
-              
-              <div className="form-group">
-  <label>Company Status</label>
-  <div
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      marginTop: '6px',
-    }}
-  >
-    <button
-      type="button"
-      onClick={() =>
-        setFormData((prev) => ({
-          ...prev,
-          isActive: !prev.isActive,
-        }))
-      }
-      style={{
-        width: '52px',
-        height: '28px',
-        borderRadius: '20px',
-        border: 'none',
-        cursor: 'pointer',
-        position: 'relative',
-        background: formData.isActive ? '#2563eb' : '#d1d5db',
-        transition: '0.3s',
-      }}
-    >
-      <span
-        style={{
-          position: 'absolute',
-          top: '3px',
-          left: formData.isActive ? '27px' : '3px',
-          width: '22px',
-          height: '22px',
-          borderRadius: '50%',
-          background: '#fff',
-          transition: '0.3s',
-        }}
-      />
-    </button>
 
-    <span style={{ fontWeight: 500 }}>
-      {formData.isActive ? 'Active' : 'Inactive'}
-    </span>
-  </div>
-</div>
+              <div className="form-group">
+                <label>Company Status</label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    marginTop: '6px',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        isActive: !prev.isActive,
+                      }))
+                    }
+                    style={{
+                      width: '52px',
+                      height: '28px',
+                      borderRadius: '20px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      position: 'relative',
+                      background: formData.isActive ? '#2563eb' : '#d1d5db',
+                      transition: '0.3s',
+                    }}
+                  >
+                    <span
+                      style={{
+                        position: 'absolute',
+                        top: '3px',
+                        left: formData.isActive ? '27px' : '3px',
+                        width: '22px',
+                        height: '22px',
+                        borderRadius: '50%',
+                        background: '#fff',
+                        transition: '0.3s',
+                      }}
+                    />
+                  </button>
+
+                  <span style={{ fontWeight: 500 }}>
+                    {formData.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+              </div>
 
 
               <div className="form-actions">
                 <button type="button" className="btn-cancel" onClick={closeFormModal}>
                   Cancel
                 </button>
-
                 <button type="submit" className="btn-submit" disabled={creating}>
                   {creating
                     ? editingCompany
                       ? 'Updating...'
-                      : 'Creating...'
+                      : 'Creating & Subscribing...'
                     : editingCompany
-                    ? 'Update Company'
-                    : 'Create Company'}
+                      ? 'Update Company'
+                      : 'Create & Subscribe'}
                 </button>
               </div>
             </form>
@@ -685,7 +760,7 @@ export default function Users() {
                 <strong> Status:</strong>{' '}
                 {getFinalStatus(viewUser) ? 'Active' : 'Inactive'}
               </p>
-            
+
 
               <hr style={{ margin: '16px 0' }} />
 
@@ -703,7 +778,7 @@ export default function Users() {
                   ? new Date(viewUser.subscriptionEndDate).toLocaleDateString()
                   : '-'}
               </p>
-             
+
 
               {viewUser.subscription && (
                 <>
@@ -715,7 +790,7 @@ export default function Users() {
                       : '-'}
                   </p>
                   <p><strong>Price:</strong> {viewUser.subscription.price ?? '-'}</p>
-                 
+
                 </>
               )}
             </div>

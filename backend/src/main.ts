@@ -22,13 +22,7 @@ async function bootstrap() {
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
  app.enableCors({
-  origin: [
-        'http://localhost:5173',
-        'http://localhost:5174',
-        'https://whatsapp.luisant.cloud',
-        'https://whatsapp.admin.luisant.cloud',
-        'https://crm.luisant.in',
-      ],
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],

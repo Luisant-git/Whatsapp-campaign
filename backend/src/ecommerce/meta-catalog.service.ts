@@ -211,16 +211,34 @@ export class MetaCatalogService {
       // Delete old product first if metaProductId exists
       if (product.metaProductId) {
         try {
+          console.log('[Meta Update] Deleting old product:', product.metaProductId);
           await this.axiosInstance.delete(
             `${this.apiUrl}/${product.metaProductId}`,
           );
-          console.log('[Meta Update] Old product deleted:', product.metaProductId);
+          console.log('[Meta Update] Old product deleted successfully');
+          
+          // Wait a bit for Meta API to process the deletion
+          await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (deleteError) {
-          console.log('[Meta Update] Could not delete old product (may not exist):', deleteError.message);
+          const errorCode = deleteError.response?.status;
+          console.log('[Meta Update] Delete error:', errorCode, deleteError.message);
+          
+          // If product not found (404), it's already deleted - continue
+          if (errorCode !== 404) {
+            // For other errors, try to find and delete by retailer_id
+            try {
+              console.log('[Meta Update] Trying to delete by retailer_id:', baseRetailerId);
+              await this.deleteProductByRetailerId(baseRetailerId);
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            } catch (err) {
+              console.log('[Meta Update] Could not delete by retailer_id:', err.message);
+            }
+          }
         }
       }
       
       // Create new product with same retailer_id
+      console.log('[Meta Update] Creating updated product with retailer_id:', baseRetailerId);
       const response = await this.axiosInstance.post(
         `${this.apiUrl}/${this.catalogId}/products`,
         payload,
@@ -234,7 +252,25 @@ export class MetaCatalogService {
       return { success: true, data: response.data, metaProductId: response.data.id };
     } catch (error) {
       const errorMsg = error.response?.data?.error?.message || error.message;
+      const errorCode = error.response?.data?.error?.code;
+      
       console.error('[Meta Update Error]', errorMsg);
+      
+      // If duplicate retailer_id error, try to find and delete the existing one
+      if (errorCode === 10800 || errorMsg.includes('Duplicate retailer_id')) {
+        console.log('[Meta Update] Duplicate retailer_id detected, attempting cleanup...');
+        try {
+          const baseRetailerId = (meta?.contentId && String(meta.contentId).trim())
+            ? String(meta.contentId).trim()
+            : product.contentId || `product_${product.id}`;
+          
+          await this.deleteProductByRetailerId(baseRetailerId);
+          console.log('[Meta Update] Cleaned up duplicate, please try updating again');
+        } catch (cleanupError) {
+          console.error('[Meta Update] Cleanup failed:', cleanupError.message);
+        }
+      }
+      
       throw new Error(errorMsg || 'Failed to update product in Meta Catalog');
     }
   }

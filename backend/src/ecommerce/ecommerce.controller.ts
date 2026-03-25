@@ -231,20 +231,40 @@ export class EcommerceController {
     @Body() body: any,
     @Request() req,
   ) {
-    const data = {
-      productId: +productId,
-      name: body.name,
-      description: body.description || null,
-      price: parseFloat(body.price),
-      salePrice: body.salePrice ? parseFloat(body.salePrice) : null,
-      stock: body.stock ? parseInt(body.stock) : 0,
-      imageUrl: file ? `${process.env.UPLOAD_URL}/${file.filename}` : null,
-      link: body.link || null,
-      contentId: body.contentId || null,
-      availability: body.availability === 'true' || body.availability === true,
-      isActive: body.isActive !== 'false' && body.isActive !== false,
-    };
-    return this.ecommerceService.createVariant(data, req.session?.userId);
+    try {
+      console.log('[Create Variant] Request received:', {
+        productId,
+        body,
+        hasFile: !!file,
+        session: req.session,
+        userId: req.session?.userId,
+      });
+
+      const data = {
+        productId: +productId,
+        name: body.name,
+        description: body.description || null,
+        price: parseFloat(body.price),
+        salePrice: body.salePrice ? parseFloat(body.salePrice) : null,
+        stock: body.stock ? parseInt(body.stock) : 0,
+        imageUrl: file ? `${process.env.UPLOAD_URL}/${file.filename}` : null,
+        link: body.link || null,
+        contentId: body.contentId || null,
+        availability: body.availability === 'true' || body.availability === true,
+        isActive: body.isActive !== 'false' && body.isActive !== false,
+      };
+      
+      console.log('[Create Variant] Processed data:', data);
+      
+      const result = await this.ecommerceService.createVariant(data, req.session?.userId);
+      
+      console.log('[Create Variant] Success:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('[Create Variant] Error:', error.message, error.stack);
+      throw error;
+    }
   }
 
   @Get('products/:productId/variants')
@@ -270,21 +290,26 @@ export class EcommerceController {
     @Body() body: any,
     @Request() req,
   ) {
-    const data: any = {
-      name: body.name,
-      description: body.description || null,
-      price: parseFloat(body.price),
-      salePrice: body.salePrice ? parseFloat(body.salePrice) : null,
-      stock: body.stock !== undefined ? parseInt(body.stock) : undefined,
-      link: body.link || null,
-      contentId: body.contentId || null,
-      availability: body.availability === 'true' || body.availability === true,
-      isActive: body.isActive !== 'false' && body.isActive !== false,
-    };
-    if (file) {
-      data.imageUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
+    try {
+      const data: any = {
+        name: body.name,
+        description: body.description || null,
+        price: parseFloat(body.price),
+        salePrice: body.salePrice ? parseFloat(body.salePrice) : null,
+        stock: body.stock !== undefined ? parseInt(body.stock) : undefined,
+        link: body.link || null,
+        contentId: body.contentId || null,
+        availability: body.availability === 'true' || body.availability === true,
+        isActive: body.isActive !== 'false' && body.isActive !== false,
+      };
+      if (file) {
+        data.imageUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
+      }
+      return this.ecommerceService.updateVariant(+id, data, req.session?.userId);
+    } catch (error) {
+      console.error('Error updating variant:', error);
+      throw error;
     }
-    return this.ecommerceService.updateVariant(+id, data, req.session?.userId);
   }
 
   @Delete('variants/:id')

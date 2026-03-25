@@ -12,10 +12,18 @@ export class EcommerceService {
   ) {}
 
   private async getTenantClient(userId: number) {
-    const tenant = await this.centralPrisma.tenant.findUnique({ where: { id: userId } });
-    if (!tenant) throw new Error('Tenant not found');
-    const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}?schema=public`;
-    return this.tenantPrisma.getTenantClient(userId.toString(), dbUrl);
+    try {
+      const tenant = await this.centralPrisma.tenant.findUnique({ where: { id: userId } });
+      if (!tenant) {
+        console.error(`Tenant not found for userId: ${userId}`);
+        throw new Error('Tenant not found');
+      }
+      const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}?schema=public`;
+      return this.tenantPrisma.getTenantClient(userId.toString(), dbUrl);
+    } catch (error) {
+      console.error('Error in getTenantClient:', error);
+      throw error;
+    }
   }
 
   // Categories
@@ -214,28 +222,38 @@ export class EcommerceService {
  // ecommerce.service.ts - ADD/REPLACE these variant functions
 
 async createVariant(data: any, userId?: number) {
-  const client = userId ? await this.getTenantClient(userId) : this.prisma;
-  
-  // Generate contentId before creation if not provided
-  const contentId = data.contentId || `variant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  
-  const variant = await client.productVariant.create({
-    data: {
-      productId: data.productId,
-      name: data.name,
-      description: data.description,
-      price: data.price,
-      salePrice: data.salePrice,
-      stock: data.stock ?? 0,   
-      imageUrl: data.imageUrl,
-      link: data.link,
-      contentId: contentId,
-      availability: data.availability ?? true,
-      isActive: data.isActive ?? true,
-    },
-  });
+  try {
+    console.log('[Service] createVariant called with:', { data, userId });
+    
+    const client = userId ? await this.getTenantClient(userId) : this.prisma;
+    
+    console.log('[Service] Got client, creating variant...');
+    
+    // Generate contentId before creation if not provided
+    const contentId = data.contentId || `variant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const variant = await client.productVariant.create({
+      data: {
+        productId: data.productId,
+        name: data.name,
+        description: data.description,
+        price: data.price,
+        salePrice: data.salePrice,
+        stock: data.stock ?? 0,   
+        imageUrl: data.imageUrl,
+        link: data.link,
+        contentId: contentId,
+        availability: data.availability ?? true,
+        isActive: data.isActive ?? true,
+      },
+    });
 
-  return variant;
+    console.log('[Service] Variant created successfully:', variant.id);
+    return variant;
+  } catch (error) {
+    console.error('[Service] Error in createVariant:', error.message, error.stack);
+    throw error;
+  }
 }
 
 async getVariants(productId: number, userId?: number) {
@@ -256,31 +274,36 @@ async getVariant(id: number, userId?: number) {
 async updateVariant(id: number, data: any, userId?: number) {
   const client = userId ? await this.getTenantClient(userId) : this.prisma;
   
-  const parseBoolean = (value: any): boolean => {
-    if (typeof value === 'boolean') return value;
-    if (typeof value === 'string') return value.toLowerCase() === 'true';
-    if (typeof value === 'number') return value === 1;
-    return Boolean(value);
-  };
+  try {
+    const parseBoolean = (value: any): boolean => {
+      if (typeof value === 'boolean') return value;
+      if (typeof value === 'string') return value.toLowerCase() === 'true';
+      if (typeof value === 'number') return value === 1;
+      return Boolean(value);
+    };
 
-  const cleanedData: any = {};
-  if (data.name !== undefined) cleanedData.name = data.name;
-  if (data.description !== undefined) cleanedData.description = data.description;
-  if (data.price !== undefined) cleanedData.price = parseFloat(data.price);
-  if (data.salePrice !== undefined) cleanedData.salePrice = data.salePrice ? parseFloat(data.salePrice) : null;
-  if (data.stock !== undefined) cleanedData.stock = parseInt(data.stock);
-  if (data.imageUrl !== undefined) cleanedData.imageUrl = data.imageUrl;
-  if (data.link !== undefined) cleanedData.link = data.link;
-  if (data.contentId !== undefined) cleanedData.contentId = data.contentId;
-  if (data.metaProductId !== undefined) cleanedData.metaProductId = data.metaProductId;
-  if (data.source !== undefined) cleanedData.source = data.source;
-  if (data.availability !== undefined) cleanedData.availability = parseBoolean(data.availability);
-  if (data.isActive !== undefined) cleanedData.isActive = parseBoolean(data.isActive);
+    const cleanedData: any = {};
+    if (data.name !== undefined) cleanedData.name = data.name;
+    if (data.description !== undefined) cleanedData.description = data.description;
+    if (data.price !== undefined) cleanedData.price = parseFloat(data.price);
+    if (data.salePrice !== undefined) cleanedData.salePrice = data.salePrice ? parseFloat(data.salePrice) : null;
+    if (data.stock !== undefined) cleanedData.stock = parseInt(data.stock);
+    if (data.imageUrl !== undefined) cleanedData.imageUrl = data.imageUrl;
+    if (data.link !== undefined) cleanedData.link = data.link;
+    if (data.contentId !== undefined) cleanedData.contentId = data.contentId;
+    if (data.metaProductId !== undefined) cleanedData.metaProductId = data.metaProductId;
+    if (data.source !== undefined) cleanedData.source = data.source;
+    if (data.availability !== undefined) cleanedData.availability = parseBoolean(data.availability);
+    if (data.isActive !== undefined) cleanedData.isActive = parseBoolean(data.isActive);
 
-  return client.productVariant.update({
-    where: { id },
-    data: cleanedData,
-  });
+    return client.productVariant.update({
+      where: { id },
+      data: cleanedData,
+    });
+  } catch (error) {
+    console.error('Error in updateVariant service:', error);
+    throw error;
+  }
 }
 
 async deleteVariant(id: number, userId?: number) {

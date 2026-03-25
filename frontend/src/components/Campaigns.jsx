@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { getAllCampaigns, rerunCampaign, deleteCampaign } from '../api/campaign';
+import { getAllCampaigns, rerunCampaign, deleteCampaign, getCampaignResults } from '../api/campaign';
 import { getAllSettings } from '../api/auth';
 import { useToast } from '../contexts/ToastContext';
 import EditCampaign from './EditCampaign';
 import CampaignResults from './CampaignResults';
-import { RotateCw, BarChart3, Edit2, RefreshCw } from 'lucide-react';
+import { RotateCw, BarChart3, Edit2, RefreshCw, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import '../styles/Campaign.scss';
 
 const Campaigns = () => {
@@ -73,6 +74,69 @@ const Campaigns = () => {
   const handleViewResults = (campaign) => {
     setViewingResults(campaign.id);
   };
+ 
+  const handleDownloadFromCampaign = async (campaign) => {
+    try {
+      const data = await getCampaignResults(campaign.id);
+      const results = data.results || [];
+  
+      if (!results.length) {
+        showError('No campaign results available to download');
+        return;
+      }
+  
+      const exportData = results.map((result, index) => ({
+        'S.No': index + 1,
+        'Campaign Name': campaign.name || '',
+        'Template Name': campaign.templateName || '',
+        'Group Name': campaign.group?.name || '—',
+        'Campaign Status': campaign.status || '',
+        'Campaign Created Date': campaign.createdAt
+          ? new Date(campaign.createdAt).toLocaleString()
+          : '',
+        'Contact': result.name || 'N/A',
+        'Phone': result.phone || '',
+        'Message Status': result.status || '',
+        'Sent At': result.createdAt
+          ? new Date(result.createdAt).toLocaleString()
+          : '',
+        'Has Response': result.hasResponse ? 'Yes' : 'No',
+        'Last Response': result.lastResponse?.message || 'No response',
+        'Last Response Time': result.lastResponse?.createdAt
+          ? new Date(result.lastResponse.createdAt).toLocaleString()
+          : '',
+      }));
+  
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+  
+      worksheet['!cols'] = [
+        { wch: 8 },   // S.No
+        { wch: 25 },  // Campaign Name
+        { wch: 25 },  // Template Name
+        { wch: 20 },  // Group Name
+        { wch: 18 },  // Campaign Status
+        { wch: 24 },  // Campaign Created Date
+        { wch: 20 },  // Contact
+        { wch: 18 },  // Phone
+        { wch: 18 },  // Message Status
+        { wch: 22 },  // Sent At
+        { wch: 15 },  // Has Response
+        { wch: 30 },  // Last Response
+        { wch: 24 },  // Last Response Time
+      ];
+  
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Campaign Results');
+  
+      const safeName = (campaign.name || 'campaign').replace(/[\\/:*?"<>|]/g, '_');
+      XLSX.writeFile(workbook, `campaign-${safeName}-results.xlsx`);
+  
+      showSuccess('Campaign results downloaded successfully!');
+    } catch (error) {
+      console.error('Error downloading campaign results:', error);
+      showError('Failed to download campaign results');
+    }
+  };
 
   const handleDeleteCampaign = async (campaignId) => {
     const confirmed = await showConfirm('Are you sure you want to delete this campaign?');
@@ -116,12 +180,12 @@ const Campaigns = () => {
       <div className="campaigns-header">
         <h2>View Campaigns</h2>
         <div className="campaigns-controls">
-          <select 
-            value={selectedSettingsName} 
+          <select
+            value={selectedSettingsName}
             onChange={(e) => setSelectedSettingsName(e.target.value)}
             className="phone-filter"
           >
-            <option value="">All Phone Numbers</option>
+            <option value="">All Templates</option>
             {phoneNumbers.map((phone, index) => (
               <option key={`phone-${phone.id}-${index}`} value={phone.name}>
                 {phone.name} ({phone.phoneNumberId})
@@ -193,16 +257,30 @@ const Campaigns = () => {
                   >
                     <Edit2 size={16} />
                   </button>
+
+                  <button
+                    onClick={() => handleDownloadFromCampaign(campaign)}
+                    className="download-btn"
+                    title="Download Results"
+                  >
+                    <Download size={16} />
+                  </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        
       </div>
+      <div className="campaign-note">
+  <p>
+    Note: Campaign records will be automatically deleted after 15 days. If needed, please download the campaign results before that.
+  </p>
+</div>
 
       {totalPages > 1 && (
         <div className="pagination">
-          <button 
+          <button
             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
             className="pagination-btn"
@@ -212,7 +290,7 @@ const Campaigns = () => {
           <span className="pagination-info">
             Page {currentPage} of {totalPages}
           </span>
-          <button 
+          <button
             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
             disabled={currentPage === totalPages}
             className="pagination-btn"

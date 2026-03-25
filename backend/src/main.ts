@@ -14,18 +14,19 @@ async function bootstrap() {
 
   // ✅ Set server timeout to prevent 502 errors
   const server = app.getHttpServer();
-  server.setTimeout(120000); // 2 minutes
-  server.keepAliveTimeout = 65000; // 65 seconds
-  server.headersTimeout = 66000; // 66 seconds
+  server.setTimeout(120000);
+  server.keepAliveTimeout = 65000;
+  server.headersTimeout = 66000;
 
   // ✅ Trust proxy (Nginx)
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
-  // ✅ CORS
-  app.enableCors({
-    origin: true,
-    credentials: true,
-  });
+ app.enableCors({
+  origin: true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+});
 
   // ✅ Cookie parser
   app.use(cookieParser());

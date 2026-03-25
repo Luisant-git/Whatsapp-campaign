@@ -64,7 +64,7 @@ export class WhatsappController {
       console.log('Token valid in database:', isValidToken);
       if (isValidToken) {
         console.log('✓ Webhook verified successfully for token:', verifyToken);
-        return parseInt(challenge);
+        return challenge;
       }
     }
     console.log('✗ Webhook verification failed');
@@ -86,7 +86,7 @@ export class WhatsappController {
       const isValidToken = await this.whatsappService.validateVerifyToken(token);
       if (isValidToken) {
         console.log('✓ Webhook verified successfully');
-        return parseInt(challenge);
+        return challenge;
       }
     }
     console.log('✗ Webhook verification failed');

@@ -255,7 +255,7 @@ export default function Products() {
           if (v.contentId && v.contentId.trim() !== '') {
             variantFormData.append('contentId', v.contentId.trim());
           }
-          // Don't send contentId at all if empty - let backend generate unique one
+          // Don't send contentId at all if empty - let backend generate unique one 
           
           // ✅ FIX: Variant booleans too
           variantFormData.append('availability', v.availability === true ? 'true' : 'false');
@@ -298,16 +298,16 @@ export default function Products() {
     setVariantModalSource('product');
     setEditingVariantIndex(null);
 
-    // Pre-fill with product data
+    // Pre-fill with product data but leave name empty for user to enter
     setVariantForm({
       id: null,
-      name: form.name ? `${form.name} - Variant` : '',
+      name: '', // Don't pre-fill name - let user enter variant name
       description: form.description || '',
       price: form.price || '',
       salePrice: form.salePrice || '',
       stock: form.stock || '',
       link: form.link || '',
-      contentId: '',
+      contentId: '', // Let backend auto-generate
       availability: form.availability ?? true,
       isActive: form.isActive ?? true,
       image: null,
@@ -377,16 +377,16 @@ export default function Products() {
     setVariantModalSource('meta');
     setEditingVariantIndex(null);
 
-    // Pre-fill with meta product data
+    // Pre-fill with meta product data but leave name empty
     setVariantForm({
       id: null,
-      name: metaForm.name ? `${metaForm.name} - Variant` : '',
+      name: '', // Don't pre-fill name - let user enter variant name
       description: metaForm.description || '',
       price: metaForm.price || '',
       salePrice: metaForm.salePrice || '',
       stock: metaForm.stock || '',
       link: metaForm.link || '',
-      contentId: '',
+      contentId: '', // Let backend auto-generate
       availability: metaForm.availability ?? true,
       isActive: metaForm.isActive ?? true,
       image: null,
@@ -1449,14 +1449,16 @@ export default function Products() {
 
                         {/* Variant Info */}
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 500, fontSize: '14px' }}>{v.name}</div>
+                          <div style={{ fontWeight: 500, fontSize: '14px', color: '#7c3aed' }}>
+                            {v.name || 'Unnamed Variant'}
+                          </div>
                           <div style={{ fontSize: '12px', color: '#6b7280' }}>
                             ₹{v.price}
                             {v.salePrice ? ` (Sale ₹${v.salePrice})` : ''} • Stock: {v.stock ?? 0} •{' '}
                             {v.availability ? 'In stock' : 'Out of stock'}
                           </div>
                           <div style={{ fontSize: '11px', color: '#9ca3af' }}>
-                            ID: {v.contentId || 'Auto'}
+                            ID: {v.contentId || 'Auto-generated'}
                             {v.id && (
                               <span
                                 style={{

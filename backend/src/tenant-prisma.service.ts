@@ -9,17 +9,21 @@ export class TenantPrismaService implements OnModuleDestroy {
   private clients: Map<string, TenantPrismaClient> = new Map();
 
   /**
-   * Create a new Prisma client
+   * Create a new Prisma client with connection pooling
    */
   private createClient(dbUrl: string): TenantPrismaClient {
+    // Add connection pooling parameters to prevent connection exhaustion
+    const urlWithPooling = dbUrl.includes('?') 
+      ? `${dbUrl}&connection_limit=10&pool_timeout=20`
+      : `${dbUrl}?connection_limit=10&pool_timeout=20`;
+
     const client = new TenantPrismaClient({
       datasources: {
-        db: { url: dbUrl },
+        db: { url: urlWithPooling },
       },
       log: ['error', 'warn'],
     });
 
-    this.logger.log(`🆕 New Prisma client created`);
     return client;
   }
 
@@ -27,12 +31,18 @@ export class TenantPrismaService implements OnModuleDestroy {
    * Get or create tenant Prisma client
    */
   getTenantClient(tenantId: string, dbUrl: string): TenantPrismaClient {
-    if (!this.clients.has(tenantId)) {
+    // Normalize tenantId to ensure consistent caching
+    const normalizedId = String(tenantId);
+    
+    if (!this.clients.has(normalizedId)) {
+      this.logger.log(`🆕 Creating new Prisma client for tenant: ${normalizedId}`);
       const client = this.createClient(dbUrl);
-      this.clients.set(tenantId, client);
+      this.clients.set(normalizedId, client);
+    } else {
+      this.logger.debug(`♻️ Reusing existing Prisma client for tenant: ${normalizedId}`);
     }
 
-    return this.clients.get(tenantId)!;
+    return this.clients.get(normalizedId)!;
   }
 
   /**

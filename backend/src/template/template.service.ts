@@ -1607,13 +1607,21 @@ export class TemplateService {
 
     // Get tenant database connection
     const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-    const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+    
+    // Use normalized tenant ID for consistent caching
+    const tenantClient = this.tenantPrisma.getTenantClient(String(tenant.id), dbUrl);
 
-    // Get active Master Config from tenant database
-    const masterConfig = await tenantClient.masterConfig.findFirst({
-      where: { isActive: true },
-      orderBy: { id: 'desc' }
-    });
+    // Get active Master Config from tenant database using executeWithRetry
+    const masterConfig = await this.tenantPrisma.executeWithRetry(
+      String(tenant.id),
+      dbUrl,
+      async (prisma) => {
+        return prisma.masterConfig.findFirst({
+          where: { isActive: true },
+          orderBy: { id: 'desc' }
+        });
+      }
+    );
 
     if (!masterConfig) {
       throw new BadRequestException('Master Config not found. Please configure WhatsApp API credentials.');

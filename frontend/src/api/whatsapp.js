@@ -76,18 +76,19 @@ export const sendMediaMessage = async (to, file, caption) => {
   return await response.json();
 };
 
-export const getMessages = async (phone) => {
-  const url = phone 
-    ? `${API_BASE_URL}/whatsapp/messages?phone=${phone}`
-    : `${API_BASE_URL}/whatsapp/messages`;
-    
-  const response = await fetch(url, {
+export const getMessages = async (phone = '', page = 1, limit = 20) => {
+  const query = new URLSearchParams();
+
+  if (phone) query.append('phone', phone);
+  query.append('page', String(page));
+  query.append('limit', String(limit));
+
+  const response = await fetch(`${API_BASE_URL}/whatsapp/messages?${query.toString()}`, {
     credentials: 'include',
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to fetch messages');
+    throw new Error('Failed to fetch messages');
   }
 
   return await response.json();

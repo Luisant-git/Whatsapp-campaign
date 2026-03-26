@@ -5,7 +5,7 @@ import { getMessages, sendMessage, sendMediaMessage, getLabels, updateLabels, ge
 import '../styles/WhatsAppChat.scss';
 import { contactAPI } from '../api/contact';
 import { groupAPI } from '../api/group';
-import { Users, UserCheck, MoreVertical } from 'lucide-react';
+import { Users, UserCheck, MoreVertical, Loader2, ChevronRight, ChevronLeft } from 'lucide-react';
 import { getTenantSubUsers } from "../api/subuser";
 
 // Simple play/pause icons
@@ -83,14 +83,14 @@ const WhatsAppChat = () => {
   const [userId, setUserId] = useState(null);
   const [businessNumbers, setBusinessNumbers] = useState({}); // Store business number per chat
   const [selectedBusinessNumber, setSelectedBusinessNumber] = useState('all'); // Filter by business number
-  
+
   // Delete message states
   const [selectedMessages, setSelectedMessages] = useState(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [hoveredMessage, setHoveredMessage] = useState(null);
   const [showMessageMenu, setShowMessageMenu] = useState(null);
-  
+
   const [showGroupMenu, setShowGroupMenu] = useState(null); // which phone's group menu is open
   const [groups, setGroups] = useState([]);                 // all contact groups
   const [phoneGroupId, setPhoneGroupId] = useState({});     // phone -> current groupId
@@ -110,13 +110,92 @@ const WhatsAppChat = () => {
   const [showCustomCalendar, setShowCustomCalendar] = useState(false);
 
   const [userType, setUserType] = useState("tenant"); //for subuser hide icon label, grp, user
+  const [chatsPage, setChatsPage] = useState(1);
+  const [chatsLimit] = useState(20);
+  const [chatsMeta, setChatsMeta] = useState({
+    total: 0,
+    page: 1,
+    limit: 20,
+    totalPages: 0,
+  });
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [loadingChats, setLoadingChats] = useState(true);
+  const [allChats, setAllChats] = useState([]);
 
-useEffect(() => {
-  const storedUserType = localStorage.getItem("userType") || "tenant";
-  setUserType(storedUserType);
-}, []);
+
+  useEffect(() => {
+    const storedUserType = localStorage.getItem("userType") || "tenant";
+    setUserType(storedUserType);
+  }, []);
 
   const UNREAD_TAB = "__unread__";
+
+  const fetchAllChatsForSearch = async () => {
+    if (!API_BASE_URL) return;
+  
+    try {
+      let page = 1;
+      let totalPages = 1;
+      let allMessages = [];
+  
+      do {
+        const response = await getMessages('', page, 100); // bigger limit for fewer requests
+        const pageMessages = response?.data || [];
+        const meta = response?.meta || {};
+  
+        allMessages = [...allMessages, ...pageMessages];
+        totalPages = meta.totalPages || 1;
+        page++;
+      } while (page <= totalPages);
+  
+      const uniqueChats = {};
+      allMessages.forEach((msg) => {
+        const chatKey = `${msg.from}_${msg.displayPhoneNumber || 'unknown'}`;
+  
+        if (!uniqueChats[chatKey]) {
+          uniqueChats[chatKey] = {
+            phone: msg.from,
+            name: msg.customerName || msg.contactName || msg.profileName || msg.from,
+            businessNumber: msg.displayPhoneNumber,
+            lastMessage: msg.message || 'Media',
+            lastTime: msg.createdAt,
+            unreadCount: 0,
+          };
+        }
+  
+        if (new Date(msg.createdAt) > new Date(uniqueChats[chatKey].lastTime)) {
+          uniqueChats[chatKey].lastMessage = msg.message || 'Media';
+          uniqueChats[chatKey].lastTime = msg.createdAt;
+          uniqueChats[chatKey].name =
+            msg.customerName || msg.contactName || msg.profileName || uniqueChats[chatKey].phone;
+        }
+  
+        if (
+          msg.direction === 'incoming' &&
+          (!readMessages[msg.from] ||
+            new Date(msg.createdAt) > new Date(readMessages[msg.from]))
+        ) {
+          uniqueChats[chatKey].unreadCount++;
+        }
+      });
+  
+      setAllChats(
+        Object.values(uniqueChats).sort(
+          (a, b) => new Date(b.lastTime) - new Date(a.lastTime)
+        )
+      );
+    } catch (error) {
+      console.error('Error fetching all chats for search:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      fetchAllChatsForSearch();
+    } else {
+      setAllChats([]);
+    }
+  }, [searchQuery]);
 
   const fetchGroups = async () => {
     if (!API_BASE_URL) return;
@@ -129,7 +208,27 @@ useEffect(() => {
     }
   };
 
-
+  //pagination
+  const fetchChatMessages = async (phone) => {
+    if (!phone) return;
+  
+    try {
+      setLoadingMessages(true);
+  
+      const response = await getMessages(phone, 1, 20);
+      const fetchedMessages = response?.data || [];
+  
+      console.log('PHONE:', phone);
+      console.log('CHAT MESSAGES:', fetchedMessages);
+  
+      setMessages(fetchedMessages);
+    } catch (error) {
+      console.error('Error fetching chat messages:', error);
+      toast.error('Failed to fetch messages');
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
   //chat notif count
   useEffect(() => {
     const loadNotesCount = async () => {
@@ -151,28 +250,25 @@ useEffect(() => {
 
   useEffect(() => {
     if (!API_BASE_URL) return;
-
+  
     fetchUserId();
     const init = async () => {
       await fetchManuallyEdited();
       await fetchLabels();
-      fetchMessages(true);
-      // Skip auto-labeling on initial load
+      fetchMessages(chatsPage, true);
     };
     init();
     fetchCustomLabels();
     fetchGroups();
-
-    // Optional polling every 15 seconds (adjust as needed)
+  
     const interval = setInterval(() => {
       fetchManuallyEdited();
-      fetchMessages();
+      fetchMessages(chatsPage);
       fetchCustomLabels();
     }, 30000);
-
+  
     return () => clearInterval(interval);
-  }, []);
-
+  }, [chatsPage]);
 
   // Find existing contact by phone or create if missing
   const getOrCreateContactByPhone = async (phone) => {
@@ -349,24 +445,33 @@ useEffect(() => {
     }
   }, [selectedChat, messages]);
 
-
-  const fetchMessages = async (skipAutoLabeling = false) => {
+  const fetchMessages = async (page = 1, skipAutoLabeling = false) => {
     if (!API_BASE_URL) return;
+  
     try {
-      const messages = await getMessages();
-      setMessages(messages);
-
-      // Extract business numbers from messages
+      setLoadingChats(true);
+  
+      const response = await getMessages('', page, chatsLimit);
+      const allMessages = response?.data || [];
+      const meta = response?.meta || {
+        total: 0,
+        page,
+        limit: chatsLimit,
+        totalPages: 0,
+      };
+  
+      setChatsMeta(meta);
+  
       const businessNumbersMap = {};
-      messages.forEach((msg) => {
+      allMessages.forEach((msg) => {
         if (msg.displayPhoneNumber && msg.from) {
           businessNumbersMap[msg.from] = msg.displayPhoneNumber;
         }
       });
       setBusinessNumbers(businessNumbersMap);
-
+  
       const lastIncomingByPhone = {};
-      messages.forEach((msg) => {
+      allMessages.forEach((msg) => {
         if (msg.direction !== 'incoming') return;
         const phone = msg.from;
         const current = lastIncomingByPhone[phone];
@@ -374,17 +479,16 @@ useEffect(() => {
           lastIncomingByPhone[phone] = msg;
         }
       });
-
-      // ONLY auto-manage if NOT skipping and manuallyEditedPhones is loaded
+  
       if (!skipAutoLabeling && (Object.keys(manuallyEditedPhones).length > 0 || manuallyEditedPhones.constructor === Object)) {
         Object.entries(lastIncomingByPhone).forEach(([phone, msg]) => {
           const text = (msg.message || '').trim().toLowerCase();
           const existing = chatLabels[phone] || [];
-
+  
           let newLabels = existing.filter(
             (l) => l.toLowerCase() !== 'yes' && l.toLowerCase() !== 'stop'
           );
-
+  
           if (text === 'yes') {
             newLabels.push('Yes');
           } else if (text === 'stop') {
@@ -395,11 +499,11 @@ useEffect(() => {
             if (hadStop) newLabels.push('Stop');
             if (hadYes) newLabels.push('Yes');
           }
-
+  
           const same =
             existing.length === newLabels.length &&
             existing.every((l) => newLabels.includes(l));
-
+  
           if (!same) {
             const updated = { ...chatLabels, [phone]: newLabels };
             setChatLabels(updated);
@@ -409,10 +513,9 @@ useEffect(() => {
           }
         });
       }
-
-      // Build chats grouped by phone + business number combination
+  
       const uniqueChats = {};
-      messages.forEach((msg) => {
+      allMessages.forEach((msg) => {
         const chatKey = `${msg.from}_${msg.displayPhoneNumber || 'unknown'}`;
         if (!uniqueChats[chatKey]) {
           uniqueChats[chatKey] = {
@@ -432,21 +535,23 @@ useEffect(() => {
         }
         if (
           msg.direction === 'incoming' &&
-          (!readMessages[chatKey] ||
-            new Date(msg.createdAt) > new Date(readMessages[chatKey]))
+          (!readMessages[msg.from] ||
+            new Date(msg.createdAt) > new Date(readMessages[msg.from]))
         ) {
           uniqueChats[chatKey].unreadCount++;
         }
       });
-
+  
       setChats(
         Object.values(uniqueChats).sort(
           (a, b) => new Date(b.lastTime) - new Date(a.lastTime),
         ),
       );
     } catch (error) {
-      console.error('Error fetching messages:', error);
-      toast.error('Failed to fetch messages');
+      console.error('Error fetching chats:', error);
+      toast.error('Failed to fetch chats');
+    } finally {
+      setLoadingChats(false);
     }
   };
   const fetchLabels = async () => {
@@ -504,6 +609,9 @@ useEffect(() => {
         await sendMessage(selectedChat, currentMessage);
       }
       await fetchMessages();
+      if (selectedChat) {
+        await fetchChatMessages(selectedChat);
+      }
       toast.success('Message sent successfully!');
     } catch (error) {
       console.error('Error sending message:', error);
@@ -557,11 +665,11 @@ useEffect(() => {
     lastWeek.setDate(lastWeek.getDate() - 7);
     const lastMonth = new Date(today);
     lastMonth.setMonth(lastMonth.getMonth() - 1);
-    
+
     return messages.filter(msg => {
       const msgDate = new Date(msg.createdAt);
-      
-      switch(dateFilter) {
+
+      switch (dateFilter) {
         case 'today':
           return msgDate >= today && msgDate < tomorrow;
         case 'yesterday':
@@ -796,26 +904,23 @@ useEffect(() => {
       setChatLabels(prev => ({ ...prev, [phone]: currentLabels }));
     }
   };
-  const filteredChats = chats
-  .filter((chat) =>
-    (chat.phone || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (chat.name || '').toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const sourceChats = searchQuery.trim() ? allChats : chats;
+
+  const filteredChats = sourceChats
+    .filter((chat) =>
+      (chat.phone || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (chat.name || '').toLowerCase().includes(searchQuery.toLowerCase())
+    )
     .filter((chat) => {
       if (selectedLabel === "all") return true;
-
-      // UNREAD filter
       if (selectedLabel === UNREAD_TAB) return chat.unreadCount > 0;
-
-      // normal label filter (DB labels)
       return chatLabels[chat.phone]?.includes(selectedLabel);
     })
     .filter((chat) => {
-      // Filter by business number
       if (selectedBusinessNumber === 'all') return true;
       return chat.businessNumber === selectedBusinessNumber;
     });
-    const selectedChatData = chats.find((chat) => chat.phone === selectedChat);
+  const selectedChatData = chats.find((chat) => chat.phone === selectedChat);
   // Delete message functions
   const toggleMessageSelection = (messageId) => {
     setSelectedMessages(prev => {
@@ -843,7 +948,7 @@ useEffect(() => {
 
     try {
       const messageIds = Array.from(selectedMessages);
-      
+
       // Call API to delete messages
       const response = await fetch(`${API_BASE_URL}/whatsapp/messages/delete`, {
         method: 'POST',
@@ -1132,210 +1237,296 @@ useEffect(() => {
 
 
         </div>
-        {filteredChats.map(chat => {
-          const chatKey = `${chat.phone}_${chat.businessNumber || 'unknown'}`;
-          return (
-            <div
-              key={chatKey}
-              className={`chat-item ${selectedChat === chat.phone ? 'active' : ''} ${chat.unreadCount > 0 ? 'unread' : ''}`}
-              onClick={() => {
-                setSelectedChat(chat.phone);
-                if (chat.unreadCount > 0) {
-                  const newReadMessages = { ...readMessages, [chat.phone]: new Date().toISOString() };
-                  setReadMessages(newReadMessages);
-                  localStorage.setItem('readMessages', JSON.stringify(newReadMessages));
-                }
-                setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 100);
-              }}
-            >
-              <div className="chat-avatar">{chat.phone.slice(-4)}</div>
-              <div className="chat-info">
-              <div className="chat-phone">
-  {chat.name || chat.phone}
-  {chat.unreadCount > 0 && <span className="unread-badge">{chat.unreadCount}</span>}
-</div>
-<div style={{ fontSize: '12px', color: '#667781', marginTop: '2px' }}>
-  {chat.phone}
-</div>
-                {chat.businessNumber && (
-                  <div style={{
-                    fontSize: '11px',
-                    color: '#00a884',
-                    fontWeight: '500',
-                    marginTop: '2px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '3px'
-                  }}>
-                    <span>{chat.businessNumber}</span>
-                  </div>
-                )}
-                <div className="chat-last-msg">{chat.lastMessage}</div>
-                {chatLabels[chat.phone]?.length > 0 && (
-                  <div className="chat-labels">
-                    {chatLabels[chat.phone].map(label => (
-                      <span
-                        key={label}
-                        className="label-tag"
-                        style={{ backgroundColor: labelColors[label] || '#9e9e9e' }}
-                      >
-                        {label}
-                      </span>
-                    ))}
-
-                  </div>
-                )}
-              </div>
-
-
-              {/* ACTIONS (Group + Label on same row, top-right) */}
-              {userType !== "subuser" && (
-  <div
-    style={{
-      position: "absolute",
-      top: 15,
-      right: 10,
-      display: "flex",
-      alignItems: "center",
-      gap: 6,
-    }}
-    onClick={(e) => e.stopPropagation()}
-  >
-    <div style={{ position: "relative" }}>
-      <button
-        className="label-menu-btn user-menu-btn"
-        title="Assign User"
-        style={{ top: -5, right: 60 }}
-        onClick={async (e) => {
-          e.stopPropagation();
-          const phone = chat.phone;
-          if (showUserMenu === phone) {
-            setShowUserMenu(null);
-            return;
-          }
-          setShowUserMenu(phone);
-          if (subUsers.length === 0) {
-            await fetchSubUsersForAssignment();
-          }
-          await preloadAssignedUser(phone);
-        }}
-      >
-        <UserCheck size={18} />
-      </button>
-
-      {showUserMenu === chat.phone && (
-        <div className="label-menu user-menu" onClick={(e) => e.stopPropagation()}>
-          {subUsers.length === 0 ? (
-            <div className="label-option" style={{ fontSize: 13, color: "#6b7280" }}>
-              No users
-            </div>
-          ) : (
-            subUsers.map((u) => (
-              <div key={u.id} className="label-option">
-                <input
-                  type="checkbox"
-                  checked={(phoneUserId[chat.phone] || "") === u.id}
-                  onChange={() => handleToggleUserForPhone(chat.phone, u.id)}
-                />
-                <span>{u.email}</span>
-              </div>
-            ))
-          )}
-        </div>
-      )}
+        <div style={{ position: 'relative', flex: 1, overflowY: 'auto' }}>
+  {filteredChats.length === 0 && !loadingChats ? (
+    <div
+      style={{
+        padding: '24px 16px',
+        textAlign: 'center',
+        color: '#667781',
+        fontSize: '14px',
+      }}
+    >
+      No contacts found
     </div>
-
-    <div style={{ position: "relative" }}>
-      <button
-        className="group-menu-btn label-menu-btn"
-        title="Set group"
-        style={{ right: 35, top: -5 }}
-        onClick={async (e) => {
-          e.stopPropagation();
-          const phone = chat.phone;
-          if (showGroupMenu === phone) {
-            setShowGroupMenu(null);
-            return;
-          }
-          setShowGroupMenu(phone);
-          await preloadGroupForPhone(phone);
-        }}
-      >
-        <Users size={18} />
-      </button>
-
-      {showGroupMenu === chat.phone && (
+  ) : (
+    filteredChats.map(chat => {
+      const chatKey = `${chat.phone}_${chat.businessNumber || 'unknown'}`;
+      return (
         <div
-          className="group-menu label-menu"
-          onClick={(e) => e.stopPropagation()}
+          key={chatKey}
+          className={`chat-item ${selectedChat === chat.phone ? 'active' : ''} ${chat.unreadCount > 0 ? 'unread' : ''}`}
+          onClick={() => {
+            console.log('Opening chat:', chat.phone);
+            setSelectedChat(chat.phone);
+            setMessages([]);
+            fetchChatMessages(chat.phone);
+
+            if (chat.unreadCount > 0) {
+              const newReadMessages = {
+                ...readMessages,
+                [chat.phone]: new Date().toISOString(),
+              };
+              setReadMessages(newReadMessages);
+              localStorage.setItem('readMessages', JSON.stringify(newReadMessages));
+            }
+
+            setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 100);
+          }}
         >
-          {groups.length === 0 ? (
-            <div className="label-option" style={{ fontSize: 13, color: "#6b7280" }}>
-              No groups
+          <div className="chat-avatar">{chat.phone.slice(-4)}</div>
+          <div className="chat-info">
+            <div className="chat-phone">
+              {chat.name || chat.phone}
+              {chat.unreadCount > 0 && <span className="unread-badge">{chat.unreadCount}</span>}
             </div>
-          ) : (
-            groups.map((g) => (
-              <div key={g.id} className="label-option">
-                <input
-                  type="checkbox"
-                  checked={(phoneGroupId[chat.phone] || "") === g.id}
-                  onChange={() => handleToggleGroupForPhone(chat.phone, g.id)}
-                />
-                <span>{g.name}</span>
+            <div style={{ fontSize: '12px', color: '#667781', marginTop: '2px' }}>
+              {chat.phone}
+            </div>
+            {chat.businessNumber && (
+              <div
+                style={{
+                  fontSize: '11px',
+                  color: '#00a884',
+                  fontWeight: '500',
+                  marginTop: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                }}
+              >
+                <span>{chat.businessNumber}</span>
               </div>
-            ))
+            )}
+            <div className="chat-last-msg">{chat.lastMessage}</div>
+            {chatLabels[chat.phone]?.length > 0 && (
+              <div className="chat-labels">
+                {chatLabels[chat.phone].map(label => (
+                  <span
+                    key={label}
+                    className="label-tag"
+                    style={{ backgroundColor: labelColors[label] || '#9e9e9e' }}
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {userType !== "subuser" && (
+            <div
+              style={{
+                position: "absolute",
+                top: 15,
+                right: 10,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ position: "relative" }}>
+                <button
+                  className="label-menu-btn user-menu-btn"
+                  title="Assign User"
+                  style={{ top: -5, right: 60 }}
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    const phone = chat.phone;
+                    if (showUserMenu === phone) {
+                      setShowUserMenu(null);
+                      return;
+                    }
+                    setShowUserMenu(phone);
+                    if (subUsers.length === 0) {
+                      await fetchSubUsersForAssignment();
+                    }
+                    await preloadAssignedUser(phone);
+                  }}
+                >
+                  <UserCheck size={18} />
+                </button>
+
+                {showUserMenu === chat.phone && (
+                  <div className="label-menu user-menu" onClick={(e) => e.stopPropagation()}>
+                    {subUsers.length === 0 ? (
+                      <div className="label-option" style={{ fontSize: 13, color: "#6b7280" }}>
+                        No users
+                      </div>
+                    ) : (
+                      subUsers.map((u) => (
+                        <div key={u.id} className="label-option">
+                          <input
+                            type="checkbox"
+                            checked={(phoneUserId[chat.phone] || "") === u.id}
+                            onChange={() => handleToggleUserForPhone(chat.phone, u.id)}
+                          />
+                          <span>{u.email}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ position: "relative" }}>
+                <button
+                  className="group-menu-btn label-menu-btn"
+                  title="Set group"
+                  style={{ right: 35, top: -5 }}
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    const phone = chat.phone;
+                    if (showGroupMenu === phone) {
+                      setShowGroupMenu(null);
+                      return;
+                    }
+                    setShowGroupMenu(phone);
+                    await preloadGroupForPhone(phone);
+                  }}
+                >
+                  <Users size={18} />
+                </button>
+
+                {showGroupMenu === chat.phone && (
+                  <div
+                    className="group-menu label-menu"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {groups.length === 0 ? (
+                      <div className="label-option" style={{ fontSize: 13, color: "#6b7280" }}>
+                        No groups
+                      </div>
+                    ) : (
+                      groups.map((g) => (
+                        <div key={g.id} className="label-option">
+                          <input
+                            type="checkbox"
+                            checked={(phoneGroupId[chat.phone] || "") === g.id}
+                            onChange={() => handleToggleGroupForPhone(chat.phone, g.id)}
+                          />
+                          <span>{g.name}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ position: "relative" }}>
+                <button
+                  className="label-menu-btn"
+                  style={{ top: -5 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowLabelMenu(showLabelMenu === chat.phone ? null : chat.phone);
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z" />
+                  </svg>
+                </button>
+
+                {showLabelMenu === chat.phone && (
+                  <div className="label-menu" onClick={(e) => e.stopPropagation()}>
+                    {availableLabels.map((label) => (
+                      <div key={label} className="label-option">
+                        <input
+                          type="checkbox"
+                          checked={chatLabels[chat.phone]?.includes(label) || false}
+                          onChange={() => toggleLabel(chat.phone, label)}
+                        />
+                        <span style={{ color: labelColors[label] || "#9e9e9e" }}>
+                          {label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
-      )}
+      );
+    })
+  )}
+
+  {loadingChats && (
+    <div
+      style={{
+        position: 'absolute',
+        top: '10px',
+        right: '10px',
+        background: 'rgba(255,255,255,0.9)',
+        border: '1px solid #e9edef',
+        borderRadius: '20px',
+        padding: '6px 10px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        fontSize: '13px',
+        color: '#667781',
+      }}
+    >
+      <Loader2 size={16} className="spin-icon" />
+      <span>Loading...</span>
+    </div>
+  )}
+</div>
+  {!searchQuery.trim() && (
+  <div className="chat-light-pagination">
+    <button
+      type="button"
+      className="chat-light-pagination-btn"
+      onClick={() => {
+        if (chatsPage > 1) {
+          setChatsPage(prev => prev - 1);
+        }
+      }}
+      disabled={chatsPage <= 1}
+      aria-label="Previous page"
+    >
+      <span className="chat-light-arrow">‹</span>
+    </button>
+
+    <div className="chat-light-pagination-info">
+      <span className="chat-light-current">{chatsMeta.page}</span>
+      <span className="chat-light-separator">/</span>
+      <span className="chat-light-total">{chatsMeta.totalPages || 1}</span>
     </div>
 
-    <div style={{ position: "relative" }}>
-      <button
-        className="label-menu-btn"
-        style={{ top: -5 }}
-        onClick={(e) => {
-          e.stopPropagation();
-          setShowLabelMenu(showLabelMenu === chat.phone ? null : chat.phone);
-        }}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z" />
-        </svg>
-      </button>
-
-      {showLabelMenu === chat.phone && (
-        <div className="label-menu" onClick={(e) => e.stopPropagation()}>
-          {availableLabels.map((label) => (
-            <div key={label} className="label-option">
-              <input
-                type="checkbox"
-                checked={chatLabels[chat.phone]?.includes(label) || false}
-                onChange={() => toggleLabel(chat.phone, label)}
-              />
-              <span style={{ color: labelColors[label] || "#9e9e9e" }}>
-                {label}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <button
+      type="button"
+      className="chat-light-pagination-btn"
+      onClick={() => {
+        if (chatsPage < chatsMeta.totalPages) {
+          setChatsPage(prev => prev + 1);
+        }
+      }}
+      disabled={chatsPage >= chatsMeta.totalPages}
+      aria-label="Next page"
+    >
+      <span className="chat-light-arrow">›</span>
+    </button>
   </div>
 )}
-
-
-
-            </div>
-          );
-        })}
       </div>
+      
 
       <div className={`chat-main ${selectedChat ? 'show-mobile' : ''}`}>
         {selectedChat ? (
           <>
             <div className="chat-header">
               <div className="header-actions" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <button className="back-btn" onClick={() => setSelectedChat(null)}>
+                <button
+                  className="back-btn"
+                 
+                  onClick={() => {
+                    setSelectedChat(null);
+                    setMessages([]);
+                  }}
+                >
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M19 12H5M12 19l-7-7 7-7" />
                   </svg>
@@ -1343,12 +1534,12 @@ useEffect(() => {
                 {!isSelectionMode ? (
                   <>
                     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#111b21', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-  {selectedChatData?.name || selectedChat}
-</h3>
-<div style={{ fontSize: '12px', color: '#667781', marginTop: '2px' }}>
-  {selectedChat}
-</div>
+                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#111b21', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {selectedChatData?.name || selectedChat}
+                      </h3>
+                      <div style={{ fontSize: '12px', color: '#667781', marginTop: '2px' }}>
+                        {selectedChat}
+                      </div>
                       {businessNumbers[selectedChat] && (
                         <div style={{
                           fontSize: '12px',
@@ -1381,8 +1572,8 @@ useEffect(() => {
                       )}
                     </div>
                     <div style={{ position: 'relative' }}>
-                      <button 
-                        className="icon-btn" 
+                      <button
+                        className="icon-btn"
                         onClick={() => setShowDatePicker(!showDatePicker)}
                         title="Filter by date"
                       >
@@ -1506,8 +1697,8 @@ useEffect(() => {
                       )}
                     </div>
                     <div style={{ position: 'relative' }}>
-                      <button 
-                        className="icon-btn" 
+                      <button
+                        className="icon-btn"
                         onClick={() => setShowCustomCalendar(!showCustomCalendar)}
                         title="Custom date picker"
                         style={{
@@ -1601,96 +1792,96 @@ useEffect(() => {
                       )}
                     </div>
                     <div style={{ position: 'relative' }}>
-                          <button 
-                            className="icon-btn" 
-                            onClick={() => setShowHeaderMenu(!showHeaderMenu)}
-                            title="Menu"
+                      <button
+                        className="icon-btn"
+                        onClick={() => setShowHeaderMenu(!showHeaderMenu)}
+                        title="Menu"
+                      >
+                        <MoreVertical size={20} />
+                      </button>
+                      {showHeaderMenu && (
+                        <div className="header-dropdown-menu"
+                          style={{
+                            position: 'absolute',
+                            top: '45px',
+                            right: '0',
+                            background: 'white',
+                            borderRadius: '8px',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                            minWidth: '200px',
+                            zIndex: 1000,
+                            overflow: 'visible'
+                          }}
+                        >
+                          <div
+                            className="header-dropdown-item"
+                            onClick={() => {
+                              setShowHeaderMenu(false);
+                              setIsSelectionMode(true);
+                            }}
+                            style={{
+                              padding: '12px 16px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px',
+                              fontSize: '14px',
+                              color: '#111b21',
+                              transition: 'background 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                           >
-                            <MoreVertical size={20} />
-                          </button>
-                          {showHeaderMenu && (
-                            <div className="header-dropdown-menu"
-                              style={{
-                                position: 'absolute',
-                                top: '45px',
-                                right: '0',
-                                background: 'white',
-                                borderRadius: '8px',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                                minWidth: '200px',
-                                zIndex: 1000,
-                                overflow: 'visible'
-                              }}
-                            >
-                              <div
-                                className="header-dropdown-item"
-                                onClick={() => {
-                                  setShowHeaderMenu(false);
-                                  setIsSelectionMode(true);
-                                }}
-                                style={{
-                                  padding: '12px 16px',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '12px',
-                                  fontSize: '14px',
-                                  color: '#111b21',
-                                  transition: 'background 0.2s'
-                                }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                              >
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <polyline points="3 6 5 6 21 6" />
-                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                </svg>
-                                Select messages
-                              </div>
-                              <div
-                                className="header-dropdown-item"
-                                onClick={() => {
-                                  setShowHeaderMenu(false);
-                                  openNotesModal();
-                                }}
-                                style={{
-                                  padding: '12px 16px',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '12px',
-                                  fontSize: '14px',
-                                  color: '#111b21',
-                                  transition: 'background 0.2s',
-                                  position: 'relative'
-                                }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                              >
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M4 4h16v12H8l-4 4V4z" />
-                                  <path d="M8 8h8" />
-                                  <path d="M8 12h5" />
-                                </svg>
-                                Notes
-                                {notesCount > 0 && (
-                                  <span style={{
-                                    marginLeft: 'auto',
-                                    background: '#ef4444',
-                                    color: 'white',
-                                    fontSize: '11px',
-                                    fontWeight: '600',
-                                    padding: '2px 6px',
-                                    borderRadius: '10px',
-                                    minWidth: '18px',
-                                    textAlign: 'center'
-                                  }}>
-                                    {notesCount > 99 ? '99+' : notesCount}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          )}
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                            Select messages
+                          </div>
+                          <div
+                            className="header-dropdown-item"
+                            onClick={() => {
+                              setShowHeaderMenu(false);
+                              openNotesModal();
+                            }}
+                            style={{
+                              padding: '12px 16px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px',
+                              fontSize: '14px',
+                              color: '#111b21',
+                              transition: 'background 0.2s',
+                              position: 'relative'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M4 4h16v12H8l-4 4V4z" />
+                              <path d="M8 8h8" />
+                              <path d="M8 12h5" />
+                            </svg>
+                            Notes
+                            {notesCount > 0 && (
+                              <span style={{
+                                marginLeft: 'auto',
+                                background: '#ef4444',
+                                color: 'white',
+                                fontSize: '11px',
+                                fontWeight: '600',
+                                padding: '2px 6px',
+                                borderRadius: '10px',
+                                minWidth: '18px',
+                                textAlign: 'center'
+                              }}>
+                                {notesCount > 99 ? '99+' : notesCount}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </>
                 ) : (
@@ -1698,8 +1889,8 @@ useEffect(() => {
                     <span style={{ fontSize: '14px', fontWeight: '600', marginRight: '10px', color: '#111b21' }}>
                       {selectedMessages.size} selected
                     </span>
-                    <button 
-                      className="icon-btn" 
+                    <button
+                      className="icon-btn"
                       onClick={selectedMessages.size === filteredMessages.length ? deselectAllMessages : selectAllMessages}
                       title={selectedMessages.size === filteredMessages.length ? "Deselect all" : "Select all"}
                     >
@@ -1708,8 +1899,8 @@ useEffect(() => {
                         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                       </svg>
                     </button>
-                    <button 
-                      className="icon-btn delete-btn-active" 
+                    <button
+                      className="icon-btn delete-btn-active"
                       onClick={() => {
                         if (selectedMessages.size === 0) {
                           toast.error('Please select at least one message');
@@ -1731,8 +1922,8 @@ useEffect(() => {
                         <line x1="14" y1="11" x2="14" y2="17" />
                       </svg>
                     </button>
-                    <button 
-                      className="icon-btn" 
+                    <button
+                      className="icon-btn"
                       onClick={() => {
                         setIsSelectionMode(false);
                         setSelectedMessages(new Set());
@@ -1881,6 +2072,7 @@ useEffect(() => {
                 </div>
               </div>
             )}
+          
             <div className="chat-messages"
               onClick={(e) => {
                 // If clicking on the messages container (not on a message), exit selection mode
@@ -1890,14 +2082,35 @@ useEffect(() => {
                 }
               }}
             >
+              {loadingMessages ? (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '16px',
+                    color: '#667781',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <Loader2 size={18} className="spin-icon" />
+                  <span>Loading messages...</span>
+                </div>
+              ) : filteredMessages.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#667781' }}>
+                  No messages found
+                </div>
+              ) : null}
+             
               {Object.entries(groupedMessages).map(([date, msgs]) => (
                 <React.Fragment key={date}>
                   <div className="date-divider">
                     <span>{getDateLabel(date)}</span>
                   </div>
                   {msgs.map(msg => (
-                    <div 
-                      key={msg.id} 
+                    <div
+                      key={msg.id}
                       className={`message ${msg.direction} ${isSelectionMode ? 'selection-mode' : ''} ${selectedMessages.has(msg.id) ? 'selected' : ''}`}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -2047,7 +2260,7 @@ useEffect(() => {
               ))}
               <div ref={messagesEndRef} />
             </div>
-            
+
             {/* Delete Confirmation Modal */}
             {showDeleteConfirm && (
               <div className="delete-confirm-overlay" style={{
@@ -2111,7 +2324,7 @@ useEffect(() => {
                 </div>
               </div>
             )}
-            
+
             <div className="chat-input">
               <input
                 type="file"
@@ -2158,6 +2371,7 @@ useEffect(() => {
         )}
 
       </div>
+      
     </div>
   );
 };

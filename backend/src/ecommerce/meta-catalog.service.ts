@@ -801,7 +801,7 @@ export class MetaCatalogService {
         const totalAmount = session?.totalAmount || 0;
         
         if (cartProducts.length > 0 && session) {
-          // State code mapping for shipping
+          // State code mapping for shipping - handle both formats
           const stateCodeMap = {
             "AN": "ANDAMAN_AND_NICOBAR_ISLANDS",
             "AP": "ANDHRA_PRADESH",
@@ -838,10 +838,35 @@ export class MetaCatalogService {
             "TR": "TRIPURA",
             "UP": "UTTAR_PRADESH",
             "UT": "UTTARAKHAND",
-            "WB": "WEST_BENGAL"
+            "WB": "WEST_BENGAL",
+            // Full names mapping
+            "Tamil Nadu": "TAMIL_NADU",
+            "Andhra Pradesh": "ANDHRA_PRADESH",
+            "Karnataka": "KARNATAKA",
+            "Kerala": "KERALA",
+            "Maharashtra": "MAHARASHTRA",
+            "Gujarat": "GUJARAT",
+            "Rajasthan": "RAJASTHAN",
+            "Delhi": "DELHI",
+            "West Bengal": "WEST_BENGAL",
+            "Uttar Pradesh": "UTTAR_PRADESH",
+            "Madhya Pradesh": "MADHYA_PRADESH",
+            "Bihar": "BIHAR",
+            "Telangana": "TELANGANA",
+            "Haryana": "HARYANA",
+            "Punjab": "PUNJAB",
+            "Odisha": "ODISHA",
+            "Assam": "ASSAM",
+            "Jharkhand": "JHARKHAND",
+            "Chhattisgarh": "CHHATTISGARH",
+            "Uttarakhand": "UTTARAKHAND",
+            "Himachal Pradesh": "HIMACHAL_PRADESH",
+            "Goa": "GOA",
+            "Jammu and Kashmir": "JAMMU_AND_KASHMIR",
+            "Chandigarh": "CHANDIGARH"
           };
           
-          const stateCode = session.customerState ? (stateCodeMap[session.customerState] || session.customerState) : '';
+          const stateCode = session.customerState ? (stateCodeMap[session.customerState] || session.customerState.toUpperCase().replace(/ /g, '_')) : '';
           
           // Get shipping charge based on state
           const shippingRate = await this.ecommerceService.getShippingRateByState(stateCode);

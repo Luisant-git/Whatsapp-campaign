@@ -377,29 +377,38 @@ export class ContactService {
   }
 
   async getCustomLabels(tenantContext: TenantContext) {
-    const prisma = this.getPrisma(tenantContext);
-    const config = await prisma.tenantConfig.findFirst();
-    return config?.customLabels || [];
+    return this.tenantPrisma.executeWithRetry(
+      tenantContext.tenantId,
+      tenantContext.dbUrl,
+      async (prisma) => {
+        const config = await prisma.tenantConfig.findFirst();
+        return config?.customLabels || [];
+      }
+    );
   }
 
   async updateCustomLabels(tenantContext: TenantContext, labels: string[]) {
-    const prisma = this.getPrisma(tenantContext);
+    return this.tenantPrisma.executeWithRetry(
+      tenantContext.tenantId,
+      tenantContext.dbUrl,
+      async (prisma) => {
+        // Get or create tenant config
+        const existingConfig = await prisma.tenantConfig.findFirst();
 
-    // Get or create tenant config
-    const existingConfig = await prisma.tenantConfig.findFirst();
+        if (existingConfig) {
+          await prisma.tenantConfig.update({
+            where: { id: existingConfig.id },
+            data: { customLabels: labels },
+          });
+        } else {
+          await prisma.tenantConfig.create({
+            data: { customLabels: labels },
+          });
+        }
 
-    if (existingConfig) {
-      await prisma.tenantConfig.update({
-        where: { id: existingConfig.id },
-        data: { customLabels: labels },
-      });
-    } else {
-      await prisma.tenantConfig.create({
-        data: { customLabels: labels },
-      });
-    }
-
-    return { success: true, customLabels: labels };
+        return { success: true, customLabels: labels };
+      }
+    );
   }
 
   //for ungrouped contactincoming new contact

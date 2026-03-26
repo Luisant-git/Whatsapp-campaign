@@ -430,3 +430,31 @@
     font-weight: 500;
   }
 }
+
+.download-btn {
+  background: #eef2ff;
+  color: #4338ca;
+  border: none;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-left: 6px;
+
+  &:hover {
+    background: #e0e7ff;
+  }
+}
+
+.campaign-note {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  color: #9a3412;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+
+  p {
+    margin: 0;
+  }
+}

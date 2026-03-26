@@ -404,29 +404,37 @@ export default function Contact() {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
+        
         const formatted = jsonData
-          .map((row) => ({
-            name:
-              row["Name"] ||
-              row["name"] ||
-              row["Customer Name"] ||
-              row["customer name"] ||
-              "",
-            phone: String(
-              row["Phone"] ||
-              row["phone"] ||
-              row["Phone Number"] ||
-              row["phone number"] ||
-              ""
-            ).trim(),
-            group: row["Group"] || row["group"] || "",
-            email: row["Email"] || row["email"] || "",
-            place: row["Place"] || row["place"] || "",
-            dob: row["DOB"] || row["dob"] || "",
-            anniversary: row["Anniversary"] || row["anniversary"] || "",
-          }))
-          .filter((r) => r.phone);
-
+        .map((row) => {
+          // ✅ Normalize keys (handles "Phone " / " Name" issues)
+          const normalizedRow = {};
+          Object.keys(row).forEach((key) => {
+            normalizedRow[key.trim().toLowerCase()] = row[key];
+          });
+      
+          // ✅ Get phone safely
+          let phoneValue = normalizedRow["phone"] || "";
+      
+          // ✅ Fix Excel scientific number issue
+          if (typeof phoneValue === "number") {
+            phoneValue = phoneValue.toFixed(0);
+          }
+      
+          // ✅ Remove all non-digits
+          phoneValue = String(phoneValue).replace(/\D/g, "");
+      
+          return {
+            name: String(normalizedRow["name"] || "").trim(),
+            phone: phoneValue,
+            group: normalizedRow["group"] || "",
+            email: normalizedRow["email"] || "",
+            place: normalizedRow["place"] || "",
+            dob: normalizedRow["dob"] || "",
+            anniversary: normalizedRow["anniversary"] || "",
+          };
+        })
+        .filter((r) => r.phone);
         setUploadedData(formatted);
         showSuccess(`Loaded ${formatted.length} contacts from file`);
       } catch (err) {
@@ -460,7 +468,7 @@ export default function Contact() {
           const rawPhone = String(c.phone || "").replace(/\D/g, "");
 
           // Skip if not exactly 10 digits
-          if (rawPhone.length !== 10) {
+          if (!/^[6-9]\d{9}$/.test(rawPhone)) {
             invalidNumbers.push(c.phone || rawPhone || "(empty)");
             failCount++;
             continue; // do NOT call the API for this row

@@ -34,7 +34,77 @@ export class AutomationCronService {
     private tenantPrisma: TenantPrismaService,
     private sender: AutoTemplateSenderService,
   ) {}
+  //campaign delete cron - every day at midnight IST. TEST: every minute. PROD: '0 0 * * *'
+  @Cron(process.env.CAMPAIGN_DELETE_CRON || '0 0 * * *', {
+    timeZone: 'Asia/Kolkata',
+  })
+  async deleteOldCampaigns() {
+    this.logger.log('Starting old campaign cleanup job...');
+  
+    const tenants = await this.centralPrisma.tenant.findMany({
+      where: { isActive: true },
+    });
+  
+    for (const tenant of tenants) {
+      try {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        const tenantClient = this.tenantPrisma.getTenantClient(
+          tenant.id.toString(),
+          dbUrl,
+        );
+  
+        await this.deleteOldCampaignsForTenant(
+          tenantClient,
+          tenant.id,
+          tenant.dbName,
+        );
+      } catch (error: any) {
+        this.logger.error(
+          `Failed deleting old campaigns for tenant ${tenant.id} (${tenant.dbName})`,
+          error?.message || error,
+        );
+      }
+    }
+  }
 
+  private async deleteOldCampaignsForTenant(
+    tenantClient: TenantPrismaClient,
+    tenantId: number,
+    dbName: string,
+  ) {
+    try {
+      const deleteAfterDays = Number(process.env.CAMPAIGN_DELETE_AFTER_DAYS || 14);
+      const oldDate = new Date();
+      oldDate.setDate(oldDate.getDate() - deleteAfterDays);
+  
+      const deleted = await tenantClient.campaign.deleteMany({
+        where: {
+          createdAt: {
+            lt: oldDate,
+          },
+          status: {
+            in: ['completed', 'failed'],
+          },
+        },
+      });
+  
+      if (deleted.count > 0) {
+        this.logger.log(
+          `Tenant ${tenantId} (${dbName}): deleted ${deleted.count} campaigns older than ${deleteAfterDays} days`,
+        );
+      } else {
+        this.logger.log(
+          `Tenant ${tenantId} (${dbName}): no old campaigns to delete`,
+        );
+      }
+    } catch (error: any) {
+      this.logger.error(
+        `Error deleting old campaigns for tenant ${tenantId} (${dbName})`,
+        error?.message || error,
+      );
+    }
+  }
+  
   // TEST: every minute. PROD: '0 9 * * *'
   @Cron(process.env.AUTOMATION_CRON || '* * * * *', {
     timeZone: 'Asia/Kolkata',

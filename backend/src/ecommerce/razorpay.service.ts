@@ -79,23 +79,41 @@ export class RazorpayService {
     }
   }
 
-  async sendPaymentRequestMultiple(phone: string, phoneNumberId: string, totalAmount: number, orderId: number, items: any[]) {
+  async sendPaymentRequestMultiple(phone: string, phoneNumberId: string, totalAmount: number, orderId: number, items: any[], shippingCharge?: number) {
     try {
-      const subtotal = Math.round(totalAmount * 100);
+      console.log('[Razorpay] Sending payment request for multiple items:', { phone, orderId, totalAmount, items, shippingCharge });
 
-      console.log('[Razorpay] Sending payment request for multiple items:', { phone, orderId, totalAmount, items });
-
-      // Calculate the sum of all items to verify it matches totalAmount
       const itemsSum = items.reduce((sum, item) => {
-        // Use the actual price per item (should already be the sale price if applicable)
         const itemTotal = item.price * item.quantity;
         return sum + itemTotal;
       }, 0);
 
-      console.log('[Razorpay] Items sum:', itemsSum, 'Total amount:', totalAmount);
+      console.log('[Razorpay] Items sum:', itemsSum, 'Shipping:', shippingCharge || 0, 'Total amount:', totalAmount);
 
-      // Use the items sum if it matches, otherwise use totalAmount
-      const finalSubtotal = Math.round(itemsSum * 100);
+      const finalTotal = Math.round(totalAmount * 100);
+      const itemsSubtotal = Math.round(itemsSum * 100);
+
+      const orderItems = items.map((item, idx) => ({
+        retailer_id: `item_${orderId}_${idx}`,
+        name: item.name,
+        amount: {
+          value: Math.round(item.price * 100),
+          offset: 100
+        },
+        quantity: item.quantity
+      }));
+
+      if (shippingCharge && shippingCharge > 0) {
+        orderItems.push({
+          retailer_id: `shipping_${orderId}`,
+          name: 'Shipping Charge',
+          amount: {
+            value: Math.round(shippingCharge * 100),
+            offset: 100
+          },
+          quantity: 1
+        });
+      }
 
       const response = await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,
@@ -107,7 +125,7 @@ export class RazorpayService {
           interactive: {
             type: 'order_details',
             body: {
-              text: `Order #${orderId}\nTotal Amount: ₹${itemsSum.toFixed(2)}`
+              text: `Order #${orderId}\nSubtotal: ₹${itemsSum.toFixed(2)}${shippingCharge ? `\nShipping: ₹${shippingCharge.toFixed(2)}` : ''}\nTotal: ₹${totalAmount.toFixed(2)}`
             },
             action: {
               name: 'review_and_pay',
@@ -125,22 +143,14 @@ export class RazorpayService {
                 ],
                 currency: 'INR',
                 total_amount: {
-                  value: finalSubtotal,
+                  value: finalTotal,
                   offset: 100
                 },
                 order: {
                   status: 'pending',
-                  items: items.map((item, idx) => ({
-                    retailer_id: `item_${orderId}_${idx}`,
-                    name: item.name,
-                    amount: {
-                      value: Math.round(item.price * 100),
-                      offset: 100
-                    },
-                    quantity: item.quantity
-                  })),
+                  items: orderItems,
                   subtotal: {
-                    value: finalSubtotal,
+                    value: itemsSubtotal,
                     offset: 100
                   }
                 }

@@ -918,7 +918,8 @@ export class MetaCatalogService {
                 phoneNumberId,
                 finalTotal,
                 orders[0].id,
-                items
+                items,
+                shippingCharge
               );
             } catch (error) {
               console.error('Payment link error:', error);
@@ -1218,7 +1219,8 @@ export class MetaCatalogService {
             phoneNumberId,
             finalTotal,
             order.id,
-            items
+            items,
+            shippingCharge
           );
         } catch (error) {
           console.error('Payment link error:', error);

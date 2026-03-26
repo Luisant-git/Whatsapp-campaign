@@ -1134,7 +1134,7 @@ const WhatsAppChat = () => {
     <div className="whatsapp-chat">
       <div className={`chat-sidebar ${selectedChat ? 'hide-mobile' : ''}`}>
         <div className="sidebar-header">
-          {/* Business Number Filter Dropdown */}
+          {/* Business Number Filter Dropdown - COMMENTED OUT
           <div style={{ padding: '10px 15px', borderBottom: '1px solid #e9edef' }}>
             <select
               value={selectedBusinessNumber}
@@ -1157,6 +1157,7 @@ const WhatsAppChat = () => {
               })}
             </select>
           </div>
+          */}
 
           <div className="search-box">
             <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1283,6 +1284,7 @@ const WhatsAppChat = () => {
             <div style={{ fontSize: '12px', color: '#667781', marginTop: '2px' }}>
               {chat.phone}
             </div>
+            {/* Business Number Display in Chat List - COMMENTED OUT
             {chat.businessNumber && (
               <div
                 style={{
@@ -1298,6 +1300,7 @@ const WhatsAppChat = () => {
                 <span>{chat.businessNumber}</span>
               </div>
             )}
+            */}
             <div className="chat-last-msg">{chat.lastMessage}</div>
             {chatLabels[chat.phone]?.length > 0 && (
               <div className="chat-labels">
@@ -1540,6 +1543,7 @@ const WhatsAppChat = () => {
                       <div style={{ fontSize: '12px', color: '#667781', marginTop: '2px' }}>
                         {selectedChat}
                       </div>
+                      {/* Business Number in Chat Header - COMMENTED OUT
                       {businessNumbers[selectedChat] && (
                         <div style={{
                           fontSize: '12px',
@@ -1553,6 +1557,7 @@ const WhatsAppChat = () => {
                           <span>via {businessNumbers[selectedChat]}</span>
                         </div>
                       )}
+                      */}
                     </div>
                     <div className="message-search" style={{ flex: 1, maxWidth: '300px' }}>
                       <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

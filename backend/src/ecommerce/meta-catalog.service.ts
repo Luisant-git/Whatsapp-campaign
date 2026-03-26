@@ -669,7 +669,33 @@ export class MetaCatalogService {
 
   async handleCustomerResponse(phone: string, phoneNumberId: string, message: string, userId: number) {
     try {
+      // Check for button clicks even without step (for expired sessions)
+      const isConfirmDetailsButton = 
+        message === 'Use My Details' || 
+        message === 'Update Details' || 
+        message === 'Order for Someone' ||
+        message.toLowerCase() === 'confirm' ||
+        message.toLowerCase() === 'update' ||
+        message.toLowerCase() === 'update details' ||
+        message.toLowerCase() === 'someone_else' ||
+        message.toLowerCase() === 'order for someone';
+      
+      const isPaymentMethodButton = 
+        message === 'Pay Online' ||
+        message === 'Cash on Delivery' ||
+        message.toLowerCase() === 'payment_razorpay' ||
+        message.toLowerCase() === 'payment_cod' ||
+        message.toLowerCase() === 'pay online' ||
+        message.toLowerCase() === 'cash on delivery';
+      
       const step = await this.sessionService.getStep(phone, userId);
+      
+      // If button clicked but no step, show session expired
+      if ((isConfirmDetailsButton || isPaymentMethodButton) && !step) {
+        await this.sessionService.clearSession(phone, userId);
+        await this.sendTextMessage(phone, phoneNumberId, '⏱️ Session expired. Please send *shop* again to start a new order.');
+        return true;
+      }
       
       if (!step) return false;
       

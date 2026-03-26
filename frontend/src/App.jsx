@@ -160,6 +160,7 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
   const [useQuickReply, setUseQuickReply] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [contactsOpen, setContactsOpen] = useState(false);
@@ -280,6 +281,8 @@ function App() {
         setIsLoggedIn(false);
         setUser(null);
         setMenuPerms(null);
+      } finally {
+        setLoading(false);
       }
     };
   
@@ -448,7 +451,24 @@ function App() {
 
   return (
     <ToastProvider>
-      {!isLoggedIn ? (
+      {loading ? (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          background: '#ffffff'
+        }}>
+          <div style={{
+            width: '50px',
+            height: '50px',
+            border: '5px solid #25d366',
+            borderTop: '5px solid transparent',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }} />
+        </div>
+      ) : !isLoggedIn ? (
         <Login onLogin={handleLogin} />
       ) : (
         <div className="dashboard">

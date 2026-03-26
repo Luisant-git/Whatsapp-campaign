@@ -50,14 +50,16 @@ export class TenantMiddleware implements NestMiddleware {
     const tenantHeader = req.headers['x-tenant-id'] as string;
     if (tenantHeader) {
       console.log('TenantMiddleware - Found x-tenant-id header:', tenantHeader);
-      tenant = await this.centralPrisma.tenant.findFirst({
-        where: {
-          OR: [
-            { email: { contains: tenantHeader, mode: 'insensitive' } },
-            { dbName: tenantHeader }
-          ],
-          isActive: true
-        },
+      tenant = await this.centralPrisma.executeWithRetry(async (prisma) => {
+        return prisma.tenant.findFirst({
+          where: {
+            OR: [
+              { email: { contains: tenantHeader, mode: 'insensitive' } },
+              { dbName: tenantHeader }
+            ],
+            isActive: true
+          },
+        });
       });
       console.log('TenantMiddleware - Found tenant by header:', tenant?.id, tenant?.email);
     }
@@ -70,14 +72,16 @@ export class TenantMiddleware implements NestMiddleware {
       console.log('TenantMiddleware - Origin hostname:', hostname);
 
       if (hostname !== 'whatsapp.luisant.cloud' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
-        tenant = await this.centralPrisma.tenant.findFirst({
-          where: {
-            domain: {
-              contains: hostname,
-              mode: 'insensitive'
+        tenant = await this.centralPrisma.executeWithRetry(async (prisma) => {
+          return prisma.tenant.findFirst({
+            where: {
+              domain: {
+                contains: hostname,
+                mode: 'insensitive'
+              },
+              isActive: true
             },
-            isActive: true
-          },
+          });
         });
         console.log('TenantMiddleware - Found tenant by domain:', tenant?.id, tenant?.email);
       }
@@ -95,8 +99,10 @@ export class TenantMiddleware implements NestMiddleware {
         throw new UnauthorizedException('No tenant context');
       }
 
-      tenant = await this.centralPrisma.tenant.findUnique({
-        where: { id: tenantId },
+      tenant = await this.centralPrisma.executeWithRetry(async (prisma) => {
+        return prisma.tenant.findUnique({
+          where: { id: tenantId },
+        });
       });
       console.log('TenantMiddleware - Found tenant by session:', tenant?.id, tenant?.email);
     }

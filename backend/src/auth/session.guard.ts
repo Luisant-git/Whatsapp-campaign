@@ -46,14 +46,16 @@ export class SessionGuard implements CanActivate {
       const hostname = originUrl.hostname;
       
       if (hostname !== 'whatsapp.luisant.cloud' && hostname !== 'crm.luisant.in' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
-        tenant = await this.prisma.tenant.findFirst({
-          where: { 
-            domain: {
-              contains: hostname,
-              mode: 'insensitive'
+        tenant = await this.prisma.executeWithRetry(async (prisma) => {
+          return prisma.tenant.findFirst({
+            where: { 
+              domain: {
+                contains: hostname,
+                mode: 'insensitive'
+              },
+              isActive: true
             },
-            isActive: true
-          },
+          });
         });
         
         if (tenant) {
@@ -100,9 +102,11 @@ export class SessionGuard implements CanActivate {
 
     // Validate tenant using tenantId (works for tenant + subuser)
     if (!tenant) {
-      tenant = await this.prisma.tenant.findUnique({
-        where: { id: Number(session.tenantId) },
-        select: { id: true, isActive: true },
+      tenant = await this.prisma.executeWithRetry(async (prisma) => {
+        return prisma.tenant.findUnique({
+          where: { id: Number(session.tenantId) },
+          select: { id: true, isActive: true },
+        });
       });
     }
 
@@ -112,9 +116,11 @@ export class SessionGuard implements CanActivate {
 
     // If subuser session, also validate subuser
     if (session.userType === 'subuser') {
-      const sub = await this.prisma.subUser.findUnique({
-        where: { id: Number(session.userId) },
-        select: { id: true, tenantId: true, isActive: true },
+      const sub = await this.prisma.executeWithRetry(async (prisma) => {
+        return prisma.subUser.findUnique({
+          where: { id: Number(session.userId) },
+          select: { id: true, tenantId: true, isActive: true },
+        });
       });
 
       if (!sub || !sub.isActive || sub.tenantId !== tenant.id) {

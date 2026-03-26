@@ -222,6 +222,7 @@ const WhatsAppChat = () => {
       console.log('CHAT MESSAGES:', fetchedMessages);
   
       setMessages(fetchedMessages);
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 0);
     } catch (error) {
       console.error('Error fetching chat messages:', error);
       toast.error('Failed to fetch messages');

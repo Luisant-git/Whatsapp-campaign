@@ -140,6 +140,18 @@ export class RazorpayService {
                   subtotal: {
                     value: itemsSubtotal,
                     offset: 100
+                  },
+                  tax: {
+                    value: 0,
+                    offset: 100
+                  },
+                  shipping: {
+                    value: shippingCharge ? Math.round(shippingCharge * 100) : 0,
+                    offset: 100
+                  },
+                  discount: {
+                    value: 0,
+                    offset: 100
                   }
                 }
               }

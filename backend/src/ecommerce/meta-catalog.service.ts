@@ -684,6 +684,13 @@ export class MetaCatalogService {
         const response = message.toLowerCase();
         const currentSession = await this.sessionService.getSession(phone, userId);
         
+        // Check if cart exists - if not, show session expired message
+        if (!currentSession?.cartProducts || currentSession.cartProducts.length === 0) {
+          await this.sessionService.clearSession(phone, userId);
+          await this.sendTextMessage(phone, phoneNumberId, '⏱️ Session expired. Please send *shop* again to start a new order.');
+          return true;
+        }
+        
         if (response === 'confirm' || response === 'use my details' || message === 'Use My Details') {
           await this.sendPaymentMethodSelection(phone, phoneNumberId, userId);
           return true;
@@ -738,7 +745,7 @@ export class MetaCatalogService {
           }
           return true;
         }
-        return true;
+        return false; // Unknown button, don't handle it
       }
       
       if (step === 'awaiting_payment_method') {

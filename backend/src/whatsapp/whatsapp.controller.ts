@@ -346,17 +346,21 @@ export class WhatsappController {
   }
  
   @Get('messages')
-  @UseGuards(SessionGuard)
-  @ApiOperation({ summary: 'Get WhatsApp messages' })
-  @ApiQuery({ name: 'phone', required: false, description: 'Filter by phone number' })
-  @ApiResponse({ status: 200, description: 'Messages retrieved successfully', type: [WhatsAppMessageDto] })
-  async getMessages(@Session() session: any, @Query('phone') phone?: string) {
-    return this.whatsappService.getMessages(
-      session.user.id,
-      phone,
-      session.userType || 'tenant',
-    );
-  }
+@UseGuards(SessionGuard)
+async getMessages(
+  @Session() session: any,
+  @Query('phone') phone?: string,
+  @Query('page') page: string = '1',
+  @Query('limit') limit: string = '20',
+) {
+  return this.whatsappService.getMessages(
+    session.user.id,
+    phone,
+    session.userType || 'tenant',
+    Number(page),
+    Number(limit),
+  );
+}
 
   @Post('messages/delete')
   @UseGuards(SessionGuard)

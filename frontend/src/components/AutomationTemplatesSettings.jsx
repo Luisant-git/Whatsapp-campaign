@@ -250,7 +250,7 @@ const AutomationTemplateManager = () => {
       const resp = await fetch(`${API_BASE_URL}/run-daily-automation/summary`, { credentials: "include" });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
-        showError(err?.message || `Summary failed (${resp.status})`);
+       
         setSummaryGroups([]);
         return;
       }
@@ -258,7 +258,7 @@ const AutomationTemplateManager = () => {
       setSummaryGroups(Array.isArray(json) ? json : []);
     } catch (e) {
       console.error(e);
-      showError("Failed to load automation summary");
+     
       setSummaryGroups([]);
     } finally {
       setSummaryLoading(false);
@@ -274,7 +274,7 @@ const AutomationTemplateManager = () => {
       await fetchSummary();
     } catch (e) {
       console.error(e);
-      showError("Failed to load templates");
+     
     } finally {
       setLoading(false);
     }
@@ -542,7 +542,7 @@ const AutomationTemplateManager = () => {
       resetForm();
       await fetchAll();
     } catch (e) {
-      showError(e?.response?.data?.message || e?.message || "Failed");
+      
     } finally {
       setSaving(false);
     }
@@ -570,7 +570,7 @@ const AutomationTemplateManager = () => {
       showSuccess("Default updated");
       await fetchAll();
     } catch {
-      showError("Failed to set default");
+      
     }
   };
 

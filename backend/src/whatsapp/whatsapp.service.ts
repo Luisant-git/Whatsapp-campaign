@@ -793,71 +793,112 @@ export class WhatsappService {
     userId: number,
     phoneNumber?: string,
     userType: 'tenant' | 'subuser' = 'tenant',
+    page: number = 1,
+    limit: number = 20,
   ) {
+    page = Math.max(1, Number(page) || 1);
+    limit = Math.max(1, Number(limit) || 20);
+  
     let allowedPhones: string[] | undefined;
-
+  
     if (userType === 'subuser') {
       const assignments = await this.prisma.chatAssignment.findMany({
         where: { subUserId: userId },
         select: { phone: true },
       });
-
+  
       allowedPhones = assignments.map((a) => a.phone);
-
+  
       if (allowedPhones.length === 0) {
-        return [];
+        return {
+          data: [],
+          meta: { total: 0, page, limit, totalPages: 0 },
+        };
       }
     }
-
-    const messages = await this.prisma.whatsAppMessage.findMany({
-      where: {
-        ...(phoneNumber && { from: phoneNumber }),
-        ...(allowedPhones ? { from: { in: allowedPhones } } : {}),
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    const enrichedMessages = await Promise.all(
-      messages.map(async (msg) => {
+  
+    // -----------------------------
+    // CASE 1: selected phone => return all messages for that phone
+    // -----------------------------
+    if (phoneNumber) {
+      const whereCondition =
+        allowedPhones
+          ? { AND: [{ from: phoneNumber }, { from: { in: allowedPhones } }] }
+          : { from: phoneNumber };
+  
+      const messages = await this.prisma.whatsAppMessage.findMany({
+        where: whereCondition,
+        orderBy: { createdAt: 'asc' },
+      });
+  
+      const uniquePhoneNumberIds = [
+        ...new Set(messages.map((m) => m.phoneNumberId).filter(Boolean)),
+      ] as string[];
+  
+      const uniquePhones = [
+        ...new Set(
+          messages.map((m) => this.formatPhoneNumber(m.from)).filter(Boolean),
+        ),
+      ] as string[];
+  
+      const [masterConfigs, settings, contacts] = await Promise.all([
+        this.prisma.masterConfig.findMany({
+          where: { phoneNumberId: { in: uniquePhoneNumberIds } },
+          select: { name: true, phoneNumberId: true },
+        }),
+        this.prisma.whatsAppSettings.findMany({
+          where: { phoneNumberId: { in: uniquePhoneNumberIds } },
+          select: { name: true, phoneNumberId: true },
+        }),
+        this.prisma.contact.findMany({
+          where: { phone: { in: uniquePhones } },
+          select: { name: true, phone: true, phoneNumberId: true },
+        }),
+      ]);
+  
+      const masterConfigMap = new Map(
+        masterConfigs.map((item) => [item.phoneNumberId, item]),
+      );
+  
+      const settingsMap = new Map(
+        settings.map((item) => [item.phoneNumberId, item]),
+      );
+  
+      const contactMap = new Map<string, { name: string | null }>();
+  
+      contacts.forEach((contact) => {
+        const keyWithPhoneNumberId = `${contact.phone}_${contact.phoneNumberId || ''}`;
+        const keyWithoutPhoneNumberId = `${contact.phone}_`;
+  
+        if (!contactMap.has(keyWithPhoneNumberId)) {
+          contactMap.set(keyWithPhoneNumberId, { name: contact.name });
+        }
+        if (!contactMap.has(keyWithoutPhoneNumberId)) {
+          contactMap.set(keyWithoutPhoneNumberId, { name: contact.name });
+        }
+      });
+  
+      const enrichedMessages = messages.map((msg) => {
         let displayPhoneNumber: string | null = null;
-        let contactName: string | null = null;
+  
         if (msg.phoneNumberId) {
-          const masterConfig = await this.prisma.masterConfig.findFirst({
-            where: { phoneNumberId: msg.phoneNumberId },
-            select: { name: true, phoneNumberId: true },
-          });
-
+          const masterConfig = masterConfigMap.get(msg.phoneNumberId);
           if (masterConfig) {
             displayPhoneNumber = `${masterConfig.name} - ${masterConfig.phoneNumberId}`;
           } else {
-            const settings = await this.prisma.whatsAppSettings.findFirst({
-              where: { phoneNumberId: msg.phoneNumberId },
-              select: { name: true, phoneNumberId: true },
-            });
-            displayPhoneNumber = settings?.name || msg.phoneNumberId || null;
+            const setting = settingsMap.get(msg.phoneNumberId);
+            displayPhoneNumber = setting?.name || msg.phoneNumberId || null;
           }
         }
+  
         const normalizedFrom = this.formatPhoneNumber(msg.from);
-
-        let contact = await this.prisma.contact.findFirst({
-          where: {
-            phone: normalizedFrom,
-            phoneNumberId: msg.phoneNumberId || undefined,
-          },
-          select: { name: true },
-        });
-        
-        if (!contact) {
-          contact = await this.prisma.contact.findFirst({
-            where: {
-              phone: normalizedFrom,
-            },
-            select: { name: true },
-          });
-        }
-        
-        contactName = contact?.name || null;
-
+  
+        const contact =
+          contactMap.get(`${normalizedFrom}_${msg.phoneNumberId || ''}`) ||
+          contactMap.get(`${normalizedFrom}_`);
+  
+        const contactName = contact?.name || null;
+  
         return {
           ...msg,
           displayPhoneNumber,
@@ -866,12 +907,144 @@ export class WhatsappService {
           profileName: msg.profileName || null,
           customerName: contactName || msg.profileName || msg.from,
         };
+      });
+  
+      return {
+        data: enrichedMessages,
+        meta: {
+          total: enrichedMessages.length,
+          page: 1,
+          limit: enrichedMessages.length,
+          totalPages: 1,
+        },
+      };
+    }
+  
+    // -----------------------------
+    // CASE 2: no phone => return paginated unique numbers/chats
+    // -----------------------------
+    const whereCondition = allowedPhones
+      ? { from: { in: allowedPhones } }
+      : {};
+  
+    const allMessages = await this.prisma.whatsAppMessage.findMany({
+      where: whereCondition,
+      orderBy: { createdAt: 'desc' },
+    });
+  
+    const uniqueChatsMap = new Map();
+  
+    for (const msg of allMessages) {
+      const key = `${msg.from}_${msg.phoneNumberId || ''}`;
+      if (!uniqueChatsMap.has(key)) {
+        uniqueChatsMap.set(key, msg);
+      }
+    }
+  
+    const uniqueChats = Array.from(uniqueChatsMap.values());
+    const total = uniqueChats.length;
+  
+    const skip = (page - 1) * limit;
+    const paginatedChats = uniqueChats.slice(skip, skip + limit);
+  
+    const uniquePhoneNumberIds = [
+      ...new Set(paginatedChats.map((m) => m.phoneNumberId).filter(Boolean)),
+    ] as string[];
+  
+    const uniquePhones = [
+      ...new Set(
+        paginatedChats.map((m) => this.formatPhoneNumber(m.from)).filter(Boolean),
+      ),
+    ] as string[];
+  
+    const [masterConfigs, settings, contacts] = await Promise.all([
+      this.prisma.masterConfig.findMany({
+        where: { phoneNumberId: { in: uniquePhoneNumberIds } },
+        select: { name: true, phoneNumberId: true },
       }),
+      this.prisma.whatsAppSettings.findMany({
+        where: { phoneNumberId: { in: uniquePhoneNumberIds } },
+        select: { name: true, phoneNumberId: true },
+      }),
+      this.prisma.contact.findMany({
+        where: { phone: { in: uniquePhones } },
+        select: { name: true, phone: true, phoneNumberId: true },
+      }),
+    ]);
+  
+    const masterConfigMap = new Map(
+      masterConfigs.map((item) => [item.phoneNumberId, item]),
     );
-
-    return enrichedMessages;
+  
+    const settingsMap = new Map(
+      settings.map((item) => [item.phoneNumberId, item]),
+    );
+  
+    const contactMap = new Map<string, { name: string | null }>();
+  
+    contacts.forEach((contact) => {
+      const keyWithPhoneNumberId = `${contact.phone}_${contact.phoneNumberId || ''}`;
+      const keyWithoutPhoneNumberId = `${contact.phone}_`;
+  
+      if (!contactMap.has(keyWithPhoneNumberId)) {
+        contactMap.set(keyWithPhoneNumberId, { name: contact.name });
+      }
+      if (!contactMap.has(keyWithoutPhoneNumberId)) {
+        contactMap.set(keyWithoutPhoneNumberId, { name: contact.name });
+      }
+    });
+  
+    const enrichedChats = paginatedChats.map((msg) => {
+      let displayPhoneNumber: string | null = null;
+  
+      if (msg.phoneNumberId) {
+        const masterConfig = masterConfigMap.get(msg.phoneNumberId);
+        if (masterConfig) {
+          displayPhoneNumber = `${masterConfig.name} - ${masterConfig.phoneNumberId}`;
+        } else {
+          const setting = settingsMap.get(msg.phoneNumberId);
+          displayPhoneNumber = setting?.name || msg.phoneNumberId || null;
+        }
+      }
+  
+      const normalizedFrom = this.formatPhoneNumber(msg.from);
+  
+      const contact =
+        contactMap.get(`${normalizedFrom}_${msg.phoneNumberId || ''}`) ||
+        contactMap.get(`${normalizedFrom}_`);
+  
+      const contactName = contact?.name || null;
+  
+      return {
+        id: msg.id,
+        from: msg.from,
+        phone: msg.from,
+        message: msg.message,
+        mediaType: msg.mediaType,
+        mediaUrl: msg.mediaUrl,
+        direction: msg.direction,
+        status: msg.status,
+        phoneNumberId: msg.phoneNumberId,
+        profileName: msg.profileName || null,
+        createdAt: msg.createdAt,
+        updatedAt: msg.updatedAt,
+        displayPhoneNumber,
+        businessPhoneNumberId: msg.phoneNumberId,
+        contactName,
+        customerName: contactName || msg.profileName || msg.from,
+      };
+    });
+  
+    return {
+      data: enrichedChats,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
-
   async handleIncomingMessageWithoutContext(message: any, phoneNumberId: string, profileName?: string | null,) {
     try {
       this.logger.log(`📨 Webhook received - Phone: ${message.from}, Type: ${message.type}, Text: ${message.text?.body || 'N/A'}`);

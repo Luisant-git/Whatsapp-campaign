@@ -605,72 +605,55 @@ export class MetaCatalogService {
   async handleOrderMessage(phone: string, phoneNumberId: string, order: any, userId: number) {
     const productItems = order.product_items || [];
     
-    console.log(`[Meta Catalog] Full order data:`, JSON.stringify(order, null, 2));
-    console.log(`[Meta Catalog] Total products in cart: ${productItems.length}`);
-    
-    const allProducts = await this.ecommerceService.getProducts(undefined, userId);
-    console.log(`[Meta Catalog] Total products in database: ${allProducts.length}`);
-    console.log(`[Meta Catalog] Sample products:`, allProducts.slice(0, 3).map(p => ({ id: p.id, name: p.name, metaProductId: p.metaProductId })));
-    
     const cartProducts: any[] = [];
     let totalAmount = 0;
+    
+    // Optimize: Only fetch products we need, not all products
+    const catalogItemIds = productItems.map(item => item.catalog_item_id || item.product_retailer_id);
+    const productIds = catalogItemIds
+      .filter(id => id?.startsWith('product_'))
+      .map(id => parseInt(id.replace('product_', '')));
+    
+    // Fetch only needed products
+    const allProducts = productIds.length > 0 
+      ? await this.ecommerceService.getProducts(undefined, userId)
+      : [];
     
     for (const item of productItems) {
       const catalogItemId = item.catalog_item_id || item.product_retailer_id;
       const quantity = item.quantity || 1;
       
-      console.log(`[Meta Catalog] Looking for product with catalogItemId: "${catalogItemId}"`);
-      
       let product;
       
-      // 1. Try numeric product_XX format
       if (catalogItemId?.startsWith('product_')) {
         const prodId = parseInt(catalogItemId.replace('product_', ''));
-        console.log(`[Meta Catalog] Extracted product ID: ${prodId}`);
         product = allProducts.find(p => p.id === prodId);
-        console.log(`[Meta Catalog] Product found by ID: ${!!product}`);
       }
       
-      // 2. Try metaProductId
       if (!product) {
-        product = allProducts.find(p => p.metaProductId === catalogItemId);
-        console.log(`[Meta Catalog] Product found by metaProductId: ${!!product}`);
-      }
-      
-      // 3. Try contentId (for custom IDs like q34nfqc68g)
-      if (!product) {
-        product = allProducts.find(p => p.contentId === catalogItemId);
-        console.log(`[Meta Catalog] Product found by contentId: ${!!product}`);
+        product = allProducts.find(p => p.metaProductId === catalogItemId || p.contentId === catalogItemId);
       }
       
       if (product) {
         const effectivePrice = product.salePrice || product.price;
-        console.log(`[Meta Catalog] Adding product to cart: ${product.name} (ID: ${product.id}, Price: ${product.price}, Sale Price: ${product.salePrice}, Using: ${effectivePrice})`);
         cartProducts.push({ ...product, quantity, effectivePrice });
         totalAmount += effectivePrice * quantity;
-      } else {
-        console.log(`[Meta Catalog] ⚠️ Product not found for catalogItemId: "${catalogItemId}"`);
       }
     }
     
-    console.log(`[Meta Catalog] Cart products:`, cartProducts.map(p => ({ name: p.name, qty: p.quantity })));
-    console.log(`[Meta Catalog] Total amount: ${totalAmount}`);
-    
-    // Save cart to session
-    await this.sessionService.setSession(phone, { 
-      cartProducts,
-      totalAmount,
-      step: 'awaiting_flow_response'
-    }, userId);
-    
-    // Check if customer exists
-    const existingCustomer = await this.ecommerceService.getCustomerByPhone(phone, userId);
+    // Save cart and check customer in parallel
+    const [, existingCustomer] = await Promise.all([
+      this.sessionService.setSession(phone, { 
+        cartProducts,
+        totalAmount,
+        step: 'awaiting_flow_response'
+      }, userId),
+      this.ecommerceService.getCustomerByPhone(phone, userId)
+    ]);
     
     if (existingCustomer) {
-      // Show existing customer details with options
       await this.sendCustomerDetailsConfirmation(phone, phoneNumberId, existingCustomer, userId);
     } else {
-      // Send customer details flow for new customer
       if (process.env.CUSTOMER_FLOW_ID) {
         await this.flowTriggerService.sendFlowMessage({
           to: phone,
@@ -688,12 +671,7 @@ export class MetaCatalogService {
     try {
       const step = await this.sessionService.getStep(phone, userId);
       
-      console.log(`[Meta Catalog] handleCustomerResponse called - Phone: ${phone}, Step: ${step}, Message: "${message}"`);
-      
-      if (!step) {
-        console.log(`[Meta Catalog] No step found, returning false`);
-        return false;
-      }
+      if (!step) return false;
       
       // Check for EXIT command
       if (message.toUpperCase() === 'EXIT') {
@@ -704,30 +682,21 @@ export class MetaCatalogService {
       
       if (step === 'confirm_details') {
         const response = message.toLowerCase();
-        console.log(`[Meta Catalog] In confirm_details step, response: "${response}", original: "${message}"`);
-        
-        // Log current session state before processing
         const currentSession = await this.sessionService.getSession(phone, userId);
-        console.log(`[Meta Catalog] Current session before confirm_details action:`, {
-          hasCartProducts: !!currentSession?.cartProducts,
-          cartCount: currentSession?.cartProducts?.length,
-          totalAmount: currentSession?.totalAmount,
-          step: currentSession?.step
-        });
         
         if (response === 'confirm' || response === 'use my details' || message === 'Use My Details') {
-          console.log(`[Meta Catalog] Matched 'Use My Details' - sending payment method selection`);
           await this.sendPaymentMethodSelection(phone, phoneNumberId, userId);
           return true;
         } else if (response === 'update' || response === 'update details' || message === 'Update Details') {
-          console.log(`[Meta Catalog] Matched 'Update Details' - opening flow`);
-          // Clear existing details and open flow
+          // Clear existing details but preserve cart data
           await this.sessionService.setSession(phone, { 
             customerName: undefined,
             customerAddress: undefined,
             customerCity: undefined,
             customerState: undefined,
             customerPincode: undefined,
+            cartProducts: currentSession?.cartProducts,
+            totalAmount: currentSession?.totalAmount,
             step: 'awaiting_flow_response' 
           }, userId);
           
@@ -744,13 +713,15 @@ export class MetaCatalogService {
           }
           return true;
         } else if (response === 'someone_else' || response === 'order for someone' || message === 'Order for Someone') {
-          // Clear existing details and open flow for new recipient
+          // Clear existing details but preserve cart data for new recipient
           await this.sessionService.setSession(phone, { 
             customerName: undefined,
             customerAddress: undefined,
             customerCity: undefined,
             customerState: undefined,
             customerPincode: undefined,
+            cartProducts: currentSession?.cartProducts,
+            totalAmount: currentSession?.totalAmount,
             step: 'awaiting_flow_response' 
           }, userId);
           
@@ -784,18 +755,18 @@ export class MetaCatalogService {
         }
         
         const paymentMethod = isRazorpay ? 'razorpay' : 'cod';
-        console.log(`[Meta Catalog] Payment method selected: ${paymentMethod}`);
+        
+        // Check if user already selected a payment method
+        const session = await this.sessionService.getSession(phone, userId);
+        const previousPaymentMethod = session?.paymentMethod;
+        
+        if (previousPaymentMethod && previousPaymentMethod !== paymentMethod) {
+          await this.sessionService.clearSession(phone, userId);
+          await this.sendTextMessage(phone, phoneNumberId, '⏱️ Session expired. Please send *shop* again to start a new order.');
+          return true;
+        }
         
         await this.sessionService.setPaymentMethod(phone, paymentMethod, userId);
-        const session = await this.sessionService.getSession(phone, userId);
-        
-        console.log(`[Meta Catalog] Session retrieved:`, {
-          hasSession: !!session,
-          cartProductsCount: session?.cartProducts?.length || 0,
-          totalAmount: session?.totalAmount,
-          step: session?.step,
-          customerName: session?.customerName
-        });
         
         const cartProducts = session?.cartProducts || [];
         const totalAmount = session?.totalAmount || 0;
@@ -868,25 +839,22 @@ export class MetaCatalogService {
           
           const stateCode = session.customerState ? (stateCodeMap[session.customerState] || session.customerState.toUpperCase().replace(/ /g, '_')) : '';
           
-          // Get shipping charge based on state
-          const shippingRate = await this.ecommerceService.getShippingRateByState(stateCode, userId);
+          // Get shipping charge and create order in parallel
+          const [shippingRate] = await Promise.all([
+            this.ecommerceService.getShippingRateByState(stateCode, userId)
+          ]);
+          
           const shippingCharge = shippingRate?.flatShippingRate || 0;
           const finalTotal = totalAmount + shippingCharge;
           
-          console.log(`[Meta Catalog] Shipping calculation - State: ${stateCode}, Charge: ${shippingCharge}, Subtotal: ${totalAmount}, Final: ${finalTotal}`);
-          
-          const orders: any[] = [];
-          console.log(`[Meta Catalog] Creating single order for ${cartProducts.length} products`);
-          console.log(`[Meta Catalog] Cart products data:`, cartProducts.map(p => ({ id: p.id, productId: p.productId, price: p.price, qty: p.quantity })));
-          
-          // Create order items for all products
+          // Create order items
           const orderItems = cartProducts.map(cartItem => ({
             productId: cartItem.productId || cartItem.id,
             quantity: cartItem.quantity || 1,
             price: cartItem.effectivePrice || cartItem.salePrice || cartItem.price
           }));
           
-          // Create single order with all items and shipping
+          // Create order
           const order = await this.ecommerceService.createOrder({
             customerName: session.customerName,
             customerPhone: phone,
@@ -902,9 +870,6 @@ export class MetaCatalogService {
             items: orderItems
           }, userId);
           
-          console.log(`[Meta Catalog] Single order created:`, { orderId: order.id, itemCount: orderItems.length, shipping: shippingCharge });
-          orders.push(order);
-          
           if (paymentMethod === 'razorpay') {
             try {
               const items = cartProducts.map(p => ({
@@ -917,7 +882,7 @@ export class MetaCatalogService {
                 phone,
                 phoneNumberId,
                 finalTotal,
-                orders[0].id,
+                order.id,
                 items,
                 shippingCharge
               );
@@ -927,16 +892,22 @@ export class MetaCatalogService {
               await this.sendTextMessage(phone, phoneNumberId, `✅ *Order Placed*\n\n${productList}\nSubtotal: ₹${totalAmount}\nShipping: ₹${shippingCharge}\nTotal: ₹${finalTotal}\n\nOur team will send you payment link shortly 📞`);
             }
           } else {
+            const formatStateName = (state: string) => {
+              if (!state) return '';
+              return state
+                .split('_')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .join(' ');
+            };
+            
             const productList = cartProducts.map(p => `${p.name} (x${p.quantity}) - ₹${(p.effectivePrice || p.salePrice || p.price) * p.quantity}`).join('\n');
-            const confirmationMessage = `✅ *Order Confirmed*\n\n${productList}\n\nSubtotal: ₹${totalAmount}\nShipping: ₹${shippingCharge}\n*Total: ₹${finalTotal}*\n\nPayment: Cash on Delivery\n\n*Delivery Details:*\nName: ${session.customerName}\nAddress: ${session.customerAddress}\nCity: ${session.customerCity}\nState: ${stateCode}\nPincode: ${session.customerPincode}\n\nOur team will contact you soon 😊`;
+            const confirmationMessage = `✅ *Order Confirmed*\n\n${productList}\n\nSubtotal: ₹${totalAmount}\nShipping: ₹${shippingCharge}\n*Total: ₹${finalTotal}*\n\nPayment: Cash on Delivery\n\n*Delivery Details:*\nName: ${session.customerName}\nAddress: ${session.customerAddress}\nCity: ${session.customerCity}\nState: ${formatStateName(stateCode)}\nPincode: ${session.customerPincode}\n\nOur team will contact you soon 😊`;
             await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
           }
           
           await this.sessionService.clearSession(phone, userId);
-          console.log(`[Meta Catalog] Order processing completed successfully`);
           return true;
         } else {
-          console.log(`[Meta Catalog] No cart products or session found`);
           await this.sendTextMessage(phone, phoneNumberId, '❌ Session expired. Please start shopping again.');
           return true;
         }
@@ -951,7 +922,6 @@ export class MetaCatalogService {
 
   private async sendTextMessage(phone: string, phoneNumberId: string, text: string) {
     try {
-      console.log(`[Meta Catalog] Sending message to ${phone}: ${text}`);
       const response = await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,
         {
@@ -965,10 +935,9 @@ export class MetaCatalogService {
             'Authorization': `Bearer ${this.accessToken}`,
             'Content-Type': 'application/json',
           },
-          timeout: 30000, // 30 seconds
+          timeout: 15000, // Reduced from 30s to 15s
         }
       );
-      console.log(`[Meta Catalog] Message sent successfully:`, response.data);
       return { success: true };
     } catch (error) {
       console.error('[Meta Catalog] Send text message error:', error.response?.data || error.message);
@@ -1039,10 +1008,21 @@ export class MetaCatalogService {
       const state = customer.customerState || '';
       const pincode = customer.customerPincode || '';
       
+      // Convert state from TAMIL_NADU to Tamil Nadu
+      const formatStateName = (state: string) => {
+        if (!state) return '';
+        return state
+          .split('_')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+          .join(' ');
+      };
+      
+      const displayState = formatStateName(state);
+      
       // Build full address
       let address = customer.customerAddress || 'Not provided';
       if (address !== 'Not provided') {
-        const addressParts = [customer.customerAddress, city, state, pincode].filter(p => p && p !== 'undefined');
+        const addressParts = [customer.customerAddress, city, displayState, pincode].filter(p => p && p !== 'undefined');
         address = addressParts.join(', ');
       }
       
@@ -1114,9 +1094,6 @@ export class MetaCatalogService {
 
   async handleCustomerDetailsFlowResponse(phone: string, phoneNumberId: string, customerData: any, userId: number) {
     try {
-      console.log(`[Meta Catalog] Processing customer details flow response for ${phone}`);
-      console.log(`[Meta Catalog] Customer data:`, customerData);
-      
       const session = await this.sessionService.getSession(phone, userId);
       if (!session || !session.cartProducts) {
         await this.sendTextMessage(phone, phoneNumberId, '❌ Session expired. Please start shopping again by typing SHOP.');
@@ -1173,12 +1150,10 @@ export class MetaCatalogService {
       
       const stateCode = stateMap[customerData.customerState] || customerData.customerState;
       
-      // Get shipping charge based on state
+      // Get shipping charge and create order
       const shippingRate = await this.ecommerceService.getShippingRateByState(stateCode, userId);
       const shippingCharge = shippingRate?.flatShippingRate || 0;
       const finalTotal = totalAmount + shippingCharge;
-      
-      console.log(`[Meta Catalog] Shipping calculation - State: ${stateCode}, Charge: ${shippingCharge}, Subtotal: ${totalAmount}, Final: ${finalTotal}`);
       
       // Create order items
       const orderItems = cartProducts.map(cartItem => ({
@@ -1202,8 +1177,6 @@ export class MetaCatalogService {
         status: paymentMethod === 'cod' ? 'placed' : 'pending',
         items: orderItems
       }, userId);
-      
-      console.log(`[Meta Catalog] Order created via flow:`, { orderId: order.id, itemCount: orderItems.length, shipping: shippingCharge });
       
       // Handle payment
       if (paymentMethod === 'razorpay') {
@@ -1229,8 +1202,16 @@ export class MetaCatalogService {
         }
       } else {
         // COD confirmation with shipping details
+        const formatStateName = (state: string) => {
+          if (!state) return '';
+          return state
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+        };
+        
         const productList = cartProducts.map(p => `${p.name} (x${p.quantity}) - ₹${(p.effectivePrice || p.salePrice || p.price) * p.quantity}`).join('\n');
-        const confirmationMessage = `✅ *Order Confirmed*\n\n${productList}\n\nSubtotal: ₹${totalAmount}\nShipping: ₹${shippingCharge}\n*Total: ₹${finalTotal}*\n\nPayment: Cash on Delivery\n\n*Delivery Details:*\nName: ${customerData.customerName}\nAddress: ${customerData.customerAddress}\nCity: ${customerData.customerCity}\nState: ${stateCode}\nPincode: ${customerData.customerPincode}\n\nOur team will contact you soon 😊`;
+        const confirmationMessage = `✅ *Order Confirmed*\n\n${productList}\n\nSubtotal: ₹${totalAmount}\nShipping: ₹${shippingCharge}\n*Total: ₹${finalTotal}*\n\nPayment: Cash on Delivery\n\n*Delivery Details:*\nName: ${customerData.customerName}\nAddress: ${customerData.customerAddress}\nCity: ${customerData.customerCity}\nState: ${formatStateName(stateCode)}\nPincode: ${customerData.customerPincode}\n\nOur team will contact you soon 😊`;
         await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
       }
       

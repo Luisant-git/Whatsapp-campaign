@@ -103,18 +103,6 @@ export class RazorpayService {
         quantity: item.quantity
       }));
 
-      if (shippingCharge && shippingCharge > 0) {
-        orderItems.push({
-          retailer_id: `shipping_${orderId}`,
-          name: 'Shipping Charge',
-          amount: {
-            value: Math.round(shippingCharge * 100),
-            offset: 100
-          },
-          quantity: 1
-        });
-      }
-
       const response = await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,
         {

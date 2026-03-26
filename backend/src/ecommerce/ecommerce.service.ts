@@ -548,8 +548,9 @@ async getShippingRates() {
   });
 }
 
-async getShippingRateByState(state: string) {
-  return this.prisma.shippingRate.findUnique({
+async getShippingRateByState(state: string, userId?: number) {
+  const client = userId ? await this.getTenantClient(userId) : this.prisma;
+  return client.shippingRate.findUnique({
     where: { state: state.toUpperCase() },
   });
 }

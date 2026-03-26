@@ -869,7 +869,7 @@ export class MetaCatalogService {
           const stateCode = session.customerState ? (stateCodeMap[session.customerState] || session.customerState.toUpperCase().replace(/ /g, '_')) : '';
           
           // Get shipping charge based on state
-          const shippingRate = await this.ecommerceService.getShippingRateByState(stateCode);
+          const shippingRate = await this.ecommerceService.getShippingRateByState(stateCode, userId);
           const shippingCharge = shippingRate?.flatShippingRate || 0;
           const finalTotal = totalAmount + shippingCharge;
           
@@ -1173,7 +1173,7 @@ export class MetaCatalogService {
       const stateCode = stateMap[customerData.customerState] || customerData.customerState;
       
       // Get shipping charge based on state
-      const shippingRate = await this.ecommerceService.getShippingRateByState(stateCode);
+      const shippingRate = await this.ecommerceService.getShippingRateByState(stateCode, userId);
       const shippingCharge = shippingRate?.flatShippingRate || 0;
       const finalTotal = totalAmount + shippingCharge;
       

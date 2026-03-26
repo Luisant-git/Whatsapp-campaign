@@ -261,7 +261,7 @@ export class TemplateService {
 
       console.log('Sending to Meta API:', JSON.stringify(metaPayload, null, 2));
 
-      // Create template via Meta API using correct format
+      // Create template via Meta API using correct format with timeout
       const response = await axios.post(
         `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
         metaPayload,
@@ -270,8 +270,11 @@ export class TemplateService {
             Authorization: `Bearer ${masterConfig.accessToken}`,
             'Content-Type': 'application/json',
           },
+          timeout: 30000, // 30 second timeout for Meta API
         }
       );
+
+      console.log('Meta API response received:', response.data);
 
       // Store template in database
       const template = await tenantClient.messageTemplate.create({
@@ -287,11 +290,14 @@ export class TemplateService {
         },
       });
 
+      console.log('Template saved to database:', template.id);
+
       return {
         success: true,
         templateId: response.data.id,
         status: response.data.status,
         template,
+        message: 'Template created successfully and submitted to Meta for review',
       };
     } catch (error) {
       console.error('Template creation error:', error.response?.data || error.message);

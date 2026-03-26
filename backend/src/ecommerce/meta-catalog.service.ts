@@ -841,7 +841,7 @@ export class MetaCatalogService {
             "WB": "WEST_BENGAL"
           };
           
-          const stateCode = stateCodeMap[session.customerState] || session.customerState;
+          const stateCode = session.customerState ? (stateCodeMap[session.customerState] || session.customerState) : '';
           
           // Get shipping charge based on state
           const shippingRate = await this.ecommerceService.getShippingRateByState(stateCode);

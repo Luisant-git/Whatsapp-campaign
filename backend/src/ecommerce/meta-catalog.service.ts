@@ -801,47 +801,54 @@ export class MetaCatalogService {
         const totalAmount = session?.totalAmount || 0;
         
         if (cartProducts.length > 0 && session) {
-          // Get full state name from state code
-          const stateMap = {
-            "AN": "Andaman and Nicobar Islands",
-            "AP": "Andhra Pradesh",
-            "AR": "Arunachal Pradesh",
-            "AS": "Assam",
-            "BR": "Bihar",
-            "CH": "Chandigarh",
-            "CT": "Chhattisgarh",
-            "DN": "Dadra and Nagar Haveli and Daman and Diu",
-            "DL": "Delhi",
-            "GA": "Goa",
-            "GJ": "Gujarat",
-            "HR": "Haryana",
-            "HP": "Himachal Pradesh",
-            "JK": "Jammu and Kashmir",
-            "JH": "Jharkhand",
-            "KA": "Karnataka",
-            "KL": "Kerala",
-            "LA": "Ladakh",
-            "LD": "Lakshadweep",
-            "MP": "Madhya Pradesh",
-            "MH": "Maharashtra",
-            "MN": "Manipur",
-            "ML": "Meghalaya",
-            "MZ": "Mizoram",
-            "NL": "Nagaland",
-            "OR": "Odisha",
-            "PY": "Puducherry",
-            "PB": "Punjab",
-            "RJ": "Rajasthan",
-            "SK": "Sikkim",
-            "TN": "Tamil Nadu",
-            "TG": "Telangana",
-            "TR": "Tripura",
-            "UP": "Uttar Pradesh",
-            "UT": "Uttarakhand",
-            "WB": "West Bengal"
+          // State code mapping for shipping
+          const stateCodeMap = {
+            "AN": "ANDAMAN_AND_NICOBAR_ISLANDS",
+            "AP": "ANDHRA_PRADESH",
+            "AR": "ARUNACHAL_PRADESH",
+            "AS": "ASSAM",
+            "BR": "BIHAR",
+            "CH": "CHANDIGARH",
+            "CT": "CHHATTISGARH",
+            "DN": "DADRA_AND_NAGAR_HAVELI_AND_DAMAN_AND_DIU",
+            "DL": "DELHI",
+            "GA": "GOA",
+            "GJ": "GUJARAT",
+            "HR": "HARYANA",
+            "HP": "HIMACHAL_PRADESH",
+            "JK": "JAMMU_AND_KASHMIR",
+            "JH": "JHARKHAND",
+            "KA": "KARNATAKA",
+            "KL": "KERALA",
+            "LA": "LADAKH",
+            "LD": "LAKSHADWEEP",
+            "MP": "MADHYA_PRADESH",
+            "MH": "MAHARASHTRA",
+            "MN": "MANIPUR",
+            "ML": "MEGHALAYA",
+            "MZ": "MIZORAM",
+            "NL": "NAGALAND",
+            "OR": "ODISHA",
+            "PY": "PUDUCHERRY",
+            "PB": "PUNJAB",
+            "RJ": "RAJASTHAN",
+            "SK": "SIKKIM",
+            "TN": "TAMIL_NADU",
+            "TG": "TELANGANA",
+            "TR": "TRIPURA",
+            "UP": "UTTAR_PRADESH",
+            "UT": "UTTARAKHAND",
+            "WB": "WEST_BENGAL"
           };
           
-          const fullStateName = session.customerState ? (stateMap[session.customerState] || session.customerState) : '';
+          const stateCode = stateCodeMap[session.customerState] || session.customerState;
+          
+          // Get shipping charge based on state
+          const shippingRate = await this.ecommerceService.getShippingRateByState(stateCode);
+          const shippingCharge = shippingRate?.flatShippingRate || 0;
+          const finalTotal = totalAmount + shippingCharge;
+          
+          console.log(`[Meta Catalog] Shipping calculation - State: ${stateCode}, Charge: ${shippingCharge}, Subtotal: ${totalAmount}, Final: ${finalTotal}`);
           
           const orders: any[] = [];
           console.log(`[Meta Catalog] Creating single order for ${cartProducts.length} products`);
@@ -854,47 +861,48 @@ export class MetaCatalogService {
             price: cartItem.effectivePrice || cartItem.salePrice || cartItem.price
           }));
           
-          // Create single order with all items including full state name
+          // Create single order with all items and shipping
           const order = await this.ecommerceService.createOrder({
             customerName: session.customerName,
             customerPhone: phone,
             customerAddress: session.customerAddress,
             customerCity: session.customerCity,
-            customerState: fullStateName, // Store full state name
+            customerState: stateCode,
             customerPincode: session.customerPincode,
-            totalAmount,
+            totalAmount: finalTotal,
+            shippingAmount: shippingCharge,
             paymentMethod: paymentMethod,
             paymentStatus: paymentMethod === 'cod' ? 'cod' : 'pending',
             status: paymentMethod === 'cod' ? 'placed' : 'pending',
             items: orderItems
           }, userId);
           
-          console.log(`[Meta Catalog] Single order created:`, { orderId: order.id, itemCount: orderItems.length });
+          console.log(`[Meta Catalog] Single order created:`, { orderId: order.id, itemCount: orderItems.length, shipping: shippingCharge });
           orders.push(order);
           
           if (paymentMethod === 'razorpay') {
             try {
               const items = cartProducts.map(p => ({
                 name: p.name,
-                price: p.effectivePrice || p.salePrice || p.price, // Use sale price if available
+                price: p.effectivePrice || p.salePrice || p.price,
                 quantity: p.quantity
               }));
               
               await this.razorpayService.sendPaymentRequestMultiple(
                 phone,
                 phoneNumberId,
-                totalAmount,
+                finalTotal,
                 orders[0].id,
                 items
               );
             } catch (error) {
               console.error('Payment link error:', error);
               const productList = cartProducts.map(p => `${p.name} x${p.quantity}`).join('\n');
-              await this.sendTextMessage(phone, phoneNumberId, `✅ *Order Placed*\n\n${productList}\nTotal: ₹${totalAmount}\n\nOur team will send you payment link shortly 📞`);
+              await this.sendTextMessage(phone, phoneNumberId, `✅ *Order Placed*\n\n${productList}\nSubtotal: ₹${totalAmount}\nShipping: ₹${shippingCharge}\nTotal: ₹${finalTotal}\n\nOur team will send you payment link shortly 📞`);
             }
           } else {
             const productList = cartProducts.map(p => `${p.name} (x${p.quantity}) - ₹${(p.effectivePrice || p.salePrice || p.price) * p.quantity}`).join('\n');
-            const confirmationMessage = `✅ *Order Confirmed*\n\n${productList}\n\nTotal: ₹${totalAmount}\nPayment: Cash on Delivery\n\n*Delivery Details:*\nName: ${session.customerName}\nAddress: ${session.customerAddress}\nCity: ${session.customerCity}\nState: ${fullStateName}\nPincode: ${session.customerPincode}\n\nOur team will contact you soon 😊`;
+            const confirmationMessage = `✅ *Order Confirmed*\n\n${productList}\n\nSubtotal: ₹${totalAmount}\nShipping: ₹${shippingCharge}\n*Total: ₹${finalTotal}*\n\nPayment: Cash on Delivery\n\n*Delivery Details:*\nName: ${session.customerName}\nAddress: ${session.customerAddress}\nCity: ${session.customerCity}\nState: ${stateCode}\nPincode: ${session.customerPincode}\n\nOur team will contact you soon 😊`;
             await this.sendTextMessage(phone, phoneNumberId, confirmationMessage);
           }
           

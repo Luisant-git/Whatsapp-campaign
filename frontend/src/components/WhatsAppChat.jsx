@@ -221,8 +221,8 @@ const WhatsAppChat = () => {
       console.log('PHONE:', phone);
       console.log('CHAT MESSAGES:', fetchedMessages);
   
-      setMessages(fetchedMessages);
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 0);
+      const sortedMessages = fetchedMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      setMessages(sortedMessages);
     } catch (error) {
       console.error('Error fetching chat messages:', error);
       toast.error('Failed to fetch messages');
@@ -419,6 +419,12 @@ const WhatsAppChat = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showLabelMenu, showGroupMenu, showUserMenu, showMessageMenu, showHeaderMenu, showDatePicker, showCustomCalendar]);
+
+  useEffect(() => {
+    if (messages.length > 0 && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
+    }
+  }, [messages]);
 
   // Mark chat as read whenever it is opened
   useEffect(() => {

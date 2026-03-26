@@ -20,15 +20,32 @@ export default function Orders() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewOrder, setViewOrder] = useState(null); // 👈 for modal
   const [fromDate, setFromDate] = useState('');
-const [toDate, setToDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [shippingRates, setShippingRates] = useState([]);
 
   useEffect(() => {
     loadOrders();
+    loadShippingRates();
   }, []);
 
   const loadOrders = async () => {
     const res = await ecommerceApi.getOrders();
     setOrders(res.data);
+  };
+
+  const loadShippingRates = async () => {
+    try {
+      const res = await ecommerceApi.getShippingRates();
+      setShippingRates(res.data || []);
+    } catch (err) {
+      console.error('Failed to load shipping rates:', err);
+    }
+  };
+
+  const getShippingCharge = (state) => {
+    if (!state) return 0;
+    const rate = shippingRates.find(r => r.state === state);
+    return rate?.flatShippingRate || 0;
   };
 
   const updateStatus = async (id, status) => {
@@ -433,6 +450,10 @@ const [toDate, setToDate] = useState('');
                   <div className="order-info-row">
                     <span>Pincode:</span>
                     <span>{viewOrder.customerPincode || 'N/A'}</span>
+                  </div>
+                  <div className="order-info-row" style={{ borderTop: '1px solid #e5e7eb', paddingTop: '8px', marginTop: '8px' }}>
+                    <span style={{ fontWeight: 600 }}>Shipping Charge:</span>
+                    <span style={{ fontWeight: 600, color: '#16a34a' }}>₹{getShippingCharge(viewOrder.customerState)}</span>
                   </div>
                 </div>
               </div>

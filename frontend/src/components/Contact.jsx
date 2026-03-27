@@ -84,6 +84,11 @@ export default function Contact() {
     dob: "",
     anniversary: "",
     groupId: "",
+    variable2: "",
+    variable3: "",
+    variable4: "",
+    variable5: "",
+    variable6: "",
   });
 
   const formatDateForInput = (date) => {
@@ -261,8 +266,12 @@ export default function Contact() {
       dob: "",
       anniversary: "",
       groupId: "",
+      variable2: "",
+      variable3: "",
+      variable4: "",
+      variable5: "",
+      variable6: "",
     });
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -294,6 +303,11 @@ export default function Contact() {
         dob: formData.dob || undefined,
         anniversary: formData.anniversary || undefined,
         groupId: formData.groupId,
+        variable2: formData.variable2 || undefined,
+        variable3: formData.variable3 || undefined,
+        variable4: formData.variable4 || undefined,
+        variable5: formData.variable5 || undefined,
+        variable6: formData.variable6 || undefined,
       };
 
       if (editingContact) {
@@ -404,37 +418,42 @@ export default function Contact() {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-        
+
         const formatted = jsonData
-        .map((row) => {
-          // ✅ Normalize keys (handles "Phone " / " Name" issues)
-          const normalizedRow = {};
-          Object.keys(row).forEach((key) => {
-            normalizedRow[key.trim().toLowerCase()] = row[key];
-          });
-      
-          // ✅ Get phone safely
-          let phoneValue = normalizedRow["phone"] || "";
-      
-          // ✅ Fix Excel scientific number issue
-          if (typeof phoneValue === "number") {
-            phoneValue = phoneValue.toFixed(0);
-          }
-      
-          // ✅ Remove all non-digits
-          phoneValue = String(phoneValue).replace(/\D/g, "");
-      
-          return {
-            name: String(normalizedRow["name"] || "").trim(),
-            phone: phoneValue,
-            group: normalizedRow["group"] || "",
-            email: normalizedRow["email"] || "",
-            place: normalizedRow["place"] || "",
-            dob: normalizedRow["dob"] || "",
-            anniversary: normalizedRow["anniversary"] || "",
-          };
-        })
-        .filter((r) => r.phone);
+          .map((row) => {
+            // ✅ Normalize keys (handles "Phone " / " Name" issues)
+            const normalizedRow = {};
+            Object.keys(row).forEach((key) => {
+              normalizedRow[key.trim().toLowerCase()] = row[key];
+            });
+
+            // ✅ Get phone safely
+            let phoneValue = normalizedRow["phone"] || "";
+
+            // ✅ Fix Excel scientific number issue
+            if (typeof phoneValue === "number") {
+              phoneValue = phoneValue.toFixed(0);
+            }
+
+            // ✅ Remove all non-digits
+            phoneValue = String(phoneValue).replace(/\D/g, "");
+
+            return {
+              name: String(normalizedRow["name"] || "").trim(),
+              phone: phoneValue,
+              group: normalizedRow["group"] || "",
+              email: normalizedRow["email"] || "",
+              place: normalizedRow["place"] || "",
+              dob: normalizedRow["dob"] || "",
+              anniversary: normalizedRow["anniversary"] || "",
+              variable2: normalizedRow["variable2"] != null ? String(normalizedRow["variable2"]) : "",
+              variable3: normalizedRow["variable3"] != null ? String(normalizedRow["variable3"]) : "",
+              variable4: normalizedRow["variable4"] != null ? String(normalizedRow["variable4"]) : "",
+              variable5: normalizedRow["variable5"] != null ? String(normalizedRow["variable5"]) : "",
+              variable6: normalizedRow["variable6"] != null ? String(normalizedRow["variable6"]) : "",
+            };
+          })
+          .filter((r) => r.phone);
         setUploadedData(formatted);
         showSuccess(`Loaded ${formatted.length} contacts from file`);
       } catch (err) {
@@ -487,6 +506,11 @@ export default function Contact() {
             dob: c.dob || undefined,
             anniversary: c.anniversary || undefined,
             groupId: groupId || undefined,
+            variable2: c.variable2 || undefined,
+            variable3: c.variable3 || undefined,
+            variable4: c.variable4 || undefined,
+            variable5: c.variable5 || undefined,
+            variable6: c.variable6 || undefined,
           });
 
           successCount++;
@@ -577,7 +601,7 @@ export default function Contact() {
     ],
     [groups]
   );
-  
+
   const selectedGroupFilterOption =
     groupFilterOptions.find((opt) => opt.value === selectedGroupFilterId) || groupFilterOptions[0];
 
@@ -656,62 +680,62 @@ export default function Contact() {
 
           {/* Group filter */}
           <div style={{ minWidth: 220 }}>
-          <Select
-  options={groupFilterOptions}
-  value={selectedGroupFilterOption}
-  onChange={(selected) => {
-    setSelectedGroupFilterId(selected?.value ?? "");
-    setPage(1);
-  }}
-  isDisabled={tab === "trash"}
-  isSearchable
-  placeholder="Search group..."
-  styles={{
-    control: (base, state) => ({
-      ...base,
-      minHeight: 40,
-      borderRadius: 8,
-      borderColor: state.isFocused ? "#25d366" : "#e5e7eb",
-      boxShadow: state.isFocused ? "0 0 0 3px rgba(37, 211, 102, 0.15)" : "none",
-      "&:hover": {
-        borderColor: "#25d366",
-      },
-    }),
-    option: (base, state) => ({
-      ...base,
-      backgroundColor: state.isSelected
-        ? "#25d366"
-        : state.isFocused
-        ? "#f0fdf4"
-        : "#fff",
-      color: state.isSelected ? "#fff" : "#111827",
-      cursor: "pointer",
-    }),
-    singleValue: (base) => ({
-      ...base,
-      color: "#111827",
-    }),
-    placeholder: (base) => ({
-      ...base,
-      color: "#6b7280",
-    }),
-    dropdownIndicator: (base, state) => ({
-      ...base,
-      color: state.isFocused ? "#25d366" : "#6b7280",
-      "&:hover": {
-        color: "#25d366",
-      },
-    }),
-    indicatorSeparator: () => ({
-      display: "none",
-    }),
-    menu: (base) => ({
-      ...base,
-      zIndex: 9999,
-    }),
-  }}
-/>
-</div>
+            <Select
+              options={groupFilterOptions}
+              value={selectedGroupFilterOption}
+              onChange={(selected) => {
+                setSelectedGroupFilterId(selected?.value ?? "");
+                setPage(1);
+              }}
+              isDisabled={tab === "trash"}
+              isSearchable
+              placeholder="Search group..."
+              styles={{
+                control: (base, state) => ({
+                  ...base,
+                  minHeight: 40,
+                  borderRadius: 8,
+                  borderColor: state.isFocused ? "#25d366" : "#e5e7eb",
+                  boxShadow: state.isFocused ? "0 0 0 3px rgba(37, 211, 102, 0.15)" : "none",
+                  "&:hover": {
+                    borderColor: "#25d366",
+                  },
+                }),
+                option: (base, state) => ({
+                  ...base,
+                  backgroundColor: state.isSelected
+                    ? "#25d366"
+                    : state.isFocused
+                      ? "#f0fdf4"
+                      : "#fff",
+                  color: state.isSelected ? "#fff" : "#111827",
+                  cursor: "pointer",
+                }),
+                singleValue: (base) => ({
+                  ...base,
+                  color: "#111827",
+                }),
+                placeholder: (base) => ({
+                  ...base,
+                  color: "#6b7280",
+                }),
+                dropdownIndicator: (base, state) => ({
+                  ...base,
+                  color: state.isFocused ? "#25d366" : "#6b7280",
+                  "&:hover": {
+                    color: "#25d366",
+                  },
+                }),
+                indicatorSeparator: () => ({
+                  display: "none",
+                }),
+                menu: (base) => ({
+                  ...base,
+                  zIndex: 9999,
+                }),
+              }}
+            />
+          </div>
           {/* Search */}
           <div className="search-bar" style={{ flex: 1, minWidth: 220 }}>
             <Search size={20} />
@@ -917,6 +941,11 @@ export default function Contact() {
                               dob: formatDateForInput(c.dob),
                               anniversary: formatDateForInput(c.anniversary),
                               groupId: c.group?.id || "",
+                              variable2: c.variable2 || "",
+                              variable3: c.variable3 || "",
+                              variable4: c.variable4 || "",
+                              variable5: c.variable5 || "",
+                              variable6: c.variable6 || "",
                             });
                           }}
                         >
@@ -1190,7 +1219,7 @@ export default function Contact() {
                 <li>Name (required)</li>
                 <li>Phone (required)</li>
                 <li>Group (optional)</li>
-                <li>Email, Place, DOB, Anniversary (optional)</li>
+                <li>Email, Place, DOB, Anniversary, Variable2, Variable3, Variable4, Variable5 , Variable6  (optional)</li>
               </ul>
 
               {/* Premium upload area */}
@@ -1330,6 +1359,22 @@ export default function Contact() {
                 <strong>Anniversary:</strong>{" "}
                 {formatDate(viewContact.anniversary)}
               </p>
+
+              <p>
+                <strong>Variable 2:</strong> {viewContact.variable2 || "N/A"}
+              </p>
+              <p>
+                <strong>Variable 3:</strong> {viewContact.variable3 || "N/A"}
+              </p>
+              <p>
+                <strong>Variable 4:</strong> {viewContact.variable4 || "N/A"}
+              </p>
+              <p>
+                <strong>Variable 5:</strong> {viewContact.variable5 || "N/A"}
+              </p>
+              <p>
+                <strong>Variable 6:</strong> {viewContact.variable6 || "N/A"}
+              </p>
             </div>
 
             <div className="modal-actions">
@@ -1345,6 +1390,11 @@ export default function Contact() {
                     dob: formatDateForInput(viewContact.dob),
                     anniversary: formatDateForInput(viewContact.anniversary),
                     groupId: viewContact.group?.id || "",
+                    variable2: viewContact.variable2 || "",
+                    variable3: viewContact.variable3 || "",
+                    variable4: viewContact.variable4 || "",
+                    variable5: viewContact.variable5 || "",
+                    variable6: viewContact.variable6 || "",
                   });
                   setViewContact(null);
                   setShowAddModal(true);
@@ -1496,6 +1546,66 @@ export default function Contact() {
                       anniversary: e.target.value,
                     })
                   }
+                />
+              </div>
+             
+
+              <div className="form-group">
+                <label>Variable 2</label>
+                <input
+                  type="text"
+                  value={formData.variable2}
+                  onChange={(e) =>
+                    setFormData({ ...formData, variable2: e.target.value })
+                  }
+                  placeholder="Enter variable 2"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Variable 3</label>
+                <input
+                  type="text"
+                  value={formData.variable3}
+                  onChange={(e) =>
+                    setFormData({ ...formData, variable3: e.target.value })
+                  }
+                  placeholder="Enter variable 3"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Variable 4</label>
+                <input
+                  type="text"
+                  value={formData.variable4}
+                  onChange={(e) =>
+                    setFormData({ ...formData, variable4: e.target.value })
+                  }
+                  placeholder="Enter variable 4"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Variable 5</label>
+                <input
+                  type="text"
+                  value={formData.variable5}
+                  onChange={(e) =>
+                    setFormData({ ...formData, variable5: e.target.value })
+                  }
+                  placeholder="Enter variable 5"
+                />
+              </div>
+              <div className="form-group">
+                <label>Variable 6</label>
+                <input
+                  type="text"
+                  value={formData.variable6}
+                  onChange={(e) =>
+                    setFormData({ ...formData, variable6: e.target.value })
+                  }
+                  placeholder="Enter variable 6"
                 />
               </div>
 

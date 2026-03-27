@@ -22,6 +22,14 @@ export class CreateContactDto {
   dob?: Date;
   anniversary?: Date;
   groupId: number;
+
+
+variable2?: string;
+variable3?: string;
+variable4?: string;
+variable5?: string;
+variable6?: string;
+phoneNumberId?: string;
 }
 
 export class UpdateContactDto {
@@ -33,6 +41,14 @@ export class UpdateContactDto {
   dob?: Date;
   anniversary?: Date;
   groupId?: number;
+
+
+variable2?: string;
+variable3?: string;
+variable4?: string;
+variable5?: string;
+variable6?: string;
+phoneNumberId?: string;
 }
 
 @Controller('contact')

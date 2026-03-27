@@ -208,6 +208,14 @@ model Contact {
   isActive               Boolean?                @default(true)
   phoneNumberId          String?
   groupId                Int?
+  
+
+  variable2              String?
+  variable3              String?
+  variable4              String?
+  variable5              String?
+  variable6              String?
+  
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   chatNotes              ChatNote[]

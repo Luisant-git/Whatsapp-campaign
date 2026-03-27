@@ -52,28 +52,40 @@ export class CentralPrismaService
    */
   async executeWithRetry<T>(
     operation: (prisma: CentralPrismaService) => Promise<T>,
-    retries = 1
+    retries = 3
   ): Promise<T> {
     try {
       return await operation(this);
     } catch (error: any) {
-      // Handle P1017 (connection closed) error
-      if (error.code === 'P1017' && retries > 0) {
-        this.logger.warn('⚠️ P1017 error on central DB - reconnecting...');
-        
+      const isEngineNotReady =
+        error?.message?.includes('Engine is not yet connected') ||
+        error?.message?.includes('engine is not yet connected');
+
+      // Handle P1017 (connection closed) OR "Engine not yet connected" (startup race)
+      if ((error.code === 'P1017' || isEngineNotReady) && retries > 0) {
+        this.logger.warn(
+          `⚠️ Central DB not ready (${isEngineNotReady ? 'engine not connected' : 'P1017'}) — retrying in 500ms... (${retries} retries left)`
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        if (isEngineNotReady) {
+          // Don't disconnect/reconnect — just wait and retry; $connect is already in flight
+          return this.executeWithRetry(operation, retries - 1);
+        }
+
+        // P1017: force a full reconnect cycle
         try {
           await this.$disconnect();
           await this.$connect();
           this.logger.log('🔄 Central DB reconnected');
-          
-          // Retry the operation
           return await operation(this);
         } catch (reconnectError) {
           this.logger.error('❌ Failed to reconnect central DB:', reconnectError);
           throw error;
         }
       }
-      
+
       throw error;
     }
   }

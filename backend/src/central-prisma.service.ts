@@ -27,13 +27,6 @@ export class CentralPrismaService
           url: process.env.CENTRAL_DATABASE_URL,
         },
       },
-      // Connection pool configuration
-      connectionLimit: 10,
-      poolTimeout: 30,
-      transactionOptions: {
-        maxWait: 5000,
-        timeout: 10000,
-      },
     });
     this.readyPromise = new Promise<void>((resolve, reject) => {
       this.resolveReady = resolve;

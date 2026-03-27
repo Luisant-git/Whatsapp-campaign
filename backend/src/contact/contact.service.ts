@@ -90,6 +90,12 @@ export class ContactService {
         dob: data.dob ? new Date(data.dob) : null,
         anniversary: data.anniversary ? new Date(data.anniversary) : null,
         phoneNumberId: data.phoneNumberId || null,
+        
+        variable2: data.variable2 !== undefined && data.variable2 !== null ? String(data.variable2) : null,
+        variable3: data.variable3 !== undefined && data.variable3 !== null ? String(data.variable3) : null,
+        variable4: data.variable4 !== undefined && data.variable4 !== null ? String(data.variable4) : null,
+        variable5: data.variable5 !== undefined && data.variable5 !== null ? String(data.variable5) : null,
+        variable6: data.variable6 !== undefined && data.variable6 !== null ? String(data.variable6) : null,
         ...(groupId ? { group: { connect: { id: groupId } } } : {}),
       },
       include: { group: true },
@@ -209,6 +215,12 @@ export class ContactService {
       place: data.place,
       dob: data.dob ? new Date(data.dob) : null,
       anniversary: data.anniversary ? new Date(data.anniversary) : null,
+
+      variable2: data.variable2 !== undefined && data.variable2 !== null ? String(data.variable2) : null,
+      variable3: data.variable3 !== undefined && data.variable3 !== null ? String(data.variable3) : null,
+      variable4: data.variable4 !== undefined && data.variable4 !== null ? String(data.variable4) : null,
+      variable5: data.variable5 !== undefined && data.variable5 !== null ? String(data.variable5) : null,
+      variable6: data.variable6 !== undefined && data.variable6 !== null ? String(data.variable6) : null,
     };
 
     if (data.phone) updateData.phone = this.formatPhoneNumber(data.phone);

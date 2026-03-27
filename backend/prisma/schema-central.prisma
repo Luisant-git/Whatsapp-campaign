@@ -7,8 +7,6 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("CENTRAL_DATABASE_URL")
-  // Connection pool settings to prevent disconnections
-  relationMode = "prisma"
 }
 
 model Admin {

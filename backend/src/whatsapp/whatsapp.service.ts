@@ -2038,6 +2038,11 @@ export class WhatsappService {
           });
         }
 
+        // ✅ FETCH FULL CONTACT DATA FIRST (before building parameters)
+        const fullContact = await this.prisma.contact.findFirst({
+          where: { phone: formattedPhone }
+        });
+
         // Add body parameters if the template has variables
         try {
           // First try to find the actual template name from database
@@ -2065,11 +2070,6 @@ export class WhatsappService {
               const variables = bodyComponent.text.match(/{{\d+}}/g);
               if (variables && variables.length > 0) {
                 this.logger.log(`Template ${actualTemplateName} has ${variables.length} body parameters`);
-
-                // ✅ FIXED MAPPING: Get full contact data from database
-                const fullContact = await this.prisma.contact.findFirst({
-                  where: { phone: formattedPhone }
-                });
 
                 // Map template variables to contact fields
                 // {{1}} → name, {{2}} → variable2, {{3}} → variable3, etc.

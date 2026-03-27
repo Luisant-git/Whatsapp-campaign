@@ -27,6 +27,13 @@ export class CentralPrismaService
           url: process.env.CENTRAL_DATABASE_URL,
         },
       },
+      // Connection pool configuration
+      connectionLimit: 10,
+      poolTimeout: 30,
+      transactionOptions: {
+        maxWait: 5000,
+        timeout: 10000,
+      },
     });
     this.readyPromise = new Promise<void>((resolve, reject) => {
       this.resolveReady = resolve;
@@ -136,6 +143,33 @@ export class CentralPrismaService
           return await operation(this);
         } catch (reconnectError) {
           this.logger.error('❌ Failed to reconnect central DB:', reconnectError);
+          throw reconnectError;
+        }
+      }
+
+      // Handle PostgreSQL connection termination (57P01)
+      const isConnectionTerminated =
+        error?.message?.includes('terminating connection due to administrator command') ||
+        error?.message?.includes('connection was closed') ||
+        error?.code === 'P2024' || // Timed out fetching a new connection
+        error?.code === 'P1001'; // Can't reach database server
+
+      if (isConnectionTerminated && retries > 0) {
+        this.logger.warn(
+          `⚠️ Central DB connection terminated — reconnecting... (${retries} retries left)`,
+        );
+        this.readyPromise = new Promise<void>((resolve, reject) => {
+          this.resolveReady = resolve;
+          this.rejectReady = reject;
+        });
+        try {
+          await this.$disconnect();
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before reconnect
+          await this.connectAndVerify();
+          this.logger.log('🔄 Central DB reconnected after termination');
+          return await operation(this);
+        } catch (reconnectError) {
+          this.logger.error('❌ Failed to reconnect after termination:', reconnectError);
           throw reconnectError;
         }
       }

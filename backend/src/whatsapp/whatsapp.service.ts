@@ -2064,15 +2064,49 @@ export class WhatsappService {
               // Count variables in body text ({{1}}, {{2}}, etc.)
               const variables = bodyComponent.text.match(/{{\d+}}/g);
               if (variables && variables.length > 0) {
-                this.logger.log(`Template ${actualTemplateName} has ${variables.length} body parameters, using contact name: ${contact.name}`);
+                this.logger.log(`Template ${actualTemplateName} has ${variables.length} body parameters`);
 
-                // Create parameters array - use contact name for first parameter, repeat if more needed
+                // ✅ FIXED MAPPING: Get full contact data from database
+                const fullContact = await this.prisma.contact.findFirst({
+                  where: { phone: formattedPhone }
+                });
+
+                // Map template variables to contact fields
+                // {{1}} → name, {{2}} → variable2, {{3}} → variable3, etc.
                 const bodyParameters: Array<{ type: string; text: string }> = [];
                 for (let i = 0; i < variables.length; i++) {
+                  const varNumber = i + 1;
+                  let value = '';
+
+                  if (varNumber === 1) {
+                    // {{1}} → Contact Name
+                    value = fullContact?.name || contact.name || 'Customer';
+                  } else if (varNumber === 2) {
+                    // {{2}} → variable2
+                    value = fullContact?.variable2 || '';
+                  } else if (varNumber === 3) {
+                    // {{3}} → variable3
+                    value = fullContact?.variable3 || '';
+                  } else if (varNumber === 4) {
+                    // {{4}} → variable4
+                    value = fullContact?.variable4 || '';
+                  } else if (varNumber === 5) {
+                    // {{5}} → variable5
+                    value = fullContact?.variable5 || '';
+                  } else if (varNumber === 6) {
+                    // {{6}} → variable6
+                    value = fullContact?.variable6 || '';
+                  } else {
+                    // Fallback for any additional variables
+                    value = contact.name || 'Customer';
+                  }
+
                   bodyParameters.push({
                     type: 'text',
-                    text: contact.name || 'Customer'
+                    text: value || ' ' // Use space if empty to avoid Meta API errors
                   });
+
+                  this.logger.log(`Variable {{${varNumber}}} mapped to: ${value}`);
                 }
 
                 components.push({

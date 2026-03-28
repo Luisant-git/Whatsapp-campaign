@@ -659,3 +659,27 @@
   font-size: 14px;
   font-weight: 500;
 }
+.users-table td.company-col,
+.users-table td.email-col,
+.users-table td.subscription-col {
+  max-width: 220px;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.user-card-top h3,
+.user-card-top p,
+.user-card-row span:last-child {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.user-card-row {
+  align-items: flex-start;
+}
+
+.user-card-row span:last-child {
+  text-align: right;
+  max-width: 65%;
+}

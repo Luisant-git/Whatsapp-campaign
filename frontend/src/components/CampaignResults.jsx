@@ -52,7 +52,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
   const getFilteredResults = () => {
     return results.filter(result => {
       const statusMatch = filterStatus === 'all' || result.status === filterStatus;
-      const responseMatch = filterResponse === 'all' || 
+      const responseMatch = filterResponse === 'all' ||
         (filterResponse === 'responded' && result.hasResponse) ||
         (filterResponse === 'not_responded' && !result.hasResponse);
       return statusMatch && responseMatch;
@@ -112,15 +112,15 @@ const CampaignResults = ({ campaignId, onBack }) => {
           </button>
         </div>
       </div>
-      
+
       <div className="content-grid">
         <div className="results-section">
           <div className="results-summary">
             <div className="summary-card total">
               <div className="card-icon">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M3 3V21H21V3H3ZM19 19H5V5H19V19Z" fill="currentColor"/>
-                  <path d="M7 7H17V9H7V7ZM7 11H17V13H7V11ZM7 15H13V17H7V15Z" fill="currentColor"/>
+                  <path d="M3 3V21H21V3H3ZM19 19H5V5H19V19Z" fill="currentColor" />
+                  <path d="M7 7H17V9H7V7ZM7 11H17V13H7V11ZM7 15H13V17H7V15Z" fill="currentColor" />
                 </svg>
               </div>
               <div className="card-content">
@@ -131,7 +131,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
             <div className="summary-card sent">
               <div className="card-icon">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="currentColor"/>
+                  <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="currentColor" />
                 </svg>
               </div>
               <div className="card-content">
@@ -142,7 +142,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
             <div className="summary-card delivered">
               <div className="card-icon">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M9 16.17L4.83 12L3.41 13.41L9 19L21 7L19.59 5.59L9 16.17Z" fill="currentColor"/>
+                  <path d="M9 16.17L4.83 12L3.41 13.41L9 19L21 7L19.59 5.59L9 16.17Z" fill="currentColor" />
                 </svg>
               </div>
               <div className="card-content">
@@ -150,10 +150,24 @@ const CampaignResults = ({ campaignId, onBack }) => {
                 <span className="summary-number">{results.filter(r => r.status === 'delivered').length}</span>
               </div>
             </div>
+            <div className="summary-card read">
+              <div className="card-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M18 7L9 16L5 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M22 7L13 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <div className="card-content">
+                <h3>Read</h3>
+                <span className="summary-number">
+                  {results.filter(r => r.status === 'read').length}
+                </span>
+              </div>
+            </div>
             <div className="summary-card failed">
               <div className="card-icon">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="currentColor"/>
+                  <path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="currentColor" />
                 </svg>
               </div>
               <div className="card-content">
@@ -164,7 +178,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
             <div className="summary-card responded">
               <div className="card-icon">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM20 16H5.17L4 17.17V4H20V16Z" fill="currentColor"/>
+                  <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM20 16H5.17L4 17.17V4H20V16Z" fill="currentColor" />
                 </svg>
               </div>
               <div className="card-content">
@@ -241,7 +255,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
 
           {totalPages > 1 && (
             <div className="pagination">
-              <button 
+              <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
                 className="pagination-btn"
@@ -251,7 +265,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
               <span className="pagination-info">
                 Page {currentPage} of {totalPages} ({filteredResults.length} results)
               </span>
-              <button 
+              <button
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
                 className="pagination-btn"

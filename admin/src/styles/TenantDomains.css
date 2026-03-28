@@ -663,3 +663,29 @@
     width: 100%;
   }
 }
+
+.domains-table td.tenant-name,
+.domains-table td.email-col,
+.domains-table td.domain-col {
+  max-width: 220px;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.domain-card-top h3,
+.domain-card-top p,
+.domain-card-row span:last-child,
+.domain-display {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.domain-card-row {
+  align-items: flex-start;
+}
+
+.domain-card-row span:last-child {
+  text-align: right;
+  max-width: 65%;
+}

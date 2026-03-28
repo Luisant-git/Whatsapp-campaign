@@ -202,8 +202,8 @@ const SubscriptionOrders = () => {
             <thead>
               <tr>
                 <th>Order ID</th>
-                <th>User</th>
-                <th>Plan</th>
+                <th className="user-col">User</th>
+                <th className="plan-col">Plan</th>
                 <th>Amount</th>
                 <th>Start Date</th>
                 <th>End Date</th>
@@ -216,13 +216,13 @@ const SubscriptionOrders = () => {
               {paginatedOrders.map((order) => (
                 <tr key={order.id}>
                   <td>#{order.id}</td>
-                  <td>
+                  <td className="user-col">
                     <div className="user-info">
                       <div className="user-name">{order.tenant?.name || 'N/A'}</div>
                       <div className="user-email">{order.tenant?.email || 'N/A'}</div>
                     </div>
                   </td>
-                  <td><strong>{order.plan?.name || 'N/A'}</strong></td>
+                  <td className="plan-col"><strong>{order.plan?.name || 'N/A'}</strong></td>
                   <td className="amount">₹{order.amount}</td>
                   <td>{formatDate(order.startDate)}</td>
                   <td>{formatDate(order.endDate)}</td>
@@ -307,7 +307,7 @@ const SubscriptionOrders = () => {
               </div>
             </div>
 
-            {order.status === 'pending' && (
+            {/* {order.status === 'pending' && (
               <div className="order-card-actions">
                 <button
                   className="btn-approve"
@@ -322,7 +322,7 @@ const SubscriptionOrders = () => {
                   Cancel
                 </button>
               </div>
-            )}
+            )} */}
           </div>
         ))}
       </div>

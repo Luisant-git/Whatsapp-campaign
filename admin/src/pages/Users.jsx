@@ -296,9 +296,9 @@ export default function Users() {
             <thead>
               <tr>
                 <th>S.No</th>
-                <th>Company Name</th>
-                <th>Email</th>
-                <th>Subscription</th>
+                <th className="company-col">Company Name</th>
+                <th className="email-col">Email</th>
+                <th className="subscription-col">Subscription</th>
                 <th>Status</th>
                 <th>Created At</th>
                 <th>Actions</th>
@@ -308,9 +308,9 @@ export default function Users() {
               {paginatedUsers.map((user, idx) => (
                 <tr key={user.id}>
                   <td>{(currentPage - 1) * entriesPerPage + idx + 1}</td>
-                  <td>{user.companyName || user.name}</td>
-                  <td>{user.email}</td>
-                  <td>{getSubscriptionName(user)}</td>
+                  <td className="company-col">{user.companyName || user.name}</td>
+                  <td className="email-col">{user.email}</td>
+                  <td className="subscription-col">{getSubscriptionName(user)}</td>
                   <td>
                     <span
                       className={`status-badge ${getFinalStatus(user) ? 'active' : 'inactive'

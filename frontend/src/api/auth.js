@@ -90,7 +90,7 @@ export const getProfile = async () => {
 // ... rest of your exports remain the same
 export const getAnalytics = async (settingsName = null) => {
   const url = settingsName
-    ? `${API_BASE_URL}/analytics?settingsName=${settingsName}`
+    ? `${API_BASE_URL}/analytics?settingsName=${encodeURIComponent(settingsName)}`
     : `${API_BASE_URL}/analytics`;
 
   const response = await fetch(url, {

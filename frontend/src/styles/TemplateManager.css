@@ -795,3 +795,79 @@
   text-align: center;
   color: #606770;
 }
+
+/* cards  */
+.template-status-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.template-status-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.2s ease;
+  min-height: 84px;
+}
+
+.template-status-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.template-status-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.template-status-icon.all {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.template-status-icon.pending {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.template-status-icon.approved {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.template-status-icon.rejected {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.template-status-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.template-status-content h3 {
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+  margin: 0 0 4px;
+}
+
+.template-status-number {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  line-height: 1.2;
+}

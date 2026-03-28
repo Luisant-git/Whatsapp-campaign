@@ -11,6 +11,8 @@ const QuickReply = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
+    title: '',
+    response: '',
     triggersText: '',
     buttons: ['']
   });
@@ -50,6 +52,8 @@ const QuickReply = () => {
 
   const resetForm = () => {
     setFormData({
+      title: '',
+      response: '',
       triggersText: '',
       buttons: ['']
     });
@@ -95,7 +99,7 @@ const QuickReply = () => {
 
   const handleSave = async () => {
     const triggers = formData.triggersText.split(',').map(t => t.trim()).filter(t => t);
-    if (!triggers.length || formData.buttons.some(b => !b.trim())) {
+    if (!formData.title.trim() || !formData.response.trim() || !triggers.length || formData.buttons.some(b => !b.trim())) {
       showError('Please fill all fields');
       return;
     }
@@ -110,6 +114,8 @@ const QuickReply = () => {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
+          title: formData.title,
+          response: formData.response,
           triggers,
           buttons: formData.buttons,
           isActive: true
@@ -132,6 +138,8 @@ const QuickReply = () => {
 
   const handleEdit = (quickReply) => {
     setFormData({
+      title: quickReply.title || '',
+      response: quickReply.response || '',
       triggersText: quickReply.triggers.join(', '),
       buttons: quickReply.buttons
     });
@@ -181,6 +189,12 @@ const QuickReply = () => {
             {quickReplies.map((reply) => (
               <div key={reply.id} className="reply-item">
                 <div className="reply-content">
+                  <div className="reply-title">
+                    <strong>{reply.title}</strong>
+                  </div>
+                  <div className="reply-body">
+                    {reply.response}
+                  </div>
                   <div className="trigger-text">
                     <strong>Triggers:</strong> {reply.triggers.join(', ')}
                   </div>
@@ -218,6 +232,26 @@ const QuickReply = () => {
             </div>
             
             <div className="settings-form">
+              <div className="form-group">
+                <label>Title (Header)</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Our Features"
+                  value={formData.title}
+                  onChange={(e) => setFormData({...formData, title: e.target.value})}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Response (Body Message)</label>
+                <textarea
+                  placeholder="e.g., We offer AI chatbot, bulk messaging, automation, and more!"
+                  value={formData.response}
+                  onChange={(e) => setFormData({...formData, response: e.target.value})}
+                  rows={4}
+                />
+              </div>
+
               <div className="form-group">
                 <label>Trigger Words (comma separated)</label>
                 <input

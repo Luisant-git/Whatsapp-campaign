@@ -189,6 +189,8 @@ model AutoReply {
 
 model QuickReply {
   id        Int      @id @default(autoincrement())
+  title     String
+  response  String
   triggers  String[]
   buttons   String[]
   isActive  Boolean  @default(true)

@@ -17,6 +17,18 @@ export class TenantPrismaService implements OnModuleDestroy {
   }
 
   /**
+   * Wait for promise with timeout protection
+   */
+  private async waitWithTimeout(promise: Promise<void>, ms = 5000) {
+    return Promise.race([
+      promise,
+      new Promise<void>((_, reject) =>
+        setTimeout(() => reject(new Error('Reconnect timeout')), ms),
+      ),
+    ]);
+  }
+
+  /**
    * Create Prisma client with pooling
    */
   private createClient(tenantId: string, dbUrl: string): TenantPrismaClient {
@@ -114,7 +126,7 @@ export class TenantPrismaService implements OnModuleDestroy {
 
     if (this.reconnecting.has(id)) {
       this.logger.warn(`⏳ Waiting for ongoing reconnect (tenant ${id})`);
-      await this.reconnecting.get(id);
+      await this.waitWithTimeout(this.reconnecting.get(id)!);
       return;
     }
 
@@ -131,9 +143,13 @@ export class TenantPrismaService implements OnModuleDestroy {
         await this.delay(1000);
 
         const newClient = this.createClient(id, dbUrl);
+        
+        // ✅ Verify connection BEFORE replacing client
+        await newClient.$connect();
+        await newClient.$queryRaw`SELECT 1`;
+        
+        // ✅ Only set after verification succeeds
         this.clients.set(id, newClient);
-
-        await this.connectAndVerify(id, newClient);
 
         this.logger.log(`🔄 Tenant ${id} reconnected successfully`);
       } catch (err) {

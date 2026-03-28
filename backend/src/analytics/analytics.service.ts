@@ -38,6 +38,9 @@ export class AnalyticsService {
           failedMessages: 0,
           deliveryRate: 0,
           totalContacts: 0,
+          totalGroups: 0,
+          totalMessageTemplates: 0,
+          totalBroadcasts: 0,
           messagesByStatus: {
             sent: 0,
             delivered: 0,
@@ -63,6 +66,9 @@ export class AnalyticsService {
       successfulDeliveries,
       failedMessages,
       totalContacts,
+      totalGroups,
+      totalMessageTemplates,
+      totalBroadcasts,
       messagesByStatus,
       dailyStats,
     ] = await Promise.all([
@@ -71,23 +77,28 @@ export class AnalyticsService {
       this.getSuccessfulDeliveries(prisma, campaignFilter),
       this.getFailedMessages(prisma, campaignFilter),
       this.getTotalContacts(prisma, campaignFilter),
+      this.getTotalGroups(prisma),
+      this.getTotalMessageTemplates(prisma),
+      this.getTotalBroadcasts(prisma, settingsName),
       this.getMessagesByStatus(prisma, campaignFilter),
       this.getDailyStats(prisma, campaignFilter),
     ]);
-
     const deliveryRate =
       totalMessages > 0 ? (successfulDeliveries / totalMessages) * 100 : 0;
 
-    return {
-      totalMessages,
-      todayMessages,
-      successfulDeliveries,
-      failedMessages,
-      deliveryRate: Math.round(deliveryRate * 100) / 100,
-      totalContacts,
-      messagesByStatus,
-      dailyStats,
-    };
+      return {
+        totalMessages,
+        todayMessages,
+        successfulDeliveries,
+        failedMessages,
+        deliveryRate: Math.round(deliveryRate * 100) / 100,
+        totalContacts,
+        totalGroups,
+        totalMessageTemplates,
+        totalBroadcasts,
+        messagesByStatus,
+        dailyStats,
+      };
   }
 
   // ---------------- HELPERS ----------------
@@ -220,5 +231,38 @@ export class AnalyticsService {
     }
 
     return daily;
+  }
+  private async getTotalGroups(prisma: any): Promise<number> {
+    return prisma.group.count();
+  }
+  
+  private async getTotalMessageTemplates(prisma: any): Promise<number> {
+    return prisma.messageTemplate.count();
+  }
+  
+  private async getTotalBroadcasts(prisma: any, settingsName?: string): Promise<number> {
+    if (settingsName) {
+      const settings = await prisma.whatsAppSettings.findFirst({
+        where: { name: settingsName },
+      });
+  
+      if (!settings) return 0;
+  
+      return prisma.campaign.count({
+        where: {
+          status: { in: ['completed', 'sent'] },
+          OR: [
+            { settingsId: settings.id },
+            { templateName: settings.templateName },
+          ],
+        },
+      });
+    }
+  
+    return prisma.campaign.count({
+      where: {
+        status: { in: ['completed', 'sent'] },
+      },
+    });
   }
 }

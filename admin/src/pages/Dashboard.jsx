@@ -373,10 +373,10 @@ export default function Dashboard() {
           <table className="expiring-table">
             <thead>
               <tr>
-                <th>Company Name</th>
+              <th className="company-col">Company Name</th>
                 <th>Contact Person</th>
-                <th>Phone Number</th>
-                <th>Current Plan</th>
+                <th className="phone-col">Phone Number</th>
+                <th className="plan-col">Current Plan</th>
                 <th>Expiry Date</th>
                 <th>Status</th>
                 <th>Follow up</th>
@@ -390,13 +390,13 @@ export default function Dashboard() {
 
                 return (
                   <tr key={company.id}>
-                    <td>
-                      <div className="company-name">{company.companyName}</div>
-                      <div className="company-id">ID: {company.id}</div>
+                    <td className="company-col">
+                    <div className="company-name">{company.companyName}</div>
+                    <div className="company-id">ID: {company.id}</div>
                     </td>
                     <td>{company.contactPersonName || '-'}</td>
-                    <td>{company.phoneNumber || '-'}</td>
-                    <td>{company.currentPlan || '-'}</td>
+                    <td className="phone-col">{company.phoneNumber || '-'}</td>
+                    <td className="plan-col">{company.currentPlan || '-'}</td>
                     <td>
                       <div className="expiry-date-cell">
                         <MdCalendarToday size={14} className="expiry-icon" />

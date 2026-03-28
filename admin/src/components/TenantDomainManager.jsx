@@ -233,8 +233,8 @@ const TenantDomainManager = () => {
                 <tr>
                   <th>Tenant ID</th>
                   <th>Name</th>
-                  <th>Email</th>
-                  <th>Custom Domain</th>
+                  <th className="email-col">Email</th>
+                  <th className="domain-col">Custom Domain</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -244,10 +244,10 @@ const TenantDomainManager = () => {
                   <tr key={tenant.id}>
                     <td className="tenant-id">{tenant.id}</td>
                     <td className="tenant-name">{tenant.name || 'N/A'}</td>
-                    <td className="tenant-email">{tenant.email}</td>
-                    <td>
+                    <td className="tenant-email email-col">{tenant.email}</td>
+                    <td className="domain-col">
                       <span
-                        className={`domain-display ${tenant.domain ? 'domain-active' : 'domain-inactive'
+                         className={`domain-display ${tenant.domain ? 'domain-active' : 'domain-inactive'
                           }`}
                       >
                         {tenant.domain || 'No custom domain'}

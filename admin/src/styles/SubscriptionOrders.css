@@ -623,3 +623,33 @@
     font-size: 13px;
   }
 }
+.orders-table td.user-col,
+.orders-table td.plan-col {
+  max-width: 220px;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.user-name,
+.user-email {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.order-card-top h3,
+.order-card-top p,
+.order-card-top .user-email,
+.order-card-row span:last-child {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.order-card-row {
+  align-items: flex-start;
+}
+
+.order-card-row span:last-child {
+  text-align: right;
+  max-width: 65%;
+}

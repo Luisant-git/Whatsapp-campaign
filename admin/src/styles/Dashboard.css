@@ -701,3 +701,29 @@
     font-size: 13px;
   }
 }
+
+.expiring-table td.company-col,
+.expiring-table td.phone-col,
+.expiring-table td.plan-col {
+  max-width: 220px;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.company-name,
+.company-id {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.mobile-card-top .company-name,
+.mobile-detail-row span:last-child {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.mobile-detail-row span:last-child {
+  text-align: right;
+  max-width: 65%;
+}

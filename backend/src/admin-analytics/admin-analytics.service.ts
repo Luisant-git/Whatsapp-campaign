@@ -67,21 +67,24 @@ export class AdminAnalyticsService {
         ? 0
         : Math.round((successfulDeliveries / totalMessages) * 10000) / 100;
 
-    return {
-      totalMessages,
-      todayMessages: 0,
-      successfulDeliveries,
-      failedMessages,
-      deliveryRate,
-      totalContacts: contactSet.size,
-      messagesByStatus: {
-        sent: successfulDeliveries,
-        delivered: successfulDeliveries,
-        read: 0,
-        failed: failedMessages,
-      },
-      dailyStats: [],
-    };
+        return {
+          totalMessages,
+          todayMessages: 0,
+          successfulDeliveries,
+          failedMessages,
+          deliveryRate,
+          totalContacts: contactSet.size,
+          totalGroups: 0,
+          totalMessageTemplates: 0,
+          totalBroadcasts: 0,
+          messagesByStatus: {
+            sent: successfulDeliveries,
+            delivered: successfulDeliveries,
+            read: 0,
+            failed: failedMessages,
+          },
+          dailyStats: [],
+        };
   }
 
   async getTenantSubscriptionAnalytics(): Promise<AdminTenantAnalyticsDto> {

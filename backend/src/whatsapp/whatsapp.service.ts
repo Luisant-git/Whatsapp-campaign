@@ -343,7 +343,7 @@ export class WhatsappService {
           }
           return this.sendMessage(to, msg, userId);
         },
-        async (to, msg, buttons) => {
+        async (to, title, msg, buttons) => {
           return this.sendButtonsMessage(to, msg, buttons, userId);
         }
       );
@@ -1215,8 +1215,8 @@ export class WhatsappService {
   //           }
   //           return this.sendMessageDirect(to, msg, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
   //         },
-  //         async (to, msg, buttons) => {
-  //           return this.sendButtonsMessageDirect(to, msg, buttons, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+  //         async (to, title, msg, buttons) => {
+  //           return this.sendButtonsMessageDirect(to, title, msg, buttons, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
   //         }
   //       );
   //       return;
@@ -1263,8 +1263,8 @@ export class WhatsappService {
   //         }
   //         return this.sendMessageDirect(to, msg, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
   //       },
-  //       async (to, msg, buttons) => {
-  //         return this.sendButtonsMessageDirect(to, msg, buttons, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+  //       async (to, title, msg, buttons) => {
+  //         return this.sendButtonsMessageDirect(to, title, msg, buttons, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
   //       }
   //     ).catch(e => { this.logger.error('Session error:', e); return false; });
   //   }
@@ -1494,11 +1494,8 @@ export class WhatsappService {
             tenantClient
           );
         },
-        async (to, msg, buttons) => {
-          return this.sendButtonsMessageDirect(
-            to,
-            msg,
-            buttons,
+        async (to, title, msg, buttons) => {
+          return this.sendButtonsMessageDirect(to, title, msg, buttons,
             whatsappSettings.accessToken,
             whatsappSettings.phoneNumberId,
             tenantClient
@@ -1657,11 +1654,8 @@ export class WhatsappService {
               tenantClient
             );
           },
-          async (to, msg, buttons) => {
-            return this.sendButtonsMessageDirect(
-              to,
-              msg,
-              buttons,
+          async (to, title, msg, buttons) => {
+            return this.sendButtonsMessageDirect(to, title, msg, buttons,
               whatsappSettings.accessToken,
               whatsappSettings.phoneNumberId,
               tenantClient
@@ -1733,11 +1727,8 @@ export class WhatsappService {
             tenantClient
           );
         },
-        async (to, msg, buttons) => {
-          return this.sendButtonsMessageDirect(
-            to,
-            msg,
-            buttons,
+        async (to, title, msg, buttons) => {
+          return this.sendButtonsMessageDirect(to, title, msg, buttons,
             whatsappSettings.accessToken,
             whatsappSettings.phoneNumberId,
             tenantClient
@@ -1855,7 +1846,7 @@ export class WhatsappService {
     }
   }
 
-  async sendButtonsMessageDirect(to: string, text: string, buttons: string[], accessToken: string, phoneNumberId: string, tenantClient: any) {
+  async sendButtonsMessageDirect(to: string, title: string, text: string, buttons: string[], accessToken: string, phoneNumberId: string, tenantClient: any) {
     try {
       const interactiveButtons = buttons.slice(0, 3).map((button, index) => ({
         type: 'reply',
@@ -1865,19 +1856,29 @@ export class WhatsappService {
         }
       }));
 
+      const interactive: any = {
+        type: 'button',
+        body: { text },
+        action: {
+          buttons: interactiveButtons
+        }
+      };
+
+      // Add header if title is provided
+      if (title && title.trim()) {
+        interactive.header = {
+          type: 'text',
+          text: title
+        };
+      }
+
       const response = await axios.post(
         `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
         {
           messaging_product: 'whatsapp',
           to,
           type: 'interactive',
-          interactive: {
-            type: 'button',
-            body: { text },
-            action: {
-              buttons: interactiveButtons
-            }
-          }
+          interactive
         },
         {
           headers: {
@@ -1892,7 +1893,7 @@ export class WhatsappService {
           messageId: response.data.messages[0].id,
           to,
           from: to,
-          message: `Interactive buttons: ${text}`,
+          message: `Interactive buttons: ${title} - ${text}`,
           direction: 'outgoing',
           status: 'sent',
           phoneNumberId,

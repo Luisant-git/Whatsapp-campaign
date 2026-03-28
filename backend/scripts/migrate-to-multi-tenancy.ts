@@ -149,6 +149,8 @@ async function migrateUserData(userId: number, tenantPrisma: TenantPrismaClient)
   for (const reply of quickReplies) {
     await tenantPrisma.quickReply.create({
       data: {
+        title: 'Quick Reply',
+        response: 'Please select an option below',
         triggers: reply.triggers,
         buttons: reply.buttons,
         isActive: reply.isActive,

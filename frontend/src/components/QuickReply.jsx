@@ -166,11 +166,19 @@ const QuickReply = () => {
   };
 
   const handleEdit = (quickReply) => {
+    // Handle both old format (string[]) and new format (object[])
+    const buttons = quickReply.buttons.map(btn => {
+      if (typeof btn === 'string') {
+        return { type: 'reply', text: btn, value: '' };
+      }
+      return { type: btn.type || 'reply', text: btn.text || '', value: btn.value || '' };
+    });
+
     setFormData({
       title: quickReply.title || '',
       response: quickReply.response || '',
       triggersText: quickReply.triggers.join(', '),
-      buttons: quickReply.buttons
+      buttons: buttons
     });
     setEditingId(quickReply.id);
     setShowForm(true);
@@ -234,13 +242,16 @@ const QuickReply = () => {
                   <div className="buttons-preview">
                     <strong>Buttons:</strong>
                     <div className="button-list">
-                      {reply.buttons.map((button, i) => (
-                        <div key={i} className="button-item">
-                          <span className="button-type-badge">{button.type === 'reply' ? '💬' : button.type === 'link' ? '🔗' : '📞'}</span>
-                          {button.text}
-                          {button.type !== 'reply' && <span className="button-value"> → {button.value}</span>}
-                        </div>
-                      ))}
+                      {reply.buttons.map((button, i) => {
+                        const btn = typeof button === 'string' ? { type: 'reply', text: button, value: '' } : button;
+                        return (
+                          <div key={i} className="button-item">
+                            <span className="button-type-badge">{btn.type === 'reply' ? '💬' : btn.type === 'link' ? '🔗' : '📞'}</span>
+                            {btn.text}
+                            {btn.type !== 'reply' && btn.value && <span className="button-value"> → {btn.value}</span>}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

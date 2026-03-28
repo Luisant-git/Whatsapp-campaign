@@ -76,7 +76,7 @@ export class AnalyticsService {
       this.getTodayMessages(prisma, today, campaignFilter),
       this.getSuccessfulDeliveries(prisma, campaignFilter),
       this.getFailedMessages(prisma, campaignFilter),
-      this.getTotalContacts(prisma, campaignFilter),
+      this.getTotalContacts(prisma),
       this.getTotalGroups(prisma),
       this.getTotalMessageTemplates(prisma),
       this.getTotalBroadcasts(prisma, settingsName),
@@ -135,13 +135,10 @@ export class AnalyticsService {
     });
   }
 
-  private async getTotalContacts(prisma: any, filter: any = {}): Promise<number> {
-    const contacts = await prisma.campaignMessage.findMany({
-      where: filter,
-      select: { phone: true },
-      distinct: ['phone'],
+  private async getTotalContacts(prisma: any): Promise<number> {
+    return prisma.contact.count({
+      where: { isActive: true },
     });
-    return contacts.length;
   }
 
   private async getMessagesByStatus(prisma: any, filter: any = {}) {

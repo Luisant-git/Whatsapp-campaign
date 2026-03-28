@@ -6,7 +6,7 @@ export class TenantPrismaService implements OnModuleDestroy {
   private readonly logger = new Logger(TenantPrismaService.name);
 
   private clients: Map<string, TenantPrismaClient> = new Map();
-  private reconnecting: Map<string, boolean> = new Map();
+  private reconnecting: Map<string, Promise<void>> = new Map();
   private readyPromises: Map<string, Promise<void>> = new Map();
   private resolveMap: Map<string, () => void> = new Map();
   private rejectMap: Map<string, (err: unknown) => void> = new Map();
@@ -107,42 +107,45 @@ export class TenantPrismaService implements OnModuleDestroy {
   }
 
   /**
-   * 🔥 Full reconnect logic per tenant
+   * 🔥 Full reconnect logic per tenant (single-flight)
    */
   private async reconnectTenant(tenantId: string, dbUrl: string) {
     const id = String(tenantId);
 
-    if (this.reconnecting.get(id)) {
-      this.logger.warn(`⏳ Tenant ${id} already reconnecting...`);
-      await this.readyPromises.get(id);
+    if (this.reconnecting.has(id)) {
+      this.logger.warn(`⏳ Waiting for ongoing reconnect (tenant ${id})`);
+      await this.reconnecting.get(id);
       return;
     }
 
-    this.reconnecting.set(id, true);
+    const reconnectPromise = (async () => {
+      this.logger.warn(`⚠️ Reconnecting tenant DB: ${id}`);
 
-    this.logger.warn(`⚠️ Reconnecting tenant DB: ${id}`);
+      try {
+        const oldClient = this.clients.get(id);
+        if (oldClient) {
+          await oldClient.$disconnect();
+          this.clients.delete(id);
+        }
 
-    try {
-      const oldClient = this.clients.get(id);
-      if (oldClient) {
-        await oldClient.$disconnect();
-        this.clients.delete(id);
+        await this.delay(1000);
+
+        const newClient = this.createClient(id, dbUrl);
+        this.clients.set(id, newClient);
+
+        await this.connectAndVerify(id, newClient);
+
+        this.logger.log(`🔄 Tenant ${id} reconnected successfully`);
+      } catch (err) {
+        this.logger.error(`❌ Tenant ${id} reconnect failed`, err);
+        throw err;
+      } finally {
+        this.reconnecting.delete(id);
       }
+    })();
 
-      await this.delay(1000);
-
-      const newClient = this.createClient(id, dbUrl);
-      this.clients.set(id, newClient);
-
-      await this.connectAndVerify(id, newClient);
-
-      this.logger.log(`🔄 Tenant ${id} reconnected successfully`);
-    } catch (err) {
-      this.logger.error(`❌ Tenant ${id} reconnect failed`, err);
-      throw err;
-    } finally {
-      this.reconnecting.set(id, false);
-    }
+    this.reconnecting.set(id, reconnectPromise);
+    await reconnectPromise;
   }
 
   /**

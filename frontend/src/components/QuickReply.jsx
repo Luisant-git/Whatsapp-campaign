@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Edit } from 'lucide-react';
 import { API_BASE_URL } from '../api/config';
 import { useToast } from '../contexts/ToastContext';
@@ -14,11 +14,40 @@ const QuickReply = () => {
     title: '',
     response: '',
     triggersText: '',
-    buttons: ['']
+    buttons: [{ type: 'reply', text: '', value: '' }]
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [useQuickReply, setUseQuickReply] = useState(true);
+  const responseTextareaRef = useRef(null);
+
+  const insertText = (before, after) => {
+    const textarea = responseTextareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = formData.response;
+    const selectedText = text.substring(start, end);
+    const newText = text.substring(0, start) + before + selectedText + after + text.substring(end);
+    setFormData({...formData, response: newText});
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + before.length, end + before.length);
+    }, 0);
+  };
+
+  const insertEmoji = (emoji) => {
+    const textarea = responseTextareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const text = formData.response;
+    const newText = text.substring(0, start) + emoji + text.substring(start);
+    setFormData({...formData, response: newText});
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + emoji.length, start + emoji.length);
+    }, 0);
+  };
 
   useEffect(() => {
     fetchQuickReplies();
@@ -55,7 +84,7 @@ const QuickReply = () => {
       title: '',
       response: '',
       triggersText: '',
-      buttons: ['']
+      buttons: [{ type: 'reply', text: '', value: '' }]
     });
     setEditingId(null);
     setShowForm(false);
@@ -82,7 +111,7 @@ const QuickReply = () => {
   const addButton = () => {
     setFormData({
       ...formData,
-      buttons: [...formData.buttons, '']
+      buttons: [...formData.buttons, { type: 'reply', text: '', value: '' }]
     });
   };
 
@@ -91,16 +120,16 @@ const QuickReply = () => {
     setFormData({ ...formData, buttons: newButtons });
   };
 
-  const updateButton = (index, value) => {
+  const updateButton = (index, field, value) => {
     const newButtons = [...formData.buttons];
-    newButtons[index] = value;
+    newButtons[index][field] = value;
     setFormData({ ...formData, buttons: newButtons });
   };
 
   const handleSave = async () => {
     const triggers = formData.triggersText.split(',').map(t => t.trim()).filter(t => t);
-    if (!triggers.length || formData.buttons.some(b => !b.trim())) {
-      showError('Please provide at least one trigger and button');
+    if (!triggers.length || formData.buttons.some(b => !b.text.trim() || (b.type !== 'reply' && !b.value.trim()))) {
+      showError('Please provide at least one trigger and complete all button fields');
       return;
     }
 
@@ -207,7 +236,9 @@ const QuickReply = () => {
                     <div className="button-list">
                       {reply.buttons.map((button, i) => (
                         <div key={i} className="button-item">
-                          {button}
+                          <span className="button-type-badge">{button.type === 'reply' ? '💬' : button.type === 'link' ? '🔗' : '📞'}</span>
+                          {button.text}
+                          {button.type !== 'reply' && <span className="button-value"> → {button.value}</span>}
                         </div>
                       ))}
                     </div>
@@ -248,12 +279,44 @@ const QuickReply = () => {
 
               <div className="form-group">
                 <label>Response (Body Message) - Optional</label>
-                <textarea
-                  placeholder="e.g., We offer AI chatbot, bulk messaging, automation, and more!"
-                  value={formData.response}
-                  onChange={(e) => setFormData({...formData, response: e.target.value})}
-                  rows={4}
-                />
+                <div className="text-editor">
+                  <div className="editor-toolbar">
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('*', '*')} title="Bold">
+                      <strong>B</strong>
+                    </button>
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('_', '_')} title="Italic">
+                      <em>I</em>
+                    </button>
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('~', '~')} title="Strikethrough">
+                      <s>S</s>
+                    </button>
+                    <div className="toolbar-divider"></div>
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('\n• ', '')} title="Bullet Point">
+                      •
+                    </button>
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('\n', '')} title="New Line">
+                      ↵
+                    </button>
+                    <div className="toolbar-divider"></div>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('✅')} title="Check">✅</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('❌')} title="Cross">❌</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('👉')} title="Point">👉</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('⭐')} title="Star">⭐</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('🎯')} title="Target">🎯</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('💡')} title="Idea">💡</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('🔥')} title="Fire">🔥</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('💰')} title="Money">💰</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('📞')} title="Phone">📞</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('📧')} title="Email">📧</button>
+                  </div>
+                  <textarea
+                    ref={responseTextareaRef}
+                    placeholder="e.g., We offer AI chatbot, bulk messaging, automation, and more!"
+                    value={formData.response}
+                    onChange={(e) => setFormData({...formData, response: e.target.value})}
+                    rows={6}
+                  />
+                </div>
               </div>
 
               <div className="form-group">
@@ -269,22 +332,81 @@ const QuickReply = () => {
               <div className="form-group">
                 <label>Buttons</label>
                 {formData.buttons.map((button, index) => (
-                  <div key={index} className="button-row">
-                    <input
-                      type="text"
-                      placeholder="Button title"
-                      value={button}
-                      onChange={(e) => updateButton(index, e.target.value)}
-                    />
-                    {formData.buttons.length > 1 && (
-                      <button 
-                        type="button" 
-                        onClick={() => removeButton(index)}
-                        className="btn-danger-small"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
+                  <div key={index} className="button-config">
+                    <div className="button-type-selector">
+                      <label className="type-option">
+                        <input
+                          type="radio"
+                          name={`button-type-${index}`}
+                          value="reply"
+                          checked={button.type === 'reply'}
+                          onChange={(e) => updateButton(index, 'type', e.target.value)}
+                        />
+                        <span className="type-label">
+                          <span className="type-icon">💬</span>
+                          Quick Reply
+                        </span>
+                      </label>
+                      <label className="type-option">
+                        <input
+                          type="radio"
+                          name={`button-type-${index}`}
+                          value="link"
+                          checked={button.type === 'link'}
+                          onChange={(e) => updateButton(index, 'type', e.target.value)}
+                        />
+                        <span className="type-label">
+                          <span className="type-icon">🔗</span>
+                          Link
+                        </span>
+                      </label>
+                      <label className="type-option">
+                        <input
+                          type="radio"
+                          name={`button-type-${index}`}
+                          value="call"
+                          checked={button.type === 'call'}
+                          onChange={(e) => updateButton(index, 'type', e.target.value)}
+                        />
+                        <span className="type-label">
+                          <span className="type-icon">📞</span>
+                          Call
+                        </span>
+                      </label>
+                    </div>
+                    <div className="button-fields">
+                      <input
+                        type="text"
+                        placeholder="Button text"
+                        value={button.text}
+                        onChange={(e) => updateButton(index, 'text', e.target.value)}
+                      />
+                      {button.type === 'link' && (
+                        <input
+                          type="url"
+                          placeholder="https://example.com"
+                          value={button.value}
+                          onChange={(e) => updateButton(index, 'value', e.target.value)}
+                        />
+                      )}
+                      {button.type === 'call' && (
+                        <input
+                          type="tel"
+                          placeholder="+1234567890"
+                          value={button.value}
+                          onChange={(e) => updateButton(index, 'value', e.target.value)}
+                        />
+                      )}
+                      {formData.buttons.length > 1 && (
+                        <button 
+                          type="button" 
+                          onClick={() => removeButton(index)}
+                          className="btn-danger-small"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
                 

@@ -176,15 +176,26 @@
 }
 
 .expiring-table {
-  width: 100%;
-  min-width: 900px;
-  border-collapse: collapse;
-  font-size: 14px;
+  table-layout: fixed;
 }
 
-.expiring-table thead tr {
-  border-bottom: 1px solid var(--border-subtle);
+
+.expiring-table th.company-col,
+.expiring-table td.company-col {
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+.company-name {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 
 .expiring-table th,
 .expiring-table td {
@@ -702,20 +713,7 @@
   }
 }
 
-.expiring-table td.company-col,
-.expiring-table td.phone-col,
-.expiring-table td.plan-col {
-  max-width: 220px;
-  white-space: normal;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
 
-.company-name,
-.company-id {
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
 
 .mobile-card-top .company-name,
 .mobile-detail-row span:last-child {

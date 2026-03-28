@@ -189,12 +189,16 @@ const QuickReply = () => {
             {quickReplies.map((reply) => (
               <div key={reply.id} className="reply-item">
                 <div className="reply-content">
-                  <div className="reply-title">
-                    <strong>{reply.title}</strong>
-                  </div>
-                  <div className="reply-body">
-                    {reply.response}
-                  </div>
+                  {reply.title && (
+                    <div className="reply-title">
+                      <strong>{reply.title}</strong>
+                    </div>
+                  )}
+                  {reply.response && (
+                    <div className="reply-body">
+                      {reply.response}
+                    </div>
+                  )}
                   <div className="trigger-text">
                     <strong>Triggers:</strong> {reply.triggers.join(', ')}
                   </div>
@@ -210,11 +214,11 @@ const QuickReply = () => {
                   </div>
                 </div>
                 <div className="reply-actions">
-                  <button onClick={() => handleEdit(reply)} className="btn-secondary">
-                    <Edit size={16} />
+                  <button onClick={() => handleEdit(reply)} className="btn-icon-action">
+                    <Edit size={18} />
                   </button>
-                  <button onClick={() => handleDelete(reply.id)} className="btn-icon danger">
-                    <Trash2 size={16} />
+                  <button onClick={() => handleDelete(reply.id)} className="btn-icon-action danger">
+                    <Trash2 size={18} />
                   </button>
                 </div>
               </div>

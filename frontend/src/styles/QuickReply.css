@@ -82,7 +82,7 @@
   padding: 10px;
   background: #f8f9fa;
   border-radius: 6px;
-  border-left: 3px solid #007bff;
+  /* border-left: 3px solid #007bff; */
 }
 
 .form-group textarea {
@@ -106,4 +106,56 @@
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid #e9ecef;
+}
+
+.reply-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px;
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.reply-content {
+  flex: 1;
+}
+
+.reply-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-icon-action {
+  background: #f8f9fa;
+  color: #495057;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  transition: all 0.2s;
+}
+
+.btn-icon-action:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.btn-icon-action.danger {
+  color: #dc3545;
+}
+
+.btn-icon-action.danger:hover {
+  background: #dc3545;
+  color: white;
+  border-color: #dc3545;
 }

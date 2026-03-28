@@ -42,7 +42,7 @@ const BulkWhatsApp = () => {
         const data = await getAllSettings();
         const settingsList = Array.isArray(data) ? data : [];
         setSettings(settingsList);
-    
+
       } catch (error) {
         console.error("Failed to fetch settings", error);
       }
@@ -76,6 +76,7 @@ const BulkWhatsApp = () => {
     );
 
   const handleSendBulkMessages = async () => {
+    setResults(null);
     let dataToSend = [];
 
     // 1️⃣ Fetch group contacts if group is selected
@@ -155,14 +156,27 @@ const BulkWhatsApp = () => {
       const resultsArray = Array.isArray(response?.results)
         ? response.results
         : Array.isArray(response)
-        ? response
-        : [];
+          ? response
+          : [];
 
       if (!Array.isArray(resultsArray)) {
         throw new Error("Invalid response from server");
       }
 
       setResults(resultsArray);
+
+      setTimeout(() => {
+        setResults(null);
+      }, 4000);
+
+      setPhoneNumbers("");
+      setSelectedGroup("");
+      setGroupContactsCount(0);
+      setCampaignName("");
+      setTemplateName("");
+      setScheduledDays([]);
+      setScheduledTime("09:00");
+      setScheduleType("one-time");
       const successCount = resultsArray.filter((r) => r.success).length;
       const failedCount = resultsArray.filter((r) => !r.success).length;
 
@@ -218,17 +232,17 @@ const BulkWhatsApp = () => {
               Template Name <span className="required">*</span>
             </label>
             <select
-  className="form-input"
-  value={templateName}
-  onChange={(e) => setTemplateName(e.target.value)}
->
-  <option value="">Select a Template</option>
-  {uniqueTemplateNames.map((name, index) => (
-    <option key={`template-${index}`} value={name}>
-      {name}
-    </option>
-  ))}
-</select>
+              className="form-input"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+            >
+              <option value="">Select a Template</option>
+              {uniqueTemplateNames.map((name, index) => (
+                <option key={`template-${index}`} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Schedule Type */}
@@ -294,55 +308,55 @@ const BulkWhatsApp = () => {
           <div className="form-group">
             <label className="form-label">Select Group (optional)</label>
             <select
-  className="form-input"
-  value={selectedGroup}
-  onChange={async (e) => {
-    const groupId = e.target.value;
-    setSelectedGroup(groupId);
-    if (!groupId) {
-      setGroupContactsCount(0);
-      return;
-    }
-    try {
-      const resp = await groupAPI.getContacts(groupId);
-      if (resp.data && resp.data.length > 0) {
-        setGroupContactsCount(resp.data.length);   // ✅ store total contacts
-      } else {
-        setGroupContactsCount(0);
-        showError("Selected group has no contacts");
-      }
-    } catch (err) {
-      console.error("Error fetching group contacts:", err);
-      showError("Failed to load group contacts");
-      setGroupContactsCount(0);
-    }
-  }}
->
-  <option value="">No Group</option>
-  {groups.map((g) => (
-    <option key={g.id} value={g.id}>
-      {g.name}
-    </option>
-  ))}
-</select>
+              className="form-input"
+              value={selectedGroup}
+              onChange={async (e) => {
+                const groupId = e.target.value;
+                setSelectedGroup(groupId);
+                if (!groupId) {
+                  setGroupContactsCount(0);
+                  return;
+                }
+                try {
+                  const resp = await groupAPI.getContacts(groupId);
+                  if (resp.data && resp.data.length > 0) {
+                    setGroupContactsCount(resp.data.length);   // ✅ store total contacts
+                  } else {
+                    setGroupContactsCount(0);
+                    showError("Selected group has no contacts");
+                  }
+                } catch (err) {
+                  console.error("Error fetching group contacts:", err);
+                  showError("Failed to load group contacts");
+                  setGroupContactsCount(0);
+                }
+              }}
+            >
+              <option value="">No Group</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
 
-{/* 👇  show count text here */}
-{selectedGroup && (
-  <small
-    style={{
-      color: groupContactsCount > 0 ? '#00b686' : '#e74c3c',
-      fontWeight: 600,
-      marginTop: 6,
-      display: 'block',
-    }}
-  >
-    {groupContactsCount > 0
-      ? `${groupContactsCount} contact${groupContactsCount > 1 ? 's' : ''} in this group`
-      : 'No contacts found in this group'}
-  </small>
-)}
+            {/* 👇  show count text here */}
+            {selectedGroup && (
+              <small
+                style={{
+                  color: groupContactsCount > 0 ? '#00b686' : '#e74c3c',
+                  fontWeight: 600,
+                  marginTop: 6,
+                  display: 'block',
+                }}
+              >
+                {groupContactsCount > 0
+                  ? `${groupContactsCount} contact${groupContactsCount > 1 ? 's' : ''} in this group`
+                  : 'No contacts found in this group'}
+              </small>
+            )}
           </div>
-          
+
 
           {/* Manual Numbers */}
           <div className="manual-input-section">
@@ -416,9 +430,8 @@ const BulkWhatsApp = () => {
                   </div>
                   <div className="result-status">
                     <span
-                      className={`status-icon ${
-                        r.success ? "success" : "error"
-                      }`}
+                      className={`status-icon ${r.success ? "success" : "error"
+                        }`}
                     >
                       {r.success ? (
                         <IoCheckmarkOutline size={16} />

@@ -244,6 +244,12 @@ const TemplateManager = () => {
     setOpenDialog(true);
   };
 
+  //cards showing count of templates by status
+  const allCount = templates.length;
+  const pendingCount = templates.filter(t => (t.status || '').toUpperCase() === 'PENDING').length;
+  const approvedCount = templates.filter(t => (t.status || '').toUpperCase() === 'ACTIVE').length;
+  const rejectedCount = templates.filter(t => (t.status || '').toUpperCase() === 'REJECTED').length;
+
   const handleEditTemplate = (template) => {
     setDialogType('edit');
     setCurrentTemplate(template);
@@ -1132,6 +1138,47 @@ const TemplateManager = () => {
           Template library
         </button>
       </div>
+      <div className="template-status-cards">
+  <div className="template-status-card all">
+    <div className="template-status-icon all">
+      <Layout size={22} />
+    </div>
+    <div className="template-status-content">
+      <h3>All Templates</h3>
+      <p className="template-status-number">{allCount}</p>
+    </div>
+  </div>
+
+  <div className="template-status-card pending">
+    <div className="template-status-icon pending">
+      <Clock size={22} />
+    </div>
+    <div className="template-status-content">
+      <h3>Pending</h3>
+      <p className="template-status-number">{pendingCount}</p>
+    </div>
+  </div>
+
+  <div className="template-status-card approved">
+    <div className="template-status-icon approved">
+      <CheckCircle2 size={22} />
+    </div>
+    <div className="template-status-content">
+      <h3>Approved</h3>
+      <p className="template-status-number">{approvedCount}</p>
+    </div>
+  </div>
+
+  <div className="template-status-card rejected">
+    <div className="template-status-icon rejected">
+      <X size={22} />
+    </div>
+    <div className="template-status-content">
+      <h3>Rejected</h3>
+      <p className="template-status-number">{rejectedCount}</p>
+    </div>
+  </div>
+</div>
 
       {selectedTab === 0 && (
         <div className="templates-list-container">

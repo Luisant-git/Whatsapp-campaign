@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getAnalytics, getAllSettings } from '../api/auth';
-import { BarChart3, MessageSquare, CheckCircle, XCircle, Users, TrendingUp } from 'lucide-react';
+import { BarChart3, MessageSquare, CheckCircle, XCircle, Users, TrendingUp, Radio, FileText, Layers } from 'lucide-react';
 
 const Analytics = () => {
   const [analytics, setAnalytics] = useState(null);
@@ -53,8 +53,8 @@ const Analytics = () => {
           <p>WhatsApp campaign performance overview</p>
         </div>
         <div className="analytics-controls">
-          <select 
-            value={selectedSettingsName} 
+          <select
+            value={selectedSettingsName}
             onChange={(e) => setSelectedSettingsName(e.target.value)}
             className="phone-filter"
           >
@@ -69,6 +69,46 @@ const Analytics = () => {
       </div>
 
       <div className="analytics-grid">
+      <div className="stat-card">
+          <div className="stat-icon templates">
+            <FileText size={24} />
+          </div>
+          <div className="stat-content">
+            <h3>Templates</h3>
+            <p className="stat-number">{analytics?.totalMessageTemplates || 0}</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon contacts">
+            <Users size={24} />
+          </div>
+          <div className="stat-content">
+            <h3>Total Contacts</h3>
+            <p className="stat-number">{analytics?.totalContacts || 0}</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon groups">
+            <Layers size={24} />
+          </div>
+          <div className="stat-content">
+            <h3>Audience Groups</h3>
+            <p className="stat-number">{analytics?.totalGroups || 0}</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon broadcasts">
+            <Radio size={24} />
+          </div>
+          <div className="stat-content">
+            <h3>Broadcasts</h3>
+            <p className="stat-number">{analytics?.totalBroadcasts || 0}</p>
+          </div>
+        </div>
+
         <div className="stat-card">
           <div className="stat-icon">
             <MessageSquare size={24} />
@@ -110,16 +150,6 @@ const Analytics = () => {
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon contacts">
-            <Users size={24} />
-          </div>
-          <div className="stat-content">
-            <h3>Total Contacts</h3>
-            <p className="stat-number">{analytics?.totalContacts || 0}</p>
-          </div>
-        </div>
-
-        <div className="stat-card">
           <div className="stat-icon rate">
             <BarChart3 size={24} />
           </div>
@@ -128,6 +158,7 @@ const Analytics = () => {
             <p className="stat-number">{analytics?.deliveryRate || 0}%</p>
           </div>
         </div>
+       
       </div>
     </div>
   );

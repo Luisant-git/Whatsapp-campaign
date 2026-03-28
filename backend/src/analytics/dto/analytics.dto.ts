@@ -27,6 +27,15 @@ export class AnalyticsDto {
     failed: number;
   };
 
+  @ApiProperty({ description: 'Total groups count' })
+  totalGroups: number;
+
+  @ApiProperty({ description: 'Total message templates count' })
+  totalMessageTemplates: number;
+
+  @ApiProperty({ description: 'Total completed/sent broadcast campaigns count' })
+  totalBroadcasts: number;
+
   @ApiProperty({ description: 'Daily message statistics for the last 7 days' })
   dailyStats: Array<{
     date: string;

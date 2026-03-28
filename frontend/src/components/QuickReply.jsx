@@ -123,6 +123,9 @@ const QuickReply = () => {
   const updateButton = (index, field, value) => {
     const newButtons = [...formData.buttons];
     newButtons[index][field] = value;
+    if (field === 'type') {
+      newButtons[index].value = '';
+    }
     setFormData({ ...formData, buttons: newButtons });
   };
 
@@ -362,19 +365,6 @@ const QuickReply = () => {
                         <input
                           type="radio"
                           name={`button-type-${index}`}
-                          value="link"
-                          checked={button.type === 'link'}
-                          onChange={(e) => updateButton(index, 'type', e.target.value)}
-                        />
-                        <span className="type-label">
-                          <span className="type-icon">🔗</span>
-                          Link
-                        </span>
-                      </label>
-                      <label className="type-option">
-                        <input
-                          type="radio"
-                          name={`button-type-${index}`}
                           value="call"
                           checked={button.type === 'call'}
                           onChange={(e) => updateButton(index, 'type', e.target.value)}
@@ -384,6 +374,9 @@ const QuickReply = () => {
                           Call
                         </span>
                       </label>
+                    </div>
+                    <div style={{fontSize: '12px', color: '#666', marginTop: '4px', marginBottom: '8px'}}>
+                      ℹ️ Link buttons are only available in Template Messages, not Quick Replies
                     </div>
                     <div className="button-fields">
                       <input

@@ -232,7 +232,7 @@ const QuickReply = () => {
                     </div>
                   )}
                   {reply.response && (
-                    <div className="reply-body">
+                    <div className="reply-body" style={{ whiteSpace: 'pre-wrap' }}>
                       {reply.response}
                     </div>
                   )}

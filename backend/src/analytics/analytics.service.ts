@@ -234,7 +234,13 @@ export class AnalyticsService {
   }
   
   private async getTotalMessageTemplates(prisma: any): Promise<number> {
-    return prisma.messageTemplate.count();
+    return prisma.messageTemplate.count({
+      where: {
+        status: {
+          not: 'ARCHIVED',
+        },
+      },
+    });
   }
   
   private async getTotalBroadcasts(prisma: any, settingsName?: string): Promise<number> {

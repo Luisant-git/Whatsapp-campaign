@@ -411,6 +411,14 @@
   font-weight: 500;
 }
 
+.company-name {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Tablet */
 @media (max-width: 768px) {
   .users-page {

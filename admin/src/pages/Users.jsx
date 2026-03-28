@@ -308,7 +308,14 @@ export default function Users() {
               {paginatedUsers.map((user, idx) => (
                 <tr key={user.id}>
                   <td>{(currentPage - 1) * entriesPerPage + idx + 1}</td>
-                  <td className="company-col">{user.companyName || user.name}</td>
+                  <td className="company-col">
+                    <div
+                      className="company-name"
+                      title={user.companyName || user.name}
+                    >
+                      {user.companyName || user.name}
+                    </div>
+                  </td>
                   <td className="email-col">{user.email}</td>
                   <td className="subscription-col">{getSubscriptionName(user)}</td>
                   <td>

@@ -64,10 +64,12 @@ export class WhatsappSessionService {
 
         if (nestedQuickReply) {
           console.log('Found nested quick reply:', nestedQuickReply);
-          const buttons = nestedQuickReply.buttons as string[];
+          const buttons = nestedQuickReply.buttons as any[];
+          // Extract button text for WhatsApp (only text, not type/value)
+          const buttonTexts = buttons.map(btn => typeof btn === 'string' ? btn : btn.text);
           const title = nestedQuickReply.title || '';
           const response = nestedQuickReply.response || 'Please select an option:';
-          await sendButtonsCallback(from, title, response, buttons);
+          await sendButtonsCallback(from, title, response, buttonTexts);
           return true; // Handled
         }
 
@@ -92,10 +94,12 @@ export class WhatsappSessionService {
 
       console.log('[SessionService] Final quick reply found:', quickReply);
       if (quickReply) {
-        const buttons = quickReply.buttons as string[];
+        const buttons = quickReply.buttons as any[];
+        // Extract button text for WhatsApp (only text, not type/value)
+        const buttonTexts = buttons.map(btn => typeof btn === 'string' ? btn : btn.text);
         const title = quickReply.title || '';
         const response = quickReply.response || 'Please select an option:';
-        await sendButtonsCallback(from, title, response, buttons);
+        await sendButtonsCallback(from, title, response, buttonTexts);
         return true; // Handled
       }
     }
@@ -184,10 +188,12 @@ export class WhatsappSessionService {
       await this.quickReplyService.getAllQuickReplies(userId);
 
     for (const quickReply of quickReplies) {
-      const buttons = quickReply.buttons as string[];
-      const isButton = buttons.some(
-        (button) => button.toLowerCase() === message.toLowerCase(),
-      );
+      const buttons = quickReply.buttons as any[];
+      const isButton = buttons.some((button) => {
+        // Handle both old format (string) and new format (object)
+        const buttonText = typeof button === 'string' ? button : button.text;
+        return buttonText.toLowerCase() === message.toLowerCase();
+      });
       if (isButton) {
         return true;
       }

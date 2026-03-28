@@ -1,4 +1,9 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { PrismaClient as CentralPrismaClient } from '@prisma/client-central';
 
 @Injectable()
@@ -8,16 +13,11 @@ export class CentralPrismaService
 {
   private readonly logger = new Logger(CentralPrismaService.name);
 
-  /**
-   * This promise resolves only after a real SELECT 1 ping succeeds.
-   * $connect() resolves its promise before the query engine binary is fully
-   * ready, so we cannot use it as a readiness signal. Instead, callers that
-   * hit "Engine is not yet connected" await this promise, which guarantees
-   * the DB is actually queryable before the retry fires.
-   */
   private readyPromise: Promise<void>;
   private resolveReady!: () => void;
   private rejectReady!: (err: unknown) => void;
+
+  private isReconnecting = false;
 
   constructor() {
     super({
@@ -28,9 +28,28 @@ export class CentralPrismaService
         },
       },
     });
+
     this.readyPromise = new Promise<void>((resolve, reject) => {
       this.resolveReady = resolve;
       this.rejectReady = reject;
+    });
+
+    // 🔥 Global Prisma crash handler
+    (this as any).$on('error', async (e: any) => {
+      this.logger.error('🔥 Prisma global error:', e);
+
+      this.readyPromise = new Promise<void>((resolve, reject) => {
+        this.resolveReady = resolve;
+        this.rejectReady = reject;
+      });
+
+      try {
+        await this.$disconnect();
+        await this.delay(1500);
+        await this.connectAndVerify();
+      } catch (err) {
+        this.logger.error('❌ Global recovery failed:', err);
+      }
     });
   }
 
@@ -42,13 +61,18 @@ export class CentralPrismaService
     await this.$disconnect();
   }
 
+  // ✅ Utility delay
+  private async delay(ms: number) {
+    return new Promise((res) => setTimeout(res, ms));
+  }
+
   /**
-   * Calls $connect() and then polls with SELECT 1 until the engine is genuinely
-   * ready to accept queries, then resolves `readyPromise`.
-   * Any in-flight executeWithRetry call that hit "Engine is not yet connected"
-   * is awaiting `readyPromise` and will unblock the instant this resolves.
+   * Connect and verify DB readiness using SELECT 1
    */
-  private async connectAndVerify(maxPingAttempts = 20, pingIntervalMs = 500): Promise<void> {
+  private async connectAndVerify(
+    maxPingAttempts = 20,
+    pingIntervalMs = 500,
+  ): Promise<void> {
     try {
       await this.$connect();
     } catch (err) {
@@ -57,13 +81,12 @@ export class CentralPrismaService
       throw err;
     }
 
-    // $connect() resolved but the engine binary may still be initialising.
-    // Run real pings until one succeeds.
     for (let attempt = 1; attempt <= maxPingAttempts; attempt++) {
       try {
         await this.$queryRaw`SELECT 1`;
-        this.logger.log('✅ Central database ready (ping succeeded)');
-        this.resolveReady(); // unblock all awaiting executeWithRetry calls
+        this.logger.log('✅ Central database ready');
+
+        this.resolveReady();
         return;
       } catch (pingErr: any) {
         const notReady =
@@ -72,12 +95,11 @@ export class CentralPrismaService
 
         if (notReady) {
           this.logger.warn(
-            `⏳ Central DB ping ${attempt}/${maxPingAttempts} — engine not ready yet, waiting ${pingIntervalMs}ms...`,
+            `⏳ DB ping ${attempt}/${maxPingAttempts} — waiting ${pingIntervalMs}ms...`,
           );
-          await new Promise((resolve) => setTimeout(resolve, pingIntervalMs));
+          await this.delay(pingIntervalMs);
         } else {
-          // Real DB error (bad credentials, DB down, etc.) — give up immediately.
-          this.logger.error('❌ Central DB ping failed with unexpected error:', pingErr);
+          this.logger.error('❌ DB ping failed:', pingErr);
           this.rejectReady(pingErr);
           throw pingErr;
         }
@@ -85,7 +107,7 @@ export class CentralPrismaService
     }
 
     const timeout = new Error(
-      `Central DB engine still not ready after ${maxPingAttempts} ping attempts`,
+      `DB not ready after ${maxPingAttempts} attempts`,
     );
     this.logger.error(`❌ ${timeout.message}`);
     this.rejectReady(timeout);
@@ -93,12 +115,7 @@ export class CentralPrismaService
   }
 
   /**
-   * Execute query with automatic reconnection.
-   *
-   * "Engine is not yet connected" → await `readyPromise` (which only resolves
-   *   once a real ping has succeeded) then retry. No fixed-delay polling.
-   *
-   * P1017 (connection closed at runtime) → full disconnect/reconnect cycle.
+   * Execute DB query with retry & auto-reconnect
    */
   async executeWithRetry<T>(
     operation: (prisma: CentralPrismaService) => Promise<T>,
@@ -113,56 +130,56 @@ export class CentralPrismaService
 
       if (isEngineNotReady && retries > 0) {
         this.logger.warn(
-          `⚠️ Central DB engine not ready — awaiting readiness signal... (${retries} retries left)`,
+          `⚠️ Engine not ready — waiting... (${retries} retries left)`,
         );
-        // Block until connectAndVerify() has confirmed a successful ping.
         await this.readyPromise;
         return this.executeWithRetry(operation, retries - 1);
       }
 
-      if (error.code === 'P1017' && retries > 0) {
-        this.logger.warn(
-          `⚠️ Central DB connection closed (P1017) — reconnecting... (${retries} retries left)`,
-        );
-        // Reset readyPromise so any concurrent callers also wait.
-        this.readyPromise = new Promise<void>((resolve, reject) => {
-          this.resolveReady = resolve;
-          this.rejectReady = reject;
-        });
-        try {
-          await this.$disconnect();
-          await this.connectAndVerify();
-          this.logger.log('🔄 Central DB reconnected');
-          return await operation(this);
-        } catch (reconnectError) {
-          this.logger.error('❌ Failed to reconnect central DB:', reconnectError);
-          throw reconnectError;
-        }
-      }
-
-      // Handle PostgreSQL connection termination (57P01)
+      // 🔥 Detect ALL connection failures
       const isConnectionTerminated =
-        error?.message?.includes('terminating connection due to administrator command') ||
+        error?.message?.includes(
+          'terminating connection due to administrator command',
+        ) ||
+        error?.message?.includes('Connection terminated unexpectedly') ||
         error?.message?.includes('connection was closed') ||
-        error?.code === 'P2024' || // Timed out fetching a new connection
-        error?.code === 'P1001'; // Can't reach database server
+        error?.message?.includes('ECONNRESET') ||
+        error?.code === '57P01' || // PostgreSQL shutdown
+        error?.code === 'P1017' || // Prisma closed connection
+        error?.code === 'P2024' || // pool timeout
+        error?.code === 'P1001'; // DB unreachable
 
       if (isConnectionTerminated && retries > 0) {
+        if (this.isReconnecting) {
+          this.logger.warn('⏳ Waiting for ongoing reconnect...');
+          await this.readyPromise;
+          return this.executeWithRetry(operation, retries - 1);
+        }
+
+        this.isReconnecting = true;
+
         this.logger.warn(
-          `⚠️ Central DB connection terminated — reconnecting... (${retries} retries left)`,
+          `⚠️ DB connection lost — reconnecting... (${retries} retries left)`,
         );
+
         this.readyPromise = new Promise<void>((resolve, reject) => {
           this.resolveReady = resolve;
           this.rejectReady = reject;
         });
+
         try {
           await this.$disconnect();
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before reconnect
+          await this.delay(1500);
+
           await this.connectAndVerify();
-          this.logger.log('🔄 Central DB reconnected after termination');
+
+          this.logger.log('🔄 DB reconnected successfully');
+          this.isReconnecting = false;
+
           return await operation(this);
         } catch (reconnectError) {
-          this.logger.error('❌ Failed to reconnect after termination:', reconnectError);
+          this.isReconnecting = false;
+          this.logger.error('❌ Reconnect failed:', reconnectError);
           throw reconnectError;
         }
       }

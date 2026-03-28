@@ -99,8 +99,8 @@ const QuickReply = () => {
 
   const handleSave = async () => {
     const triggers = formData.triggersText.split(',').map(t => t.trim()).filter(t => t);
-    if (!formData.title.trim() || !formData.response.trim() || !triggers.length || formData.buttons.some(b => !b.trim())) {
-      showError('Please fill all fields');
+    if (!triggers.length || formData.buttons.some(b => !b.trim())) {
+      showError('Please provide at least one trigger and button');
       return;
     }
 
@@ -114,8 +114,8 @@ const QuickReply = () => {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          title: formData.title,
-          response: formData.response,
+          title: formData.title.trim() || '',
+          response: formData.response.trim() || '',
           triggers,
           buttons: formData.buttons,
           isActive: true
@@ -233,7 +233,7 @@ const QuickReply = () => {
             
             <div className="settings-form">
               <div className="form-group">
-                <label>Title (Header)</label>
+                <label>Title (Header) - Optional</label>
                 <input
                   type="text"
                   placeholder="e.g., Our Features"
@@ -243,7 +243,7 @@ const QuickReply = () => {
               </div>
 
               <div className="form-group">
-                <label>Response (Body Message)</label>
+                <label>Response (Body Message) - Optional</label>
                 <textarea
                   placeholder="e.g., We offer AI chatbot, bulk messaging, automation, and more!"
                   value={formData.response}

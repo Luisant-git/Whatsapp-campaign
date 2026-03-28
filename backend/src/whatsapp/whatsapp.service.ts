@@ -1846,15 +1846,23 @@ export class WhatsappService {
     }
   }
 
-  async sendButtonsMessageDirect(to: string, title: string, text: string, buttons: string[], accessToken: string, phoneNumberId: string, tenantClient: any) {
+  async sendButtonsMessageDirect(to: string, title: string, text: string, buttons: any[], accessToken: string, phoneNumberId: string, tenantClient: any) {
     try {
-      const interactiveButtons = buttons.slice(0, 3).map((button, index) => ({
-        type: 'reply',
-        reply: {
-          id: `btn_${index}`,
-          title: button.length > 20 ? button.substring(0, 20) : button
-        }
-      }));
+      // Handle both old format (string[]) and new format (object[])
+      const interactiveButtons = buttons.slice(0, 3).map((button, index) => {
+        const buttonText = typeof button === 'string' ? button : button.text;
+        const buttonType = typeof button === 'object' ? button.type : 'reply';
+        
+        // For now, WhatsApp interactive buttons only support reply type
+        // Link and Call buttons need different message format
+        return {
+          type: 'reply',
+          reply: {
+            id: `btn_${index}`,
+            title: buttonText.length > 20 ? buttonText.substring(0, 20) : buttonText
+          }
+        };
+      });
 
       const interactive: any = {
         type: 'button',

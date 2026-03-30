@@ -1854,125 +1854,17 @@ export class WhatsappService {
 
   async sendButtonsMessageDirect(to: string, title: string, text: string, buttons: any[], accessToken: string, phoneNumberId: string, tenantClient: any) {
     try {
-      const replyButtons = buttons.filter(btn => {
-        const type = typeof btn === 'string' ? 'reply' : btn.type;
-        return type === 'reply';
-      });
+      // Convert all buttons to simple text format
+      const buttonTexts = buttons.map(btn => typeof btn === 'string' ? btn : btn.text || btn);
       
-      const callButtons = buttons.filter(btn => typeof btn === 'object' && btn.type === 'call');
-      const linkButtons = buttons.filter(btn => typeof btn === 'object' && btn.type === 'link');
-
-      // If we have call or link buttons, send them as text with clickable numbers/links
-      if (callButtons.length > 0 || linkButtons.length > 0) {
-        let messageText = '';
-        if (title && title.trim()) {
-          messageText = `*${title}*\n\n`;
+      // Create interactive reply buttons (max 3)
+      const interactiveButtons = buttonTexts.slice(0, 3).map((buttonText, index) => ({
+        type: 'reply',
+        reply: {
+          id: `btn_${index}`,
+          title: buttonText.length > 20 ? buttonText.substring(0, 20) : buttonText
         }
-        messageText += text;
-        
-        // Add call buttons as clickable phone numbers
-        for (const btn of callButtons) {
-          messageText += `\n\nOur contact number is ${btn.value}.`;
-        }
-        
-        // Add link buttons as clickable URLs
-        for (const btn of linkButtons) {
-          messageText += `\n\n${btn.text}: ${btn.value}`;
-        }
-        
-        // If there are reply buttons, add them as interactive buttons
-        if (replyButtons.length > 0) {
-          const interactiveButtons = replyButtons.slice(0, 3).map((button, index) => {
-            const buttonText = typeof button === 'string' ? button : button.text;
-            return {
-              type: 'reply',
-              reply: {
-                id: `btn_${index}`,
-                title: buttonText.length > 20 ? buttonText.substring(0, 20) : buttonText
-              }
-            };
-          });
-
-          const response = await axios.post(
-            `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
-            {
-              messaging_product: 'whatsapp',
-              to,
-              type: 'interactive',
-              interactive: {
-                type: 'button',
-                body: { text: messageText },
-                action: {
-                  buttons: interactiveButtons
-                }
-              }
-            },
-            {
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-
-          await tenantClient.whatsAppMessage.create({
-            data: {
-              messageId: response.data.messages[0].id,
-              to,
-              from: to,
-              message: `Interactive buttons: ${title} - ${text}`,
-              direction: 'outgoing',
-              status: 'sent',
-              phoneNumberId,
-            }
-          });
-
-          return { success: true, messageId: response.data.messages[0].id };
-        } else {
-          // No reply buttons, just send as text message
-          const response = await axios.post(
-            `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
-            {
-              messaging_product: 'whatsapp',
-              to,
-              type: 'text',
-              text: { body: messageText }
-            },
-            {
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-
-          await tenantClient.whatsAppMessage.create({
-            data: {
-              messageId: response.data.messages[0].id,
-              to,
-              from: to,
-              message: messageText,
-              direction: 'outgoing',
-              status: 'sent',
-              phoneNumberId,
-            }
-          });
-
-          return { success: true, messageId: response.data.messages[0].id };
-        }
-      }
-
-      // Standard reply buttons only
-      const interactiveButtons = replyButtons.slice(0, 3).map((button, index) => {
-        const buttonText = typeof button === 'string' ? button : button.text;
-        return {
-          type: 'reply',
-          reply: {
-            id: `btn_${index}`,
-            title: buttonText.length > 20 ? buttonText.substring(0, 20) : buttonText
-          }
-        };
-      });
+      }));
 
       const interactive: any = {
         type: 'button',

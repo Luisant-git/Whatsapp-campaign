@@ -14,7 +14,7 @@ const QuickReply = () => {
     title: '',
     response: '',
     triggersText: '',
-    buttons: [{ type: 'reply', text: '', value: '' }]
+    buttons: ['']
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -84,7 +84,7 @@ const QuickReply = () => {
       title: '',
       response: '',
       triggersText: '',
-      buttons: [{ type: 'reply', text: '', value: '' }]
+      buttons: ['']
     });
     setEditingId(null);
     setShowForm(false);
@@ -111,7 +111,7 @@ const QuickReply = () => {
   const addButton = () => {
     setFormData({
       ...formData,
-      buttons: [...formData.buttons, { type: 'reply', text: '', value: '' }]
+      buttons: [...formData.buttons, '']
     });
   };
 
@@ -120,18 +120,15 @@ const QuickReply = () => {
     setFormData({ ...formData, buttons: newButtons });
   };
 
-  const updateButton = (index, field, value) => {
+  const updateButton = (index, value) => {
     const newButtons = [...formData.buttons];
-    newButtons[index][field] = value;
-    if (field === 'type') {
-      newButtons[index].value = '';
-    }
+    newButtons[index] = value;
     setFormData({ ...formData, buttons: newButtons });
   };
 
   const handleSave = async () => {
     const triggers = formData.triggersText.split(',').map(t => t.trim()).filter(t => t);
-    if (!triggers.length || formData.buttons.some(b => !b.text.trim() || (b.type !== 'reply' && !b.value.trim()))) {
+    if (!triggers.length || formData.buttons.some(b => !b.trim())) {
       showError('Please provide at least one trigger and complete all button fields');
       return;
     }
@@ -172,9 +169,9 @@ const QuickReply = () => {
     // Handle both old format (string[]) and new format (object[])
     const buttons = quickReply.buttons.map(btn => {
       if (typeof btn === 'string') {
-        return { type: 'reply', text: btn, value: '' };
+        return btn;
       }
-      return { type: btn.type || 'reply', text: btn.text || '', value: btn.value || '' };
+      return btn.text || '';
     });
 
     setFormData({
@@ -246,12 +243,11 @@ const QuickReply = () => {
                     <strong>Buttons:</strong>
                     <div className="button-list">
                       {reply.buttons.map((button, i) => {
-                        const btn = typeof button === 'string' ? { type: 'reply', text: button, value: '' } : button;
+                        const buttonText = typeof button === 'string' ? button : button.text || button;
                         return (
                           <div key={i} className="button-item">
-                            <span className="button-type-badge">{btn.type === 'reply' ? '💬' : btn.type === 'link' ? '🔗' : '📞'}</span>
-                            {btn.text}
-                            {btn.type !== 'reply' && btn.value && <span className="button-value"> → {btn.value}</span>}
+                            <span className="button-type-badge">💬</span>
+                            {buttonText}
                           </div>
                         );
                       })}
@@ -344,63 +340,16 @@ const QuickReply = () => {
               </div>
 
               <div className="form-group">
-                <label>Buttons</label>
+                <label>Buttons (Text only)</label>
                 {formData.buttons.map((button, index) => (
                   <div key={index} className="button-config">
-                    <div className="button-type-selector">
-                      <label className="type-option">
-                        <input
-                          type="radio"
-                          name={`button-type-${index}`}
-                          value="reply"
-                          checked={button.type === 'reply'}
-                          onChange={(e) => updateButton(index, 'type', e.target.value)}
-                        />
-                        <span className="type-label">
-                          <span className="type-icon">💬</span>
-                          Quick Reply
-                        </span>
-                      </label>
-                      <label className="type-option">
-                        <input
-                          type="radio"
-                          name={`button-type-${index}`}
-                          value="call"
-                          checked={button.type === 'call'}
-                          onChange={(e) => updateButton(index, 'type', e.target.value)}
-                        />
-                        <span className="type-label">
-                          <span className="type-icon">📞</span>
-                          Call
-                        </span>
-                      </label>
-                    </div>
-                    <div style={{fontSize: '12px', color: '#666', marginTop: '4px', marginBottom: '8px'}}>
-                      ℹ️ Link buttons are only available in Template Messages, not Quick Replies
-                    </div>
                     <div className="button-fields">
                       <input
                         type="text"
-                        placeholder="Button text"
-                        value={button.text}
-                        onChange={(e) => updateButton(index, 'text', e.target.value)}
+                        placeholder="Button text (e.g., Book Demo, Contact Us)"
+                        value={button}
+                        onChange={(e) => updateButton(index, e.target.value)}
                       />
-                      {button.type === 'link' && (
-                        <input
-                          type="url"
-                          placeholder="https://example.com"
-                          value={button.value}
-                          onChange={(e) => updateButton(index, 'value', e.target.value)}
-                        />
-                      )}
-                      {button.type === 'call' && (
-                        <input
-                          type="tel"
-                          placeholder="+1234567890"
-                          value={button.value}
-                          onChange={(e) => updateButton(index, 'value', e.target.value)}
-                        />
-                      )}
                       {formData.buttons.length > 1 && (
                         <button 
                           type="button" 

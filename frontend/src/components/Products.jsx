@@ -678,7 +678,8 @@ export default function Products() {
   const handleSyncFromMeta = async () => {
     try {
       const result = await ecommerceApi.syncFromMeta();
-      alert(`✅ Synced ${result.data.syncedCount} products from Meta Catalog!`);
+      const { created, message } = result.data;
+      alert(message || `✅ Synced ${created} new product(s) from Meta Catalog!`);
       loadData();
     } catch (error) {
       alert(`❌ Failed to sync: ${error.response?.data?.message || error.message}`);
@@ -737,9 +738,9 @@ export default function Products() {
           <h2>Products</h2>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={openAddProductModal} className="btn-primary">
+          {/* <button onClick={openAddProductModal} className="btn-primary">
             <Plus size={18} /> Add Product
-          </button>
+          </button> */}
           {hasMetaCatalogPermission && (
             <>
               <button
@@ -797,9 +798,9 @@ export default function Products() {
           >
             {[
               { key: 'all', label: `All (${products.length})`, color: '#1f2937' },
-              { key: 'normal', label: `Normal (${normalCount})`, color: '#1f2937' },
-              { key: 'uploaded', label: `Meta (${uploadedCount})`, color: '#25d366' },
-              { key: 'synced', label: `Synced (${syncedCount})`, color: '#0084ff' },
+              // { key: 'normal', label: `Normal (${normalCount})`, color: '#1f2937' },
+              { key: 'uploaded', label: `Meta produts(${uploadedCount})`, color: '#25d366' },
+              { key: 'synced', label: `Synced from meta (${syncedCount})`, color: '#0084ff' },
               { key: 'with-variants', label: `With Variants (${withVariantsCount})`, color: '#8b5cf6' },
             ].map((tab) => (
               <button

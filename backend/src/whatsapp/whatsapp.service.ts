@@ -1436,9 +1436,31 @@ export class WhatsappService {
             this.logger.error('[Priority 0] Meta Catalog error:', error.message);
           }
         }
-        // If Meta Catalog didn't handle it, clear session and continue
-        this.logger.log(`🔄 Meta Catalog didn't handle "${text}" - clearing session`);
-        await this.ecommerceService['sessionService'].clearSession(from, tenantId);
+      }
+      
+      // Check if user clicked Meta Catalog buttons but session expired
+      const isMetaCatalogButton = 
+        text === 'Use My Details' || 
+        text === 'Update Details' || 
+        text === 'Order for Someone' ||
+        text === 'Pay Online' ||
+        text === 'Cash on Delivery' ||
+        lowerText === 'confirm' ||
+        lowerText === 'update' ||
+        lowerText === 'someone_else' ||
+        lowerText === 'payment_razorpay' ||
+        lowerText === 'payment_cod';
+      
+      if (isMetaCatalogButton && !currentStep) {
+        this.logger.log('⏱️ Meta Catalog button clicked but no session - sending expired message');
+        await this.sendMessageDirect(
+          from,
+          '⏱️ Session expired. Please send *shop* again to start a new order.',
+          whatsappSettings.accessToken,
+          whatsappSettings.phoneNumberId,
+          tenantClient
+        );
+        return;
       }
  
       // PRIORITY 1: Ecommerce checkout flow

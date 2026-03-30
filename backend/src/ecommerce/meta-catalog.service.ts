@@ -217,8 +217,8 @@ export class MetaCatalogService {
           );
           console.log('[Meta Update] Old product deleted successfully');
           
-          // Wait a bit for Meta API to process the deletion
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Wait longer for Meta API to process the deletion
+          await new Promise(resolve => setTimeout(resolve, 3000)); // Increased to 3 seconds
         } catch (deleteError) {
           const errorCode = deleteError.response?.status;
           console.log('[Meta Update] Delete error:', errorCode, deleteError.message);
@@ -239,6 +239,8 @@ export class MetaCatalogService {
       
       // Create new product with same retailer_id
       console.log('[Meta Update] Creating updated product with retailer_id:', baseRetailerId);
+      console.log('[Meta Update] Payload:', JSON.stringify(payload, null, 2));
+      
       const response = await this.axiosInstance.post(
         `${this.apiUrl}/${this.catalogId}/products`,
         payload,
@@ -253,8 +255,15 @@ export class MetaCatalogService {
     } catch (error) {
       const errorMsg = error.response?.data?.error?.message || error.message;
       const errorCode = error.response?.data?.error?.code;
+      const errorDetails = error.response?.data;
       
-      console.error('[Meta Update Error]', errorMsg);
+      console.error('[Meta Update Error]', {
+        message: errorMsg,
+        code: errorCode,
+        status: error.response?.status,
+        details: errorDetails,
+        retailerId: baseRetailerId
+      });
       
       // If duplicate retailer_id error, try to find and delete the existing one
       if (errorCode === 10800 || errorMsg.includes('Duplicate retailer_id')) {

@@ -225,10 +225,112 @@ export class MetaCatalogService {
         return availability ? 'in stock' : 'out of stock';
       };
 
-      // Meta API doesn't support PATCH/PUT for products
-      // We need to DELETE the old product and CREATE a new one with same retailer_id
-      // This preserves the product in the catalog with updated information
+      // Delete old product first if metaProductId exists
+      if (product.metaProductId) {
+        try {
+          console.log('[Meta Update] Deleting old product:', product.metaProductId);
+          await this.axiosInstance.delete(
+            `${this.apiUrl}/${product.metaProductId}`,
+          );
+          console.log('[Meta Update] Old product deleted successfully');
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        } catch (deleteError) {
+          const errorCode = deleteError.response?.status;
+          console.log('[Meta Update] Delete error:', errorCode, deleteError.message);
+          if (errorCode !== 404) {
+            try {
+              console.log('[Meta Update] Trying to delete by retailer_id:', baseRetailerId);
+              await this.deleteProductByRetailerId(baseRetailerId);
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            } catch (err) {
+              console.log('[Meta Update] Could not delete by retailer_id:', err.message);
+            }
+          }
+        }
+      }
       
+      // Delete all old variants if they exist
+      if (product.variants && product.variants.length > 0) {
+        console.log(`[Meta Update] Deleting ${product.variants.length} old variants...`);
+        for (const variant of product.variants) {
+          if (variant.metaProductId) {
+            try {
+              await this.axiosInstance.delete(`${this.apiUrl}/${variant.metaProductId}`);
+              console.log(`[Meta Update] Deleted variant: ${variant.metaProductId}`);
+            } catch (err) {
+              console.log(`[Meta Update] Could not delete variant ${variant.metaProductId}:`, err.message);
+            }
+          }
+        }
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      
+      // ✅ If product has variants, upload as variant group
+      if (meta?.variants && meta.variants.length > 0) {
+        console.log(`[Meta Update] Uploading product with ${meta.variants.length} variants...`);
+        
+        const results: any[] = [];
+        
+        for (let i = 0; i < meta.variants.length; i++) {
+          const v = meta.variants[i];
+          
+          const variantRetailerId = v.contentId || `${baseRetailerId}_v${i + 1}`;
+          
+          const variantImageUrl = v.imageUrl?.startsWith('http')
+            ? v.imageUrl
+            : v.imageUrl
+            ? `${process.env.UPLOAD_URL}${v.imageUrl}`
+            : imageUrl;
+          
+          const payload: any = {
+            retailer_id: variantRetailerId,
+            item_group_id: baseRetailerId, // ✅ Group all variants together
+            
+            // ✅ CRITICAL: Use parent product name for ALL variants
+            name: meta.name || product.name,
+            description: v.description || meta.description || product.description,
+            
+            price: toCents(v.price ?? meta.price ?? product.price),
+            sale_price: toCents(v.salePrice ?? meta.salePrice),
+            
+            currency: 'INR',
+            availability: metaAvailability(
+              v.isActive ?? meta.isActive ?? true,
+              v.availability ?? meta.availability ?? true,
+            ),
+            
+            condition: 'new',
+            brand: meta.brand || 'Store',
+            image_url: variantImageUrl,
+            url: v.link || meta.link || product.link || variantImageUrl,
+          };
+          
+          // ✅ Add variant attributes
+          if (v.size) payload.size = v.size;
+          if (v.color) payload.color = v.color;
+          if (v.pattern) payload.pattern = v.pattern;
+          if (v.gender) payload.gender = v.gender;
+          if (v.material) payload.material = v.material;
+          if (v.ageGroup) payload.age_group = v.ageGroup;
+          if (v.customAttribute) payload.additional_variant_attribute = v.customAttribute;
+          
+          console.log(`[Meta Update] Uploading variant ${i + 1}/${meta.variants.length}:`, variantRetailerId);
+          const resp = await this.axiosInstance.post(
+            `${this.apiUrl}/${this.catalogId}/products`,
+            payload,
+          );
+          
+          console.log(`[Meta Update] Variant uploaded:`, resp.data?.id);
+          results.push({ retailer_id: variantRetailerId, metaId: resp.data?.id });
+        }
+        
+        // Clear cache
+        this.catalogCache = null;
+        
+        return { success: true, type: 'variants', metaProductId: results[0]?.metaId, results };
+      }
+      
+      // ✅ No variants: upload single product
       const payload: any = {
         retailer_id: baseRetailerId,
         name: meta?.name || product.name,
@@ -242,42 +344,8 @@ export class MetaCatalogService {
         image_url: imageUrl,
         url: meta?.link || product.link || imageUrl,
       };
-
-      console.log('[Meta Update] Updating product with payload:', payload);
       
-      // Delete old product first if metaProductId exists
-      if (product.metaProductId) {
-        try {
-          console.log('[Meta Update] Deleting old product:', product.metaProductId);
-          await this.axiosInstance.delete(
-            `${this.apiUrl}/${product.metaProductId}`,
-          );
-          console.log('[Meta Update] Old product deleted successfully');
-          
-          // Wait longer for Meta API to process the deletion
-          await new Promise(resolve => setTimeout(resolve, 3000)); // Increased to 3 seconds
-        } catch (deleteError) {
-          const errorCode = deleteError.response?.status;
-          console.log('[Meta Update] Delete error:', errorCode, deleteError.message);
-          
-          // If product not found (404), it's already deleted - continue
-          if (errorCode !== 404) {
-            // For other errors, try to find and delete by retailer_id
-            try {
-              console.log('[Meta Update] Trying to delete by retailer_id:', baseRetailerId);
-              await this.deleteProductByRetailerId(baseRetailerId);
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            } catch (err) {
-              console.log('[Meta Update] Could not delete by retailer_id:', err.message);
-            }
-          }
-        }
-      }
-      
-      // Create new product with same retailer_id
       console.log('[Meta Update] Creating updated product with retailer_id:', baseRetailerId);
-      console.log('[Meta Update] Payload:', JSON.stringify(payload, null, 2));
-      
       const response = await this.axiosInstance.post(
         `${this.apiUrl}/${this.catalogId}/products`,
         payload,

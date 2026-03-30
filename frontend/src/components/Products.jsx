@@ -193,6 +193,13 @@ export default function Products() {
           isActive: toBool(v.isActive),
           image: null,
           imageUrl: v.imageUrl || null,
+          size: v.size || '',
+          color: v.color || '',
+          pattern: v.pattern || '',
+          gender: v.gender || '',
+          material: v.material || '',
+          ageGroup: v.ageGroup || '',
+          customAttribute: v.customAttribute || '',
         })),
       });
   
@@ -351,6 +358,13 @@ export default function Products() {
       isActive: toBool(v.isActive),
       image: null,
       imageUrl: v.imageUrl || null,
+      size: v.size || '',
+      color: v.color || '',
+      pattern: v.pattern || '',
+      gender: v.gender || '',
+      material: v.material || '',
+      ageGroup: v.ageGroup || '',
+      customAttribute: v.customAttribute || '',
     });
     setShowVariantModal(true);
   };
@@ -422,6 +436,13 @@ export default function Products() {
       availability: toBool(v.availability),
       isActive: toBool(v.isActive),
       image: null,
+      size: v.size || '',
+      color: v.color || '',
+      pattern: v.pattern || '',
+      gender: v.gender || '',
+      material: v.material || '',
+      ageGroup: v.ageGroup || '',
+      customAttribute: v.customAttribute || '',
     });
     setShowVariantModal(true);
   };
@@ -1492,6 +1513,12 @@ export default function Products() {
                             {v.salePrice ? ` (Sale ₹${v.salePrice})` : ''} • Stock: {v.stock ?? 0} •{' '}
                             {v.availability ? 'In stock' : 'Out of stock'}
                           </div>
+                          {/* ✅ Show variant attributes */}
+                          {(v.size || v.color || v.pattern || v.gender || v.material) && (
+                            <div style={{ fontSize: '11px', color: '#7c3aed', marginTop: '2px' }}>
+                              {[v.size, v.color, v.pattern, v.gender, v.material].filter(Boolean).join(' • ')}
+                            </div>
+                          )}
                           <div style={{ fontSize: '11px', color: '#9ca3af' }}>
                             ID: {v.contentId || 'Auto-generated'}
                             {v.id && (

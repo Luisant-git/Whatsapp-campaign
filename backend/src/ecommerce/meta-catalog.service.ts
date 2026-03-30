@@ -449,42 +449,45 @@ export class MetaCatalogService {
   async syncMetaProductsToDatabase(userId?: number) {
     try {
       const metaProducts = await this.fetchProductsFromMeta();
-      const syncedProducts: any[] = [];
+      const createdProducts: any[] = [];
+      const updatedProducts: any[] = [];
+      const skippedProducts: any[] = [];
       const existingProducts = await this.ecommerceService.getProducts(undefined, userId);
 
-      console.log('Meta products fetched:', JSON.stringify(metaProducts, null, 2));
+      console.log('[Meta Sync] Fetched', metaProducts.length, 'products from Meta Catalog');
 
       for (const metaProduct of metaProducts) {
-        // Check if this product already exists in our database
+        // Check if this product already exists in our database by metaProductId
         const existingProduct = existingProducts.find(p => p.metaProductId === metaProduct.id);
         
-        // Skip products that have retailer_id starting with 'product_' AND don't exist in our DB
-        // This means they were uploaded from our system but not yet in our DB
+        // Skip products that have retailer_id starting with 'product_' (our uploaded products)
         if (metaProduct.retailer_id?.startsWith('product_')) {
-          // Extract the product ID from retailer_id
           const productIdFromRetailerId = parseInt(metaProduct.retailer_id.replace('product_', ''));
-          // Check if this product exists in our database with this ID
           const uploadedProduct = existingProducts.find(p => p.id === productIdFromRetailerId);
           
-          // If found, skip it (it's our uploaded product)
           if (uploadedProduct) {
-            console.log(`Skipping uploaded product: ${metaProduct.name} (retailer_id: ${metaProduct.retailer_id})`);
+            console.log(`[Meta Sync] Skipping uploaded product: ${metaProduct.name} (retailer_id: ${metaProduct.retailer_id})`);
+            skippedProducts.push({ name: metaProduct.name, retailer_id: metaProduct.retailer_id, reason: 'Already uploaded from system' });
             continue;
           }
         }
         
-        console.log(`Processing Meta product: ${metaProduct.name}, raw price data:`, metaProduct.price);
+        // If product already exists with same metaProductId, skip it (already synced)
+        if (existingProduct) {
+          console.log(`[Meta Sync] Product already synced: ${metaProduct.name} (metaProductId: ${metaProduct.id})`);
+          skippedProducts.push({ name: metaProduct.name, metaProductId: metaProduct.id, reason: 'Already synced' });
+          continue;
+        }
+        
+        console.log(`[Meta Sync] Processing new Meta product: ${metaProduct.name}`);
         
         let price = 0;
         if (typeof metaProduct.price === 'string') {
-          // Remove currency symbol, commas, and parse
           const cleanPrice = metaProduct.price.replace(/[₹,]/g, '').trim();
           price = parseFloat(cleanPrice);
         } else if (typeof metaProduct.price === 'number') {
           price = metaProduct.price / 100;
         }
-        
-        console.log(`Converted price: ${price}`);
         
         const productData: any = {
           name: metaProduct.name,
@@ -498,18 +501,27 @@ export class MetaCatalogService {
           isActive: metaProduct.availability === 'in stock',
         };
 
-        if (existingProduct) {
-          await this.ecommerceService.updateProduct(existingProduct.id, productData);
-          syncedProducts.push({ ...existingProduct, ...productData, action: 'updated' });
-        } else {
-          const newProduct = await this.ecommerceService.createProduct(productData);
-          syncedProducts.push({ ...newProduct, action: 'created' });
-        }
+        const newProduct = await this.ecommerceService.createProduct(productData, userId);
+        createdProducts.push({ ...newProduct, action: 'created' });
+        console.log(`[Meta Sync] Created new product: ${newProduct.name} (ID: ${newProduct.id})`);
       }
 
-      return { success: true, syncedCount: syncedProducts.length, products: syncedProducts };
+      const summary = {
+        success: true,
+        total: metaProducts.length,
+        created: createdProducts.length,
+        skipped: skippedProducts.length,
+        message: createdProducts.length > 0 
+          ? `✅ Synced ${createdProducts.length} new product(s) from Meta Catalog!`
+          : '✅ All products are already synced. No new products found.',
+        products: createdProducts,
+        skippedDetails: skippedProducts
+      };
+      
+      console.log('[Meta Sync] Summary:', summary);
+      return summary;
     } catch (error) {
-      console.error('Sync Meta products error:', error.message);
+      console.error('[Meta Sync] Error:', error.message);
       throw new Error('Failed to sync Meta products to database');
     }
   }

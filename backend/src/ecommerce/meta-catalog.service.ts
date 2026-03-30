@@ -63,6 +63,15 @@ export class MetaCatalogService {
       // ✅ If variants exist, upload each variant as separate item grouped by item_group_id
       if (Array.isArray(meta?.variants) && meta.variants.length > 0) {
         const results: any[] = [];
+        
+        // Validate that all variants have required variant attributes
+        const hasVariantAttributes = meta.variants.every(v => 
+          v.size || v.color || v.pattern || v.gender || v.material
+        );
+        
+        if (!hasVariantAttributes) {
+          console.warn('[Meta Sync] Warning: Variants should have at least one variant attribute (size, color, pattern, gender, material)');
+        }
   
         for (let i = 0; i < meta.variants.length; i++) {
           const v = meta.variants[i];
@@ -70,12 +79,20 @@ export class MetaCatalogService {
           const variantRetailerId = (v?.contentId && String(v.contentId).trim())
             ? String(v.contentId).trim()
             : `${baseRetailerId}_v${i + 1}`;
+          
+          // Use variant-specific image if available, otherwise use base image
+          const variantImageUrl = v?.imageUrl?.startsWith('http')
+            ? v.imageUrl
+            : v?.imageUrl
+            ? `${process.env.UPLOAD_URL}${v.imageUrl}`
+            : imageUrl;
   
           const payload: any = {
             retailer_id: variantRetailerId,
-            item_group_id: baseRetailerId,
+            item_group_id: baseRetailerId, // Groups all variants together
   
-            name: v?.name || meta?.name || product.name,
+            // ✅ IMPORTANT: All variants must have the SAME name (parent product name)
+            name: meta?.name || product.name,
             description: v?.description || meta?.description || product.description || product.name,
   
             price: toCents(v?.price ?? meta?.price ?? product.price),
@@ -88,19 +105,39 @@ export class MetaCatalogService {
             ),
   
             condition: 'new',
-            brand: 'Store',
-            image_url: imageUrl,
-            url: v?.link || meta?.link || product.link || imageUrl,
+            brand: meta?.brand || 'Store',
+            
+            // ✅ Use variant-specific image (e.g., red shirt shows red image)
+            image_url: variantImageUrl,
+            url: v?.link || meta?.link || product.link || variantImageUrl,
           };
+          
+          // ✅ Add variant attributes (REQUIRED by Meta for proper variant grouping)
+          if (v.size) payload.size = v.size;
+          if (v.color) payload.color = v.color;
+          if (v.pattern) payload.pattern = v.pattern;
+          if (v.gender) payload.gender = v.gender;
+          if (v.material) payload.material = v.material;
+          if (v.ageGroup) payload.age_group = v.ageGroup;
+          
+          // For custom variant attributes
+          if (v.customAttribute) {
+            payload.additional_variant_attribute = v.customAttribute;
+          }
   
-          console.log(`[Meta Sync] Uploading variant ${i + 1}/${meta.variants.length}:`, variantRetailerId);
+          console.log(`[Meta Sync] Uploading variant ${i + 1}/${meta.variants.length}:`, variantRetailerId, `(${v.size || ''} ${v.color || ''})`.trim());
           const resp = await this.axiosInstance.post(
             `${this.apiUrl}/${this.catalogId}/products`,
             payload,
           );
   
           console.log(`[Meta Sync] Variant uploaded successfully:`, resp.data?.id);
-          results.push({ retailer_id: variantRetailerId, metaId: resp.data?.id });
+          results.push({ 
+            retailer_id: variantRetailerId, 
+            metaId: resp.data?.id,
+            size: v.size,
+            color: v.color
+          });
         }
   
         return { success: true, type: 'variants', metaProductId: results[0]?.metaId, results };
@@ -395,22 +432,42 @@ export class MetaCatalogService {
       const payload: any = {
         retailer_id: variantRetailerId,
         item_group_id: parentRetailerId, // Link to parent product
-        name: meta?.name || variant.name,
+        
+        // ✅ IMPORTANT: Use parent product name (same for all variants)
+        name: meta?.name || parentProduct.name,
         description: meta?.description || variant.description || parentProduct.description || variant.name,
+        
         price: toCents(meta?.price ?? variant.price),
         sale_price: toCents(meta?.salePrice ?? variant.salePrice),
+        
         currency: 'INR',
         availability: metaAvailability(
           meta?.isActive ?? variant.isActive ?? true,
           meta?.availability ?? variant.availability ?? true
         ),
+        
         condition: 'new',
-        brand: 'Store',
+        brand: meta?.brand || 'Store',
+        
+        // ✅ Use variant-specific image
         image_url: imageUrl,
         url: meta?.link || variant.link || parentProduct.link || imageUrl,
       };
+      
+      // ✅ Add variant attributes (REQUIRED by Meta)
+      if (variant.size || meta?.size) payload.size = variant.size || meta.size;
+      if (variant.color || meta?.color) payload.color = variant.color || meta.color;
+      if (variant.pattern || meta?.pattern) payload.pattern = variant.pattern || meta.pattern;
+      if (variant.gender || meta?.gender) payload.gender = variant.gender || meta.gender;
+      if (variant.material || meta?.material) payload.material = variant.material || meta.material;
+      if (variant.ageGroup || meta?.ageGroup) payload.age_group = variant.ageGroup || meta.ageGroup;
+      
+      // For custom variant attributes
+      if (variant.customAttribute || meta?.customAttribute) {
+        payload.additional_variant_attribute = variant.customAttribute || meta.customAttribute;
+      }
 
-      console.log('[Meta Sync Variant] Uploading variant with item_group_id:', parentRetailerId);
+      console.log('[Meta Sync Variant] Uploading variant with item_group_id:', parentRetailerId, `(${payload.size || ''} ${payload.color || ''})`.trim());
       const response = await this.axiosInstance.post(
         `${this.apiUrl}/${this.catalogId}/products`,
         payload,
@@ -421,7 +478,13 @@ export class MetaCatalogService {
       // Clear cache
       this.catalogCache = null;
       
-      return { success: true, metaProductId: response.data.id, retailerId: variantRetailerId };
+      return { 
+        success: true, 
+        metaProductId: response.data.id, 
+        retailerId: variantRetailerId,
+        size: payload.size,
+        color: payload.color
+      };
     } catch (error) {
       const errorMsg = error.response?.data?.error?.message || error.message;
       console.error('[Meta Sync Variant Error]', errorMsg);

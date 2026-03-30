@@ -60,9 +60,18 @@ export class MetaCatalogService {
         ? String(meta.contentId).trim()
         : `product_${product.id}`;
   
-      // ✅ If variants exist, upload each variant as separate item grouped by item_group_id
+      // ✅ CRITICAL: If variants exist, ONLY upload variants (NOT the parent product)
+      // Commerce Manager will automatically group them by item_group_id
       if (Array.isArray(meta?.variants) && meta.variants.length > 0) {
+        console.log(`[Meta Sync] Product has ${meta.variants.length} variants. Uploading ONLY variants (not parent product).`);
+        
         const results: any[] = [];
+        
+        // ✅ CRITICAL: Use IDENTICAL values for all variants to ensure proper grouping
+        const sharedName = meta?.name || product.name;
+        const sharedDescription = meta?.description || product.description || product.name;
+        const sharedBrand = meta?.brand || 'Store';
+        const sharedUrl = meta?.link || product.link || imageUrl;
         
         // Validate that all variants have required variant attributes
         const hasVariantAttributes = meta.variants.every(v => 
@@ -70,7 +79,7 @@ export class MetaCatalogService {
         );
         
         if (!hasVariantAttributes) {
-          console.warn('[Meta Sync] Warning: Variants should have at least one variant attribute (size, color, pattern, gender, material)');
+          console.warn('[Meta Sync] ⚠️ WARNING: At least one variant attribute (size, color, pattern, gender, material) is REQUIRED for proper variant grouping in Meta Catalog!');
         }
   
         for (let i = 0; i < meta.variants.length; i++) {
@@ -91,9 +100,11 @@ export class MetaCatalogService {
             retailer_id: variantRetailerId,
             item_group_id: baseRetailerId, // Groups all variants together
   
-            // ✅ IMPORTANT: All variants must have the SAME name (parent product name)
-            name: meta?.name || product.name,
-            description: v?.description || meta?.description || product.description || product.name,
+            // ✅ CRITICAL: Use IDENTICAL shared values for proper grouping
+            name: sharedName,
+            description: sharedDescription,
+            brand: sharedBrand,
+            url: sharedUrl,
   
             price: toCents(v?.price ?? meta?.price ?? product.price),
             sale_price: toCents(v?.salePrice ?? meta?.salePrice),
@@ -105,11 +116,9 @@ export class MetaCatalogService {
             ),
   
             condition: 'new',
-            brand: meta?.brand || 'Store',
             
             // ✅ Use variant-specific image (e.g., red shirt shows red image)
             image_url: variantImageUrl,
-            url: v?.link || meta?.link || product.link || variantImageUrl,
           };
           
           // ✅ Add variant attributes (REQUIRED by Meta for proper variant grouping)
@@ -271,6 +280,12 @@ export class MetaCatalogService {
         
         const results: any[] = [];
         
+        // ✅ CRITICAL: Use IDENTICAL values for all variants
+        const sharedName = meta?.name || product.name;
+        const sharedDescription = meta?.description || product.description || product.name;
+        const sharedBrand = meta?.brand || 'Store';
+        const sharedUrl = meta?.link || product.link || imageUrl;
+        
         for (let i = 0; i < meta.variants.length; i++) {
           const v = meta.variants[i];
           
@@ -284,11 +299,13 @@ export class MetaCatalogService {
           
           const payload: any = {
             retailer_id: variantRetailerId,
-            item_group_id: baseRetailerId, // ✅ Group all variants together
+            item_group_id: baseRetailerId,
             
-            // ✅ CRITICAL: Use parent product name for ALL variants
-            name: meta.name || product.name,
-            description: v.description || meta.description || product.description,
+            // ✅ CRITICAL: Use IDENTICAL shared values
+            name: sharedName,
+            description: sharedDescription,
+            brand: sharedBrand,
+            url: sharedUrl,
             
             price: toCents(v.price ?? meta.price ?? product.price),
             sale_price: toCents(v.salePrice ?? meta.salePrice),
@@ -300,9 +317,7 @@ export class MetaCatalogService {
             ),
             
             condition: 'new',
-            brand: meta.brand || 'Store',
             image_url: variantImageUrl,
-            url: v.link || meta.link || product.link || variantImageUrl,
           };
           
           // ✅ Add variant attributes
@@ -497,13 +512,21 @@ export class MetaCatalogService {
       // Variant retailer_id
       const variantRetailerId = variant.contentId || `${parentRetailerId}_v${variant.id}`;
 
+      // ✅ CRITICAL: Use IDENTICAL values for all variants
+      const sharedName = meta?.name || parentProduct.name;
+      const sharedDescription = meta?.description || parentProduct.description || parentProduct.name;
+      const sharedBrand = meta?.brand || 'Store';
+      const sharedUrl = meta?.link || parentProduct.link || imageUrl;
+      
       const payload: any = {
         retailer_id: variantRetailerId,
-        item_group_id: parentRetailerId, // Link to parent product
+        item_group_id: parentRetailerId,
         
-        // ✅ IMPORTANT: Use parent product name (same for all variants)
-        name: meta?.name || parentProduct.name,
-        description: meta?.description || variant.description || parentProduct.description || variant.name,
+        // ✅ CRITICAL: Use IDENTICAL shared values
+        name: sharedName,
+        description: sharedDescription,
+        brand: sharedBrand,
+        url: sharedUrl,
         
         price: toCents(meta?.price ?? variant.price),
         sale_price: toCents(meta?.salePrice ?? variant.salePrice),
@@ -515,11 +538,7 @@ export class MetaCatalogService {
         ),
         
         condition: 'new',
-        brand: meta?.brand || 'Store',
-        
-        // ✅ Use variant-specific image
         image_url: imageUrl,
-        url: meta?.link || variant.link || parentProduct.link || imageUrl,
       };
       
       // ✅ Add variant attributes (REQUIRED by Meta)

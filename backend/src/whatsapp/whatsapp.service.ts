@@ -600,6 +600,12 @@ export class WhatsappService {
         where: { messageId },
         data: { status }
       });
+  
+      await this.prisma.campaignMessage.updateMany({
+        where: { messageId },
+        data: { status }
+      });
+  
       this.logger.log(`Message ${messageId} status updated to ${status}`);
       return { messageId, status };
     } catch (error) {

@@ -162,6 +162,10 @@ export class MetaCatalogService {
   }
 
   async updateProductInCatalog(product: any, meta?: any) {
+    const baseRetailerId = (meta?.contentId && String(meta.contentId).trim())
+      ? String(meta.contentId).trim()
+      : product.contentId || `product_${product.id}`;
+    
     try {
       if (!this.catalogId || !this.accessToken) {
         throw new Error('Meta Catalog ID or Access Token not configured');
@@ -183,10 +187,6 @@ export class MetaCatalogService {
         if (!isActive) return 'out of stock';
         return availability ? 'in stock' : 'out of stock';
       };
-
-      const baseRetailerId = (meta?.contentId && String(meta.contentId).trim())
-        ? String(meta.contentId).trim()
-        : product.contentId || `product_${product.id}`;
 
       // Meta API doesn't support PATCH/PUT for products
       // We need to DELETE the old product and CREATE a new one with same retailer_id
@@ -269,10 +269,6 @@ export class MetaCatalogService {
       if (errorCode === 10800 || errorMsg.includes('Duplicate retailer_id')) {
         console.log('[Meta Update] Duplicate retailer_id detected, attempting cleanup...');
         try {
-          const baseRetailerId = (meta?.contentId && String(meta.contentId).trim())
-            ? String(meta.contentId).trim()
-            : product.contentId || `product_${product.id}`;
-          
           await this.deleteProductByRetailerId(baseRetailerId);
           console.log('[Meta Update] Cleaned up duplicate, please try updating again');
         } catch (cleanupError) {

@@ -73,6 +73,14 @@ export default function Products() {
     isActive: true,
     image: null,
     imageUrl: null,
+    // ✅ Add variant attributes for Meta Catalog
+    size: '',
+    color: '',
+    pattern: '',
+    gender: '',
+    material: '',
+    ageGroup: '',
+    customAttribute: '',
   };
   const [variantForm, setVariantForm] = useState(emptyVariantForm);
 
@@ -256,6 +264,15 @@ export default function Products() {
             variantFormData.append('contentId', v.contentId.trim());
           }
           // Don't send contentId at all if empty - let backend generate unique one 
+          
+          // ✅ Add variant attributes
+          if (v.size) variantFormData.append('size', v.size);
+          if (v.color) variantFormData.append('color', v.color);
+          if (v.pattern) variantFormData.append('pattern', v.pattern);
+          if (v.gender) variantFormData.append('gender', v.gender);
+          if (v.material) variantFormData.append('material', v.material);
+          if (v.ageGroup) variantFormData.append('ageGroup', v.ageGroup);
+          if (v.customAttribute) variantFormData.append('customAttribute', v.customAttribute);
           
           // ✅ FIX: Variant booleans too
           variantFormData.append('availability', v.availability === true ? 'true' : 'false');
@@ -488,6 +505,15 @@ export default function Products() {
         }
         // Don't send contentId at all if empty - let backend generate unique one
         
+        // ✅ Add variant attributes
+        if (v.size) variantFormData.append('size', v.size);
+        if (v.color) variantFormData.append('color', v.color);
+        if (v.pattern) variantFormData.append('pattern', v.pattern);
+        if (v.gender) variantFormData.append('gender', v.gender);
+        if (v.material) variantFormData.append('material', v.material);
+        if (v.ageGroup) variantFormData.append('ageGroup', v.ageGroup);
+        if (v.customAttribute) variantFormData.append('customAttribute', v.customAttribute);
+        
         // ✅ FIX
         variantFormData.append('availability', v.availability === true ? 'true' : 'false');
         variantFormData.append('isActive', v.isActive === true ? 'true' : 'false');
@@ -518,6 +544,14 @@ export default function Products() {
           // ✅ FIX
           availability: v.availability === true,
           isActive: v.isActive === true,
+          // ✅ Add variant attributes
+          size: v.size || undefined,
+          color: v.color || undefined,
+          pattern: v.pattern || undefined,
+          gender: v.gender || undefined,
+          material: v.material || undefined,
+          ageGroup: v.ageGroup || undefined,
+          customAttribute: v.customAttribute || undefined,
         })),
       };
 
@@ -2049,6 +2083,109 @@ export default function Products() {
                   }
                   rows={2}
                 />
+              </div>
+
+              {/* ✅ Variant Attributes Section */}
+              <div style={{ 
+                background: '#f0fdf4', 
+                border: '1px solid #86efac', 
+                borderRadius: '8px', 
+                padding: '16px',
+                marginBottom: '16px'
+              }}>
+                <div style={{ 
+                  fontWeight: 600, 
+                  color: '#166534', 
+                  marginBottom: '12px',
+                  fontSize: '14px'
+                }}>
+                  ✅ Variant Attributes (Required for Meta Catalog)
+                </div>
+                <div style={{ fontSize: '12px', color: '#15803d', marginBottom: '12px' }}>
+                  At least one attribute (size, color, etc.) is required for proper variant grouping in Meta Catalog.
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Size</label>
+                    <input
+                      className="form-input"
+                      placeholder="e.g., S, M, L, XL, 128GB"
+                      value={variantForm.size}
+                      onChange={(e) => setVariantForm({ ...variantForm, size: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Color</label>
+                    <input
+                      className="form-input"
+                      placeholder="e.g., Red, Blue, Black"
+                      value={variantForm.color}
+                      onChange={(e) => setVariantForm({ ...variantForm, color: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Pattern</label>
+                    <input
+                      className="form-input"
+                      placeholder="e.g., Solid, Striped"
+                      value={variantForm.pattern}
+                      onChange={(e) => setVariantForm({ ...variantForm, pattern: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Gender</label>
+                    <select
+                      className="form-select"
+                      value={variantForm.gender}
+                      onChange={(e) => setVariantForm({ ...variantForm, gender: e.target.value })}
+                    >
+                      <option value="">Select...</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="unisex">Unisex</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Material</label>
+                    <input
+                      className="form-input"
+                      placeholder="e.g., Cotton, Polyester"
+                      value={variantForm.material}
+                      onChange={(e) => setVariantForm({ ...variantForm, material: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Age Group</label>
+                    <select
+                      className="form-select"
+                      value={variantForm.ageGroup}
+                      onChange={(e) => setVariantForm({ ...variantForm, ageGroup: e.target.value })}
+                    >
+                      <option value="">Select...</option>
+                      <option value="adult">Adult</option>
+                      <option value="kids">Kids</option>
+                      <option value="infant">Infant</option>
+                      <option value="toddler">Toddler</option>
+                      <option value="newborn">Newborn</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginTop: '12px', marginBottom: 0 }}>
+                  <label>Custom Attribute</label>
+                  <input
+                    className="form-input"
+                    placeholder="Any other variant attribute"
+                    value={variantForm.customAttribute}
+                    onChange={(e) => setVariantForm({ ...variantForm, customAttribute: e.target.value })}
+                  />
+                </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>

@@ -1862,22 +1862,22 @@ export class WhatsappService {
       const callButtons = buttons.filter(btn => typeof btn === 'object' && btn.type === 'call');
       const linkButtons = buttons.filter(btn => typeof btn === 'object' && btn.type === 'link');
 
-      // If we have call or link buttons, send them as separate messages with proper formatting
+      // If we have call or link buttons, send them as text with clickable numbers/links
       if (callButtons.length > 0 || linkButtons.length > 0) {
-        // Send the main message first
-        let messageText = text;
+        let messageText = '';
         if (title && title.trim()) {
-          messageText = `*${title}*\n\n${text}`;
+          messageText = `*${title}*\n\n`;
         }
+        messageText += text;
         
         // Add call buttons as clickable phone numbers
         for (const btn of callButtons) {
-          messageText += `\n\n📞 ${btn.text}: ${btn.value}`;
+          messageText += `\n\nOur contact number is ${btn.value}.`;
         }
         
         // Add link buttons as clickable URLs
         for (const btn of linkButtons) {
-          messageText += `\n\n🔗 ${btn.text}: ${btn.value}`;
+          messageText += `\n\n${btn.text}: ${btn.value}`;
         }
         
         // If there are reply buttons, add them as interactive buttons

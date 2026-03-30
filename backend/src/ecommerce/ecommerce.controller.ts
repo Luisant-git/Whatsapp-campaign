@@ -177,6 +177,11 @@ export class EcommerceController {
           // Get product with all variants
           const productWithVariants = await this.ecommerceService.getProduct(+id, req.session?.userId);
           
+          if (!productWithVariants) {
+            console.error(`[Meta Sync] Product ${id} not found`);
+            return;
+          }
+          
           // Build meta payload with variants
           const metaPayload: any = {
             name: productWithVariants.name,
@@ -190,7 +195,7 @@ export class EcommerceController {
           
           // Add variants if they exist
           if (productWithVariants.variants && productWithVariants.variants.length > 0) {
-            metaPayload.variants = productWithVariants.variants.map((v) => ({
+            metaPayload.variants = productWithVariants.variants.map((v: any) => ({
               name: v.name,
               description: v.description,
               price: v.price,

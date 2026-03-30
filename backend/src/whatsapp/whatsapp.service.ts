@@ -1848,7 +1848,6 @@ export class WhatsappService {
 
   async sendButtonsMessageDirect(to: string, title: string, text: string, buttons: any[], accessToken: string, phoneNumberId: string, tenantClient: any) {
     try {
-      // Separate buttons by type
       const replyButtons = buttons.filter(btn => {
         const type = typeof btn === 'string' ? 'reply' : btn.type;
         return type === 'reply';
@@ -1857,88 +1856,104 @@ export class WhatsappService {
       const callButtons = buttons.filter(btn => typeof btn === 'object' && btn.type === 'call');
       const linkButtons = buttons.filter(btn => typeof btn === 'object' && btn.type === 'link');
 
-      // If we have call or link buttons, use CTA button format
+      // If we have call or link buttons, send them as separate messages with proper formatting
       if (callButtons.length > 0 || linkButtons.length > 0) {
-        const ctaButtons: any[] = [];
-        
-        // Add call buttons
-        for (const btn of callButtons) {
-          ctaButtons.push({
-            type: 'phone_number',
-            reply: {
-              title: btn.text.length > 20 ? btn.text.substring(0, 20) : btn.text,
-              phone_number: btn.value
-            }
-          });
-        }
-        
-        // Add link buttons
-        for (const btn of linkButtons) {
-          ctaButtons.push({
-            type: 'url',
-            reply: {
-              title: btn.text.length > 20 ? btn.text.substring(0, 20) : btn.text,
-              url: btn.value
-            }
-          });
-        }
-        
-        // Add reply buttons
-        for (const btn of replyButtons.slice(0, 3 - ctaButtons.length)) {
-          const buttonText = typeof btn === 'string' ? btn : btn.text;
-          ctaButtons.push({
-            type: 'reply',
-            reply: {
-              id: `btn_${ctaButtons.length}`,
-              title: buttonText.length > 20 ? buttonText.substring(0, 20) : buttonText
-            }
-          });
-        }
-
-        const interactive: any = {
-          type: 'cta_url',
-          body: { text },
-          action: {
-            buttons: ctaButtons.slice(0, 3)
-          }
-        };
-
+        // Send the main message first
+        let messageText = text;
         if (title && title.trim()) {
-          interactive.header = {
-            type: 'text',
-            text: title
-          };
+          messageText = `*${title}*\n\n${text}`;
         }
+        
+        // Add call buttons as clickable phone numbers
+        for (const btn of callButtons) {
+          messageText += `\n\n📞 ${btn.text}: ${btn.value}`;
+        }
+        
+        // Add link buttons as clickable URLs
+        for (const btn of linkButtons) {
+          messageText += `\n\n🔗 ${btn.text}: ${btn.value}`;
+        }
+        
+        // If there are reply buttons, add them as interactive buttons
+        if (replyButtons.length > 0) {
+          const interactiveButtons = replyButtons.slice(0, 3).map((button, index) => {
+            const buttonText = typeof button === 'string' ? button : button.text;
+            return {
+              type: 'reply',
+              reply: {
+                id: `btn_${index}`,
+                title: buttonText.length > 20 ? buttonText.substring(0, 20) : buttonText
+              }
+            };
+          });
 
-        const response = await axios.post(
-          `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
-          {
-            messaging_product: 'whatsapp',
-            to,
-            type: 'interactive',
-            interactive
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json'
+          const response = await axios.post(
+            `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+            {
+              messaging_product: 'whatsapp',
+              to,
+              type: 'interactive',
+              interactive: {
+                type: 'button',
+                body: { text: messageText },
+                action: {
+                  buttons: interactiveButtons
+                }
+              }
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              }
             }
-          }
-        );
+          );
 
-        await tenantClient.whatsAppMessage.create({
-          data: {
-            messageId: response.data.messages[0].id,
-            to,
-            from: to,
-            message: `Interactive CTA buttons: ${title} - ${text}`,
-            direction: 'outgoing',
-            status: 'sent',
-            phoneNumberId,
-          }
-        });
+          await tenantClient.whatsAppMessage.create({
+            data: {
+              messageId: response.data.messages[0].id,
+              to,
+              from: to,
+              message: `Interactive buttons: ${title} - ${text}`,
+              direction: 'outgoing',
+              status: 'sent',
+              phoneNumberId,
+            }
+          });
 
-        return { success: true, messageId: response.data.messages[0].id };
+          return { success: true, messageId: response.data.messages[0].id };
+        } else {
+          // No reply buttons, just send as text message
+          const response = await axios.post(
+            `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+            {
+              messaging_product: 'whatsapp',
+              to,
+              type: 'text',
+              text: { body: messageText }
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+
+          await tenantClient.whatsAppMessage.create({
+            data: {
+              messageId: response.data.messages[0].id,
+              to,
+              from: to,
+              message: messageText,
+              direction: 'outgoing',
+              status: 'sent',
+              phoneNumberId,
+            }
+          });
+
+          return { success: true, messageId: response.data.messages[0].id };
+        }
       }
 
       // Standard reply buttons only

@@ -65,6 +65,14 @@ export class WhatsappSessionService {
         if (nestedQuickReply) {
           console.log('Found nested quick reply:', nestedQuickReply);
           const buttons = nestedQuickReply.buttons as any[];
+          
+          // If no buttons or empty buttons array, send as simple text message
+          if (!buttons || buttons.length === 0) {
+            const message = [nestedQuickReply.title, nestedQuickReply.response].filter(Boolean).join('\n\n');
+            await sendCallback(from, message);
+            return true; // Handled
+          }
+          
           // Extract button text for WhatsApp (only text, not type/value)
           const buttonTexts = buttons.map(btn => typeof btn === 'string' ? btn : btn.text);
           const title = nestedQuickReply.title || '';
@@ -95,6 +103,14 @@ export class WhatsappSessionService {
       console.log('[SessionService] Final quick reply found:', quickReply);
       if (quickReply) {
         const buttons = quickReply.buttons as any[];
+        
+        // If no buttons or empty buttons array, send as simple text message
+        if (!buttons || buttons.length === 0) {
+          const message = [quickReply.title, quickReply.response].filter(Boolean).join('\n\n');
+          await sendCallback(from, message);
+          return true; // Handled
+        }
+        
         // Extract button text for WhatsApp (only text, not type/value)
         const buttonTexts = buttons.map(btn => typeof btn === 'string' ? btn : btn.text);
         const title = quickReply.title || '';

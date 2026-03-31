@@ -474,39 +474,37 @@ export class CampaignService {
         }
       }
     });
-
+  
     if (!campaign) {
       throw new NotFoundException('Campaign not found');
     }
-
-    // Get response data for each contact
+  
+    // ✅ stats OUTSIDE map
+    const stats = {
+      total: campaign.messages.length,
+      sent: campaign.messages.filter(m => m.status?.toLowerCase() === 'sent').length,
+      delivered: campaign.messages.filter(m => m.status?.toLowerCase() === 'delivered').length,
+      read: campaign.messages.filter(m => m.status?.toLowerCase() === 'read').length,
+      failed: campaign.messages.filter(m => m.status?.toLowerCase() === 'failed').length
+    };
+  
     const results = await Promise.all(
       (campaign.messages || []).map(async (message) => {
-        // Check if customer responded after the campaign message was sent
-        // Try different phone number formats to handle potential mismatches
+  
         const cleanPhone = message.phone.replace(/[^0-9]/g, '');
+  
         const phoneVariations = [
-          message.phone, // Original format
-          cleanPhone, // Digits only
-          `+${cleanPhone}`, // With + prefix
-          cleanPhone.length === 10 && /^[6-9]/.test(cleanPhone) ? `91${cleanPhone}` : cleanPhone, // Add India code if 10 digits
-          cleanPhone.startsWith('91') ? cleanPhone.substring(2) : cleanPhone // Remove India code if present
-        ].filter((phone, index, arr) => arr.indexOf(phone) === index); // Remove duplicates
-
-        this.logger.log(`Checking responses for campaign message to ${message.phone}, variations: ${phoneVariations.join(', ')}`);
-
-        // Debug: Check all incoming messages
-        const allIncoming = await this.prisma.whatsAppMessage.findMany({
-          where: {
-            direction: 'incoming',
-            createdAt: {
-              gte: message.createdAt
-            }
-          },
-          select: { from: true, message: true, createdAt: true }
-        });
-        this.logger.log(`All incoming messages since campaign: ${JSON.stringify(allIncoming)}`);
-
+          message.phone,
+          cleanPhone,
+          `+${cleanPhone}`,
+          cleanPhone.length === 10 && /^[6-9]/.test(cleanPhone)
+            ? `91${cleanPhone}`
+            : cleanPhone,
+          cleanPhone.startsWith('91')
+            ? cleanPhone.substring(2)
+            : cleanPhone
+        ].filter((phone, index, arr) => arr.indexOf(phone) === index);
+  
         const responses = await this.prisma.whatsAppMessage.findMany({
           where: {
             from: { in: phoneVariations },
@@ -518,28 +516,25 @@ export class CampaignService {
           orderBy: { createdAt: 'desc' },
           take: 1
         });
-
-        this.logger.log(`Found ${responses.length} responses for ${message.phone}`);
-        if (responses.length > 0) {
-          this.logger.log(`Response from: ${responses[0].from}, message: ${responses[0].message}`);
-        }
-
+  
         const lastResponse = responses[0] || null;
-
+  
         return {
           name: message.name,
           phone: message.phone,
-          status: message.status,
+          status: message.status ? message.status.toLowerCase() : 'sent',
           createdAt: message.createdAt,
           hasResponse: !!lastResponse,
-          lastResponse: lastResponse ? {
-            message: lastResponse.message,
-            createdAt: lastResponse.createdAt
-          } : null
+          lastResponse: lastResponse
+            ? {
+                message: lastResponse.message,
+                createdAt: lastResponse.createdAt
+              }
+            : null
         };
       })
     );
-
+  
     return {
       campaign: {
         id: campaign.id,
@@ -548,6 +543,7 @@ export class CampaignService {
         createdAt: campaign.createdAt,
         status: campaign.status
       },
+      stats,
       results
     };
   }

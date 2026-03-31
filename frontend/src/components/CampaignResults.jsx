@@ -12,6 +12,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
   const [itemsPerPage] = useState(10);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterResponse, setFilterResponse] = useState('all');
+  const normalizeStatus = (status) => status?.toLowerCase();
 
   useEffect(() => {
     fetchCampaignResults();
@@ -51,7 +52,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
 
   const getFilteredResults = () => {
     return results.filter(result => {
-      const statusMatch = filterStatus === 'all' || result.status === filterStatus;
+      const statusMatch = filterStatus === 'all' || normalizeStatus(result.status) === filterStatus;
       const responseMatch = filterResponse === 'all' ||
         (filterResponse === 'responded' && result.hasResponse) ||
         (filterResponse === 'not_responded' && !result.hasResponse);
@@ -60,7 +61,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
   };
 
   const getStatusColor = (status) => {
-    switch (status) {
+    switch (normalizeStatus(status)) {
       case 'sent': return 'status-sent';
       case 'delivered': return 'status-delivered';
       case 'read': return 'status-read';
@@ -136,7 +137,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
               </div>
               <div className="card-content">
                 <h3>Sent</h3>
-                <span className="summary-number">{results.filter(r => r.status === 'sent').length}</span>
+                <span className="summary-number">{results.filter(r => normalizeStatus(r.status) === 'sent').length}</span>
               </div>
             </div>
             <div className="summary-card delivered">
@@ -147,7 +148,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
               </div>
               <div className="card-content">
                 <h3>Delivered</h3>
-                <span className="summary-number">{results.filter(r => r.status === 'delivered').length}</span>
+                <span className="summary-number">{results.filter(r => normalizeStatus(r.status) === 'delivered').length}</span>
               </div>
             </div>
             <div className="summary-card read">
@@ -160,7 +161,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
               <div className="card-content">
                 <h3>Read</h3>
                 <span className="summary-number">
-                  {results.filter(r => r.status === 'read').length}
+                  {results.filter(r => normalizeStatus(r.status) === 'read').length}
                 </span>
               </div>
             </div>
@@ -172,7 +173,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
               </div>
               <div className="card-content">
                 <h3>Failed</h3>
-                <span className="summary-number">{results.filter(r => r.status === 'failed').length}</span>
+                <span className="summary-number">{results.filter(r => normalizeStatus(r.status) === 'failed').length}</span>
               </div>
             </div>
             <div className="summary-card responded">
@@ -228,7 +229,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
                     <td>{result.phone}</td>
                     <td>
                       <span className={`status-badge ${getStatusColor(result.status)}`}>
-                        {result.status.toUpperCase()}
+                      {normalizeStatus(result.status)?.toUpperCase()}
                       </span>
                     </td>
                     <td>{new Date(result.createdAt).toLocaleString()}</td>

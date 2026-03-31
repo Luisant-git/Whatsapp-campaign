@@ -2,6 +2,7 @@ import { Controller, Post, Body, Headers, Param, Req } from '@nestjs/common';
 import { RazorpayService } from './razorpay.service';
 import { EcommerceService } from './ecommerce.service';
 import { MetaCatalogService } from './meta-catalog.service';
+import { PrismaService } from '../prisma.service';
 
 @Controller('webhooks')
 export class WebhookController {
@@ -9,6 +10,7 @@ export class WebhookController {
     private razorpayService: RazorpayService,
     private ecommerceService: EcommerceService,
     private metaCatalogService: MetaCatalogService,
+    private prisma: PrismaService,
   ) {}
 
   @Post('whatsapp')
@@ -16,6 +18,25 @@ export class WebhookController {
     const entry = req.body.entry?.[0];
     const change = entry?.changes?.[0];
     const value = change?.value;
+
+    if (value?.statuses) {
+      for (const status of value.statuses) {
+        const messageId = status.id;
+        const statusType = status.status;
+    
+        console.log('Status update:', messageId, statusType);
+    
+        await this.prisma.campaignMessage.updateMany({
+          where: { messageId },
+          data: {
+            status: statusType.toLowerCase()
+          }
+        });
+      }
+    
+      // ✅ VERY IMPORTANT
+      return { status: 'status updated' };
+    }
 
     const message = value?.messages?.[0];
 

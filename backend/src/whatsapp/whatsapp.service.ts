@@ -1804,6 +1804,12 @@ export class WhatsappService {
           data: { status }
         });
 
+        // Also update campaign messages
+        await tenantClient.campaignMessage.updateMany({
+          where: { messageId },
+          data: { status }
+        });
+
         if (updated.count > 0) {
           this.logger.log(`Message ${messageId} status updated to ${status}`);
           return;

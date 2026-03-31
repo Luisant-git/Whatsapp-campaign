@@ -155,7 +155,7 @@ function normalizePermissionMap(raw) {
 }
 
 function App() {
-  const [activeView, setActiveView] = useState("chats");
+  const [activeView, setActiveView] = useState(() => localStorage.getItem("activeView") || "chats");
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
@@ -327,11 +327,13 @@ function App() {
     setShowProfileMenu(false);
   
     setActiveView("analytics");
+    localStorage.removeItem("activeView");
     setMenuPerms(null);
   };
 
   const handleMenuClick = (view) => {
     setActiveView(view);
+    localStorage.setItem("activeView", view);
     if (window.innerWidth <= 768) {
       setSidebarOpen(false);
     }
@@ -524,6 +526,7 @@ function App() {
                       className="profile-menu-item"
                       onClick={() => {
                         setActiveView("profile");
+                        localStorage.setItem("activeView", "profile");
                         setShowProfileMenu(false);
                       }}
                     >

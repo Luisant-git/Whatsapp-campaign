@@ -139,8 +139,16 @@ export class WhatsappService {
     if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
       const buttonId = message.interactive.button_reply.id;
       const buttonTitle = message.interactive.button_reply.title;
-      text = buttonId; // Use the button ID as the message text for ecommerce
+      text = buttonTitle; // Use button title as the message text
       this.logger.log(`Button clicked: ${buttonTitle} (ID: ${buttonId})`);
+    }
+
+    // Handle template button clicks (quick reply buttons from templates)
+    if (message.type === 'button' && message.button) {
+      const buttonPayload = message.button.payload;
+      const buttonText = message.button.text;
+      text = buttonText || buttonPayload; // Use button text or payload
+      this.logger.log(`Template button clicked: ${buttonText} (Payload: ${buttonPayload})`);
     }
 
     // Handle interactive list replies
@@ -162,7 +170,10 @@ export class WhatsappService {
 
       const isManuallyEdited = chatLabel?.manuallyEdited || false;
 
-      if (!isManuallyEdited) {
+      // Only handle stop/yes labels if NOT from a button click
+      const isButtonClick = message.type === 'button' || (message.type === 'interactive' && message.interactive?.type === 'button_reply');
+      
+      if (!isManuallyEdited && !isButtonClick) {
         if (lowerText === 'stop') {
           // Add Stop label
           await this.prisma.chatLabel.upsert({
@@ -245,12 +256,6 @@ export class WhatsappService {
 
     if (text) {
       const lowerText = text.toLowerCase().trim();
-
-      // Skip auto-reply/chatbot if message is "stop" or "yes"
-      if (lowerText === 'stop' || lowerText === 'yes') {
-        this.logger.log(`Skipping auto-reply/chatbot for ${lowerText} message`);
-        return;
-      }
 
       // Check for flow triggers first
       try {

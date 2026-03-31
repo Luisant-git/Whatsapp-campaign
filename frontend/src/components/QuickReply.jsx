@@ -128,8 +128,15 @@ const QuickReply = () => {
 
   const handleSave = async () => {
     const triggers = formData.triggersText.split(',').map(t => t.trim()).filter(t => t);
-    if (!triggers.length || formData.buttons.some(b => !b.trim())) {
-      showError('Please provide at least one trigger and complete all button fields');
+    if (!triggers.length) {
+      showError('Please provide at least one trigger');
+      return;
+    }
+    
+    // Filter out empty buttons
+    const validButtons = formData.buttons.filter(b => b.trim());
+    if (validButtons.length > 0 && validButtons.some(b => !b.trim())) {
+      showError('Please complete all button fields or remove empty ones');
       return;
     }
 
@@ -146,7 +153,7 @@ const QuickReply = () => {
           title: formData.title.trim() || '',
           response: formData.response.trim() || '',
           triggers,
-          buttons: formData.buttons,
+          buttons: validButtons.length > 0 ? validButtons : [],
           isActive: true
         })
       });
@@ -340,7 +347,7 @@ const QuickReply = () => {
               </div>
 
               <div className="form-group">
-                <label>Buttons (Text only)</label>
+                <label>Buttons (Text only) - Optional</label>
                 {formData.buttons.map((button, index) => (
                   <div key={index} className="button-config">
                     <div className="button-fields">

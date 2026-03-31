@@ -136,7 +136,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
               </div>
               <div className="card-content">
                 <h3>Sent</h3>
-                <span className="summary-number">{results.filter(r => r.status === 'sent').length}</span>
+                <span className="summary-number">{results.filter(r => ['sent', 'delivered', 'read'].includes(r.status)).length}</span>
               </div>
             </div>
             <div className="summary-card delivered">
@@ -147,7 +147,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
               </div>
               <div className="card-content">
                 <h3>Delivered</h3>
-                <span className="summary-number">{results.filter(r => r.status === 'delivered').length}</span>
+                <span className="summary-number">{results.filter(r => ['delivered', 'read'].includes(r.status)).length}</span>
               </div>
             </div>
             <div className="summary-card read">

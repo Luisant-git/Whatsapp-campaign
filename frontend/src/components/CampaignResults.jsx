@@ -216,6 +216,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
                   <th>Contact</th>
                   <th>Phone</th>
                   <th>Status</th>
+                  <th>Error Reason</th>
                   <th>Sent At</th>
                   <th>Response</th>
                   <th>Last Response</th>
@@ -230,6 +231,15 @@ const CampaignResults = ({ campaignId, onBack }) => {
                       <span className={`status-badge ${getStatusColor(result.status)}`}>
                         {result.status.toUpperCase()}
                       </span>
+                    </td>
+                    <td>
+                      {result.error ? (
+                        <div className="error-reason" title={result.error}>
+                          {result.error}
+                        </div>
+                      ) : (
+                        <span className="no-error">-</span>
+                      )}
                     </td>
                     <td>{new Date(result.createdAt).toLocaleString()}</td>
                     <td>

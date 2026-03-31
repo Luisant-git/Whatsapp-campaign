@@ -340,6 +340,23 @@
                   color: #9ca3af;
                 }
               }
+
+              .error-reason {
+                font-size: 13px;
+                color: #dc2626;
+                background: #fee2e2;
+                padding: 6px 10px;
+                border-radius: 6px;
+                border-left: 3px solid #ef4444;
+                max-width: 300px;
+                word-wrap: break-word;
+                line-height: 1.4;
+              }
+
+              .no-error {
+                color: #9ca3af;
+                font-size: 14px;
+              }
             }
           }
         }

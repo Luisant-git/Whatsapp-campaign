@@ -535,6 +535,7 @@ export class CampaignService {
           name: message.name,
           phone: message.phone,
           status: message.status,
+          error: message.error,
           createdAt: message.createdAt,
           hasResponse: !!lastResponse,
           lastResponse: lastResponse ? {

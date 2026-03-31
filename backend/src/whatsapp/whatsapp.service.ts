@@ -343,7 +343,7 @@ export class WhatsappService {
           }
           return this.sendMessage(to, msg, userId);
         },
-        async (to, msg, buttons) => {
+        async (to, title, msg, buttons) => {
           return this.sendButtonsMessage(to, msg, buttons, userId);
         }
       );
@@ -1221,8 +1221,8 @@ export class WhatsappService {
   //           }
   //           return this.sendMessageDirect(to, msg, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
   //         },
-  //         async (to, msg, buttons) => {
-  //           return this.sendButtonsMessageDirect(to, msg, buttons, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+  //         async (to, title, msg, buttons) => {
+  //           return this.sendButtonsMessageDirect(to, title, msg, buttons, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
   //         }
   //       );
   //       return;
@@ -1269,8 +1269,8 @@ export class WhatsappService {
   //         }
   //         return this.sendMessageDirect(to, msg, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
   //       },
-  //       async (to, msg, buttons) => {
-  //         return this.sendButtonsMessageDirect(to, msg, buttons, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
+  //       async (to, title, msg, buttons) => {
+  //         return this.sendButtonsMessageDirect(to, title, msg, buttons, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient);
   //       }
   //     ).catch(e => { this.logger.error('Session error:', e); return false; });
   //   }
@@ -1436,9 +1436,31 @@ export class WhatsappService {
             this.logger.error('[Priority 0] Meta Catalog error:', error.message);
           }
         }
-        // If Meta Catalog didn't handle it, clear session and continue
-        this.logger.log(`🔄 Meta Catalog didn't handle "${text}" - clearing session`);
-        await this.ecommerceService['sessionService'].clearSession(from, tenantId);
+      }
+      
+      // Check if user clicked Meta Catalog buttons but session expired
+      const isMetaCatalogButton = 
+        text === 'Use My Details' || 
+        text === 'Update Details' || 
+        text === 'Order for Someone' ||
+        text === 'Pay Online' ||
+        text === 'Cash on Delivery' ||
+        lowerText === 'confirm' ||
+        lowerText === 'update' ||
+        lowerText === 'someone_else' ||
+        lowerText === 'payment_razorpay' ||
+        lowerText === 'payment_cod';
+      
+      if (isMetaCatalogButton && !currentStep) {
+        this.logger.log('⏱️ Meta Catalog button clicked but no session - sending expired message');
+        await this.sendMessageDirect(
+          from,
+          '⏱️ Session expired. Please send *shop* again to start a new order.',
+          whatsappSettings.accessToken,
+          whatsappSettings.phoneNumberId,
+          tenantClient
+        );
+        return;
       }
  
       // PRIORITY 1: Ecommerce checkout flow
@@ -1500,11 +1522,8 @@ export class WhatsappService {
             tenantClient
           );
         },
-        async (to, msg, buttons) => {
-          return this.sendButtonsMessageDirect(
-            to,
-            msg,
-            buttons,
+        async (to, title, msg, buttons) => {
+          return this.sendButtonsMessageDirect(to, title, msg, buttons,
             whatsappSettings.accessToken,
             whatsappSettings.phoneNumberId,
             tenantClient
@@ -1663,11 +1682,8 @@ export class WhatsappService {
               tenantClient
             );
           },
-          async (to, msg, buttons) => {
-            return this.sendButtonsMessageDirect(
-              to,
-              msg,
-              buttons,
+          async (to, title, msg, buttons) => {
+            return this.sendButtonsMessageDirect(to, title, msg, buttons,
               whatsappSettings.accessToken,
               whatsappSettings.phoneNumberId,
               tenantClient
@@ -1739,11 +1755,8 @@ export class WhatsappService {
             tenantClient
           );
         },
-        async (to, msg, buttons) => {
-          return this.sendButtonsMessageDirect(
-            to,
-            msg,
-            buttons,
+        async (to, title, msg, buttons) => {
+          return this.sendButtonsMessageDirect(to, title, msg, buttons,
             whatsappSettings.accessToken,
             whatsappSettings.phoneNumberId,
             tenantClient
@@ -1861,15 +1874,34 @@ export class WhatsappService {
     }
   }
 
-  async sendButtonsMessageDirect(to: string, text: string, buttons: string[], accessToken: string, phoneNumberId: string, tenantClient: any) {
+  async sendButtonsMessageDirect(to: string, title: string, text: string, buttons: any[], accessToken: string, phoneNumberId: string, tenantClient: any) {
     try {
-      const interactiveButtons = buttons.slice(0, 3).map((button, index) => ({
+      // Convert all buttons to simple text format
+      const buttonTexts = buttons.map(btn => typeof btn === 'string' ? btn : btn.text || btn);
+      
+      // Create interactive reply buttons (max 3)
+      const interactiveButtons = buttonTexts.slice(0, 3).map((buttonText, index) => ({
         type: 'reply',
         reply: {
           id: `btn_${index}`,
-          title: button.length > 20 ? button.substring(0, 20) : button
+          title: buttonText.length > 20 ? buttonText.substring(0, 20) : buttonText
         }
       }));
+
+      const interactive: any = {
+        type: 'button',
+        body: { text },
+        action: {
+          buttons: interactiveButtons
+        }
+      };
+
+      if (title && title.trim()) {
+        interactive.header = {
+          type: 'text',
+          text: title
+        };
+      }
 
       const response = await axios.post(
         `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
@@ -1877,13 +1909,7 @@ export class WhatsappService {
           messaging_product: 'whatsapp',
           to,
           type: 'interactive',
-          interactive: {
-            type: 'button',
-            body: { text },
-            action: {
-              buttons: interactiveButtons
-            }
-          }
+          interactive
         },
         {
           headers: {
@@ -1898,7 +1924,7 @@ export class WhatsappService {
           messageId: response.data.messages[0].id,
           to,
           from: to,
-          message: `Interactive buttons: ${text}`,
+          message: `Interactive buttons: ${title} - ${text}`,
           direction: 'outgoing',
           status: 'sent',
           phoneNumberId,
@@ -2044,6 +2070,11 @@ export class WhatsappService {
           });
         }
 
+        // ✅ FETCH FULL CONTACT DATA FIRST (before building parameters)
+        const fullContact = await this.prisma.contact.findFirst({
+          where: { phone: formattedPhone }
+        });
+
         // Add body parameters if the template has variables
         try {
           // First try to find the actual template name from database
@@ -2071,11 +2102,6 @@ export class WhatsappService {
               const variables = bodyComponent.text.match(/{{\d+}}/g);
               if (variables && variables.length > 0) {
                 this.logger.log(`Template ${actualTemplateName} has ${variables.length} body parameters`);
-
-                // ✅ FIXED MAPPING: Get full contact data from database
-                const fullContact = await this.prisma.contact.findFirst({
-                  where: { phone: formattedPhone }
-                });
 
                 // Map template variables to contact fields
                 // {{1}} → name, {{2}} → variable2, {{3}} → variable3, etc.

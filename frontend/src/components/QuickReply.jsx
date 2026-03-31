@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Edit } from 'lucide-react';
 import { API_BASE_URL } from '../api/config';
 import { useToast } from '../contexts/ToastContext';
@@ -11,12 +11,43 @@ const QuickReply = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
+    title: '',
+    response: '',
     triggersText: '',
     buttons: ['']
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [useQuickReply, setUseQuickReply] = useState(true);
+  const responseTextareaRef = useRef(null);
+
+  const insertText = (before, after) => {
+    const textarea = responseTextareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = formData.response;
+    const selectedText = text.substring(start, end);
+    const newText = text.substring(0, start) + before + selectedText + after + text.substring(end);
+    setFormData({...formData, response: newText});
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + before.length, end + before.length);
+    }, 0);
+  };
+
+  const insertEmoji = (emoji) => {
+    const textarea = responseTextareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const text = formData.response;
+    const newText = text.substring(0, start) + emoji + text.substring(start);
+    setFormData({...formData, response: newText});
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + emoji.length, start + emoji.length);
+    }, 0);
+  };
 
   useEffect(() => {
     fetchQuickReplies();
@@ -50,6 +81,8 @@ const QuickReply = () => {
 
   const resetForm = () => {
     setFormData({
+      title: '',
+      response: '',
       triggersText: '',
       buttons: ['']
     });
@@ -96,7 +129,7 @@ const QuickReply = () => {
   const handleSave = async () => {
     const triggers = formData.triggersText.split(',').map(t => t.trim()).filter(t => t);
     if (!triggers.length || formData.buttons.some(b => !b.trim())) {
-      showError('Please fill all fields');
+      showError('Please provide at least one trigger and complete all button fields');
       return;
     }
 
@@ -110,6 +143,8 @@ const QuickReply = () => {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
+          title: formData.title.trim() || '',
+          response: formData.response.trim() || '',
           triggers,
           buttons: formData.buttons,
           isActive: true
@@ -131,9 +166,19 @@ const QuickReply = () => {
   };
 
   const handleEdit = (quickReply) => {
+    // Handle both old format (string[]) and new format (object[])
+    const buttons = quickReply.buttons.map(btn => {
+      if (typeof btn === 'string') {
+        return btn;
+      }
+      return btn.text || '';
+    });
+
     setFormData({
+      title: quickReply.title || '',
+      response: quickReply.response || '',
       triggersText: quickReply.triggers.join(', '),
-      buttons: quickReply.buttons
+      buttons: buttons
     });
     setEditingId(quickReply.id);
     setShowForm(true);
@@ -181,26 +226,40 @@ const QuickReply = () => {
             {quickReplies.map((reply) => (
               <div key={reply.id} className="reply-item">
                 <div className="reply-content">
+                  {reply.title && (
+                    <div className="reply-title">
+                      <strong>{reply.title}</strong>
+                    </div>
+                  )}
+                  {reply.response && (
+                    <div className="reply-body" style={{ whiteSpace: 'pre-wrap' }}>
+                      {reply.response}
+                    </div>
+                  )}
                   <div className="trigger-text">
                     <strong>Triggers:</strong> {reply.triggers.join(', ')}
                   </div>
                   <div className="buttons-preview">
                     <strong>Buttons:</strong>
                     <div className="button-list">
-                      {reply.buttons.map((button, i) => (
-                        <div key={i} className="button-item">
-                          {button}
-                        </div>
-                      ))}
+                      {reply.buttons.map((button, i) => {
+                        const buttonText = typeof button === 'string' ? button : button.text || button;
+                        return (
+                          <div key={i} className="button-item">
+                            <span className="button-type-badge">💬</span>
+                            {buttonText}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
                 <div className="reply-actions">
-                  <button onClick={() => handleEdit(reply)} className="btn-secondary">
-                    <Edit size={16} />
+                  <button onClick={() => handleEdit(reply)} className="btn-icon-action">
+                    <Edit size={18} />
                   </button>
-                  <button onClick={() => handleDelete(reply.id)} className="btn-icon danger">
-                    <Trash2 size={16} />
+                  <button onClick={() => handleDelete(reply.id)} className="btn-icon-action danger">
+                    <Trash2 size={18} />
                   </button>
                 </div>
               </div>
@@ -219,6 +278,58 @@ const QuickReply = () => {
             
             <div className="settings-form">
               <div className="form-group">
+                <label>Title (Header) - Optional</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Our Features"
+                  value={formData.title}
+                  onChange={(e) => setFormData({...formData, title: e.target.value})}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Response (Body Message) - Optional</label>
+                <div className="text-editor">
+                  <div className="editor-toolbar">
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('*', '*')} title="Bold">
+                      <strong>B</strong>
+                    </button>
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('_', '_')} title="Italic">
+                      <em>I</em>
+                    </button>
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('~', '~')} title="Strikethrough">
+                      <s>S</s>
+                    </button>
+                    <div className="toolbar-divider"></div>
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('\n• ', '')} title="Bullet Point">
+                      •
+                    </button>
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('\n', '')} title="New Line">
+                      ↵
+                    </button>
+                    <div className="toolbar-divider"></div>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('✅')} title="Check">✅</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('❌')} title="Cross">❌</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('👉')} title="Point">👉</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('⭐')} title="Star">⭐</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('🎯')} title="Target">🎯</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('💡')} title="Idea">💡</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('🔥')} title="Fire">🔥</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('💰')} title="Money">💰</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('📞')} title="Phone">📞</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('📧')} title="Email">📧</button>
+                  </div>
+                  <textarea
+                    ref={responseTextareaRef}
+                    placeholder="e.g., We offer AI chatbot, bulk messaging, automation, and more!"
+                    value={formData.response}
+                    onChange={(e) => setFormData({...formData, response: e.target.value})}
+                    rows={6}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
                 <label>Trigger Words (comma separated)</label>
                 <input
                   type="text"
@@ -229,24 +340,26 @@ const QuickReply = () => {
               </div>
 
               <div className="form-group">
-                <label>Buttons</label>
+                <label>Buttons (Text only)</label>
                 {formData.buttons.map((button, index) => (
-                  <div key={index} className="button-row">
-                    <input
-                      type="text"
-                      placeholder="Button title"
-                      value={button}
-                      onChange={(e) => updateButton(index, e.target.value)}
-                    />
-                    {formData.buttons.length > 1 && (
-                      <button 
-                        type="button" 
-                        onClick={() => removeButton(index)}
-                        className="btn-danger-small"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
+                  <div key={index} className="button-config">
+                    <div className="button-fields">
+                      <input
+                        type="text"
+                        placeholder="Button text (e.g., Book Demo, Contact Us)"
+                        value={button}
+                        onChange={(e) => updateButton(index, e.target.value)}
+                      />
+                      {formData.buttons.length > 1 && (
+                        <button 
+                          type="button" 
+                          onClick={() => removeButton(index)}
+                          className="btn-danger-small"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
                 

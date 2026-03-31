@@ -44,10 +44,18 @@ export class QuickReplyService {
     return quickReply;
   }
 
-  async addQuickReply(userId: number, triggers: string[], buttons: string[]) {
+  async addQuickReply(
+    userId: number,
+    title: string,
+    response: string,
+    triggers: string[],
+    buttons: string[],
+  ) {
     const prisma = await this.getPrisma(userId);
     return prisma.quickReply.create({
       data: {
+        title: title?.trim() || null,
+        response: response?.trim() || null,
         triggers: triggers.map((t) => t.toLowerCase()),
         buttons,
       },
@@ -57,6 +65,8 @@ export class QuickReplyService {
   async updateQuickReply(
     id: number,
     userId: number,
+    title: string,
+    response: string,
     triggers: string[],
     buttons: string[],
     isActive: boolean,
@@ -65,6 +75,8 @@ export class QuickReplyService {
     return prisma.quickReply.update({
       where: { id },
       data: {
+        title: title?.trim() || null,
+        response: response?.trim() || null,
         triggers: triggers.map((t) => t.toLowerCase()),
         buttons,
         isActive,

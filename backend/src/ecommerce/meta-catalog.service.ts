@@ -60,9 +60,27 @@ export class MetaCatalogService {
         ? String(meta.contentId).trim()
         : `product_${product.id}`;
   
-      // ✅ If variants exist, upload each variant as separate item grouped by item_group_id
+      // ✅ CRITICAL: If variants exist, ONLY upload variants (NOT the parent product)
+      // Commerce Manager will automatically group them by item_group_id
       if (Array.isArray(meta?.variants) && meta.variants.length > 0) {
+        console.log(`[Meta Sync] Product has ${meta.variants.length} variants. Uploading ONLY variants (not parent product).`);
+        
         const results: any[] = [];
+        
+        // ✅ CRITICAL: Use IDENTICAL values for all variants to ensure proper grouping
+        const sharedName = meta?.name || product.name;
+        const sharedDescription = meta?.description || product.description || product.name;
+        const sharedBrand = meta?.brand || 'Store';
+        const sharedUrl = meta?.link || product.link || imageUrl;
+        
+        // Validate that all variants have required variant attributes
+        const hasVariantAttributes = meta.variants.every(v => 
+          v.size || v.color || v.pattern || v.gender || v.material
+        );
+        
+        if (!hasVariantAttributes) {
+          console.warn('[Meta Sync] ⚠️ WARNING: At least one variant attribute (size, color, pattern, gender, material) is REQUIRED for proper variant grouping in Meta Catalog!');
+        }
   
         for (let i = 0; i < meta.variants.length; i++) {
           const v = meta.variants[i];
@@ -70,13 +88,23 @@ export class MetaCatalogService {
           const variantRetailerId = (v?.contentId && String(v.contentId).trim())
             ? String(v.contentId).trim()
             : `${baseRetailerId}_v${i + 1}`;
+          
+          // Use variant-specific image if available, otherwise use base image
+          const variantImageUrl = v?.imageUrl?.startsWith('http')
+            ? v.imageUrl
+            : v?.imageUrl
+            ? `${process.env.UPLOAD_URL}${v.imageUrl}`
+            : imageUrl;
   
           const payload: any = {
             retailer_id: variantRetailerId,
-            item_group_id: baseRetailerId,
+            item_group_id: baseRetailerId, // Groups all variants together
   
-            name: v?.name || meta?.name || product.name,
-            description: v?.description || meta?.description || product.description || product.name,
+            // ✅ CRITICAL: Use IDENTICAL shared values for proper grouping
+            name: sharedName,
+            description: sharedDescription,
+            brand: sharedBrand,
+            url: sharedUrl,
   
             price: toCents(v?.price ?? meta?.price ?? product.price),
             sale_price: toCents(v?.salePrice ?? meta?.salePrice),
@@ -88,19 +116,37 @@ export class MetaCatalogService {
             ),
   
             condition: 'new',
-            brand: 'Store',
-            image_url: imageUrl,
-            url: v?.link || meta?.link || product.link || imageUrl,
+            
+            // ✅ Use variant-specific image (e.g., red shirt shows red image)
+            image_url: variantImageUrl,
           };
+          
+          // ✅ Add variant attributes (REQUIRED by Meta for proper variant grouping)
+          if (v.size) payload.size = v.size;
+          if (v.color) payload.color = v.color;
+          if (v.pattern) payload.pattern = v.pattern;
+          if (v.gender) payload.gender = v.gender;
+          if (v.material) payload.material = v.material;
+          if (v.ageGroup) payload.age_group = v.ageGroup;
+          
+          // For custom variant attributes
+          if (v.customAttribute) {
+            payload.additional_variant_attribute = v.customAttribute;
+          }
   
-          console.log(`[Meta Sync] Uploading variant ${i + 1}/${meta.variants.length}:`, variantRetailerId);
+          console.log(`[Meta Sync] Uploading variant ${i + 1}/${meta.variants.length}:`, variantRetailerId, `(${v.size || ''} ${v.color || ''})`.trim());
           const resp = await this.axiosInstance.post(
             `${this.apiUrl}/${this.catalogId}/products`,
             payload,
           );
   
           console.log(`[Meta Sync] Variant uploaded successfully:`, resp.data?.id);
-          results.push({ retailer_id: variantRetailerId, metaId: resp.data?.id });
+          results.push({ 
+            retailer_id: variantRetailerId, 
+            metaId: resp.data?.id,
+            size: v.size,
+            color: v.color
+          });
         }
   
         return { success: true, type: 'variants', metaProductId: results[0]?.metaId, results };
@@ -162,6 +208,10 @@ export class MetaCatalogService {
   }
 
   async updateProductInCatalog(product: any, meta?: any) {
+    const baseRetailerId = (meta?.contentId && String(meta.contentId).trim())
+      ? String(meta.contentId).trim()
+      : product.contentId || `product_${product.id}`;
+    
     try {
       if (!this.catalogId || !this.accessToken) {
         throw new Error('Meta Catalog ID or Access Token not configured');
@@ -184,14 +234,118 @@ export class MetaCatalogService {
         return availability ? 'in stock' : 'out of stock';
       };
 
-      const baseRetailerId = (meta?.contentId && String(meta.contentId).trim())
-        ? String(meta.contentId).trim()
-        : product.contentId || `product_${product.id}`;
-
-      // Meta API doesn't support PATCH/PUT for products
-      // We need to DELETE the old product and CREATE a new one with same retailer_id
-      // This preserves the product in the catalog with updated information
+      // Delete old product first if metaProductId exists
+      if (product.metaProductId) {
+        try {
+          console.log('[Meta Update] Deleting old product:', product.metaProductId);
+          await this.axiosInstance.delete(
+            `${this.apiUrl}/${product.metaProductId}`,
+          );
+          console.log('[Meta Update] Old product deleted successfully');
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        } catch (deleteError) {
+          const errorCode = deleteError.response?.status;
+          console.log('[Meta Update] Delete error:', errorCode, deleteError.message);
+          if (errorCode !== 404) {
+            try {
+              console.log('[Meta Update] Trying to delete by retailer_id:', baseRetailerId);
+              await this.deleteProductByRetailerId(baseRetailerId);
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            } catch (err) {
+              console.log('[Meta Update] Could not delete by retailer_id:', err.message);
+            }
+          }
+        }
+      }
       
+      // Delete all old variants if they exist
+      if (product.variants && product.variants.length > 0) {
+        console.log(`[Meta Update] Deleting ${product.variants.length} old variants...`);
+        for (const variant of product.variants) {
+          if (variant.metaProductId) {
+            try {
+              await this.axiosInstance.delete(`${this.apiUrl}/${variant.metaProductId}`);
+              console.log(`[Meta Update] Deleted variant: ${variant.metaProductId}`);
+            } catch (err) {
+              console.log(`[Meta Update] Could not delete variant ${variant.metaProductId}:`, err.message);
+            }
+          }
+        }
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      
+      // ✅ If product has variants, upload as variant group
+      if (meta?.variants && meta.variants.length > 0) {
+        console.log(`[Meta Update] Uploading product with ${meta.variants.length} variants...`);
+        
+        const results: any[] = [];
+        
+        // ✅ CRITICAL: Use IDENTICAL values for all variants
+        const sharedName = meta?.name || product.name;
+        const sharedDescription = meta?.description || product.description || product.name;
+        const sharedBrand = meta?.brand || 'Store';
+        const sharedUrl = meta?.link || product.link || imageUrl;
+        
+        for (let i = 0; i < meta.variants.length; i++) {
+          const v = meta.variants[i];
+          
+          const variantRetailerId = v.contentId || `${baseRetailerId}_v${i + 1}`;
+          
+          const variantImageUrl = v.imageUrl?.startsWith('http')
+            ? v.imageUrl
+            : v.imageUrl
+            ? `${process.env.UPLOAD_URL}${v.imageUrl}`
+            : imageUrl;
+          
+          const payload: any = {
+            retailer_id: variantRetailerId,
+            item_group_id: baseRetailerId,
+            
+            // ✅ CRITICAL: Use IDENTICAL shared values
+            name: sharedName,
+            description: sharedDescription,
+            brand: sharedBrand,
+            url: sharedUrl,
+            
+            price: toCents(v.price ?? meta.price ?? product.price),
+            sale_price: toCents(v.salePrice ?? meta.salePrice),
+            
+            currency: 'INR',
+            availability: metaAvailability(
+              v.isActive ?? meta.isActive ?? true,
+              v.availability ?? meta.availability ?? true,
+            ),
+            
+            condition: 'new',
+            image_url: variantImageUrl,
+          };
+          
+          // ✅ Add variant attributes
+          if (v.size) payload.size = v.size;
+          if (v.color) payload.color = v.color;
+          if (v.pattern) payload.pattern = v.pattern;
+          if (v.gender) payload.gender = v.gender;
+          if (v.material) payload.material = v.material;
+          if (v.ageGroup) payload.age_group = v.ageGroup;
+          if (v.customAttribute) payload.additional_variant_attribute = v.customAttribute;
+          
+          console.log(`[Meta Update] Uploading variant ${i + 1}/${meta.variants.length}:`, variantRetailerId);
+          const resp = await this.axiosInstance.post(
+            `${this.apiUrl}/${this.catalogId}/products`,
+            payload,
+          );
+          
+          console.log(`[Meta Update] Variant uploaded:`, resp.data?.id);
+          results.push({ retailer_id: variantRetailerId, metaId: resp.data?.id });
+        }
+        
+        // Clear cache
+        this.catalogCache = null;
+        
+        return { success: true, type: 'variants', metaProductId: results[0]?.metaId, results };
+      }
+      
+      // ✅ No variants: upload single product
       const payload: any = {
         retailer_id: baseRetailerId,
         name: meta?.name || product.name,
@@ -205,39 +359,7 @@ export class MetaCatalogService {
         image_url: imageUrl,
         url: meta?.link || product.link || imageUrl,
       };
-
-      console.log('[Meta Update] Updating product with payload:', payload);
       
-      // Delete old product first if metaProductId exists
-      if (product.metaProductId) {
-        try {
-          console.log('[Meta Update] Deleting old product:', product.metaProductId);
-          await this.axiosInstance.delete(
-            `${this.apiUrl}/${product.metaProductId}`,
-          );
-          console.log('[Meta Update] Old product deleted successfully');
-          
-          // Wait a bit for Meta API to process the deletion
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        } catch (deleteError) {
-          const errorCode = deleteError.response?.status;
-          console.log('[Meta Update] Delete error:', errorCode, deleteError.message);
-          
-          // If product not found (404), it's already deleted - continue
-          if (errorCode !== 404) {
-            // For other errors, try to find and delete by retailer_id
-            try {
-              console.log('[Meta Update] Trying to delete by retailer_id:', baseRetailerId);
-              await this.deleteProductByRetailerId(baseRetailerId);
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            } catch (err) {
-              console.log('[Meta Update] Could not delete by retailer_id:', err.message);
-            }
-          }
-        }
-      }
-      
-      // Create new product with same retailer_id
       console.log('[Meta Update] Creating updated product with retailer_id:', baseRetailerId);
       const response = await this.axiosInstance.post(
         `${this.apiUrl}/${this.catalogId}/products`,
@@ -253,17 +375,20 @@ export class MetaCatalogService {
     } catch (error) {
       const errorMsg = error.response?.data?.error?.message || error.message;
       const errorCode = error.response?.data?.error?.code;
+      const errorDetails = error.response?.data;
       
-      console.error('[Meta Update Error]', errorMsg);
+      console.error('[Meta Update Error]', {
+        message: errorMsg,
+        code: errorCode,
+        status: error.response?.status,
+        details: errorDetails,
+        retailerId: baseRetailerId
+      });
       
       // If duplicate retailer_id error, try to find and delete the existing one
       if (errorCode === 10800 || errorMsg.includes('Duplicate retailer_id')) {
         console.log('[Meta Update] Duplicate retailer_id detected, attempting cleanup...');
         try {
-          const baseRetailerId = (meta?.contentId && String(meta.contentId).trim())
-            ? String(meta.contentId).trim()
-            : product.contentId || `product_${product.id}`;
-          
           await this.deleteProductByRetailerId(baseRetailerId);
           console.log('[Meta Update] Cleaned up duplicate, please try updating again');
         } catch (cleanupError) {
@@ -387,25 +512,49 @@ export class MetaCatalogService {
       // Variant retailer_id
       const variantRetailerId = variant.contentId || `${parentRetailerId}_v${variant.id}`;
 
+      // ✅ CRITICAL: Use IDENTICAL values for all variants
+      const sharedName = meta?.name || parentProduct.name;
+      const sharedDescription = meta?.description || parentProduct.description || parentProduct.name;
+      const sharedBrand = meta?.brand || 'Store';
+      const sharedUrl = meta?.link || parentProduct.link || imageUrl;
+      
       const payload: any = {
         retailer_id: variantRetailerId,
-        item_group_id: parentRetailerId, // Link to parent product
-        name: meta?.name || variant.name,
-        description: meta?.description || variant.description || parentProduct.description || variant.name,
+        item_group_id: parentRetailerId,
+        
+        // ✅ CRITICAL: Use IDENTICAL shared values
+        name: sharedName,
+        description: sharedDescription,
+        brand: sharedBrand,
+        url: sharedUrl,
+        
         price: toCents(meta?.price ?? variant.price),
         sale_price: toCents(meta?.salePrice ?? variant.salePrice),
+        
         currency: 'INR',
         availability: metaAvailability(
           meta?.isActive ?? variant.isActive ?? true,
           meta?.availability ?? variant.availability ?? true
         ),
+        
         condition: 'new',
-        brand: 'Store',
         image_url: imageUrl,
-        url: meta?.link || variant.link || parentProduct.link || imageUrl,
       };
+      
+      // ✅ Add variant attributes (REQUIRED by Meta)
+      if (variant.size || meta?.size) payload.size = variant.size || meta.size;
+      if (variant.color || meta?.color) payload.color = variant.color || meta.color;
+      if (variant.pattern || meta?.pattern) payload.pattern = variant.pattern || meta.pattern;
+      if (variant.gender || meta?.gender) payload.gender = variant.gender || meta.gender;
+      if (variant.material || meta?.material) payload.material = variant.material || meta.material;
+      if (variant.ageGroup || meta?.ageGroup) payload.age_group = variant.ageGroup || meta.ageGroup;
+      
+      // For custom variant attributes
+      if (variant.customAttribute || meta?.customAttribute) {
+        payload.additional_variant_attribute = variant.customAttribute || meta.customAttribute;
+      }
 
-      console.log('[Meta Sync Variant] Uploading variant with item_group_id:', parentRetailerId);
+      console.log('[Meta Sync Variant] Uploading variant with item_group_id:', parentRetailerId, `(${payload.size || ''} ${payload.color || ''})`.trim());
       const response = await this.axiosInstance.post(
         `${this.apiUrl}/${this.catalogId}/products`,
         payload,
@@ -416,7 +565,13 @@ export class MetaCatalogService {
       // Clear cache
       this.catalogCache = null;
       
-      return { success: true, metaProductId: response.data.id, retailerId: variantRetailerId };
+      return { 
+        success: true, 
+        metaProductId: response.data.id, 
+        retailerId: variantRetailerId,
+        size: payload.size,
+        color: payload.color
+      };
     } catch (error) {
       const errorMsg = error.response?.data?.error?.message || error.message;
       console.error('[Meta Sync Variant Error]', errorMsg);
@@ -444,42 +599,45 @@ export class MetaCatalogService {
   async syncMetaProductsToDatabase(userId?: number) {
     try {
       const metaProducts = await this.fetchProductsFromMeta();
-      const syncedProducts: any[] = [];
+      const createdProducts: any[] = [];
+      const updatedProducts: any[] = [];
+      const skippedProducts: any[] = [];
       const existingProducts = await this.ecommerceService.getProducts(undefined, userId);
 
-      console.log('Meta products fetched:', JSON.stringify(metaProducts, null, 2));
+      console.log('[Meta Sync] Fetched', metaProducts.length, 'products from Meta Catalog');
 
       for (const metaProduct of metaProducts) {
-        // Check if this product already exists in our database
+        // Check if this product already exists in our database by metaProductId
         const existingProduct = existingProducts.find(p => p.metaProductId === metaProduct.id);
         
-        // Skip products that have retailer_id starting with 'product_' AND don't exist in our DB
-        // This means they were uploaded from our system but not yet in our DB
+        // Skip products that have retailer_id starting with 'product_' (our uploaded products)
         if (metaProduct.retailer_id?.startsWith('product_')) {
-          // Extract the product ID from retailer_id
           const productIdFromRetailerId = parseInt(metaProduct.retailer_id.replace('product_', ''));
-          // Check if this product exists in our database with this ID
           const uploadedProduct = existingProducts.find(p => p.id === productIdFromRetailerId);
           
-          // If found, skip it (it's our uploaded product)
           if (uploadedProduct) {
-            console.log(`Skipping uploaded product: ${metaProduct.name} (retailer_id: ${metaProduct.retailer_id})`);
+            console.log(`[Meta Sync] Skipping uploaded product: ${metaProduct.name} (retailer_id: ${metaProduct.retailer_id})`);
+            skippedProducts.push({ name: metaProduct.name, retailer_id: metaProduct.retailer_id, reason: 'Already uploaded from system' });
             continue;
           }
         }
         
-        console.log(`Processing Meta product: ${metaProduct.name}, raw price data:`, metaProduct.price);
+        // If product already exists with same metaProductId, skip it (already synced)
+        if (existingProduct) {
+          console.log(`[Meta Sync] Product already synced: ${metaProduct.name} (metaProductId: ${metaProduct.id})`);
+          skippedProducts.push({ name: metaProduct.name, metaProductId: metaProduct.id, reason: 'Already synced' });
+          continue;
+        }
+        
+        console.log(`[Meta Sync] Processing new Meta product: ${metaProduct.name}`);
         
         let price = 0;
         if (typeof metaProduct.price === 'string') {
-          // Remove currency symbol, commas, and parse
           const cleanPrice = metaProduct.price.replace(/[₹,]/g, '').trim();
           price = parseFloat(cleanPrice);
         } else if (typeof metaProduct.price === 'number') {
           price = metaProduct.price / 100;
         }
-        
-        console.log(`Converted price: ${price}`);
         
         const productData: any = {
           name: metaProduct.name,
@@ -493,18 +651,27 @@ export class MetaCatalogService {
           isActive: metaProduct.availability === 'in stock',
         };
 
-        if (existingProduct) {
-          await this.ecommerceService.updateProduct(existingProduct.id, productData);
-          syncedProducts.push({ ...existingProduct, ...productData, action: 'updated' });
-        } else {
-          const newProduct = await this.ecommerceService.createProduct(productData);
-          syncedProducts.push({ ...newProduct, action: 'created' });
-        }
+        const newProduct = await this.ecommerceService.createProduct(productData, userId);
+        createdProducts.push({ ...newProduct, action: 'created' });
+        console.log(`[Meta Sync] Created new product: ${newProduct.name} (ID: ${newProduct.id})`);
       }
 
-      return { success: true, syncedCount: syncedProducts.length, products: syncedProducts };
+      const summary = {
+        success: true,
+        total: metaProducts.length,
+        created: createdProducts.length,
+        skipped: skippedProducts.length,
+        message: createdProducts.length > 0 
+          ? `✅ Synced ${createdProducts.length} new product(s) from Meta Catalog!`
+          : '✅ All products are already synced. No new products found.',
+        products: createdProducts,
+        skippedDetails: skippedProducts
+      };
+      
+      console.log('[Meta Sync] Summary:', summary);
+      return summary;
     } catch (error) {
-      console.error('Sync Meta products error:', error.message);
+      console.error('[Meta Sync] Error:', error.message);
       throw new Error('Failed to sync Meta products to database');
     }
   }

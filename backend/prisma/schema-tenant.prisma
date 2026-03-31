@@ -189,8 +189,10 @@ model AutoReply {
 
 model QuickReply {
   id        Int      @id @default(autoincrement())
+  title     String?
+  response  String?
   triggers  String[]
-  buttons   String[]
+  buttons   Json
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -317,23 +319,30 @@ model Product {
 }
 
 model ProductVariant {
-  id            Int      @id @default(autoincrement())
-  productId     Int
-  name          String
-  description   String?
-  price         Float
-  salePrice     Float?
-  stock         Int?     @default(0)
-  imageUrl      String?
-  link          String?
-  availability  Boolean  @default(true)
-  isActive      Boolean  @default(true)
-  contentId     String   @unique
-  metaProductId String?
-  source        String?  @default("manual")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id              Int      @id @default(autoincrement())
+  productId       Int
+  name            String
+  description     String?
+  price           Float
+  salePrice       Float?
+  stock           Int?     @default(0)
+  imageUrl        String?
+  link            String?
+  availability    Boolean  @default(true)
+  isActive        Boolean  @default(true)
+  contentId       String   @unique
+  metaProductId   String?
+  source          String?  @default("manual")
+  size            String?
+  color           String?
+  pattern         String?
+  gender          String?
+  material        String?
+  ageGroup        String?
+  customAttribute String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
 }

@@ -260,6 +260,14 @@ async createVariant(data: any, userId?: number) {
         contentId: contentId,
         availability: data.availability ?? true,
         isActive: data.isActive ?? true,
+        // ✅ Add variant attributes
+        size: data.size || null,
+        color: data.color || null,
+        pattern: data.pattern || null,
+        gender: data.gender || null,
+        material: data.material || null,
+        ageGroup: data.ageGroup || null,
+        customAttribute: data.customAttribute || null,
       },
     });
 
@@ -310,6 +318,15 @@ async updateVariant(id: number, data: any, userId?: number) {
     if (data.source !== undefined) cleanedData.source = data.source;
     if (data.availability !== undefined) cleanedData.availability = parseBoolean(data.availability);
     if (data.isActive !== undefined) cleanedData.isActive = parseBoolean(data.isActive);
+    
+    // ✅ Add variant attributes
+    if (data.size !== undefined) cleanedData.size = data.size || null;
+    if (data.color !== undefined) cleanedData.color = data.color || null;
+    if (data.pattern !== undefined) cleanedData.pattern = data.pattern || null;
+    if (data.gender !== undefined) cleanedData.gender = data.gender || null;
+    if (data.material !== undefined) cleanedData.material = data.material || null;
+    if (data.ageGroup !== undefined) cleanedData.ageGroup = data.ageGroup || null;
+    if (data.customAttribute !== undefined) cleanedData.customAttribute = data.customAttribute || null;
 
     return client.productVariant.update({
       where: { id },

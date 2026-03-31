@@ -228,43 +228,48 @@ export class CampaignService {
           }
         });
 
-        // Auto-create or update contact
-        // ADD THIS
-        const existingContact = await this.prisma.contact.findFirst({
-          where: {
-            phone: formattedPhone,
-          },
-        });
-
-        if (existingContact) {
-          await this.prisma.contact.update({
-            where: { id: existingContact.id },
-            data: {
-              name:
-                existingContact.name &&
-                  !['null', 'undefined', 'unknown'].includes(
-                    existingContact.name.trim().toLowerCase(),
-                  )
-                  ? existingContact.name
-                  : contact.name || 'Unknown',
-              lastMessageDate: new Date(),
-              groupId: campaign.groupId,
-              phoneNumberId:
-                existingContact.phoneNumberId || settings?.phoneNumberId || null,
-              isActive: true,
-            },
-          });
-        } else {
-          await this.prisma.contact.create({
-            data: {
+        // ✅ Auto-create or update contact (with unique constraint handling)
+        try {
+          const existingContact = await this.prisma.contact.findFirst({
+            where: {
               phone: formattedPhone,
-              name: contact.name || 'Unknown',
               phoneNumberId: settings?.phoneNumberId || null,
-              lastMessageDate: new Date(),
-              groupId: campaign.groupId,
-              isActive: true,
             },
           });
+
+          if (existingContact) {
+            // Update existing contact
+            await this.prisma.contact.update({
+              where: { id: existingContact.id },
+              data: {
+                name:
+                  existingContact.name &&
+                    !['null', 'undefined', 'unknown'].includes(
+                      existingContact.name.trim().toLowerCase(),
+                    )
+                    ? existingContact.name
+                    : contact.name || 'Unknown',
+                lastMessageDate: new Date(),
+                groupId: campaign.groupId || existingContact.groupId,
+                isActive: true,
+              },
+            });
+          } else {
+            // Create new contact
+            await this.prisma.contact.create({
+              data: {
+                phone: formattedPhone,
+                name: contact.name || 'Unknown',
+                phoneNumberId: settings?.phoneNumberId || null,
+                lastMessageDate: new Date(),
+                groupId: campaign.groupId,
+                isActive: true,
+              },
+            });
+          }
+        } catch (contactError) {
+          // Log but don't fail the campaign if contact update fails
+          this.logger.warn(`Failed to update contact ${formattedPhone}:`, contactError.message);
         }
 
         results.push({

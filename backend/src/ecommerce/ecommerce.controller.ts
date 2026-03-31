@@ -174,14 +174,54 @@ export class EcommerceController {
     if (updatedProduct.metaProductId) {
       setTimeout(async () => {
         try {
-          const result = await this.metaCatalogService.updateProductInCatalog(updatedProduct, body);
+          // Get product with all variants
+          const productWithVariants = await this.ecommerceService.getProduct(+id, req.session?.userId);
+          
+          if (!productWithVariants) {
+            console.error(`[Meta Sync] Product ${id} not found`);
+            return;
+          }
+          
+          // Build meta payload with variants
+          const metaPayload: any = {
+            name: productWithVariants.name,
+            description: productWithVariants.description,
+            price: productWithVariants.price,
+            salePrice: productWithVariants.salePrice,
+            availability: productWithVariants.availability,
+            isActive: productWithVariants.isActive,
+            contentId: productWithVariants.contentId || `product_${productWithVariants.id}`,
+          };
+          
+          // Add variants if they exist
+          if (productWithVariants.variants && productWithVariants.variants.length > 0) {
+            metaPayload.variants = productWithVariants.variants.map((v: any) => ({
+              name: v.name,
+              description: v.description,
+              price: v.price,
+              salePrice: v.salePrice,
+              availability: v.availability,
+              isActive: v.isActive,
+              contentId: v.contentId,
+              size: v.size,
+              color: v.color,
+              pattern: v.pattern,
+              gender: v.gender,
+              material: v.material,
+              ageGroup: v.ageGroup,
+              customAttribute: v.customAttribute,
+              imageUrl: v.imageUrl,
+            }));
+          }
+          
+          const result = await this.metaCatalogService.updateProductInCatalog(productWithVariants, metaPayload);
           // Update the metaProductId in case it changed (delete + recreate)
           if (result.metaProductId !== updatedProduct.metaProductId) {
             await this.ecommerceService.updateProduct(+id, {
               metaProductId: result.metaProductId
             }, req.session?.userId);
           }
-          console.log(`[Meta Sync] Product ${id} updated in Meta Catalog`);
+          console.log(`[Meta Sync] Product ${id} updated in Meta Catalog with ${productWithVariants.variants?.length || 0} variants`);
         } catch (err) {
           console.error(`[Meta Sync] Auto-update failed for product ${id}:`, err.message);
         }
@@ -262,6 +302,14 @@ export class EcommerceController {
         contentId: body.contentId || null,
         availability: body.availability === 'true' || body.availability === true,
         isActive: body.isActive !== 'false' && body.isActive !== false,
+        // ✅ Add variant attributes
+        size: body.size || null,
+        color: body.color || null,
+        pattern: body.pattern || null,
+        gender: body.gender || null,
+        material: body.material || null,
+        ageGroup: body.ageGroup || null,
+        customAttribute: body.customAttribute || null,
       };
       
       console.log('[Create Variant] Processed data:', data);
@@ -315,6 +363,14 @@ export class EcommerceController {
         contentId: body.contentId || null,
         availability: body.availability === 'true' || body.availability === true,
         isActive: body.isActive !== 'false' && body.isActive !== false,
+        // ✅ Add variant attributes
+        size: body.size || null,
+        color: body.color || null,
+        pattern: body.pattern || null,
+        gender: body.gender || null,
+        material: body.material || null,
+        ageGroup: body.ageGroup || null,
+        customAttribute: body.customAttribute || null,
       };
       if (file) {
         data.imageUrl = `${process.env.UPLOAD_URL}/${file.filename}`;

@@ -5,15 +5,34 @@ import { PrismaClient as TenantPrismaClient } from '@prisma/client-tenant';
 export class TenantPrismaService implements OnModuleDestroy {
   private readonly logger = new Logger(TenantPrismaService.name);
 
-  // Store Prisma clients per tenant
   private clients: Map<string, TenantPrismaClient> = new Map();
+  private reconnecting: Map<string, Promise<void>> = new Map();
+  private readyPromises: Map<string, Promise<void>> = new Map();
+  private resolveMap: Map<string, () => void> = new Map();
+  private rejectMap: Map<string, (err: unknown) => void> = new Map();
+
+  // ✅ Delay helper
+  private delay(ms: number) {
+    return new Promise((res) => setTimeout(res, ms));
+  }
 
   /**
-   * Create a new Prisma client with connection pooling
+   * Wait for promise with timeout protection
    */
-  private createClient(dbUrl: string): TenantPrismaClient {
-    // Add connection pooling parameters to prevent connection exhaustion
-    const urlWithPooling = dbUrl.includes('?') 
+  private async waitWithTimeout(promise: Promise<void>, ms = 5000) {
+    return Promise.race([
+      promise,
+      new Promise<void>((_, reject) =>
+        setTimeout(() => reject(new Error('Reconnect timeout')), ms),
+      ),
+    ]);
+  }
+
+  /**
+   * Create Prisma client with pooling
+   */
+  private createClient(tenantId: string, dbUrl: string): TenantPrismaClient {
+    const urlWithPooling = dbUrl.includes('?')
       ? `${dbUrl}&connection_limit=10&pool_timeout=20`
       : `${dbUrl}?connection_limit=10&pool_timeout=20`;
 
@@ -24,89 +43,178 @@ export class TenantPrismaService implements OnModuleDestroy {
       log: ['error', 'warn'],
     });
 
+    // 🔥 Global error recovery per tenant
+    client.$on('error', async (e) => {
+      this.logger.error(`🔥 Prisma error (tenant ${tenantId}):`, e);
+      await this.reconnectTenant(tenantId, dbUrl);
+    });
+
     return client;
   }
 
   /**
-   * Get or create tenant Prisma client
+   * Ensure readiness (SELECT 1)
    */
-  getTenantClient(tenantId: string, dbUrl: string): TenantPrismaClient {
-    // Normalize tenantId to ensure consistent caching
-    const normalizedId = String(tenantId);
-    
-    if (!this.clients.has(normalizedId)) {
-      this.logger.log(`🆕 Creating new Prisma client for tenant: ${normalizedId}`);
-      const client = this.createClient(dbUrl);
-      this.clients.set(normalizedId, client);
-    } else {
-      this.logger.debug(`♻️ Reusing existing Prisma client for tenant: ${normalizedId}`);
+  private async connectAndVerify(
+    tenantId: string,
+    client: TenantPrismaClient,
+    maxAttempts = 10,
+  ) {
+    this.readyPromises.set(
+      tenantId,
+      new Promise((resolve, reject) => {
+        this.resolveMap.set(tenantId, resolve);
+        this.rejectMap.set(tenantId, reject);
+      }),
+    );
+
+    try {
+      await client.$connect();
+    } catch (err) {
+      this.rejectMap.get(tenantId)?.(err);
+      throw err;
     }
 
-    return this.clients.get(normalizedId)!;
+    for (let i = 1; i <= maxAttempts; i++) {
+      try {
+        await client.$queryRaw`SELECT 1`;
+        this.resolveMap.get(tenantId)?.();
+        this.logger.log(`✅ Tenant ${tenantId} DB ready`);
+        return;
+      } catch (err: any) {
+        if (err?.message?.includes('Engine is not yet connected')) {
+          this.logger.warn(`⏳ Tenant ${tenantId} waiting for DB...`);
+          await this.delay(300);
+        } else {
+          this.rejectMap.get(tenantId)?.(err);
+          throw err;
+        }
+      }
+    }
+
+    const timeout = new Error(`Tenant ${tenantId} DB not ready`);
+    this.rejectMap.get(tenantId)?.(timeout);
+    throw timeout;
   }
 
   /**
-   * Execute query with retry (handles P1017 automatically)
+   * Get or create tenant client
+   */
+  getTenantClient(
+    tenantId: string,
+    dbUrl: string,
+  ): TenantPrismaClient {
+    const id = String(tenantId);
+
+    if (!this.clients.has(id)) {
+      this.logger.log(`🆕 Creating Prisma client for tenant ${id}`);
+
+      const client = this.createClient(id, dbUrl);
+      this.clients.set(id, client);
+
+      this.connectAndVerify(id, client);
+    }
+
+    return this.clients.get(id)!;
+  }
+
+  /**
+   * 🔥 Full reconnect logic per tenant (single-flight)
+   */
+  private async reconnectTenant(tenantId: string, dbUrl: string) {
+    const id = String(tenantId);
+
+    if (this.reconnecting.has(id)) {
+      this.logger.warn(`⏳ Waiting for ongoing reconnect (tenant ${id})`);
+      await this.waitWithTimeout(this.reconnecting.get(id)!);
+      return;
+    }
+
+    const reconnectPromise = (async () => {
+      this.logger.warn(`⚠️ Reconnecting tenant DB: ${id}`);
+
+      try {
+        const oldClient = this.clients.get(id);
+        if (oldClient) {
+          await oldClient.$disconnect();
+          this.clients.delete(id);
+        }
+
+        await this.delay(1000);
+
+        const newClient = this.createClient(id, dbUrl);
+        
+        // ✅ Verify connection BEFORE replacing client
+        await newClient.$connect();
+        await newClient.$queryRaw`SELECT 1`;
+        
+        // ✅ Only set after verification succeeds
+        this.clients.set(id, newClient);
+
+        this.logger.log(`🔄 Tenant ${id} reconnected successfully`);
+      } catch (err) {
+        this.logger.error(`❌ Tenant ${id} reconnect failed`, err);
+        throw err;
+      } finally {
+        this.reconnecting.delete(id);
+      }
+    })();
+
+    this.reconnecting.set(id, reconnectPromise);
+    await reconnectPromise;
+  }
+
+  /**
+   * Execute query with retry
    */
   async executeWithRetry<T>(
     tenantId: string,
     dbUrl: string,
     operation: (prisma: TenantPrismaClient) => Promise<T>,
-    retries = 1,
+    retries = 2,
   ): Promise<T> {
+    const id = String(tenantId);
+
     try {
-      const client = this.getTenantClient(tenantId, dbUrl);
+      const client = await this.getTenantClient(id, dbUrl);
       return await operation(client);
     } catch (error: any) {
-      // 🔥 Handle Prisma connection error
-      if (error.code === 'P1017' && retries > 0) {
+      const isConnectionError =
+        error?.message?.includes(
+          'terminating connection due to administrator command',
+        ) ||
+        error?.message?.includes('connection was closed') ||
+        error?.message?.includes('ECONNRESET') ||
+        error?.code === '57P01' ||
+        error?.code === 'P1017' ||
+        error?.code === 'P2024' ||
+        error?.code === 'P1001';
+
+      if (isConnectionError && retries > 0) {
         this.logger.warn(
-          `⚠️ P1017 error for tenant ${tenantId} - reconnecting...`,
+          `⚠️ Tenant ${id} DB error — reconnecting (${retries} retries left)`,
         );
 
-        // ❌ Remove old client
-        const oldClient = this.clients.get(tenantId);
-        if (oldClient) {
-          await oldClient.$disconnect();
-          this.clients.delete(tenantId);
-        }
+        await this.reconnectTenant(id, dbUrl);
 
-        // 🔄 Create new client
-        const newClient = this.createClient(dbUrl);
-        this.clients.set(tenantId, newClient);
-
-        // 🔁 Retry query
         return this.executeWithRetry(
-          tenantId,
+          id,
           dbUrl,
           operation,
           retries - 1,
         );
       }
 
-      this.logger.error(`❌ Prisma error: ${error.message}`);
+      this.logger.error(`❌ Tenant ${id} Prisma error:`, error);
       throw error;
     }
   }
 
   /**
-   * Optional: Health check for DB connection
-   */
-  async checkConnection(tenantId: string, dbUrl: string): Promise<boolean> {
-    try {
-      const client = this.getTenantClient(tenantId, dbUrl);
-      await client.$queryRaw`SELECT 1`;
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Cleanup all Prisma clients
+   * Cleanup
    */
   async onModuleDestroy() {
-    this.logger.log('🛑 Disconnecting all Prisma clients...');
+    this.logger.log('🛑 Disconnecting all tenant Prisma clients...');
 
     await Promise.all(
       Array.from(this.clients.values()).map((client) =>
@@ -115,3 +223,4 @@ export class TenantPrismaService implements OnModuleDestroy {
     );
   }
 }
+

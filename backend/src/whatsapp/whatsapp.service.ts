@@ -1289,6 +1289,27 @@ export class WhatsappService {
     const messageId = message.id;
     let text = message.text?.body;
 
+    // 🔥 CRITICAL: Handle button clicks from templates FIRST (before any other processing)
+    if (message.type === 'button' && message.button) {
+      const buttonPayload = message.button.payload;
+      const buttonText = message.button.text;
+      text = buttonText || buttonPayload; // Use button text or payload
+      this.logger.log(`🔘 Template button clicked: ${buttonText} (Payload: ${buttonPayload})`);
+    }
+
+    // Handle interactive button clicks
+    if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
+      const buttonTitle = message.interactive.button_reply.title;
+      text = buttonTitle;
+      this.logger.log(`🔘 Interactive button clicked: ${buttonTitle}`);
+    }
+
+    // Handle interactive list replies
+    if (message.type === 'interactive' && message.interactive?.type === 'list_reply') {
+      text = message.interactive.list_reply.id;
+      this.logger.log(`📋 List item selected: ${text}`);
+    }
+
     const image = message.image;
     const video = message.video;
     const document = message.document;
@@ -1366,16 +1387,6 @@ export class WhatsappService {
         this.logger.log('✅ Order message handled');
       }
       return;
-    }
-
-    if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
-      const buttonTitle = message.interactive.button_reply.title;
-      text = buttonTitle;
-      console.log(`[WhatsappService] Button clicked: ${buttonTitle}`);
-    }
-
-    if (message.type === 'interactive' && message.interactive?.type === 'list_reply') {
-      text = message.interactive.list_reply.id;
     }
 
     const existingMessage = await tenantClient.whatsAppMessage.findUnique({

@@ -19,7 +19,7 @@ npx prisma generate --schema=./prisma/schema-central.prisma
 
 4.For Tenant Database (each tenant's data):
 npx prisma db push --schema=./prisma/schema-tenant.prisma
-npx prisma generate --schema=./prisma/schema-tenant.prisma
+    npx prisma generate --schema=./prisma/schema-tenant.prisma
 
 If you want to apply schema changes to an existing database, run the following commands(OPTIONAL): 
 npx ts-node scripts/update-tenant-schemas.ts

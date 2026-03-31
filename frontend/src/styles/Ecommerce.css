@@ -341,6 +341,16 @@
   color: #ffffff !important;
 }
 
+.status-shipped {
+  background: #2563eb !important;
+  color: #ffffff !important;
+}
+
+.status-accepted {
+  background: #16a34a !important;
+  color: #ffffff !important;
+}
+
 .status-processing {
   background: #2563eb !important;
   color: #ffffff !important;

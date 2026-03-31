@@ -82,6 +82,7 @@ export default function Orders() {
 
   const placedOrders = orders.filter((o) => o.status === 'placed');
   const pendingOrders = orders.filter((o) => o.status === 'pending');
+  const shippedOrders = orders.filter((o) => o.status === 'shipped');
   const acceptedOrders = orders.filter((o) => o.status === 'accepted');
   const cancelledOrders = orders.filter((o) => o.status === 'cancelled');
   const filteredOrders = orders
@@ -126,7 +127,7 @@ export default function Orders() {
       </div>
       <div
         className="analytics-grid"
-        style={{ marginBottom: '24px', gridTemplateColumns: 'repeat(4, 1fr)' }}
+        style={{ marginBottom: '24px', gridTemplateColumns: 'repeat(5, 1fr)' }}
       >
         <div className="stat-card">
           <div
@@ -151,6 +152,19 @@ export default function Orders() {
           <div className="stat-content">
             <h3>Pending</h3>
             <p className="stat-number">{pendingOrders.length}</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div
+            className="stat-icon"
+            style={{ background: '#dbeafe', color: '#2563eb' }}
+          >
+            <Package size={24} />
+          </div>
+          <div className="stat-content">
+            <h3>Shipped</h3>
+            <p className="stat-number">{shippedOrders.length}</p>
           </div>
         </div>
 
@@ -227,6 +241,7 @@ export default function Orders() {
     <option value="all">All Orders ({orders.length})</option>
     <option value="placed">Placed ({placedOrders.length})</option>
     <option value="pending">Pending ({pendingOrders.length})</option>
+    <option value="shipped">Shipped ({shippedOrders.length})</option>
     <option value="accepted">Accepted ({acceptedOrders.length})</option>
     <option value="cancelled">Cancelled ({cancelledOrders.length})</option>
   </select>
@@ -361,6 +376,7 @@ export default function Orders() {
                     >
                       <option value="placed">Placed</option>
                       <option value="pending">Pending</option>
+                      <option value="shipped">Shipped</option>
                       <option value="accepted">Accepted</option>
                       <option value="cancelled">Cancelled</option>
                     </select>

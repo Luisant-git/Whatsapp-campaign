@@ -51,11 +51,15 @@ const Campaigns = () => {
     setLoading(true);
     try {
       await rerunCampaign(campaignId);
-      showSuccess('Campaign rerun successfully!');
-      fetchCampaigns();
+      showSuccess('Campaign started! Messages are being sent in the background. Refresh to see progress.');
+      
+      // Auto-refresh after 3 seconds
+      setTimeout(() => {
+        fetchCampaigns();
+      }, 3000);
     } catch (error) {
       console.error('Error rerunning campaign:', error);
-      showError('Failed to rerun campaign');
+      showError('Failed to start campaign');
     } finally {
       setLoading(false);
     }

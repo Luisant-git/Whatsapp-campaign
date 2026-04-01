@@ -644,9 +644,24 @@ async getMessages(
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Run/Rerun campaign' })
   @ApiParam({ name: 'id', description: 'Campaign ID' })
-  @ApiResponse({ status: 200, description: 'Campaign executed successfully' })
+  @ApiResponse({ status: 200, description: 'Campaign execution started' })
   async runCampaign(@Session() session: any, @Param('id') id: string) {
-    return this.campaignService.runCampaign(parseInt(id), session.user.id);
+    const campaignId = parseInt(id);
+    const userId = session.user.id;
+
+    // Start campaign in background
+    setImmediate(() => {
+      this.campaignService.runCampaign(campaignId, userId).catch(error => {
+        console.error('Campaign execution error:', error);
+      });
+    });
+
+    // Return immediately
+    return {
+      success: true,
+      message: 'Campaign started successfully',
+      campaignId
+    };
   }
  
   @Delete('campaigns/:id')

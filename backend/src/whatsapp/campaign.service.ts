@@ -174,24 +174,13 @@ export class CampaignService {
       where: { id: campaign.settingsId }
     });
 
-    // 🔹 1) Find all phones with 'Stop' label
-    const stopLabeled = await this.prisma.chatLabel.findMany({
-      where: {
-        labels: { hasSome: ['Stop', 'stop'] },  // accept both
-      },
-      select: { phone: true },
-    });
-    const stopPhones = new Set(stopLabeled.map(l => l.phone));
-
-    // 🔹 2) Filter campaign contacts to exclude blocked phones
-    const contactsToSend = (campaign.contacts || []).filter(c => !stopPhones.has(c.phone));
+    const contactsToSend = campaign.contacts || [];
 
     this.logger.log(
-      `Campaign ${id}: total contacts ${(campaign.contacts || []).length}, ` +
-      `${contactsToSend.length} after excluding 'Stop' label`
+      `Campaign ${id}: total contacts ${contactsToSend.length}, sending to all contacts`
     );
 
-    // 🔹 3) Send only to unblocked contacts
+    // Send to all contacts
     for (const contact of contactsToSend) {
       try {
         this.logger.log(`Sending campaign message to ${contact.phone}`);
@@ -220,15 +209,6 @@ export class CampaignService {
         
         // Extract detailed error message
         let errorMessage = messageResult.error || null;
-        
-        // CRITICAL DEBUG: Log what we received from WhatsApp service
-        this.logger.log(`=== CAMPAIGN ERROR DEBUG ===`);
-        this.logger.log(`Contact: ${contact.name} (${contact.phone})`);
-        this.logger.log(`Message result success: ${messageResult.success}`);
-        this.logger.log(`Message result error: "${messageResult.error}"`);
-        this.logger.log(`Error message type: ${typeof messageResult.error}`);
-        this.logger.log(`Error message to save: "${errorMessage}"`);
-        this.logger.log(`===========================`);
         
         if (errorMessage) {
           this.logger.log(`Campaign message failed for ${formattedPhone}: ${errorMessage}`);
@@ -360,6 +340,7 @@ export class CampaignService {
 
     return {
       campaignId: id,
+      totalContacts: contactsToSend.length,
       totalSent: results.length,
       successCount,
       failedCount,

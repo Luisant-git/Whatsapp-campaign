@@ -301,6 +301,11 @@
                   color: #991b1b;
                 }
 
+                &.status-skipped {
+                  background: #fef3c7;
+                  color: #92400e;
+                }
+
                 &.status-unknown {
                   background: #f3f4f6;
                   color: #6b7280;

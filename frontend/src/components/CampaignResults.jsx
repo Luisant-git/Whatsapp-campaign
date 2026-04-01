@@ -269,6 +269,8 @@ const CampaignResults = ({ campaignId, onBack }) => {
                         <div className="error-reason" title={result.error}>
                           {result.error}
                         </div>
+                      ) : result.status === 'skipped' ? (
+                        <span style={{ color: '#f59e0b' }}>Contact opted out</span>
                       ) : (
                         <span className="no-error">-</span>
                       )}

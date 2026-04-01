@@ -79,12 +79,6 @@ const BulkWhatsApp = () => {
     setResults(null);
     let dataToSend = [];
 
-    // Show confirmation popup
-    const confirmed = await showConfirm(
-      'Campaign will run in the background. You can check progress in the Campaigns page. Continue?'
-    );
-    if (!confirmed) return;
-
     // 1️⃣ Fetch group contacts if group is selected
     if (selectedGroup) {
       try {
@@ -98,10 +92,12 @@ const BulkWhatsApp = () => {
           );
         } else {
           showError("Selected group has no contacts");
+          return;
         }
       } catch (error) {
         console.error("Error fetching group contacts:", error);
         showError("Failed to load group contacts");
+        return;
       }
     }
 
@@ -139,6 +135,12 @@ const BulkWhatsApp = () => {
       showError("Please select at least one day for time-based scheduling");
       return;
     }
+
+    // Show confirmation popup after all validations
+    const confirmed = await showConfirm(
+      `Campaign will run in the background and send to ${dataToSend.length} contact${dataToSend.length > 1 ? 's' : ''}. You can check progress in the Campaigns Reports. Continue?`
+    );
+    if (!confirmed) return;
 
     // 5️⃣ Compose campaign payload
     const campaignData = {

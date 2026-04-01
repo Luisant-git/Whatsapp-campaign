@@ -1791,7 +1791,7 @@ export class WhatsappService {
     return `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
   }
 
-  async updateMessageStatusWithoutContext(messageId: string, status: string, phoneNumberId: string) {
+  async updateMessageStatusWithoutContext(messageId: string, status: string, phoneNumberId: string, errorDetails?: any) {
     try {
       const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
 
@@ -1799,19 +1799,41 @@ export class WhatsappService {
         const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
         const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
 
+        // Prepare error message from webhook error details
+        let errorMessage: string | null = null;
+        if (status === 'failed' && errorDetails && errorDetails.length > 0) {
+          const error = errorDetails[0];
+          const errorCode = error.code;
+          const errorTitle = error.title || error.message;
+          const errorDetail = error.error_data?.details;
+          
+          // Build comprehensive error message
+          errorMessage = `Code ${errorCode}: ${errorTitle}`;
+          if (errorDetail && errorDetail !== errorTitle) {
+            errorMessage += ` - ${errorDetail}`;
+          }
+          
+          this.logger.log(`Webhook error captured: ${errorMessage}`);
+        }
+
         const updated = await tenantClient.whatsAppMessage.updateMany({
           where: { messageId },
           data: { status }
         });
 
-        // Also update campaign messages
+        // Also update campaign messages with error details
+        const campaignUpdateData: any = { status };
+        if (errorMessage) {
+          campaignUpdateData.error = errorMessage;
+        }
+        
         await tenantClient.campaignMessage.updateMany({
           where: { messageId },
-          data: { status }
+          data: campaignUpdateData
         });
 
         if (updated.count > 0) {
-          this.logger.log(`Message ${messageId} status updated to ${status}`);
+          this.logger.log(`Message ${messageId} status updated to ${status}${errorMessage ? ` with error: ${errorMessage}` : ''}`);
           return;
         }
       }

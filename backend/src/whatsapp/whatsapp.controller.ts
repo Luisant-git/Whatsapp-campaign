@@ -330,7 +330,13 @@ export class WhatsappController {
                       }
                     }
                     
-                    await this.whatsappService.updateMessageStatusWithoutContext(status.id, status.status, change.value.metadata?.phone_number_id);
+                    // Pass error details if status is failed
+                    await this.whatsappService.updateMessageStatusWithoutContext(
+                      status.id, 
+                      status.status, 
+                      change.value.metadata?.phone_number_id,
+                      status.errors // Pass the errors array from webhook
+                    );
                   } catch (statusError) {
                     console.error('Error updating status:', statusError);
                   }

@@ -12,23 +12,49 @@ const CampaignResults = ({ campaignId, onBack }) => {
   const [itemsPerPage] = useState(10);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterResponse, setFilterResponse] = useState('all');
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState(Date.now());
 
   useEffect(() => {
     fetchCampaignResults();
   }, [campaignId]);
 
-  const fetchCampaignResults = async () => {
+  // Auto-refresh every 3 seconds for the first 30 seconds after campaign starts
+  useEffect(() => {
+    if (!autoRefresh) return;
+
+    const interval = setInterval(() => {
+      const timeSinceStart = Date.now() - lastRefresh;
+      
+      // Auto-refresh for 30 seconds, then stop
+      if (timeSinceStart < 30000) {
+        fetchCampaignResults(true); // Silent refresh
+      } else {
+        setAutoRefresh(false);
+      }
+    }, 3000); // Refresh every 3 seconds
+
+    return () => clearInterval(interval);
+  }, [autoRefresh, lastRefresh, campaignId]);
+
+  const fetchCampaignResults = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const data = await getCampaignResults(campaignId);
       setCampaign(data.campaign);
       setResults(data.results || []);
     } catch (error) {
       console.error('Error fetching campaign results:', error);
-      showError('Failed to fetch campaign results');
+      if (!silent) showError('Failed to fetch campaign results');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
+  };
+
+  const handleManualRefresh = () => {
+    setLastRefresh(Date.now());
+    setAutoRefresh(true);
+    fetchCampaignResults();
   };
 
   const handleDownload = async (format) => {
@@ -90,11 +116,17 @@ const CampaignResults = ({ campaignId, onBack }) => {
           <h1>Campaign Results</h1>
           <span className="page-subtitle">
             Detailed analytics and performance metrics for your campaign
+            {autoRefresh && <span style={{ marginLeft: '10px', color: '#10b981' }}>● Auto-refreshing...</span>}
           </span>
         </div>
-        <button onClick={onBack} className="back-btn">
-          ← Back to Campaigns
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={handleManualRefresh} className="back-btn" style={{ background: '#10b981' }}>
+            🔄 Refresh
+          </button>
+          <button onClick={onBack} className="back-btn">
+            ← Back to Campaigns
+          </button>
+        </div>
       </div>
 
       <div className="campaign-info-card">

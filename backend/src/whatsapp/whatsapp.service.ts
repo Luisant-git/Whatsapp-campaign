@@ -1807,13 +1807,36 @@ export class WhatsappService {
           const errorTitle = error.title || error.message;
           const errorDetail = error.error_data?.details;
           
-          // Build comprehensive error message
-          errorMessage = `Code ${errorCode}: ${errorTitle}`;
-          if (errorDetail && errorDetail !== errorTitle) {
-            errorMessage += ` - ${errorDetail}`;
+          // Build user-friendly error message based on error code
+          if (errorCode === 131026) {
+            errorMessage = 'Number not registered on WhatsApp or message cannot be delivered';
+          } else if (errorCode === 131049) {
+            errorMessage = 'Message blocked to maintain healthy engagement (possible spam detection)';
+          } else if (errorCode === 131047) {
+            errorMessage = 'Invalid phone number format';
+          } else if (errorCode === 131051) {
+            errorMessage = 'Message type not supported';
+          } else if (errorCode === 132000) {
+            errorMessage = 'Template does not exist or not approved';
+          } else if (errorCode === 132001) {
+            errorMessage = 'Template parameters do not match';
+          } else if (errorCode === 132005) {
+            errorMessage = 'Template is paused or disabled';
+          } else if (errorCode === 133000) {
+            errorMessage = 'Too many messages sent (rate limit exceeded)';
+          } else if (errorCode === 133005) {
+            errorMessage = 'Phone number not allowed to receive messages';
+          } else if (errorCode === 133006) {
+            errorMessage = 'Phone number has blocked your business';
+          } else {
+            // For unknown error codes, use the original message
+            errorMessage = `${errorTitle}`;
+            if (errorDetail && errorDetail !== errorTitle) {
+              errorMessage += ` - ${errorDetail}`;
+            }
           }
           
-          this.logger.log(`Webhook error captured: ${errorMessage}`);
+          this.logger.log(`Webhook error captured: Code ${errorCode} - ${errorMessage}`);
         }
 
         const updated = await tenantClient.whatsAppMessage.updateMany({

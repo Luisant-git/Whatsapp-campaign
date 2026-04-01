@@ -2234,11 +2234,16 @@ export class WhatsappService {
         results.push({ phoneNumber: formattedPhone, success: true, messageId: response.data.messages[0].id });
       } catch (error) {
         const errorMsg = this.getErrorMessage(error);
+        
+        // Log detailed error information
         this.logger.error(`Failed to send to ${contact.phone}:`, {
           error: errorMsg,
           response: error.response?.data,
-          status: error.response?.status
+          status: error.response?.status,
+          errorCode: error.response?.data?.error?.code,
+          errorSubcode: error.response?.data?.error?.error_subcode
         });
+        
         results.push({ phoneNumber: formattedPhone, success: false, error: errorMsg });
       }
     }
@@ -2342,16 +2347,35 @@ export class WhatsappService {
   private getErrorMessage(error: any): string {
     if (error.response?.data?.error) {
       const apiError = error.response.data.error;
-      if (apiError.code === 131026) {
-        return 'Number not registered on WhatsApp';
+      
+      // Common Meta WhatsApp API error codes
+      const errorCodeMap: { [key: number]: string } = {
+        100: 'Invalid parameter',
+        131026: 'Number not registered on WhatsApp',
+        131047: 'Message failed to send - Invalid number',
+        131051: 'Unsupported message type',
+        132000: 'Template does not exist or not approved',
+        132001: 'Template parameter count mismatch',
+        132005: 'Template paused or disabled',
+        132015: 'Template parameter format invalid',
+        132016: 'Template parameter out of range',
+        133000: 'Rate limit exceeded',
+        133004: 'Message too long',
+        133005: 'Phone number not allowed',
+        133006: 'Phone number blocked',
+        133010: 'Message undeliverable',
+        135000: 'Generic user error',
+        136000: 'Template name does not exist',
+        136001: 'Template language not supported'
+      };
+      
+      if (apiError.code && errorCodeMap[apiError.code]) {
+        const baseMessage = errorCodeMap[apiError.code];
+        const additionalInfo = apiError.error_user_msg || apiError.error_user_title;
+        return additionalInfo ? `${baseMessage}: ${additionalInfo}` : baseMessage;
       }
-      if (apiError.code === 131047) {
-        return 'Message failed to send - Invalid number';
-      }
-      if (apiError.code === 131051) {
-        return 'Unsupported message type';
-      }
-      return apiError.message || 'WhatsApp API error';
+      
+      return apiError.error_user_msg || apiError.message || 'WhatsApp API error';
     }
     return error.message || 'Failed to send message';
   }

@@ -213,17 +213,24 @@ export class CampaignService {
           failedCount++;
         }
 
-        // Store campaign message result with formatted phone number
+        // Store campaign message result with formatted phone number and detailed error
         const formattedPhone = this.formatPhoneNumber(
           messageResult.phoneNumber || contact.phone,
         );
+        
+        // Extract detailed error message
+        let errorMessage = messageResult.error || null;
+        if (errorMessage) {
+          this.logger.log(`Campaign message failed for ${formattedPhone}: ${errorMessage}`);
+        }
+        
         await this.prisma.campaignMessage.create({
           data: {
             messageId: messageResult.messageId || null,
             phone: formattedPhone,
             name: contact.name,
             status,
-            error: messageResult.error || null,
+            error: errorMessage,
             campaignId: id
           }
         });
@@ -285,12 +292,39 @@ export class CampaignService {
         this.logger.error(`Failed to send to ${contact.phone}:`, error);
 
         const formattedPhone = this.formatPhoneNumber(contact.phone);
+        
+        // Extract detailed error from Meta API response
+        let errorMessage = error.message;
+        if (error.response?.data?.error) {
+          const apiError = error.response.data.error;
+          if (apiError.code === 131026) {
+            errorMessage = 'Number not registered on WhatsApp';
+          } else if (apiError.code === 131047) {
+            errorMessage = 'Message failed to send - Invalid number';
+          } else if (apiError.code === 131051) {
+            errorMessage = 'Unsupported message type';
+          } else if (apiError.code === 100) {
+            errorMessage = 'Invalid parameter - ' + (apiError.error_user_msg || apiError.message);
+          } else if (apiError.code === 132000) {
+            errorMessage = 'Template does not exist or not approved';
+          } else if (apiError.code === 132001) {
+            errorMessage = 'Template parameter count mismatch';
+          } else if (apiError.code === 132005) {
+            errorMessage = 'Template paused or disabled';
+          } else if (apiError.code === 132015) {
+            errorMessage = 'Template parameter format invalid';
+          } else {
+            errorMessage = apiError.error_user_msg || apiError.message || error.message;
+          }
+          this.logger.error(`Meta API Error Code ${apiError.code}: ${errorMessage}`);
+        }
+        
         await this.prisma.campaignMessage.create({
           data: {
             phone: formattedPhone,
             name: contact.name,
             status: 'failed',
-            error: error.message,
+            error: errorMessage,
             campaignId: id
           }
         });

@@ -11,7 +11,7 @@ import { useToast } from "../contexts/ToastContext";
 import "../styles/BulkWhatsApps.scss";
 
 const BulkWhatsApp = () => {
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showConfirm } = useToast();
   const [phoneNumbers, setPhoneNumbers] = useState("");
   const [templateName, setTemplateName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -78,6 +78,12 @@ const BulkWhatsApp = () => {
   const handleSendBulkMessages = async () => {
     setResults(null);
     let dataToSend = [];
+
+    // Show confirmation popup
+    const confirmed = await showConfirm(
+      'Campaign will run in the background. You can check progress in the Campaigns page. Continue?'
+    );
+    if (!confirmed) return;
 
     // 1️⃣ Fetch group contacts if group is selected
     if (selectedGroup) {

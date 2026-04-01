@@ -161,42 +161,21 @@ const BulkWhatsApp = () => {
       const response = await sendBulkMessages(campaignData);
       console.log("API Response:", response);
 
-      const resultsArray = Array.isArray(response?.results)
-        ? response.results
-        : Array.isArray(response)
-          ? response
-          : [];
-
-      if (!Array.isArray(resultsArray)) {
-        throw new Error("Invalid response from server");
-      }
-
-      setResults(resultsArray);
-
-      setTimeout(() => {
-        setResults(null);
-      }, 4000);
-
-      setPhoneNumbers("");
-      setSelectedGroup("");
-      setGroupContactsCount(0);
-      setCampaignName("");
-      setTemplateName("");
-      setScheduledDays([]);
-      setScheduledTime("09:00");
-      setScheduleType("one-time");
-      const successCount = resultsArray.filter((r) => r.success).length;
-      const failedCount = resultsArray.filter((r) => !r.success).length;
-
-      if (scheduleType === "time-based") {
-        showSuccess(
-          `Campaign scheduled for ${scheduledDays.join(", ")} at ${scheduledTime}`
-        );
-      } else if (failedCount > 0) {
-        showSuccess(`Sent: ${successCount} | Failed: ${failedCount}`);
-        showError("Some contacts may not be valid on WhatsApp.");
+      // Backend now returns simple success response for async campaigns
+      if (response.success) {
+        showSuccess(`Campaign started! Sending to ${dataToSend.length} contacts in the background.`);
+        
+        // Clear form
+        setPhoneNumbers("");
+        setSelectedGroup("");
+        setGroupContactsCount(0);
+        setCampaignName("");
+        setTemplateName("");
+        setScheduledDays([]);
+        setScheduledTime("09:00");
+        setScheduleType("one-time");
       } else {
-        showSuccess(`Successfully sent to all ${successCount} contacts!`);
+        throw new Error(response.message || "Failed to start campaign");
       }
     } catch (error) {
       console.error("Error sending bulk messages:", error);

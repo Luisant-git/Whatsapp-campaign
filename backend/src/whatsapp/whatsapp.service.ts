@@ -2235,6 +2235,15 @@ export class WhatsappService {
       } catch (error) {
         const errorMsg = this.getErrorMessage(error);
         
+        // CRITICAL DEBUG: Log what we're about to return
+        this.logger.error(`=== ERROR CAPTURE DEBUG ===`);
+        this.logger.error(`Contact phone: ${contact.phone}`);
+        this.logger.error(`Formatted phone: ${formattedPhone}`);
+        this.logger.error(`Error message extracted: "${errorMsg}"`);
+        this.logger.error(`Error message type: ${typeof errorMsg}`);
+        this.logger.error(`Error message length: ${errorMsg?.length}`);
+        this.logger.error(`===========================`);
+        
         // Log detailed error information
         this.logger.error(`Failed to send to ${contact.phone}:`, {
           error: errorMsg,

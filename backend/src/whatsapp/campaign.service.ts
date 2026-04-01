@@ -220,6 +220,16 @@ export class CampaignService {
         
         // Extract detailed error message
         let errorMessage = messageResult.error || null;
+        
+        // CRITICAL DEBUG: Log what we received from WhatsApp service
+        this.logger.log(`=== CAMPAIGN ERROR DEBUG ===`);
+        this.logger.log(`Contact: ${contact.name} (${contact.phone})`);
+        this.logger.log(`Message result success: ${messageResult.success}`);
+        this.logger.log(`Message result error: "${messageResult.error}"`);
+        this.logger.log(`Error message type: ${typeof messageResult.error}`);
+        this.logger.log(`Error message to save: "${errorMessage}"`);
+        this.logger.log(`===========================`);
+        
         if (errorMessage) {
           this.logger.log(`Campaign message failed for ${formattedPhone}: ${errorMessage}`);
         }

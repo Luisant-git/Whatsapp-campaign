@@ -2241,7 +2241,8 @@ export class WhatsappService {
           response: error.response?.data,
           status: error.response?.status,
           errorCode: error.response?.data?.error?.code,
-          errorSubcode: error.response?.data?.error?.error_subcode
+          errorSubcode: error.response?.data?.error?.error_subcode,
+          fullError: JSON.stringify(error.response?.data)
         });
         
         results.push({ phoneNumber: formattedPhone, success: false, error: errorMsg });
@@ -2345,6 +2346,14 @@ export class WhatsappService {
     });
   }
   private getErrorMessage(error: any): string {
+    // Log the full error for debugging
+    this.logger.error('Full error object:', JSON.stringify({
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      statusText: error.response?.statusText
+    }));
+
     if (error.response?.data?.error) {
       const apiError = error.response.data.error;
       
@@ -2371,12 +2380,29 @@ export class WhatsappService {
       
       if (apiError.code && errorCodeMap[apiError.code]) {
         const baseMessage = errorCodeMap[apiError.code];
-        const additionalInfo = apiError.error_user_msg || apiError.error_user_title;
+        const additionalInfo = apiError.error_user_msg || apiError.error_user_title || apiError.message;
         return additionalInfo ? `${baseMessage}: ${additionalInfo}` : baseMessage;
       }
       
-      return apiError.error_user_msg || apiError.message || 'WhatsApp API error';
+      // If error code not in map, return detailed error
+      const errorDetails: string[] = [];
+      if (apiError.code) errorDetails.push(`Code ${apiError.code}`);
+      if (apiError.error_user_msg) errorDetails.push(apiError.error_user_msg);
+      else if (apiError.error_user_title) errorDetails.push(apiError.error_user_title);
+      else if (apiError.message) errorDetails.push(apiError.message);
+      
+      return errorDetails.length > 0 ? errorDetails.join(': ') : 'WhatsApp API error';
     }
+    
+    // Check for other error formats
+    if (error.response?.data?.message) {
+      return error.response.data.message;
+    }
+    
+    if (error.response?.statusText) {
+      return `HTTP ${error.response.status}: ${error.response.statusText}`;
+    }
+    
     return error.message || 'Failed to send message';
   }
 

@@ -165,7 +165,6 @@ export class CampaignService {
       where: { campaignId: id }
     });
 
-    const results: Array<{ phone: string; name: string | null; success: boolean; messageId?: string; error?: string }> = [];
     let successCount = 0;
     let failedCount = 0;
 
@@ -177,155 +176,174 @@ export class CampaignService {
     const contactsToSend = campaign.contacts || [];
 
     this.logger.log(
-      `Campaign ${id}: total contacts ${contactsToSend.length}, sending to all contacts`
+      `Campaign ${id}: Processing ${contactsToSend.length} contacts in batches`
     );
 
-    // Send to all contacts
-    for (const contact of contactsToSend) {
-      try {
-        this.logger.log(`Sending campaign message to ${contact.phone}`);
+    // Process in batches of 50 to avoid overwhelming the system
+    const BATCH_SIZE = 50;
+    const batches: typeof contactsToSend[] = [];
+    for (let i = 0; i < contactsToSend.length; i += BATCH_SIZE) {
+      batches.push(contactsToSend.slice(i, i + BATCH_SIZE));
+    }
 
-        const result = await this.whatsappService.sendBulkTemplateMessageWithNames(
-          [{ name: contact.name || '', phone: contact.phone }],
-          campaign.templateName,
-          userId,
-          campaign.settingsId,
-          settings?.headerImageUrl && settings.headerImageUrl.trim() !== '' ? settings.headerImageUrl : undefined
-        );
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+      const batch = batches[batchIndex];
+      this.logger.log(`Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} contacts)`);
 
-        const messageResult = result[0];
-        const status = messageResult.success ? 'sent' : 'failed';
+      // Process batch contacts in parallel
+      const batchResults = await Promise.allSettled(
+        batch.map(async (contact) => {
+          try {
+            this.logger.log(`Sending campaign message to ${contact.phone}`);
 
-        if (messageResult.success) {
-          successCount++;
-        } else {
-          failedCount++;
-        }
+            const result = await this.whatsappService.sendBulkTemplateMessageWithNames(
+              [{ name: contact.name || '', phone: contact.phone }],
+              campaign.templateName,
+              userId,
+              campaign.settingsId,
+              settings?.headerImageUrl && settings.headerImageUrl.trim() !== '' ? settings.headerImageUrl : undefined
+            );
 
-        // Store campaign message result with formatted phone number and detailed error
-        const formattedPhone = this.formatPhoneNumber(
-          messageResult.phoneNumber || contact.phone,
-        );
-        
-        // Extract detailed error message
-        let errorMessage = messageResult.error || null;
-        
-        if (errorMessage) {
-          this.logger.log(`Campaign message failed for ${formattedPhone}: ${errorMessage}`);
-        }
-        
-        await this.prisma.campaignMessage.create({
-          data: {
-            messageId: messageResult.messageId || null,
-            phone: formattedPhone,
-            name: contact.name,
-            status,
-            error: errorMessage,
-            campaignId: id
+            const messageResult = result[0];
+            const status = messageResult.success ? 'sent' : 'failed';
+            const formattedPhone = this.formatPhoneNumber(
+              messageResult.phoneNumber || contact.phone,
+            );
+            
+            let errorMessage = messageResult.error || null;
+            
+            return {
+              success: messageResult.success,
+              messageId: messageResult.messageId || null,
+              phone: formattedPhone,
+              name: contact.name,
+              status,
+              error: errorMessage
+            };
+          } catch (error) {
+            this.logger.error(`Failed to send to ${contact.phone}:`, error);
+            const formattedPhone = this.formatPhoneNumber(contact.phone);
+            
+            let errorMessage = error.message;
+            if (error.response?.data?.error) {
+              const apiError = error.response.data.error;
+              if (apiError.code === 131026) {
+                errorMessage = 'Number not registered on WhatsApp';
+              } else if (apiError.code === 131047) {
+                errorMessage = 'Message failed to send - Invalid number';
+              } else {
+                errorMessage = apiError.error_user_msg || apiError.message || error.message;
+              }
+            }
+            
+            return {
+              success: false,
+              messageId: null,
+              phone: formattedPhone,
+              name: contact.name,
+              status: 'failed',
+              error: errorMessage
+            };
           }
-        });
+        })
+      );
 
-        // ✅ Auto-create or update contact (with unique constraint handling)
+      // Process batch results and save to database
+      const messagesToCreate: Array<{
+        messageId: string | null;
+        phone: string;
+        name: string | null;
+        status: string;
+        error: string | null;
+        campaignId: number;
+      }> = [];
+      const contactsToUpsert: Array<{
+        phone: string;
+        name: string;
+        phoneNumberId: string | null;
+        groupId: number | null;
+      }> = [];
+
+      for (const result of batchResults) {
+        if (result.status === 'fulfilled') {
+          const data = result.value;
+          
+          if (data.success) {
+            successCount++;
+          } else {
+            failedCount++;
+          }
+
+          messagesToCreate.push({
+            messageId: data.messageId || null,
+            phone: data.phone,
+            name: data.name,
+            status: data.status,
+            error: data.error,
+            campaignId: id
+          });
+
+          // Prepare contact for upsert
+          contactsToUpsert.push({
+            phone: data.phone,
+            name: data.name || 'Unknown',
+            phoneNumberId: settings?.phoneNumberId || null,
+            groupId: campaign.groupId
+          });
+        }
+      }
+
+      // Bulk insert campaign messages
+      if (messagesToCreate.length > 0) {
+        await this.prisma.campaignMessage.createMany({
+          data: messagesToCreate
+        });
+      }
+
+      // Upsert contacts
+      for (const contactData of contactsToUpsert) {
         try {
           const existingContact = await this.prisma.contact.findFirst({
             where: {
-              phone: formattedPhone,
-              phoneNumberId: settings?.phoneNumberId || null,
+              phone: contactData.phone,
+              phoneNumberId: contactData.phoneNumberId,
             },
           });
 
           if (existingContact) {
-            // Update existing contact
             await this.prisma.contact.update({
               where: { id: existingContact.id },
               data: {
                 name:
                   existingContact.name &&
-                    !['null', 'undefined', 'unknown'].includes(
-                      existingContact.name.trim().toLowerCase(),
-                    )
+                  !['null', 'undefined', 'unknown'].includes(
+                    existingContact.name.trim().toLowerCase(),
+                  )
                     ? existingContact.name
-                    : contact.name || 'Unknown',
+                    : contactData.name,
                 lastMessageDate: new Date(),
-                groupId: campaign.groupId || existingContact.groupId,
+                groupId: contactData.groupId || existingContact.groupId,
                 isActive: true,
               },
             });
           } else {
-            // Create new contact
             await this.prisma.contact.create({
               data: {
-                phone: formattedPhone,
-                name: contact.name || 'Unknown',
-                phoneNumberId: settings?.phoneNumberId || null,
+                phone: contactData.phone,
+                name: contactData.name,
+                phoneNumberId: contactData.phoneNumberId,
                 lastMessageDate: new Date(),
-                groupId: campaign.groupId,
+                groupId: contactData.groupId,
                 isActive: true,
               },
             });
           }
         } catch (contactError) {
-          // Log but don't fail the campaign if contact update fails
-          this.logger.warn(`Failed to update contact ${formattedPhone}:`, contactError.message);
+          this.logger.warn(`Failed to update contact ${contactData.phone}:`, contactError.message);
         }
-
-        results.push({
-          phone: formattedPhone,
-          name: contact.name,
-          success: messageResult.success,
-          messageId: messageResult.messageId,
-          error: messageResult.error
-        });
-
-      } catch (error) {
-        failedCount++;
-        this.logger.error(`Failed to send to ${contact.phone}:`, error);
-
-        const formattedPhone = this.formatPhoneNumber(contact.phone);
-        
-        // Extract detailed error from Meta API response
-        let errorMessage = error.message;
-        if (error.response?.data?.error) {
-          const apiError = error.response.data.error;
-          if (apiError.code === 131026) {
-            errorMessage = 'Number not registered on WhatsApp';
-          } else if (apiError.code === 131047) {
-            errorMessage = 'Message failed to send - Invalid number';
-          } else if (apiError.code === 131051) {
-            errorMessage = 'Unsupported message type';
-          } else if (apiError.code === 100) {
-            errorMessage = 'Invalid parameter - ' + (apiError.error_user_msg || apiError.message);
-          } else if (apiError.code === 132000) {
-            errorMessage = 'Template does not exist or not approved';
-          } else if (apiError.code === 132001) {
-            errorMessage = 'Template parameter count mismatch';
-          } else if (apiError.code === 132005) {
-            errorMessage = 'Template paused or disabled';
-          } else if (apiError.code === 132015) {
-            errorMessage = 'Template parameter format invalid';
-          } else {
-            errorMessage = apiError.error_user_msg || apiError.message || error.message;
-          }
-          this.logger.error(`Meta API Error Code ${apiError.code}: ${errorMessage}`);
-        }
-        
-        await this.prisma.campaignMessage.create({
-          data: {
-            phone: formattedPhone,
-            name: contact.name,
-            status: 'failed',
-            error: errorMessage,
-            campaignId: id
-          }
-        });
-
-        results.push({
-          phone: formattedPhone,
-          name: contact.name,
-          success: false,
-          error: error.message
-        });
       }
+
+      this.logger.log(`Batch ${batchIndex + 1} completed. Success: ${successCount}, Failed: ${failedCount}`);
     }
 
     // Update final campaign status and counts
@@ -338,13 +356,13 @@ export class CampaignService {
       }
     });
 
+    this.logger.log(`Campaign ${id} completed. Total Success: ${successCount}, Total Failed: ${failedCount}`);
+
     return {
       campaignId: id,
       totalContacts: contactsToSend.length,
-      totalSent: results.length,
       successCount,
-      failedCount,
-      results
+      failedCount
     };
   }
 

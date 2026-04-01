@@ -388,7 +388,7 @@ async getMessages(
   @Post('send-bulk')
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Send bulk WhatsApp messages using templates and create campaign' })
-  @ApiResponse({ status: 201, description: 'Bulk messages sent successfully', type: [BulkMessageResultDto] })
+  @ApiResponse({ status: 201, description: 'Campaign started successfully', type: [BulkMessageResultDto] })
   @ApiResponse({ status: 400, description: 'Bad Request' })
   async sendBulk(@Session() session: any, @Body() body: any) {
     // Handle nested structure from frontend
@@ -413,24 +413,36 @@ async getMessages(
       scheduleType: sendBulkDto.scheduleType || 'one-time',
       scheduledDays: sendBulkDto.scheduledDays || [],
       scheduledTime: sendBulkDto.scheduledTime,
-      groupId: sendBulkDto.groupId, // ✅ Added this line
+      groupId: sendBulkDto.groupId,
     }, session.user.id);
  
-    // If one-time, run immediately; if time-based, just return campaign info
+    // If time-based, just return campaign info
     if (sendBulkDto.scheduleType === 'time-based') {
       return {
+        success: true,
         campaignName,
         campaignId: campaign.id,
         status: 'scheduled',
         message: 'Campaign scheduled successfully'
       };
     } else {
-      // Run the campaign immediately
-      const result = await this.campaignService.runCampaign(campaign.id, session.user.id);
-     
+      // Run campaign in background
+      const campaignId = campaign.id;
+      const userId = session.user.id;
+
+      setImmediate(() => {
+        this.campaignService.runCampaign(campaignId, userId).catch(error => {
+          console.error('Campaign execution error:', error);
+        });
+      });
+
+      // Return immediately
       return {
+        success: true,
         campaignName,
-        ...result
+        campaignId: campaign.id,
+        message: 'Campaign started successfully. Messages are being sent in the background.',
+        totalContacts: contacts.length
       };
     }
   }

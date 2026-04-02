@@ -46,16 +46,38 @@ export class FlowAppointmentController {
 
   @Post(':id/finish')
   async finishAppointment(@Param('id') id: string, @Body() body: { remarks?: string }, @Req() req: any) {
-    const userId = req.session?.userId || req.session?.user?.id || 1; // Default to tenant 1
     try {
-      await this.flowAppointmentService.markAppointmentFinished(
-        parseInt(id), 
-        body.remarks || '', 
-        userId
-      );
+      const appointmentId = parseInt(id);
+      
+      // Find which tenant owns this appointment
+      const tenants = await this.flowAppointmentService['centralPrisma'].tenant.findMany({ 
+        where: { isActive: true } 
+      });
+      
+      for (const tenant of tenants) {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        const tenantClient = this.flowAppointmentService['tenantPrisma'].getTenantClient(tenant.id.toString(), dbUrl);
+        
+        const appointment = await (tenantClient as any).flowAppointment.findUnique({
+          where: { id: appointmentId }
+        });
+        
+        if (appointment) {
+          await this.flowAppointmentService.markAppointmentFinished(
+            appointmentId,
+            body.remarks || '',
+            tenant.id
+          );
+          return {
+            success: true,
+            message: 'Appointment marked as finished'
+          };
+        }
+      }
+      
       return {
-        success: true,
-        message: 'Appointment marked as finished'
+        success: false,
+        message: 'Appointment not found'
       };
     } catch (error) {
       return {

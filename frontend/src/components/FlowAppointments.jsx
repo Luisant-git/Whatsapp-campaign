@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, User, Mail, Phone, MapPin, Building, Search, Filter, Download, Eye, Trash2 } from 'lucide-react';
+import { Calendar, Clock, User, Mail, Phone, MapPin, Building, Search, Filter, Download, Eye, Trash2, CheckCircle } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { getFlowAppointments, deleteFlowAppointment } from '../api/flowAppointments';
 import '../styles/FlowAppointments.css';
@@ -82,13 +82,24 @@ const FlowAppointments = () => {
   const handleFinishAppointment = async (appointmentId, remarks = '') => {
     setUpdatingStatus(true);
     try {
-      const response = await fetch(`/api/flow-appointments/${appointmentId}/finish`, {
+      const response = await fetch(`${window.location.origin}/api/flow-appointments/${appointmentId}/finish`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({ remarks }),
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Response is not JSON');
+      }
 
       const result = await response.json();
       if (result.success) {
@@ -101,7 +112,7 @@ const FlowAppointments = () => {
         setShowRemarksModal(false);
         setRemarks('');
       } else {
-        showToast('Failed to update appointment status', 'error');
+        showToast(result.message || 'Failed to update appointment status', 'error');
       }
     } catch (error) {
       console.error('Error updating appointment status:', error);
@@ -435,7 +446,7 @@ const FlowAppointments = () => {
                           title="Mark as finished"
                           style={{ backgroundColor: '#10b981', color: 'white' }}
                         >
-                          ✓
+                          <CheckCircle size={16} />
                         </button>
                       )}
                       <button

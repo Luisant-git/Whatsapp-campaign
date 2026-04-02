@@ -82,6 +82,8 @@ const FlowAppointments = () => {
   const handleFinishAppointment = async (appointmentId, remarks = '') => {
     setUpdatingStatus(true);
     try {
+      console.log('Making request to:', `/api/flow-appointments/${appointmentId}/finish`);
+      
       const response = await fetch(`/api/flow-appointments/${appointmentId}/finish`, {
         method: 'POST',
         headers: {
@@ -92,16 +94,24 @@ const FlowAppointments = () => {
         body: JSON.stringify({ remarks }),
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      
+      const responseText = await response.text();
+      console.log('Response text:', responseText);
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse JSON:', parseError);
         throw new Error('Response is not JSON');
       }
 
-      const result = await response.json();
       if (result.success) {
         setAppointments(prev => prev.map(apt => 
           apt.id === appointmentId 

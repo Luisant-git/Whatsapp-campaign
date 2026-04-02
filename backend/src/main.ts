@@ -12,6 +12,8 @@ async function bootstrap() {
     bodyParser: true,
   });
 
+  app.setGlobalPrefix('api');
+
   // ✅ Set server timeout to prevent 502 errors
   const server = app.getHttpServer();
   server.setTimeout(120000);

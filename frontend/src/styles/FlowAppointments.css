@@ -72,7 +72,7 @@
 
 .flow-stat-icon.total { background: #dbeafe; color: #2563eb; }
 .flow-stat-icon.confirmed { background: #dcfce7; color: #16a34a; }
-.flow-stat-icon.pending { background: #fef3c7; color: #ca8a04; }
+.flow-stat-icon.finished { background: #e0e7ff; color: #7c3aed; }
 .flow-stat-icon.today { background: #f3e8ff; color: #9333ea; }
 
 .flow-stat-content h3 {
@@ -257,9 +257,9 @@
   background: #dcfce7;
 }
 
-.flow-status-pending {
-  color: #ca8a04;
-  background: #fef3c7;
+.flow-status-finished {
+  color: #7c3aed;
+  background: #e0e7ff;
 }
 
 .flow-status-cancelled {
@@ -293,6 +293,15 @@
 .flow-action-btn.view:hover {
   color: #1d4ed8;
   background: #dbeafe;
+}
+
+.flow-action-btn.finish {
+  color: #16a34a;
+}
+
+.flow-action-btn.finish:hover {
+  color: #15803d;
+  background: #dcfce7;
 }
 
 .flow-action-btn.delete {

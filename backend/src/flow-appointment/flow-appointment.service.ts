@@ -357,6 +357,25 @@ export class FlowAppointmentService {
     });
   }
   
+  async updateAppointmentStatus(appointmentId: number, status: string, remarks: string, userId: number) {
+    const prisma = await this.getTenantClient(userId);
+    return (prisma as any).flowAppointment.update({
+      where: { 
+        id: appointmentId,
+        tenantId: userId
+      },
+      data: {
+        status,
+        remarks,
+        updatedAt: new Date()
+      }
+    });
+  }
+  
+  async markAppointmentFinished(appointmentId: number, remarks: string, userId: number) {
+    return this.updateAppointmentStatus(appointmentId, 'finished', remarks, userId);
+  }
+  
   async getDepartments() {
     try {
       console.log('🔍 Getting departments from database...');

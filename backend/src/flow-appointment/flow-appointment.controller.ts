@@ -44,6 +44,55 @@ export class FlowAppointmentController {
     }
   }
 
+  @Post(':id/finish')
+  @UseGuards(SessionGuard)
+  async finishAppointment(@Param('id') id: string, @Body() body: { remarks?: string }, @Req() req: any) {
+    const userId = req.session.userId || req.session.user?.id;
+    try {
+      await this.flowAppointmentService.markAppointmentFinished(
+        parseInt(id), 
+        body.remarks || '', 
+        userId
+      );
+      return {
+        success: true,
+        message: 'Appointment marked as finished'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to update appointment status'
+      };
+    }
+  }
+
+  @Post(':id/status')
+  @UseGuards(SessionGuard)
+  async updateAppointmentStatus(
+    @Param('id') id: string, 
+    @Body() body: { status: string; remarks?: string }, 
+    @Req() req: any
+  ) {
+    const userId = req.session.userId || req.session.user?.id;
+    try {
+      await this.flowAppointmentService.updateAppointmentStatus(
+        parseInt(id), 
+        body.status, 
+        body.remarks || '', 
+        userId
+      );
+      return {
+        success: true,
+        message: 'Appointment status updated successfully'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to update appointment status'
+      };
+    }
+  }
+
   @Delete('cleanup/empty')
   @UseGuards(SessionGuard)
   async cleanupEmptyAppointments(@Req() req: any) {

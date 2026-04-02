@@ -11,6 +11,9 @@ const FlowAppointments = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [showRemarksModal, setShowRemarksModal] = useState(false);
+  const [remarks, setRemarks] = useState('');
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   const { showToast } = useToast();
   const [fromDate, setFromDate] = useState('');  //date filter for export 
   const [toDate, setToDate] = useState('');
@@ -74,6 +77,44 @@ const FlowAppointments = () => {
       console.error('Error deleting appointment:', error);
       showToast('Failed to delete appointment', 'error');
     }
+  };
+
+  const handleFinishAppointment = async (appointmentId, remarks = '') => {
+    setUpdatingStatus(true);
+    try {
+      const response = await fetch(`/api/flow-appointments/${appointmentId}/finish`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ remarks }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setAppointments(prev => prev.map(apt => 
+          apt.id === appointmentId 
+            ? { ...apt, status: 'finished', remarks }
+            : apt
+        ));
+        showToast('Appointment marked as finished', 'success');
+        setShowRemarksModal(false);
+        setRemarks('');
+      } else {
+        showToast('Failed to update appointment status', 'error');
+      }
+    } catch (error) {
+      console.error('Error updating appointment status:', error);
+      showToast('Error updating appointment status', 'error');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const handleShowRemarksModal = (appointment) => {
+    setSelectedAppointment(appointment);
+    setRemarks(appointment.remarks || '');
+    setShowRemarksModal(true);
   };
 
   const handleViewDetails = (appointment) => {
@@ -228,13 +269,13 @@ const FlowAppointments = () => {
         </div>
 
         <div className="flow-stat-card">
-          <div className="flow-stat-icon pending">
+          <div className="flow-stat-icon finished">
             <User size={24} />
           </div>
           <div className="flow-stat-content">
-            <h3>Pending</h3>
+            <h3>Finished</h3>
             <p className="flow-stat-number">
-              {appointments.filter(apt => apt.status === 'pending').length}
+              {appointments.filter(apt => apt.status === 'finished').length}
             </p>
           </div>
         </div>
@@ -278,11 +319,8 @@ const FlowAppointments = () => {
           <option value="confirmed">
             Confirmed ({appointments.filter(apt => apt.status === 'confirmed' || !apt.status).length})
           </option>
-          <option value="pending">
-            Pending ({appointments.filter(apt => apt.status === 'pending').length})
-          </option>
-          <option value="cancelled">
-            Cancelled ({appointments.filter(apt => apt.status === 'cancelled').length})
+          <option value="finished">
+            Finished ({appointments.filter(apt => apt.status === 'finished').length})
           </option>
         </select>
 
@@ -389,6 +427,17 @@ const FlowAppointments = () => {
                       >
                         <Eye size={16} />
                       </button>
+                      {appointment.status === 'confirmed' && (
+                        <button
+                          type="button"
+                          className="flow-action-btn finish"
+                          onClick={() => handleShowRemarksModal(appointment)}
+                          title="Mark as finished"
+                          style={{ backgroundColor: '#10b981', color: 'white' }}
+                        >
+                          ✓
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="flow-action-btn delete"
@@ -456,6 +505,24 @@ const FlowAppointments = () => {
                   {new Date(selectedAppointment.createdAt).toLocaleString()}
                 </p>
               </div>
+
+              <div className="flow-detail-item">
+                <label className="flow-detail-label">Status</label>
+                <p className="flow-detail-value">
+                  <span className={`flow-status-badge flow-status-${selectedAppointment.status || 'confirmed'}`}>
+                    {selectedAppointment.status || 'confirmed'}
+                  </span>
+                </p>
+              </div>
+
+              {selectedAppointment.remarks && (
+                <div className="flow-detail-item">
+                  <label className="flow-detail-label">Remarks</label>
+                  <p className="flow-detail-value" style={{ whiteSpace: 'pre-line' }}>
+                    {selectedAppointment.remarks}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="flow-modal-footer">
@@ -464,6 +531,78 @@ const FlowAppointments = () => {
                 className="flow-modal-btn"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remarks Modal */}
+      {showRemarksModal && selectedAppointment && (
+        <div className="flow-modal-overlay" onClick={() => setShowRemarksModal(false)}>
+          <div className="flow-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="flow-modal-header">
+              <h3>Mark Appointment as Finished</h3>
+              <button
+                onClick={() => setShowRemarksModal(false)}
+                className="flow-modal-close"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="flow-modal-body">
+              <div className="flow-detail-item">
+                <label className="flow-detail-label">Customer</label>
+                <p className="flow-detail-value">{selectedAppointment.name}</p>
+              </div>
+
+              <div className="flow-detail-item">
+                <label className="flow-detail-label">Service</label>
+                <p className="flow-detail-value">{formatDepartment(selectedAppointment.department)}</p>
+              </div>
+
+              <div className="flow-detail-item">
+                <label className="flow-detail-label">Date & Time</label>
+                <p className="flow-detail-value">{selectedAppointment.date} at {selectedAppointment.time}</p>
+              </div>
+
+              <div className="flow-detail-item">
+                <label className="flow-detail-label">Remarks (Optional)</label>
+                <textarea
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  className="flow-textarea"
+                  rows="3"
+                  placeholder="Add any notes about this appointment..."
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="flow-modal-footer">
+              <button
+                onClick={() => setShowRemarksModal(false)}
+                className="flow-modal-btn"
+                disabled={updatingStatus}
+                style={{ marginRight: '8px' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleFinishAppointment(selectedAppointment.id, remarks)}
+                className="flow-modal-btn"
+                disabled={updatingStatus}
+                style={{ backgroundColor: '#10b981', color: 'white' }}
+              >
+                {updatingStatus ? 'Updating...' : 'Mark as Finished'}
               </button>
             </div>
           </div>

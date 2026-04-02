@@ -503,12 +503,15 @@ model FlowAppointment {
   phone       String
   moreDetails String?
   tenantId    Int?
+  status      String   @default("confirmed")
+  remarks     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([phone])
   @@index([date])
   @@index([tenantId])
+  @@index([status])
 }
 
 model FlowDepartment {

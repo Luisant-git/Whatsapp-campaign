@@ -37,7 +37,7 @@ export class FlowAppointmentService {
         email: data.email,
         phone: data.phone,
         moreDetails: data.more_details,
-        tenant_id: userId,
+        tenantId: userId,
       },
     });
   }
@@ -92,7 +92,7 @@ export class FlowAppointmentService {
           await (tenantClient as any).flowAppointment.create({
             data: {
               ...appointmentRecord,
-              tenant_id: targetTenantId
+              tenantId: targetTenantId
             },
           });
           console.log(`✅ Flow appointment saved to tenant ${tenant.id} (${tenant.name})`);
@@ -222,7 +222,7 @@ export class FlowAppointmentService {
               email: responseData.email || '',
               phone: responseData.phone || phoneNumber,
               moreDetails: responseData.more_details || null,
-              tenant_id: targetTenantId,
+              tenantId: targetTenantId,
             },
           });
           console.log(`✅ Flow appointment saved to tenant ${tenant.id} via webhook`);
@@ -301,7 +301,7 @@ export class FlowAppointmentService {
     try {
       const prisma = await this.getTenantClient(userId);
       const appointments = await (prisma as any).flowAppointment.findMany({
-        where: { tenant_id: userId },
+        where: { tenantId: userId },
         orderBy: { createdAt: 'desc' },
       });
       
@@ -325,7 +325,7 @@ export class FlowAppointmentService {
           const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
           
           const appointments = await (tenantClient as any).flowAppointment.findMany({
-            where: { tenant_id: tenant.id },
+            where: { tenantId: tenant.id },
             orderBy: { createdAt: 'desc' },
           });
           
@@ -352,7 +352,7 @@ export class FlowAppointmentService {
     return (prisma as any).flowAppointment.delete({
       where: { 
         id: appointmentId,
-        tenant_id: userId
+        tenantId: userId
       }
     });
   }
@@ -541,7 +541,7 @@ export class FlowAppointmentService {
       const previousAppointment = await (tenantClient as any).flowAppointment.findFirst({
         where: { 
           phone: phoneNumber,
-          tenant_id: tenantId
+          tenantId: tenantId
         },
         orderBy: { createdAt: 'desc' },
         select: { name: true, email: true, phone: true }
@@ -620,7 +620,7 @@ export class FlowAppointmentService {
       const result = await (prisma as any).flowAppointment.deleteMany({
         where: {
           AND: [
-            { tenant_id: userId },
+            { tenantId: userId },
             { department: '' },
             { location: '' },
             { date: '' },

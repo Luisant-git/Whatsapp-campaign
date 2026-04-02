@@ -82,7 +82,7 @@ const FlowAppointments = () => {
   const handleFinishAppointment = async (appointmentId, remarks = '') => {
     setUpdatingStatus(true);
     try {
-      const response = await fetch(`${window.location.origin}/api/flow-appointments/${appointmentId}/finish`, {
+      const response = await fetch(`/api/flow-appointments/${appointmentId}/finish`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -599,22 +599,24 @@ const FlowAppointments = () => {
             </div>
 
             <div className="flow-modal-footer">
-              <button
-                onClick={() => setShowRemarksModal(false)}
-                className="flow-modal-btn"
-                disabled={updatingStatus}
-                style={{ marginRight: '8px' }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleFinishAppointment(selectedAppointment.id, remarks)}
-                className="flow-modal-btn"
-                disabled={updatingStatus}
-                style={{ backgroundColor: '#10b981', color: 'white' }}
-              >
-                {updatingStatus ? 'Updating...' : 'Mark as Finished'}
-              </button>
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setShowRemarksModal(false)}
+                  disabled={updatingStatus}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => handleFinishAppointment(selectedAppointment.id, remarks)}
+                  disabled={updatingStatus}
+                >
+                  {updatingStatus ? 'Updating...' : 'Mark as Finished'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

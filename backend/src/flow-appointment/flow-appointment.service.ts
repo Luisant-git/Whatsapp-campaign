@@ -78,21 +78,23 @@ export class FlowAppointmentService {
         }
       }
       
-      // Save to all active tenants to ensure it appears in all dashboards
-      const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
-      
-      for (const tenant of tenants) {
-        try {
+      // Save to target tenant database only
+      if (targetTenantId) {
+        const tenant = await this.centralPrisma.tenant.findUnique({ 
+          where: { id: targetTenantId, isActive: true } 
+        });
+        
+        if (tenant) {
           const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
           const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
           
           await (tenantClient as any).flowAppointment.create({
             data: appointmentRecord,
           });
-          console.log(`✅ Flow appointment saved successfully to tenant ${tenant.id} (${tenant.name})`);
+          console.log(`✅ Flow appointment saved to tenant ${tenant.id} (${tenant.name})`);
           
-          // Send confirmation message only for the target tenant
-          if (tenant.id === targetTenantId && appointmentRecord.phone) {
+          // Send confirmation message
+          if (appointmentRecord.phone) {
             const settings = await (tenantClient as any).whatsAppSettings.findFirst();
             if (settings) {
               await this.sendConfirmationMessage(
@@ -103,9 +105,11 @@ export class FlowAppointmentService {
               );
             }
           }
-        } catch (tenantError) {
-          console.error(`❌ Error saving to tenant ${tenant.id}:`, tenantError.message);
+        } else {
+          console.error(`❌ Target tenant ${targetTenantId} not found or inactive`);
         }
+      } else {
+        console.error('❌ No target tenant ID found in flow token');
       }
     } catch (error) {
       console.error('❌ Error saving flow appointment:', error);
@@ -194,17 +198,16 @@ export class FlowAppointmentService {
         return;
       }
       
-      const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
-      
-      for (const tenant of tenants) {
-        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-        
-        const settings = await (tenantClient as any).whatsAppSettings.findFirst({
-          where: { phoneNumberId }
+      // Save to target tenant database only
+      if (targetTenantId) {
+        const tenant = await this.centralPrisma.tenant.findUnique({ 
+          where: { id: targetTenantId, isActive: true } 
         });
         
-        if (settings) {
+        if (tenant) {
+          const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+          const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+          
           await (tenantClient as any).flowAppointment.create({
             data: {
               department: responseData.department || '',
@@ -217,13 +220,18 @@ export class FlowAppointmentService {
               moreDetails: responseData.more_details || null,
             },
           });
-          console.log('✅ Flow appointment saved successfully via webhook');
+          console.log(`✅ Flow appointment saved to tenant ${tenant.id} via webhook`);
           
           // Send confirmation message
-          await this.sendConfirmationMessage(phoneNumber, settings.accessToken, settings.phoneNumberId, tenantClient);
+          const settings = await (tenantClient as any).whatsAppSettings.findFirst();
+          if (settings) {
+            await this.sendConfirmationMessage(phoneNumber, settings.accessToken, settings.phoneNumberId, tenantClient);
+          }
           return;
         }
       }
+      
+      console.error('❌ No valid target tenant found for webhook appointment');
     } catch (error) {
       console.error('Error saving flow appointment from webhook:', error);
     }

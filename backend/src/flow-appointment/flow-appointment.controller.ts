@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, UseGuards, Req, HttpCode, Res, Delete, Par
 import { FlowAppointmentService } from './flow-appointment.service';
 import { SessionGuard } from '../auth/session.guard';
 
-@Controller('api/flow-appointments')
+@Controller('flow-appointments')
 export class FlowAppointmentController {
   constructor(private readonly flowAppointmentService: FlowAppointmentService) {}
 

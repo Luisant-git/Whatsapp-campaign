@@ -89,10 +89,7 @@ export class AppModule implements NestModule {
         { path: 'menu-permission', method: RequestMethod.ALL },
         { path: 'customer-details-flow', method: RequestMethod.ALL },
         { path: 'customer-details-flow/*path', method: RequestMethod.ALL },
-        { path: 'flow-appointments', method: RequestMethod.ALL },
-        { path: 'flow-appointments/(.*)', method: RequestMethod.ALL },
-        { path: 'api/flow-appointments', method: RequestMethod.ALL },
-        { path: 'api/flow-appointments/(.*)', method: RequestMethod.ALL },
+        { path: 'flow-appointments/exchange', method: RequestMethod.ALL },
       )
       .forRoutes('*');
   }

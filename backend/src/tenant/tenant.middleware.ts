@@ -28,7 +28,8 @@ export class TenantMiddleware implements NestMiddleware {
       path.startsWith('/docs') ||
       path.startsWith('/webhooks') ||
       path.startsWith('/ecommerce/payment-callback') || // ← Payment callback bypass
-      path.includes('/flow-appointments/') && path.endsWith('/finish') // ← Finish endpoint bypass
+      path.includes('/flow-appointments/') && path.endsWith('/finish') || // ← Finish endpoint bypass
+      path.includes('/api/flow-appointments/') && path.endsWith('/finish') // ← Finish endpoint with /api prefix
     ) {
       console.log('✅ TenantMiddleware - BYPASSING tenant check for path:', path);
       return next();

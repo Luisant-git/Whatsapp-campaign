@@ -226,12 +226,6 @@ export class FlowAppointmentService {
             },
           });
           console.log(`✅ Flow appointment saved to tenant ${tenant.id} via webhook`);
-          
-          // Send confirmation message
-          const settings = await (tenantClient as any).whatsAppSettings.findFirst();
-          if (settings) {
-            await this.sendConfirmationMessage(phoneNumber, settings.accessToken, settings.phoneNumberId, tenantClient);
-          }
           return;
         }
       }

@@ -260,7 +260,7 @@ export class FlowAppointmentService {
         data: {
           messageId: response.data.messages[0].id,
           to: phoneNumber,
-          from: phoneNumber,
+          from: phoneNumberId,
           message,
           direction: 'outgoing',
           status: 'sent',

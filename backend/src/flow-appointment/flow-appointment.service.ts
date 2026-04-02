@@ -250,26 +250,17 @@ export class FlowAppointmentService {
       
       const axios = require('axios');
       
-      // Get template name from settings or use default
-      let templateName = 'enquiry_received_1'; 
-      try {
-        const settings = await (tenantClient as any).whatsAppSettings.findFirst();
-        if (settings?.confirmationTemplate) {
-          templateName = settings.confirmationTemplate;
-        }
-      } catch (e) {
-        console.log('⚠️ Using default template name');
-      }
+      // Simple confirmation message
+      const confirmationMessage = 'Thank you for your enquiry! 😊 Our team will contact you shortly.';
       
       const response = await axios.post(
         `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
         {
           messaging_product: 'whatsapp',
           to: phoneNumber,
-          type: 'template',
-          template: {
-            name: templateName,
-            language: { code: 'en' }
+          type: 'text',
+          text: {
+            body: confirmationMessage
           }
         },
         {
@@ -287,14 +278,14 @@ export class FlowAppointmentService {
           messageId: response.data.messages[0].id,
           to: phoneNumber,
           from: phoneNumberId,
-          message: `Template: ${templateName}`,
+          message: confirmationMessage,
           direction: 'outgoing',
           status: 'sent',
           phoneNumberId,
         }
       });
 
-      console.log('✅ Confirmation template sent successfully');
+      console.log('✅ Plain text confirmation sent successfully');
     } catch (error) {
       console.error('❌ Error sending confirmation message:', error.response?.data || error.message);
       if (error.response) {

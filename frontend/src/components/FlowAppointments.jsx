@@ -444,7 +444,7 @@ const FlowAppointments = () => {
                           className="flow-action-btn finish"
                           onClick={() => handleShowRemarksModal(appointment)}
                           title="Mark as finished"
-                          style={{ backgroundColor: '#10b981', color: 'white' }}
+                          style={{ backgroundColor: '#10b981', color: 'white', padding: '6px' }}
                         >
                           <CheckCircle size={16} />
                         </button>

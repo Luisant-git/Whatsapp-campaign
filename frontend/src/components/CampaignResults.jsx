@@ -75,6 +75,36 @@ const CampaignResults = ({ campaignId, onBack }) => {
     }
   };
 
+  const handleDownloadFailedContacts = () => {
+    try {
+      const failedContacts = results.filter(r => r.status === 'failed');
+      
+      if (failedContacts.length === 0) {
+        showError('No failed contacts to download');
+        return;
+      }
+
+      const csvContent = [
+        ['Contact', 'Phone'],
+        ...failedContacts.map(r => [r.name || 'N/A', r.phone])
+      ].map(row => row.join(',')).join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `campaign-${campaign?.name}-failed-contacts.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      showSuccess(`Downloaded ${failedContacts.length} failed contacts`);
+    } catch (error) {
+      console.error('Error downloading failed contacts:', error);
+      showError('Failed to download failed contacts');
+    }
+  };
+
   const getFilteredResults = () => {
     return results.filter(result => {
       const statusMatch = filterStatus === 'all' || result.status === filterStatus;
@@ -136,11 +166,14 @@ const CampaignResults = ({ campaignId, onBack }) => {
           <p>Created: {new Date(campaign?.createdAt).toLocaleDateString()}</p>
         </div>
         <div className="download-actions">
-          <button onClick={() => handleDownload('csv')} className="download-btn">
+          {/* <button onClick={() => handleDownload('csv')} className="download-btn">
             Download CSV
-          </button>
+          </button> */}
           <button onClick={() => handleDownload('xlsx')} className="download-btn">
-            Download Excel
+            All campaign Reports
+          </button>
+          <button onClick={handleDownloadFailedContacts} className="download-btn" style={{ background: '#ef4444' }}>
+            Download Failed Contacts
           </button>
         </div>
       </div>

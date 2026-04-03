@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 
 import logo from "./assets/main.png";
+import luisantLogo from "./assets/Luisant Logo.png";
 import { MENU_CONFIG } from "./config/menuconfig.js"
 
 import { ToastProvider } from "./contexts/ToastContext";
@@ -502,7 +503,7 @@ function App() {
               <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#666' }}>
                   <span>Powered by</span>
-                  <img src="/src/assets/Luisant Logo.png" alt="Luisant" style={{ height: '24px' }} />
+                  <img src={luisantLogo} alt="Luisant" style={{ height: '24px' }} />
                 </div>
                 <div className="profile-dropdown">
                 <button

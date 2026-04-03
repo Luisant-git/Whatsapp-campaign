@@ -818,6 +818,43 @@ export class MetaCatalogService {
     const existingCustomer = await this.ecommerceService.getCustomerByPhone(phone, userId);
     console.log('[handleOrderMessage] Existing customer found:', !!existingCustomer);
     
+    // Create or update draft order when user triggers shop
+    if (cartProducts.length > 0) {
+      const orderItems = cartProducts.map(cartItem => ({
+        productId: cartItem.id,
+        quantity: cartItem.quantity || 1,
+        price: cartItem.effectivePrice || cartItem.salePrice || cartItem.price
+      }));
+      
+      // Check if there's already a draft order
+      const existingDraftOrder = await this.ecommerceService.getDraftOrderByPhone(phone, userId);
+      
+      if (existingDraftOrder) {
+        // Update existing draft order
+        console.log('[handleOrderMessage] Updating existing draft order:', existingDraftOrder.id);
+        await this.ecommerceService.updateOrder(existingDraftOrder.id, {
+          totalAmount: totalAmount,
+          customerName: existingCustomer?.customerName || profileName || phone,
+        }, userId);
+      } else {
+        // Create new draft order
+        console.log('[handleOrderMessage] Creating new draft order');
+        await this.ecommerceService.createOrder({
+          customerName: existingCustomer?.customerName || profileName || phone,
+          customerPhone: phone,
+          customerAddress: existingCustomer?.customerAddress || undefined,
+          customerCity: existingCustomer?.customerCity || undefined,
+          customerState: existingCustomer?.customerState || undefined,
+          customerPincode: existingCustomer?.customerPincode || undefined,
+          totalAmount: totalAmount,
+          paymentMethod: null,
+          paymentStatus: 'pending',
+          status: 'draft',
+          items: orderItems
+        }, userId);
+      }
+    }
+    
     // Only use saved details if customer has valid previous order data
     const hasValidCustomerData = existingCustomer && 
                                   existingCustomer.customerName && 
@@ -1065,11 +1102,8 @@ export class MetaCatalogService {
           
           const stateCode = session.customerState ? (stateCodeMap[session.customerState] || session.customerState.toUpperCase().replace(/ /g, '_')) : '';
           
-          // Get shipping charge and create order in parallel
-          const [shippingRate] = await Promise.all([
-            this.ecommerceService.getShippingRateByState(stateCode, userId)
-          ]);
-          
+          // Get shipping charge
+          const shippingRate = await this.ecommerceService.getShippingRateByState(stateCode, userId);
           const shippingCharge = shippingRate?.flatShippingRate || 0;
           const finalTotal = totalAmount + shippingCharge;
           
@@ -1080,21 +1114,43 @@ export class MetaCatalogService {
             price: cartItem.effectivePrice || cartItem.salePrice || cartItem.price
           }));
           
-          // Create order
-          const order = await this.ecommerceService.createOrder({
-            customerName: session.customerName,
-            customerPhone: phone,
-            customerAddress: session.customerAddress,
-            customerCity: session.customerCity,
-            customerState: stateCode,
-            customerPincode: session.customerPincode,
-            totalAmount: finalTotal,
-            shippingAmount: shippingCharge,
-            paymentMethod: paymentMethod,
-            paymentStatus: paymentMethod === 'cod' ? 'cod' : 'pending',
-            status: paymentMethod === 'cod' ? 'placed' : 'pending',
-            items: orderItems
-          }, userId);
+          // Check if there's an existing draft order for this customer
+          const existingDraftOrder = await this.ecommerceService.getDraftOrderByPhone(phone, userId);
+          let order;
+          
+          if (existingDraftOrder) {
+            // Update existing draft order
+            console.log('[Meta Catalog] Updating existing draft order:', existingDraftOrder.id);
+            order = await this.ecommerceService.updateOrder(existingDraftOrder.id, {
+              customerName: session.customerName,
+              customerAddress: session.customerAddress,
+              customerCity: session.customerCity,
+              customerState: stateCode,
+              customerPincode: session.customerPincode,
+              totalAmount: finalTotal,
+              shippingAmount: shippingCharge,
+              paymentMethod: paymentMethod,
+              paymentStatus: paymentMethod === 'cod' ? 'cod' : 'pending',
+              status: paymentMethod === 'cod' ? 'placed' : 'pending',
+            }, userId);
+          } else {
+            // Create new order
+            console.log('[Meta Catalog] Creating new order');
+            order = await this.ecommerceService.createOrder({
+              customerName: session.customerName,
+              customerPhone: phone,
+              customerAddress: session.customerAddress,
+              customerCity: session.customerCity,
+              customerState: stateCode,
+              customerPincode: session.customerPincode,
+              totalAmount: finalTotal,
+              shippingAmount: shippingCharge,
+              paymentMethod: paymentMethod,
+              paymentStatus: paymentMethod === 'cod' ? 'cod' : 'pending',
+              status: paymentMethod === 'cod' ? 'placed' : 'pending',
+              items: orderItems
+            }, userId);
+          }
           
           if (paymentMethod === 'razorpay') {
             try {

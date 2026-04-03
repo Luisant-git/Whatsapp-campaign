@@ -480,8 +480,13 @@ async deleteVariant(id: number, userId?: number) {
     // If items are provided, delete old items and create new ones
     if (items && Array.isArray(items)) {
       // Delete existing order items
-      await client.orderItem.deleteMany({
-        where: { orderId: id }
+      await client.order.update({
+        where: { id },
+        data: {
+          items: {
+            deleteMany: {}
+          }
+        }
       });
       
       // Update order with new items

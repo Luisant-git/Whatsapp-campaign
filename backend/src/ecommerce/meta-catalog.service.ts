@@ -770,7 +770,9 @@ export class MetaCatalogService {
   }
 
   async handleOrderMessage(phone: string, phoneNumberId: string, order: any, userId: number, profileName?: string) {
+    console.log('[handleOrderMessage] Starting - phone:', phone, 'profileName:', profileName);
     const productItems = order.product_items || [];
+    console.log('[handleOrderMessage] Product items:', productItems.length);
     
     const cartProducts: any[] = [];
     let totalAmount = 0;
@@ -785,6 +787,8 @@ export class MetaCatalogService {
     const allProducts = productIds.length > 0 
       ? await this.ecommerceService.getProducts(undefined, userId)
       : [];
+    
+    console.log('[handleOrderMessage] Found products:', allProducts.length);
     
     for (const item of productItems) {
       const catalogItemId = item.catalog_item_id || item.product_retailer_id;
@@ -808,22 +812,34 @@ export class MetaCatalogService {
       }
     }
     
-    // Create pending order immediately when customer triggers shop
-    const orderItems = cartProducts.map(cartItem => ({
-      productId: cartItem.id,
-      quantity: cartItem.quantity || 1,
-      price: cartItem.effectivePrice || cartItem.salePrice || cartItem.price
-    }));
+    console.log('[handleOrderMessage] Cart products:', cartProducts.length, 'Total:', totalAmount);
     
-    await this.ecommerceService.createOrder({
-      customerName: profileName || phone,
-      customerPhone: phone,
-      totalAmount: totalAmount,
-      paymentMethod: 'pending',
-      paymentStatus: 'pending',
-      status: 'pending',
-      items: orderItems
-    }, userId);
+    // Create pending order immediately when customer triggers shop
+    if (cartProducts.length > 0) {
+      const orderItems = cartProducts.map(cartItem => ({
+        productId: cartItem.id,
+        quantity: cartItem.quantity || 1,
+        price: cartItem.effectivePrice || cartItem.salePrice || cartItem.price
+      }));
+      
+      console.log('[handleOrderMessage] Creating pending order...');
+      try {
+        const pendingOrder = await this.ecommerceService.createOrder({
+          customerName: profileName || phone,
+          customerPhone: phone,
+          totalAmount: totalAmount,
+          paymentMethod: 'pending',
+          paymentStatus: 'pending',
+          status: 'pending',
+          items: orderItems
+        }, userId);
+        console.log('[handleOrderMessage] Pending order created:', pendingOrder.id);
+      } catch (error) {
+        console.error('[handleOrderMessage] Error creating pending order:', error);
+      }
+    } else {
+      console.log('[handleOrderMessage] No cart products, skipping order creation');
+    }
     
     // Save cart and check customer in parallel
     const [, existingCustomer] = await Promise.all([

@@ -23,6 +23,15 @@ export default function Orders() {
   const [toDate, setToDate] = useState('');
   const [shippingRates, setShippingRates] = useState([]);
 
+  // Helper function to format state name
+  const formatStateName = (state) => {
+    if (!state) return 'N/A';
+    return state
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
   useEffect(() => {
     loadOrders();
     loadShippingRates();
@@ -461,7 +470,7 @@ export default function Orders() {
                   </div>
                   <div className="order-info-row">
                     <span>State:</span>
-                    <span>{viewOrder.customerState || 'N/A'}</span>
+                    <span>{formatStateName(viewOrder.customerState)}</span>
                   </div>
                   <div className="order-info-row">
                     <span>Pincode:</span>

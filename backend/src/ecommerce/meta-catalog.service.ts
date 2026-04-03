@@ -835,6 +835,10 @@ export class MetaCatalogService {
         await this.ecommerceService.updateOrder(existingDraftOrder.id, {
           totalAmount: totalAmount,
           customerName: existingCustomer?.customerName || profileName || phone,
+          customerAddress: existingCustomer?.customerAddress || null,
+          customerCity: existingCustomer?.customerCity || null,
+          customerState: existingCustomer?.customerState || null,
+          customerPincode: existingCustomer?.customerPincode || null,
         }, userId);
       } else {
         // Create new draft order
@@ -842,10 +846,10 @@ export class MetaCatalogService {
         await this.ecommerceService.createOrder({
           customerName: existingCustomer?.customerName || profileName || phone,
           customerPhone: phone,
-          customerAddress: existingCustomer?.customerAddress || undefined,
-          customerCity: existingCustomer?.customerCity || undefined,
-          customerState: existingCustomer?.customerState || undefined,
-          customerPincode: existingCustomer?.customerPincode || undefined,
+          customerAddress: existingCustomer?.customerAddress || null,
+          customerCity: existingCustomer?.customerCity || null,
+          customerState: existingCustomer?.customerState || null,
+          customerPincode: existingCustomer?.customerPincode || null,
           totalAmount: totalAmount,
           paymentMethod: null,
           paymentStatus: 'pending',

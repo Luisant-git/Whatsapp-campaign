@@ -829,10 +829,10 @@ export class MetaCatalogService {
         cartProducts,
         totalAmount,
         customerName: existingCustomer.customerName,
-        customerAddress: existingCustomer.customerAddress,
-        customerCity: existingCustomer.customerCity,
-        customerState: existingCustomer.customerState,
-        customerPincode: existingCustomer.customerPincode,
+        customerAddress: existingCustomer.customerAddress || undefined,
+        customerCity: existingCustomer.customerCity || undefined,
+        customerState: existingCustomer.customerState || undefined,
+        customerPincode: existingCustomer.customerPincode || undefined,
         step: 'confirm_details'
       }, userId);
       

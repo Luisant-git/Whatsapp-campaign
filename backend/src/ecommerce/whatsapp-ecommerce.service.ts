@@ -23,6 +23,32 @@ export class WhatsappEcommerceService {
       try {
         console.log(`[Ecommerce] Handling '${msg}' keyword for ${phone}`);
   
+        // Check for existing customer data from orders
+        const existingOrder = await this.ecommerceService.getCustomerByPhone(phone, userId);
+        if (existingOrder) {
+          // Store in session
+          await this.sessionService.setSession(phone, {
+            customerName: existingOrder.customerName,
+            customerAddress: existingOrder.customerAddress || undefined,
+            customerCity: existingOrder.customerCity || undefined,
+            customerPincode: existingOrder.customerPincode || undefined,
+          }, userId);
+          
+          // Create draft order immediately with customer details
+          await this.ecommerceService.createOrder({
+            customerName: existingOrder.customerName,
+            customerPhone: phone,
+            customerAddress: existingOrder.customerAddress,
+            customerCity: existingOrder.customerCity,
+            customerPincode: existingOrder.customerPincode,
+            totalAmount: 0,
+            paymentMethod: null,
+            paymentStatus: 'pending',
+            status: 'draft',
+            items: [],
+          }, userId);
+        }
+  
         const hasMetaCatalog = await this.checkMetaCatalogPermission(userId);
   
         if (hasMetaCatalog) {

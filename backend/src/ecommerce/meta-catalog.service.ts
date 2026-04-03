@@ -769,7 +769,7 @@ export class MetaCatalogService {
     }
   }
 
-  async handleOrderMessage(phone: string, phoneNumberId: string, order: any, userId: number) {
+  async handleOrderMessage(phone: string, phoneNumberId: string, order: any, userId: number, profileName?: string) {
     const productItems = order.product_items || [];
     
     const cartProducts: any[] = [];
@@ -807,6 +807,23 @@ export class MetaCatalogService {
         totalAmount += effectivePrice * quantity;
       }
     }
+    
+    // Create pending order immediately when customer triggers shop
+    const orderItems = cartProducts.map(cartItem => ({
+      productId: cartItem.id,
+      quantity: cartItem.quantity || 1,
+      price: cartItem.effectivePrice || cartItem.salePrice || cartItem.price
+    }));
+    
+    await this.ecommerceService.createOrder({
+      customerName: profileName || phone,
+      customerPhone: phone,
+      totalAmount: totalAmount,
+      paymentMethod: 'pending',
+      paymentStatus: 'pending',
+      status: 'pending',
+      items: orderItems
+    }, userId);
     
     // Save cart and check customer in parallel
     const [, existingCustomer] = await Promise.all([

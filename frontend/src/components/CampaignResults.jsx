@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getCampaignResults, downloadCampaignResults } from '../api/campaign';
 import { useToast } from '../contexts/ToastContext';
+import * as XLSX from 'xlsx';
 import '../styles/CampaignResults.scss';
 
 const CampaignResults = ({ campaignId, onBack }) => {
@@ -84,22 +85,16 @@ const CampaignResults = ({ campaignId, onBack }) => {
         return;
       }
 
-      // Create Excel-compatible CSV with BOM for proper encoding
-      const BOM = '\uFEFF';
-      const csvContent = [
+      const data = [
         ['Contact', 'Phone'],
         ...failedContacts.map(r => [r.name || 'N/A', r.phone])
-      ].map(row => row.join(',')).join('\r\n');
+      ];
 
-      const blob = new Blob([BOM + csvContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `campaign-${campaign?.name}-failed-contacts.xls`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Failed Contacts');
+      XLSX.writeFile(wb, `campaign-${campaign?.name}-failed-contacts.xlsx`);
+      
       showSuccess(`Downloaded ${failedContacts.length} failed contacts`);
     } catch (error) {
       console.error('Error downloading failed contacts:', error);

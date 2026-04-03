@@ -814,46 +814,39 @@ export class MetaCatalogService {
     
     console.log('[handleOrderMessage] Cart products:', cartProducts.length, 'Total:', totalAmount);
     
-    // Create pending order immediately when customer triggers shop
-    if (cartProducts.length > 0) {
-      const orderItems = cartProducts.map(cartItem => ({
-        productId: cartItem.id,
-        quantity: cartItem.quantity || 1,
-        price: cartItem.effectivePrice || cartItem.salePrice || cartItem.price
-      }));
-      
-      console.log('[handleOrderMessage] Creating pending order...');
-      try {
-        const pendingOrder = await this.ecommerceService.createOrder({
-          customerName: profileName || phone,
-          customerPhone: phone,
-          totalAmount: totalAmount,
-          paymentMethod: 'pending',
-          paymentStatus: 'pending',
-          status: 'pending',
-          items: orderItems
-        }, userId);
-        console.log('[handleOrderMessage] Pending order created:', pendingOrder.id);
-      } catch (error) {
-        console.error('[handleOrderMessage] Error creating pending order:', error);
-      }
-    } else {
-      console.log('[handleOrderMessage] No cart products, skipping order creation');
-    }
+    // Check for existing customer data from previous COMPLETED orders only
+    const existingCustomer = await this.ecommerceService.getCustomerByPhone(phone, userId);
+    console.log('[handleOrderMessage] Existing customer found:', !!existingCustomer);
     
-    // Save cart and check customer in parallel
-    const [, existingCustomer] = await Promise.all([
-      this.sessionService.setSession(phone, { 
+    // Only use saved details if customer has valid previous order data
+    const hasValidCustomerData = existingCustomer && 
+                                  existingCustomer.customerName && 
+                                  existingCustomer.customerAddress;
+    
+    if (hasValidCustomerData) {
+      // Returning customer - save cart with their previous details
+      await this.sessionService.setSession(phone, { 
+        cartProducts,
+        totalAmount,
+        customerName: existingCustomer.customerName,
+        customerAddress: existingCustomer.customerAddress,
+        customerCity: existingCustomer.customerCity,
+        customerState: existingCustomer.customerState,
+        customerPincode: existingCustomer.customerPincode,
+        step: 'confirm_details'
+      }, userId);
+      
+      // Show saved details with confirmation buttons
+      await this.sendCustomerDetailsConfirmation(phone, phoneNumberId, existingCustomer, userId);
+    } else {
+      // First-time customer - only save cart, no customer details
+      await this.sessionService.setSession(phone, { 
         cartProducts,
         totalAmount,
         step: 'awaiting_flow_response'
-      }, userId),
-      this.ecommerceService.getCustomerByPhone(phone, userId)
-    ]);
-    
-    if (existingCustomer) {
-      await this.sendCustomerDetailsConfirmation(phone, phoneNumberId, existingCustomer, userId);
-    } else {
+      }, userId);
+      
+      // Ask for details (first time)
       if (process.env.CUSTOMER_FLOW_ID) {
         await this.flowTriggerService.sendFlowMessage({
           to: phone,

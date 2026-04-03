@@ -81,9 +81,9 @@ export default function Orders() {
   };
 
   const placedOrders = orders.filter((o) => o.status === 'placed');
-  const pendingOrders = orders.filter((o) => o.status === 'pending');
-  const shippedOrders = orders.filter((o) => o.status === 'shipped');
+  const draftOrders = orders.filter((o) => o.status === 'draft');
   const acceptedOrders = orders.filter((o) => o.status === 'accepted');
+  const shippedOrders = orders.filter((o) => o.status === 'shipped');
   const cancelledOrders = orders.filter((o) => o.status === 'cancelled');
   const filteredOrders = orders
   .filter((o) => statusFilter === 'all' || o.status === statusFilter)
@@ -145,26 +145,13 @@ export default function Orders() {
         <div className="stat-card">
           <div
             className="stat-icon"
-            style={{ background: '#fef3c7', color: '#d97706' }}
+            style={{ background: '#f3e8ff', color: '#9333ea' }}
           >
             <Clock size={24} />
           </div>
           <div className="stat-content">
-            <h3>Pending</h3>
-            <p className="stat-number">{pendingOrders.length}</p>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div
-            className="stat-icon"
-            style={{ background: '#dbeafe', color: '#2563eb' }}
-          >
-            <Package size={24} />
-          </div>
-          <div className="stat-content">
-            <h3>Shipped</h3>
-            <p className="stat-number">{shippedOrders.length}</p>
+            <h3>Draft</h3>
+            <p className="stat-number">{draftOrders.length}</p>
           </div>
         </div>
 
@@ -178,6 +165,19 @@ export default function Orders() {
           <div className="stat-content">
             <h3>Accepted</h3>
             <p className="stat-number">{acceptedOrders.length}</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div
+            className="stat-icon"
+            style={{ background: '#dbeafe', color: '#2563eb' }}
+          >
+            <Package size={24} />
+          </div>
+          <div className="stat-content">
+            <h3>Shipped</h3>
+            <p className="stat-number">{shippedOrders.length}</p>
           </div>
         </div>
 
@@ -240,9 +240,9 @@ export default function Orders() {
   >
     <option value="all">All Orders ({orders.length})</option>
     <option value="placed">Placed ({placedOrders.length})</option>
-    <option value="pending">Pending ({pendingOrders.length})</option>
-    <option value="shipped">Shipped ({shippedOrders.length})</option>
+    <option value="draft">Draft ({draftOrders.length})</option>
     <option value="accepted">Accepted ({acceptedOrders.length})</option>
+    <option value="shipped">Shipped ({shippedOrders.length})</option>
     <option value="cancelled">Cancelled ({cancelledOrders.length})</option>
   </select>
 
@@ -375,9 +375,9 @@ export default function Orders() {
                       style={{ padding: '6px 10px', fontSize: '13px' }}
                     >
                       <option value="placed">Placed</option>
-                      <option value="pending">Pending</option>
-                      <option value="shipped">Shipped</option>
+                      <option value="draft">Draft</option>
                       <option value="accepted">Accepted</option>
+                      <option value="shipped">Shipped</option>
                       <option value="cancelled">Cancelled</option>
                     </select>
                   </div>

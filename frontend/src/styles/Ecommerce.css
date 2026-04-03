@@ -336,8 +336,14 @@
   background: #4b5563 !important; 
   color: #ffffff !important;
 }
-.status-pending {
-  background: #f59e0b !important;
+
+.status-draft {
+  background: #9333ea !important;
+  color: #ffffff !important;
+}
+
+.status-accepted {
+  background: #16a34a !important;
   color: #ffffff !important;
 }
 
@@ -346,8 +352,8 @@
   color: #ffffff !important;
 }
 
-.status-accepted {
-  background: #16a34a !important;
+.status-pending {
+  background: #f59e0b !important;
   color: #ffffff !important;
 }
 

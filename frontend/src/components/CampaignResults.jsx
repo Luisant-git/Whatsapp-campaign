@@ -58,21 +58,36 @@ const CampaignResults = ({ campaignId, onBack }) => {
     fetchCampaignResults();
   };
 
-  const handleDownload = async (format) => {
+  const handleDownloadAllReports = () => {
     try {
-      const blob = await downloadCampaignResults(campaignId, format);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `campaign-${campaign?.name}-results.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      showSuccess(`Campaign results downloaded as ${format.toUpperCase()}`);
+      if (results.length === 0) {
+        showError('No campaign results to download');
+        return;
+      }
+
+      const data = [
+        ['Contact', 'Phone', 'Status', 'Error Reason', 'Sent At', 'Response', 'Last Response', 'Response Time'],
+        ...results.map(r => [
+          r.name || 'N/A',
+          r.phone,
+          r.status.toUpperCase(),
+          r.error || (r.status === 'skipped' ? 'Contact opted out' : '-'),
+          new Date(r.createdAt).toLocaleString(),
+          r.hasResponse ? 'Yes' : 'No',
+          r.lastResponse ? r.lastResponse.message : 'No response',
+          r.lastResponse ? new Date(r.lastResponse.createdAt).toLocaleString() : '-'
+        ])
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Campaign Results');
+      XLSX.writeFile(wb, `campaign-${campaign?.name}-all-results.xlsx`);
+      
+      showSuccess(`Downloaded ${results.length} campaign results`);
     } catch (error) {
-      console.error('Error downloading results:', error);
-      showError('Failed to download results');
+      console.error('Error downloading campaign results:', error);
+      showError('Failed to download campaign results');
     }
   };
 
@@ -163,11 +178,8 @@ const CampaignResults = ({ campaignId, onBack }) => {
           <p>Created: {new Date(campaign?.createdAt).toLocaleDateString()}</p>
         </div>
         <div className="download-actions">
-          {/* <button onClick={() => handleDownload('csv')} className="download-btn">
-            Download CSV
-          </button> */}
-          <button onClick={() => handleDownload('xlsx')} className="download-btn">
-            All campaign Reports
+          <button onClick={handleDownloadAllReports} className="download-btn">
+            All Campaign Report
           </button>
           <button onClick={handleDownloadFailedContacts} className="download-btn" style={{ background: '#ef4444' }}>
             Download Failed Contacts

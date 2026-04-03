@@ -84,16 +84,18 @@ const CampaignResults = ({ campaignId, onBack }) => {
         return;
       }
 
+      // Create Excel-compatible CSV with BOM for proper encoding
+      const BOM = '\uFEFF';
       const csvContent = [
         ['Contact', 'Phone'],
         ...failedContacts.map(r => [r.name || 'N/A', r.phone])
-      ].map(row => row.join(',')).join('\n');
+      ].map(row => row.join(',')).join('\r\n');
 
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob([BOM + csvContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `campaign-${campaign?.name}-failed-contacts.csv`;
+      a.download = `campaign-${campaign?.name}-failed-contacts.xls`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);

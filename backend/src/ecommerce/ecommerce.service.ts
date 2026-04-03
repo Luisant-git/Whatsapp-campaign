@@ -210,7 +210,10 @@ export class EcommerceService {
   async getCustomerByPhone(phone: string, userId?: number) {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
     const order = await client.order.findFirst({
-      where: { customerPhone: phone },
+      where: { 
+        customerPhone: phone,
+        status: { not: 'draft' } // Exclude draft orders
+      },
       orderBy: { createdAt: 'desc' },
     });
     return order;

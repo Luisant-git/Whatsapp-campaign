@@ -473,9 +473,34 @@ async deleteVariant(id: number, userId?: number) {
 
   async updateOrder(id: number, data: any, userId?: number) {
     const client = userId ? await this.getTenantClient(userId) : this.prisma;
+    
+    // Extract items if provided
+    const { items, ...orderData } = data;
+    
+    // If items are provided, delete old items and create new ones
+    if (items && Array.isArray(items)) {
+      // Delete existing order items
+      await client.orderItem.deleteMany({
+        where: { orderId: id }
+      });
+      
+      // Update order with new items
+      return client.order.update({
+        where: { id },
+        data: {
+          ...orderData,
+          items: {
+            create: items
+          }
+        },
+        include: { items: { include: { product: true } } }
+      });
+    }
+    
+    // If no items, just update order data
     return client.order.update({
       where: { id },
-      data,
+      data: orderData,
     });
   }
 

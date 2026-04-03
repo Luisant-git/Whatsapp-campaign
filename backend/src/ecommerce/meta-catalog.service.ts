@@ -1121,6 +1121,17 @@ export class MetaCatalogService {
           if (existingDraftOrder) {
             // Update existing draft order
             console.log('[Meta Catalog] Updating existing draft order:', existingDraftOrder.id);
+            
+            // First, get the full order with items
+            const fullOrder = await this.ecommerceService.getOrder(existingDraftOrder.id, userId);
+            
+            // Delete existing order items if any
+            if (fullOrder?.items && fullOrder.items.length > 0) {
+              // We need to delete old items and create new ones
+              // This will be handled by recreating the order items
+            }
+            
+            // Update the order with new details and items
             order = await this.ecommerceService.updateOrder(existingDraftOrder.id, {
               customerName: session.customerName,
               customerAddress: session.customerAddress,
@@ -1132,6 +1143,7 @@ export class MetaCatalogService {
               paymentMethod: paymentMethod,
               paymentStatus: paymentMethod === 'cod' ? 'cod' : 'pending',
               status: paymentMethod === 'cod' ? 'placed' : 'pending',
+              items: orderItems // This will recreate the items
             }, userId);
           } else {
             // Create new order

@@ -115,7 +115,7 @@ export class WhatsappService {
       const metaCatalogService = this.ecommerceService['metaCatalogService'];
 
       if (metaCatalogService) {
-        await metaCatalogService.handleOrderMessage(from, settings.phoneNumberId, order, userId, profileName);
+        await metaCatalogService.handleOrderMessage(from, settings.phoneNumberId, order, userId, profileName || undefined);
       }
       return;
     }
@@ -130,7 +130,7 @@ export class WhatsappService {
       const metaCatalogService = this.ecommerceService['metaCatalogService'];
 
       if (metaCatalogService && orderData) {
-        await metaCatalogService.handleOrderMessage(from, settings.phoneNumberId, orderData, userId, profileName);
+        await metaCatalogService.handleOrderMessage(from, settings.phoneNumberId, orderData, userId, profileName || undefined);
       }
       return;
     }
@@ -1383,7 +1383,7 @@ export class WhatsappService {
 
       const metaCatalogService = this.ecommerceService['metaCatalogService'];
       if (metaCatalogService) {
-        await metaCatalogService.handleOrderMessage(from, whatsappSettings.phoneNumberId, order, tenantId, profileName);
+        await metaCatalogService.handleOrderMessage(from, whatsappSettings.phoneNumberId, order, tenantId, profileName || undefined);
         this.logger.log('✅ Order message handled');
       }
       return;

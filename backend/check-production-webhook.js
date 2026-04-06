@@ -1,29 +1,22 @@
 require('dotenv').config();
 const axios = require('axios');
-const { PrismaClient } = require('@prisma/client');
-
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.CENTRAL_DATABASE_URL
-    }
-  }
-});
+const { Client } = require('pg');
 
 async function checkWebhookStatus() {
   console.log('🔍 Checking Production Webhook Configuration...\n');
   
+  const client = new Client({
+    connectionString: process.env.CENTRAL_DATABASE_URL
+  });
+  
   try {
-    const tenants = await prisma.tenant.findMany({
-      select: {
-        id: true,
-        name: true,
-        phoneNumberId: true,
-        accessToken: true,
-        domain: true
-      }
-    });
+    await client.connect();
     
+    const result = await client.query(
+      'SELECT id, name, "phoneNumberId", "accessToken", domain FROM "Tenant"'
+    );
+    
+    const tenants = result.rows;
     console.log(`Found ${tenants.length} tenants\n`);
     
     for (const tenant of tenants) {
@@ -91,7 +84,7 @@ async function checkWebhookStatus() {
   } catch (error) {
     console.error('❌ Database Error:', error.message);
   } finally {
-    await prisma.$disconnect();
+    await client.end();
   }
 }
 

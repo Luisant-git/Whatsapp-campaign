@@ -1,8 +1,9 @@
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient: CentralPrismaClient } = require('@prisma/client-central');
+const { PrismaClient: TenantPrismaClient } = require('@prisma/client-tenant');
 
 async function testMasterConfig() {
   // Connect to central database
-  const centralPrisma = new PrismaClient({
+  const centralPrisma = new CentralPrismaClient({
     datasources: {
       db: {
         url: process.env.CENTRAL_DATABASE_URL
@@ -26,7 +27,7 @@ async function testMasterConfig() {
 
       // Connect to tenant database
       const tenantDbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-      const tenantPrisma = new PrismaClient({
+      const tenantPrisma = new TenantPrismaClient({
         datasources: {
           db: { url: tenantDbUrl }
         }

@@ -15,7 +15,6 @@ async function checkMetaWebhookConfig() {
         // Get tenant 7 Master Config
         const masterConfig = await prisma.masterConfig.findFirst({
             where: {
-                name: 'sangarichettiar@gmail.com',
                 isActive: true
             }
         });

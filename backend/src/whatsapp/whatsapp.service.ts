@@ -50,20 +50,26 @@ export class WhatsappService {
     const featureAssignment = await this.prisma.featureAssignment.findFirst();
     const assignedPhoneId = featureAssignment?.[featureType];
 
+    this.logger.log(`🔍 Getting credentials for ${featureType}, assigned phoneId: ${assignedPhoneId}`);
+
     if (assignedPhoneId) {
       const masterConfig = await this.prisma.masterConfig.findFirst({
-        where: { phoneNumberId: assignedPhoneId }
+        where: { phoneNumberId: assignedPhoneId, isActive: true }
       });
       if (masterConfig) {
+        this.logger.log(`✅ Using MasterConfig: ${masterConfig.name} (${masterConfig.phoneNumberId})`);
         return {
           phoneNumberId: masterConfig.phoneNumberId,
           accessToken: masterConfig.accessToken,
           apiUrl: 'https://graph.facebook.com/v18.0'
         };
+      } else {
+        this.logger.warn(`⚠️ No active MasterConfig found for phoneId: ${assignedPhoneId}`);
       }
     }
 
-    // Fallback to default
+    // Fallback to default WhatsApp Settings
+    this.logger.log(`📋 Falling back to WhatsApp Settings for userId: ${userId}`);
     const settings = await this.getSettings(userId);
     return {
       phoneNumberId: settings.phoneNumberId,
@@ -725,6 +731,7 @@ export class WhatsappService {
 
   async validateVerifyToken(token: string): Promise<boolean> {
     try {
+      this.logger.log(`🔍 Validating verify token: ${token}`);
       const tenants = await this.centralPrisma.tenant.findMany({
         where: { isActive: true }
       });
@@ -739,18 +746,21 @@ export class WhatsappService {
         });
 
         if (settings) {
+          this.logger.log(`✅ Token found in WhatsAppSettings for tenant ${tenant.id}`);
           return true;
         }
 
         // ✅ ALSO CHECK MASTER CONFIG
         const masterConfig = await tenantClient.masterConfig.findFirst({
-          where: { verifyToken: token }
+          where: { verifyToken: token, isActive: true }
         });
 
         if (masterConfig) {
+          this.logger.log(`✅ Token found in MasterConfig: ${masterConfig.name} (${masterConfig.phoneNumberId})`);
           return true;
         }
       }
+      this.logger.warn(`❌ Token not found in any tenant database`);
       return false;
     } catch (error) {
       this.logger.error('Error validating verify token:', error);
@@ -760,6 +770,7 @@ export class WhatsappService {
 
   async findUserByVerifyToken(token: string): Promise<number | null> {
     try {
+      this.logger.log(`🔍 Finding user by verify token: ${token}`);
       const tenants = await this.centralPrisma.tenant.findMany({
         where: { isActive: true }
       });
@@ -775,19 +786,22 @@ export class WhatsappService {
         });
 
         if (settings) {
+          this.logger.log(`✅ User found in WhatsAppSettings: ${settings.id}`);
           return settings.id;
         }
 
         // ✅ ALSO CHECK MASTER CONFIG - return tenant ID instead
         const masterConfig = await tenantClient.masterConfig.findFirst({
-          where: { verifyToken: token },
-          select: { id: true }
+          where: { verifyToken: token, isActive: true },
+          select: { id: true, name: true, phoneNumberId: true }
         });
 
         if (masterConfig) {
+          this.logger.log(`✅ User found via MasterConfig: ${masterConfig.name}, returning tenantId: ${tenant.id}`);
           return tenant.id; // Return tenant ID for master config
         }
       }
+      this.logger.warn(`❌ No user found for verify token`);
       return null;
     } catch (error) {
       this.logger.error('Error finding user by verify token:', error);

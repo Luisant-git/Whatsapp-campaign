@@ -1,13 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require('@prisma/client-central');
 
 async function checkMetaWebhookConfig() {
-    const prisma = new PrismaClient({
-        datasources: {
-            db: {
-                url: 'postgresql://postgres:root@localhost:5432/whatsapp_campaign'
-            }
-        }
-    });
+    const prisma = new PrismaClient();
 
     try {
         console.log('🔍 Checking Meta webhook configuration...\n');

@@ -9,7 +9,7 @@ async function listTenantDatabases() {
                 id: true,
                 name: true,
                 email: true,
-                databaseName: true,
+                dbName: true,
                 isActive: true
             }
         });
@@ -19,7 +19,7 @@ async function listTenantDatabases() {
             console.log(`ID: ${tenant.id}`);
             console.log(`Name: ${tenant.name}`);
             console.log(`Email: ${tenant.email}`);
-            console.log(`Database: ${tenant.databaseName}`);
+            console.log(`Database: ${tenant.dbName}`);
             console.log(`Active: ${tenant.isActive}`);
             console.log('---');
         });

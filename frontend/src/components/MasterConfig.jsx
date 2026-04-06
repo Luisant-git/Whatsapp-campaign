@@ -376,6 +376,25 @@ const MasterConfig = () => {
               <div key={config.id} className="config-card">
                 <div className="config-header">
                   <h3>{config.name}</h3>
+                  <button 
+                    onClick={() => handleSubscribeWABA(config)} 
+                    className="btn-outline"
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      background: '#25d366',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                    title="Subscribe app to WABA to receive webhooks"
+                  >
+                    <Wifi size={14} /> Subscribe
+                  </button>
                 </div>
                 <div className="config-details">
                   <p><strong>Phone ID:</strong> {config.phoneNumberId}</p>
@@ -383,14 +402,6 @@ const MasterConfig = () => {
                 <div className="config-actions">
                   <button onClick={() => handleEdit(config)} className="btn-secondary">
                     Edit
-                  </button>
-                  <button 
-                    onClick={() => handleSubscribeWABA(config)} 
-                    className="btn-outline"
-                    style={{background: '#25d366', color: 'white', border: 'none'}}
-                    title="Subscribe app to WABA to receive webhooks"
-                  >
-                    <Wifi size={16} /> Subscribe WABA
                   </button>
                   <button onClick={() => setSelectedConfig(config)} className="btn-outline">
                     <Eye size={16} /> View Details

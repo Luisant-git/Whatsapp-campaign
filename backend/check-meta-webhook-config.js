@@ -4,7 +4,7 @@ async function checkMetaWebhookConfig() {
     const prisma = new PrismaClient({
         datasources: {
             db: {
-                url: 'postgresql://postgres:root@localhost:5432/whatsapp_central'
+                url: 'postgresql://postgres:root@localhost:5432/whatsapp_campaign'
             }
         }
     });

@@ -668,12 +668,24 @@ export class WhatsappService {
         const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
         const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
 
+        // Check WhatsApp Settings
         const settings = await tenantClient.whatsAppSettings.findMany({
           where: { phoneNumberId },
           select: { id: true }
         });
 
         userIds.push(...settings.map(s => s.id));
+
+        // ✅ ALSO CHECK MASTER CONFIG
+        const masterConfigs = await tenantClient.masterConfig.findMany({
+          where: { phoneNumberId },
+          select: { id: true }
+        });
+
+        // If master config found, add tenant ID
+        if (masterConfigs.length > 0) {
+          userIds.push(tenant.id);
+        }
       }
       return userIds;
     } catch (error) {
@@ -721,11 +733,21 @@ export class WhatsappService {
         const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
         const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
 
+        // Check WhatsApp Settings
         const settings = await tenantClient.whatsAppSettings.findFirst({
           where: { verifyToken: token }
         });
 
         if (settings) {
+          return true;
+        }
+
+        // ✅ ALSO CHECK MASTER CONFIG
+        const masterConfig = await tenantClient.masterConfig.findFirst({
+          where: { verifyToken: token }
+        });
+
+        if (masterConfig) {
           return true;
         }
       }
@@ -746,6 +768,7 @@ export class WhatsappService {
         const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
         const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
 
+        // Check WhatsApp Settings
         const settings = await tenantClient.whatsAppSettings.findFirst({
           where: { verifyToken: token },
           select: { id: true }
@@ -753,6 +776,16 @@ export class WhatsappService {
 
         if (settings) {
           return settings.id;
+        }
+
+        // ✅ ALSO CHECK MASTER CONFIG - return tenant ID instead
+        const masterConfig = await tenantClient.masterConfig.findFirst({
+          where: { verifyToken: token },
+          select: { id: true }
+        });
+
+        if (masterConfig) {
+          return tenant.id; // Return tenant ID for master config
         }
       }
       return null;

@@ -33,13 +33,10 @@ async function checkMetaWebhookConfig() {
 
         // Check webhook subscription for the app
         console.log('🔗 Checking webhook subscription...');
-        const webhookUrl = `https://graph.facebook.com/v18.0/${masterConfig.appId}/subscriptions`;
+        const webhookUrl = `https://graph.facebook.com/v18.0/${masterConfig.appId}/subscriptions?access_token=${masterConfig.accessToken}|942040dbe425bf8b39fba6b1539c2a8c`;
         
         const response = await fetch(webhookUrl, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${masterConfig.accessToken}`
-            }
+            method: 'GET'
         });
 
         if (response.ok) {

@@ -31,50 +31,35 @@ async function checkMetaWebhookConfig() {
         console.log(`   Access Token: ${masterConfig.accessToken.substring(0, 20)}...`);
         console.log(`   Verify Token: ${masterConfig.verifyToken}\n`);
 
-        // Check webhook subscription for the app
+        // Check webhook subscription for the WABA
         console.log('🔗 Checking webhook subscription...');
-        const webhookUrl = `https://graph.facebook.com/v18.0/${masterConfig.appId}/subscriptions?access_token=${masterConfig.accessToken}|942040dbe425bf8b39fba6b1539c2a8c`;
+        const webhookUrl = `https://graph.facebook.com/v18.0/${masterConfig.wabaId}/subscribed_apps`;
         
         const response = await fetch(webhookUrl, {
-            method: 'GET'
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${masterConfig.accessToken}`
+            }
         });
 
         if (response.ok) {
             const data = await response.json();
-            console.log('📡 Webhook subscriptions:');
+            console.log('📡 Subscribed apps:');
             console.log(JSON.stringify(data, null, 2));
             
             if (data.data && data.data.length > 0) {
-                const subscription = data.data[0];
-                console.log('\n✅ Current webhook configuration:');
-                console.log(`   Callback URL: ${subscription.callback_url}`);
-                console.log(`   Verify Token: ${subscription.verify_token}`);
-                console.log(`   Fields: ${subscription.fields.join(', ')}`);
-                console.log(`   Status: ${subscription.status}`);
-                
-                // Check if our URL matches
-                const expectedUrl = 'https://whatsapp.api.luisant.cloud/whatsapp/webhook';
-                if (subscription.callback_url === expectedUrl) {
-                    console.log('✅ Webhook URL matches expected URL');
-                } else {
-                    console.log(`❌ Webhook URL MISMATCH!`);
-                    console.log(`   Expected: ${expectedUrl}`);
-                    console.log(`   Actual: ${subscription.callback_url}`);
-                }
-                
-                // Check if messages field is subscribed
-                if (subscription.fields.includes('messages')) {
-                    console.log('✅ Messages field is subscribed');
-                } else {
-                    console.log('❌ Messages field is NOT subscribed');
-                }
+                console.log('\n✅ Apps are subscribed to this WABA');
+                console.log('Now checking the webhook configuration in Meta App Dashboard manually...');
             } else {
-                console.log('❌ No webhook subscriptions found');
+                console.log('❌ No apps subscribed to this WABA');
             }
         } else {
-            console.log(`❌ Failed to get webhook subscriptions: ${response.status}`);
+            console.log(`❌ Failed to get subscribed apps: ${response.status}`);
             const error = await response.text();
             console.log(error);
+            console.log('\n💡 To check webhook URL, go to:');
+            console.log('https://developers.facebook.com/apps/');
+            console.log('Select your app > WhatsApp > Configuration');
         }
 
         // Check phone number status

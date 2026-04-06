@@ -8,7 +8,7 @@ import { RotateCw, BarChart3, Edit2, RefreshCw, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import '../styles/Campaign.scss';
 
-const Campaigns = () => {
+const Campaigns = ({ onResendFailed }) => {
   const { showSuccess, showError, showConfirm } = useToast();
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -72,8 +72,11 @@ const Campaigns = () => {
 
   const handleBackToCampaigns = (data) => {
     if (data?.resendFailed) {
-      // Store resend data and switch to create campaign view
-      setResendData(data);
+      // Pass to parent to switch to bulk messages
+      if (onResendFailed) {
+        onResendFailed(data);
+      }
+      return;
     }
     setEditingCampaign(null);
     setViewingResults(null);

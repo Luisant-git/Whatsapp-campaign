@@ -560,7 +560,11 @@ function App() {
             {activeView === "automationtemplate" && <AutomationTemplatesSettings />}
             {activeView === "RunAutomationLogs" && <RunAutomationLogs/>}
             
-            {activeView === "campaigns" && <Campaigns />}
+            {activeView === "campaigns" && <Campaigns onResendFailed={(data) => {
+              setActiveView("bulk");
+              // Store resend data for BulkWhatsApp to use
+              window.resendFailedData = data;
+            }} />}
             {activeView === "categories" && <Categories />}
             {activeView === "products" && <Products />}
             {activeView === "orders" && <Orders />}

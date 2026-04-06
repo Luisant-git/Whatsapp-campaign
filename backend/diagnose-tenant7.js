@@ -112,7 +112,7 @@ async function diagnoseTenant7() {
 
     // Test webhook verification
     console.log('🧪 Testing Webhook Verification...\n');
-    const webhookUrl = `https://whatsapp.luisant.cloud/whatsapp/webhook/${masterConfig.verifyToken}`;
+    const webhookUrl = `https://whatsapp.api.luisant.cloud/whatsapp/webhook/${masterConfig.verifyToken}`;
     console.log(`   Webhook URL: ${webhookUrl}`);
     
     try {
@@ -164,7 +164,7 @@ async function diagnoseTenant7() {
     console.log('   ✅ Phone Number ID: 1069928256205726');
     console.log('\n   🔧 Next Steps:');
     console.log('   1. Make sure Meta Dashboard webhook is set to:');
-    console.log(`      URL: https://whatsapp.luisant.cloud/whatsapp/webhook/whatsapp_webhook_verify_token_123`);
+    console.log(`      URL: https://whatsapp.api.luisant.cloud/whatsapp/webhook/whatsapp_webhook_verify_token_123`);
     console.log('      Verify Token: whatsapp_webhook_verify_token_123');
     console.log('   2. Subscribe to "messages" webhook field');
     console.log('   3. Restart backend: pm2 restart backend');

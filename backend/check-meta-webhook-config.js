@@ -1,7 +1,13 @@
-const { PrismaClient } = require('@prisma/client-central');
+const { PrismaClient } = require('@prisma/client-tenant');
 
 async function checkMetaWebhookConfig() {
-    const prisma = new PrismaClient();
+    const prisma = new PrismaClient({
+        datasources: {
+            db: {
+                url: 'postgresql://postgres:root@localhost:5432/tenant_7'
+            }
+        }
+    });
 
     try {
         console.log('🔍 Checking Meta webhook configuration...\n');

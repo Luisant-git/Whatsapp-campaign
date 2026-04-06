@@ -18,6 +18,7 @@ const Campaigns = () => {
   const [phoneNumbers, setPhoneNumbers] = useState([]);
   const [selectedSettingsName, setSelectedSettingsName] = useState('');
   const [viewingResults, setViewingResults] = useState(null);
+  const [resendData, setResendData] = useState(null);
 
   useEffect(() => {
     fetchPhoneNumbers();
@@ -69,7 +70,11 @@ const Campaigns = () => {
     setEditingCampaign(campaign.id);
   };
 
-  const handleBackToCampaigns = () => {
+  const handleBackToCampaigns = (data) => {
+    if (data?.resendFailed) {
+      // Store resend data and switch to create campaign view
+      setResendData(data);
+    }
     setEditingCampaign(null);
     setViewingResults(null);
     fetchCampaigns();

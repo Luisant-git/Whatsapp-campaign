@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getCampaignResults, downloadCampaignResults } from '../api/campaign';
 import { useToast } from '../contexts/ToastContext';
+import { Send } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import '../styles/CampaignResults.scss';
 
@@ -117,6 +118,38 @@ const CampaignResults = ({ campaignId, onBack }) => {
     }
   };
 
+  const handleResendToFailed = () => {
+    const failedContacts = results.filter(r => r.status === 'failed');
+    
+    if (failedContacts.length === 0) {
+      showError('No failed contacts to resend');
+      return;
+    }
+
+    // Create Excel file with failed contacts
+    const data = [
+      ['name', 'phone'],
+      ...failedContacts.map(r => [r.name || '', r.phone])
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Contacts');
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const file = new File([blob], `failed-contacts-${campaign?.name}.xlsx`, { type: blob.type });
+
+    // Navigate back with campaign data
+    onBack({
+      resendFailed: true,
+      templateName: campaign?.templateName,
+      language: campaign?.language || 'en',
+      failedContactsFile: file,
+      failedCount: failedContacts.length,
+      originalCampaignName: campaign?.name
+    });
+  };
+
   const getFilteredResults = () => {
     return results.filter(result => {
       const statusMatch = filterStatus === 'all' || result.status === filterStatus;
@@ -183,6 +216,9 @@ const CampaignResults = ({ campaignId, onBack }) => {
           </button>
           <button onClick={handleDownloadFailedContacts} className="download-btn" style={{ background: '#ef4444' }}>
             Download Failed Contacts
+          </button>
+          <button onClick={handleResendToFailed} className="download-btn" style={{ background: '#f59e0b' }}>
+            <Send size={16} /> Resend to Failed
           </button>
         </div>
       </div>

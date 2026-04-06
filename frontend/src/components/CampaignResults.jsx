@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { getCampaignResults, downloadCampaignResults } from '../api/campaign';
+import { sendBulkMessages } from '../api/whatsapp';
 import { useToast } from '../contexts/ToastContext';
-import { Send } from 'lucide-react';
+import { Send, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import '../styles/CampaignResults.scss';
 
@@ -16,6 +17,9 @@ const CampaignResults = ({ campaignId, onBack }) => {
   const [filterResponse, setFilterResponse] = useState('all');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(Date.now());
+  const [showResendModal, setShowResendModal] = useState(false);
+  const [resendCampaignName, setResendCampaignName] = useState('');
+  const [resending, setResending] = useState(false);
 
   useEffect(() => {
     fetchCampaignResults();
@@ -126,28 +130,47 @@ const CampaignResults = ({ campaignId, onBack }) => {
       return;
     }
 
-    // Create Excel file with failed contacts
-    const data = [
-      ['name', 'phone'],
-      ...failedContacts.map(r => [r.name || '', r.phone])
-    ];
+    setResendCampaignName(`Retry - ${campaign?.name}`);
+    setShowResendModal(true);
+  };
 
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Contacts');
-    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const file = new File([blob], `failed-contacts-${campaign?.name}.xlsx`, { type: blob.type });
+  const handleConfirmResend = async () => {
+    const failedContacts = results.filter(r => r.status === 'failed');
+    
+    if (!resendCampaignName.trim()) {
+      showError('Please enter a campaign name');
+      return;
+    }
 
-    // Navigate back with campaign data
-    onBack({
-      resendFailed: true,
-      templateName: campaign?.templateName,
-      language: campaign?.language || 'en',
-      failedContactsFile: file,
-      failedCount: failedContacts.length,
-      originalCampaignName: campaign?.name
-    });
+    setResending(true);
+    try {
+      const campaignData = {
+        name: resendCampaignName,
+        contacts: failedContacts.map(r => ({
+          name: r.name || '',
+          phone: r.phone
+        })),
+        templateName: campaign?.templateName,
+        scheduleType: 'one-time'
+      };
+
+      const response = await sendBulkMessages(campaignData);
+      
+      if (response.success) {
+        showSuccess(`Campaign started! Resending to ${failedContacts.length} failed contacts.`);
+        setShowResendModal(false);
+        setTimeout(() => {
+          onBack();
+        }, 2000);
+      } else {
+        throw new Error(response.message || 'Failed to start campaign');
+      }
+    } catch (error) {
+      console.error('Error resending campaign:', error);
+      showError(`Failed to resend: ${error.message}`);
+    } finally {
+      setResending(false);
+    }
   };
 
   const getFilteredResults = () => {
@@ -216,9 +239,6 @@ const CampaignResults = ({ campaignId, onBack }) => {
           </button>
           <button onClick={handleDownloadFailedContacts} className="download-btn" style={{ background: '#ef4444' }}>
             Download Failed Contacts
-          </button>
-          <button onClick={handleResendToFailed} className="download-btn" style={{ background: '#f59e0b' }}>
-            <Send size={16} /> Resend to Failed
           </button>
         </div>
       </div>
@@ -317,6 +337,38 @@ const CampaignResults = ({ campaignId, onBack }) => {
                 <option value="not_responded">Not Responded</option>
               </select>
             </div>
+            <button 
+              onClick={handleResendToFailed}
+              disabled={results.filter(r => r.status === 'failed').length === 0}
+              style={{
+                marginLeft: 'auto',
+                padding: '8px 16px',
+                background: results.filter(r => r.status === 'failed').length === 0 ? '#d1d5db' : '#25d366',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: results.filter(r => r.status === 'failed').length === 0 ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                if (results.filter(r => r.status === 'failed').length > 0) {
+                  e.target.style.background = '#22c55e';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (results.filter(r => r.status === 'failed').length > 0) {
+                  e.target.style.background = '#25d366';
+                }
+              }}
+            >
+              <Send size={16} />
+              Resend Failed ({results.filter(r => r.status === 'failed').length})
+            </button>
           </div>
 
           <div className="results-table">
@@ -398,6 +450,175 @@ const CampaignResults = ({ campaignId, onBack }) => {
           )}
         </div>
       </div>
+
+      {/* Resend Modal */}
+      {showResendModal && (
+        <div className="modal-overlay" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div className="modal-content" style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '24px',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px'
+            }}>
+              <h2 style={{ margin: 0, fontSize: '20px', color: '#1f2937' }}>
+                🔄 Resend to Failed Contacts
+              </h2>
+              <button
+                onClick={() => setShowResendModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  color: '#6b7280'
+                }}
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div style={{
+              background: '#f3f4f6',
+              padding: '16px',
+              borderRadius: '8px',
+              marginBottom: '20px'
+            }}>
+              <div style={{ marginBottom: '12px' }}>
+                <strong style={{ color: '#374151' }}>Original Campaign:</strong>
+                <span style={{ marginLeft: '8px', color: '#6b7280' }}>{campaign?.name}</span>
+              </div>
+              <div style={{ marginBottom: '12px' }}>
+                <strong style={{ color: '#374151' }}>Template:</strong>
+                <span style={{ marginLeft: '8px', color: '#6b7280' }}>{campaign?.templateName}</span>
+              </div>
+              <div style={{ marginBottom: '12px' }}>
+                <strong style={{ color: '#374151' }}>Failed Contacts:</strong>
+                <span style={{ marginLeft: '8px', color: '#ef4444', fontWeight: '600' }}>
+                  {results.filter(r => r.status === 'failed').length}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '500',
+                color: '#374151'
+              }}>
+                New Campaign Name *
+              </label>
+              <input
+                type="text"
+                value={resendCampaignName}
+                onChange={(e) => setResendCampaignName(e.target.value)}
+                placeholder="Enter campaign name"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  outline: 'none'
+                }}
+              />
+            </div>
+
+            <div style={{
+              background: '#fef3c7',
+              border: '1px solid #fbbf24',
+              borderRadius: '8px',
+              padding: '12px',
+              marginBottom: '20px',
+              fontSize: '13px',
+              color: '#92400e'
+            }}>
+              ⚠️ This will create a new campaign and send messages to all failed contacts in the background.
+            </div>
+
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={() => setShowResendModal(false)}
+                disabled={resending}
+                style={{
+                  padding: '10px 20px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  background: 'white',
+                  color: '#374151',
+                  cursor: resending ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmResend}
+                disabled={resending || !resendCampaignName.trim()}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  borderRadius: '6px',
+                  background: resending || !resendCampaignName.trim() ? '#9ca3af' : '#25d366',
+                  color: 'white',
+                  cursor: resending || !resendCampaignName.trim() ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                {resending ? (
+                  <>
+                    <span style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '2px solid white',
+                      borderTop: '2px solid transparent',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite',
+                      display: 'inline-block'
+                    }}></span>
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send size={16} />
+                    Send Campaign
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

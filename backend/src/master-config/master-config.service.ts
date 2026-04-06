@@ -1,4 +1,4 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, BadRequestException } from '@nestjs/common';
 import { TenantPrismaService } from '../tenant-prisma.service';
 import { TenantContext } from '../tenant/tenant.decorator';
 import { CreateMasterConfigDto, UpdateMasterConfigDto } from './dto/master-config.dto';
@@ -86,5 +86,56 @@ export class MasterConfigService {
       quickReply: '',
       ecommerce: '',
     };
+  }
+
+  async subscribeToWABA(id: number, tenantContext: TenantContext) {
+    const prisma = this.getPrisma(tenantContext);
+    
+    // Get the master config
+    const config = await prisma.masterConfig.findUnique({
+      where: { id },
+    });
+
+    if (!config) {
+      throw new BadRequestException('Master config not found');
+    }
+
+    if (!config.wabaId || !config.accessToken) {
+      throw new BadRequestException('WABA ID and Access Token are required');
+    }
+
+    // Subscribe app to WABA
+    const subscribeUrl = `https://graph.facebook.com/v18.0/${config.wabaId}/subscribed_apps`;
+    
+    try {
+      const response = await fetch(subscribeUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new BadRequestException(
+          error.error?.message || 'Failed to subscribe to WABA'
+        );
+      }
+
+      const data = await response.json();
+      return {
+        success: true,
+        message: 'Successfully subscribed app to WABA. Webhooks are now active.',
+        data,
+      };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Failed to subscribe to WABA: ${error.message}`
+      );
+    }
   }
 }

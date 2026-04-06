@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { getMasterConfigs, createMasterConfig, updateMasterConfig, deleteMasterConfig } from "../api/masterConfig";
+import { getMasterConfigs, createMasterConfig, updateMasterConfig, deleteMasterConfig, subscribeToWABA } from "../api/masterConfig";
 import { getAllSettings } from "../api/auth";
 import { useToast } from '../contexts/ToastContext';
 import { API_BASE_URL } from "../api/config";
-import { Plus, Trash2, Eye, EyeOff } from "lucide-react";
+import { Plus, Trash2, Eye, EyeOff, Wifi } from "lucide-react";
 
 const MasterConfig = () => {
   const { showSuccess, showError, showConfirm } = useToast();
@@ -174,6 +174,16 @@ const MasterConfig = () => {
         console.error("Failed to delete master config:", error);
         showError('Failed to delete master config');
       }
+    }
+  };
+
+  const handleSubscribeWABA = async (config) => {
+    try {
+      await subscribeToWABA(config.id);
+      showSuccess(`Successfully subscribed ${config.name} to WABA! Webhooks are now active.`);
+    } catch (error) {
+      console.error("Failed to subscribe to WABA:", error);
+      showError(error.message || 'Failed to subscribe to WABA');
     }
   };
 
@@ -373,6 +383,14 @@ const MasterConfig = () => {
                 <div className="config-actions">
                   <button onClick={() => handleEdit(config)} className="btn-secondary">
                     Edit
+                  </button>
+                  <button 
+                    onClick={() => handleSubscribeWABA(config)} 
+                    className="btn-outline"
+                    style={{background: '#25d366', color: 'white', border: 'none'}}
+                    title="Subscribe app to WABA to receive webhooks"
+                  >
+                    <Wifi size={16} /> Subscribe WABA
                   </button>
                   <button onClick={() => setSelectedConfig(config)} className="btn-outline">
                     <Eye size={16} /> View Details

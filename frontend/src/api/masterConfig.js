@@ -60,3 +60,17 @@ export const deleteMasterConfig = async (id) => {
 
   return await response.json();
 };
+
+export const subscribeToWABA = async (id) => {
+  const response = await fetch(`${API_BASE_URL}/master-config/${id}/subscribe-waba`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to subscribe to WABA');
+  }
+
+  return await response.json();
+};

@@ -60,4 +60,11 @@ export class MasterConfigController {
   async getFeatureAssignments(@TenantContext() tenantContext: TenantContextType) {
     return this.masterConfigService.getFeatureAssignments(tenantContext);
   }
+
+  @Post(':id/subscribe-waba')
+  @ApiOperation({ summary: 'Subscribe app to WABA for webhook delivery' })
+  @ApiResponse({ status: 200, description: 'Successfully subscribed to WABA' })
+  async subscribeToWABA(@TenantContext() tenantContext: TenantContextType, @Param('id') id: string) {
+    return this.masterConfigService.subscribeToWABA(parseInt(id), tenantContext);
+  }
 }

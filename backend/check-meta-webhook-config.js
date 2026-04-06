@@ -4,7 +4,7 @@ async function checkMetaWebhookConfig() {
     const prisma = new PrismaClient({
         datasources: {
             db: {
-                url: 'postgresql://postgres:root@localhost:5432/tenant_7'
+                url: 'postgresql://postgres:root@localhost:5432/tenant_sangarichettiar_gmail_com'
             }
         }
     });

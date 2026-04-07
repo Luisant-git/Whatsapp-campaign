@@ -2459,12 +2459,26 @@ export class WhatsappService {
   
     const fallbackName = normalizedProfileName || formattedPhone;
   
-    const existingContact = await prismaClient.contact.findFirst({
-      where: {
-        phone: formattedPhone,
-        phoneNumberId: phoneNumberId ?? null,
-      },
-    });
+    // First, try to find contact by userId if provided
+    let existingContact;
+    if (userId && phoneNumberId) {
+      existingContact = await prismaClient.contact.findFirst({
+        where: {
+          userId: userId,
+          phoneNumberId: phoneNumberId,
+        },
+      });
+    }
+    
+    // If not found by userId, try by phone and phoneNumberId
+    if (!existingContact) {
+      existingContact = await prismaClient.contact.findFirst({
+        where: {
+          phone: formattedPhone,
+          phoneNumberId: phoneNumberId ?? null,
+        },
+      });
+    }
   
     if (existingContact) {
       const existingName =

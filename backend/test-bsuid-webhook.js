@@ -25,10 +25,11 @@ const testPayloads = {
               username: '@johndoe_test'
             },
             user_id: 'US.13491208655302741918',
-            parent_user_id: 'US.ENT.11815799212886844830'
-            // Note: wa_id is missing (user has username enabled)
+            parent_user_id: 'US.ENT.11815799212886844830',
+            wa_id: '16505551234'
           }],
           messages: [{
+            from: '16505551234',
             from_user_id: 'US.13491208655302741918',
             from_parent_user_id: 'US.ENT.11815799212886844830',
             id: 'wamid.TEST' + Date.now(),

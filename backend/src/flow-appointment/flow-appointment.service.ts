@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { TenantPrismaService } from '../tenant-prisma.service';
 import { CentralPrismaService } from '../central-prisma.service';
+import { OwnerNotificationService } from '../notifications/owner-notification.service';
 
 @Injectable()
 export class FlowAppointmentService {
   constructor(
     private tenantPrisma: TenantPrismaService,
     private centralPrisma: CentralPrismaService,
+    private ownerNotification: OwnerNotificationService,
   ) {}
 
   async saveOrder(data: any, userId: number) {
@@ -89,7 +91,7 @@ export class FlowAppointmentService {
           const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
           const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
           
-          await (tenantClient as any).flowAppointment.create({
+          const savedAppointment = await (tenantClient as any).flowAppointment.create({
             data: {
               ...appointmentRecord,
               tenantId: targetTenantId
@@ -107,6 +109,17 @@ export class FlowAppointmentService {
                 settings.phoneNumberId,
                 tenantClient
               );
+              
+              // Send notification to business owner
+              const user = await this.centralPrisma.tenant.findUnique({ where: { id: targetTenantId } });
+              if (user?.phoneNumber) {
+                await this.ownerNotification.notifyAppointmentBooking(
+                  savedAppointment,
+                  user.phoneNumber,
+                  settings.accessToken,
+                  settings.phoneNumberId
+                );
+              }
             }
           }
         } else {

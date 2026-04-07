@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { TenantPrismaService } from '../tenant-prisma.service';
 import { CentralPrismaService } from '../central-prisma.service';
+import { OwnerNotificationService } from '../notifications/owner-notification.service';
 
 @Injectable()
 export class EcommerceService {
@@ -9,6 +10,7 @@ export class EcommerceService {
     private prisma: PrismaService,
     private tenantPrisma: TenantPrismaService,
     private centralPrisma: CentralPrismaService,
+    private ownerNotification: OwnerNotificationService,
   ) {}
 
   private async getTenantClient(userId: number) {
@@ -381,7 +383,7 @@ async deleteVariant(id: number, userId?: number) {
   
     const totalAmount = itemsTotal + shippingAmount;
   
-    return client.order.create({
+    const order = await client.order.create({
       data: {
         ...orderData,
         customerState,
@@ -393,6 +395,27 @@ async deleteVariant(id: number, userId?: number) {
       },
       include: { items: { include: { product: true } } },
     });
+    
+    // Send notification to business owner
+    if (userId) {
+      try {
+        const user = await this.centralPrisma.tenant.findUnique({ where: { id: userId } });
+        const settings = await client.whatsAppSettings.findFirst();
+        
+        if (user?.phoneNumber && settings) {
+          await this.ownerNotification.notifyOrderPlaced(
+            order,
+            user.phoneNumber,
+            settings.accessToken,
+            settings.phoneNumberId
+          );
+        }
+      } catch (error) {
+        console.error('Failed to send owner notification:', error);
+      }
+    }
+    
+    return order;
   }
 
   //stock

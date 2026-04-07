@@ -1610,7 +1610,8 @@ export class WhatsappService {
           from,
           tenantClient,
           whatsappSettings.accessToken,
-          whatsappSettings.phoneNumberId
+          whatsappSettings.phoneNumberId,
+          tenantId
         );
 
         if (flowResult?.success) {

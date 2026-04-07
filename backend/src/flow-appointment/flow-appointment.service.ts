@@ -243,6 +243,42 @@ export class FlowAppointmentService {
           
           if (settings) {
             console.log(`✅ Using settings from tenant ${tenant.id}`);
+            
+            // 🔔 SEND OWNER NOTIFICATION FOR TARGET TENANT (not fallback tenant)
+            if (targetTenantId) {
+              try {
+                console.log('🔔 Sending owner notification for target tenant...');
+                const targetUser = await this.centralPrisma.tenant.findUnique({ where: { id: targetTenantId } });
+                console.log('👤 Target owner data:', JSON.stringify({ id: targetUser?.id, phoneNumber: targetUser?.phoneNumber }, null, 2));
+                
+                if (targetUser?.phoneNumber) {
+                  // Get appointment from TARGET tenant database
+                  const targetDbUrl = `postgresql://${targetUser.dbUser}:${targetUser.dbPassword}@${targetUser.dbHost}:${targetUser.dbPort}/${targetUser.dbName}`;
+                  const targetTenantClient = this.tenantPrisma.getTenantClient(targetTenantId.toString(), targetDbUrl);
+                  
+                  const lastAppointment = await (targetTenantClient as any).flowAppointment.findFirst({
+                    where: { phone: phoneNumber, tenantId: targetTenantId },
+                    orderBy: { createdAt: 'desc' }
+                  });
+                  
+                  console.log('📋 Found appointment in target tenant:', lastAppointment ? 'Yes' : 'No');
+                  
+                  if (lastAppointment) {
+                    console.log(`📞 Sending notification to target owner: ${targetUser.phoneNumber}`);
+                    await this.ownerNotification.notifyAppointmentBooking(
+                      lastAppointment,
+                      targetUser.phoneNumber,
+                      settings.accessToken,
+                      settings.phoneNumberId
+                    );
+                    console.log('✅ Owner notification sent successfully');
+                  }
+                }
+              } catch (notifError) {
+                console.error('❌ Error sending owner notification:', notifError.message);
+              }
+            }
+            
             await this.sendConfirmationMessage(phoneNumber, settings.accessToken, settings.phoneNumberId, tenantClient);
             return;
           }

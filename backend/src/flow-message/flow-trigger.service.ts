@@ -135,9 +135,10 @@ export class FlowTriggerService {
   }
 
   // Check if message matches any trigger and send flow (with tenant client)
-  async checkAndSendFlowWithClient(message: string, phoneNumber: string, tenantClient: any, accessToken: string, phoneNumberId: string) {
+  async checkAndSendFlowWithClient(message: string, phoneNumber: string, tenantClient: any, accessToken: string, phoneNumberId: string, tenantId?: number) {
     const triggerWord = message.toLowerCase().trim();
     console.log(`[FlowTrigger] Checking for trigger word: "${triggerWord}"`);
+    console.log(`[FlowTrigger] Tenant ID: ${tenantId}`);
     
     // Get all active triggers
     const allTriggers = await tenantClient.flowTrigger.findMany({
@@ -177,7 +178,7 @@ export class FlowTriggerService {
 
     try {
       console.log(`[FlowTrigger] Sending flow message to ${phoneNumber}`);
-      const response = await this.sendFlowMessageInternal(phoneNumber, trigger, accessToken, phoneNumberId);
+      const response = await this.sendFlowMessageInternal(phoneNumber, trigger, accessToken, phoneNumberId, tenantId);
       console.log(`[FlowTrigger] Flow sent successfully:`, response.data);
       
       // Log success
@@ -210,18 +211,13 @@ export class FlowTriggerService {
   }
 
   // Send flow message via WhatsApp API with complete data
-  private async sendFlowMessageInternal(phoneNumber: string, trigger: any, accessToken: string, phoneNumberId: string) {
-    // Get tenant ID from phone number ID for session tracking
-    const tenant = await this.centralPrisma.tenant.findFirst({
-      where: { phoneNumberId: phoneNumberId }
-    });
-    
-    if (!tenant) {
-      console.warn(`Tenant not found for phone number ID: ${phoneNumberId}, proceeding without session`);
-    }
+  private async sendFlowMessageInternal(phoneNumber: string, trigger: any, accessToken: string, phoneNumberId: string, tenantId?: number) {
+    // Use the provided tenant ID instead of looking it up
+    console.log(`[FlowTrigger] Using tenant ID: ${tenantId} for flow token`);
 
-    // Create flow token for session tracking
-    const flowToken = `flow_${Date.now()}_${tenant?.id || 'unknown'}_${Math.random().toString(36).substr(2, 9)}`;
+    // Create flow token for session tracking with correct tenant ID
+    const flowToken = `flow_${Date.now()}_${tenantId || 'unknown'}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`[FlowTrigger] Generated flow token: ${flowToken}`);
 
     const actionParams: any = {
       flow_message_version: '3',

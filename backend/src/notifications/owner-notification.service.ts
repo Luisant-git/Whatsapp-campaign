@@ -12,8 +12,10 @@ export class OwnerNotificationService {
     phoneNumberId: string
   ) {
     try {
-      const formattedPhone = this.formatPhoneNumber(ownerPhone);
-      this.logger.log(`📞 Sending appointment notification to: ${formattedPhone} (original: ${ownerPhone})`);
+      const isBSUID = /^[A-Z]{2}\.([A-Z]+\.)?[0-9]+$/.test(ownerPhone);
+      const identifier = isBSUID ? ownerPhone : this.formatPhoneNumber(ownerPhone);
+      
+      this.logger.log(`📞 Sending appointment notification to: ${identifier} (type: ${isBSUID ? 'BSUID' : 'phone'})`);
       
       const message = `📆 New Appointment Booked by
 
@@ -23,8 +25,8 @@ Service: ${this.formatService(appointment.department)}
 Date: ${appointment.date}
 Time: ${appointment.time}`;
 
-      await this.sendWhatsAppMessage(formattedPhone, message, accessToken, phoneNumberId);
-      this.logger.log(`✅ Appointment notification sent to owner: ${formattedPhone}`);
+      await this.sendWhatsAppMessage(identifier, message, accessToken, phoneNumberId, isBSUID);
+      this.logger.log(`✅ Appointment notification sent to: ${identifier}`);
     } catch (error) {
       this.logger.error('Failed to send appointment notification:', error.message);
       this.logger.error('Error stack:', error.stack);
@@ -38,8 +40,10 @@ Time: ${appointment.time}`;
     phoneNumberId: string
   ) {
     try {
-      const formattedPhone = this.formatPhoneNumber(ownerPhone);
-      this.logger.log(`📞 Sending order notification to: ${formattedPhone} (original: ${ownerPhone})`);
+      const isBSUID = /^[A-Z]{2}\.([A-Z]+\.)?[0-9]+$/.test(ownerPhone);
+      const identifier = isBSUID ? ownerPhone : this.formatPhoneNumber(ownerPhone);
+      
+      this.logger.log(`📞 Sending order notification to: ${identifier} (type: ${isBSUID ? 'BSUID' : 'phone'})`);
       
       const message = `🛒 New Order Received by
 
@@ -48,8 +52,8 @@ Phone: ${order.customerPhone}
 Total: Rs.${order.totalAmount}
 Payment: ${order.paymentMethod || 'COD'}`;
 
-      await this.sendWhatsAppMessage(formattedPhone, message, accessToken, phoneNumberId);
-      this.logger.log(`✅ Order notification sent to owner: ${formattedPhone}`);
+      await this.sendWhatsAppMessage(identifier, message, accessToken, phoneNumberId, isBSUID);
+      this.logger.log(`✅ Order notification sent to: ${identifier}`);
     } catch (error) {
       this.logger.error('Failed to send order notification:', error.message);
       this.logger.error('Error stack:', error.stack);
@@ -103,18 +107,26 @@ Payment: ${order.paymentMethod || 'COD'}`;
     to: string,
     message: string,
     accessToken: string,
-    phoneNumberId: string
+    phoneNumberId: string,
+    isBSUID: boolean = false
   ) {
     const url = `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`;
     
+    const payload: any = {
+      messaging_product: 'whatsapp',
+      type: 'text',
+      text: { body: message }
+    };
+
+    if (isBSUID) {
+      payload.recipient = to;
+    } else {
+      payload.to = to;
+    }
+    
     const response = await axios.post(
       url,
-      {
-        messaging_product: 'whatsapp',
-        to: to,
-        type: 'text',
-        text: { body: message }
-      },
+      payload,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,

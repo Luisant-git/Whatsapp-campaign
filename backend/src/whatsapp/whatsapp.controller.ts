@@ -260,7 +260,11 @@ export class WhatsappController {
               const message = change.value.messages?.[0];
               const phoneNumberId = change.value.metadata?.phone_number_id;
               const displayPhoneNumber = change.value.metadata?.display_phone_number;
-              const profileName = change.value.contacts?.[0]?.profile?.name || null;
+              const contacts = change.value.contacts?.[0];
+              const profileName = contacts?.profile?.name || null;
+              const userId = contacts?.user_id || message?.from_user_id;
+              const parentUserId = contacts?.parent_user_id || message?.from_parent_user_id;
+              const username = contacts?.profile?.username;
               
               console.log(`📞 Phone Number ID: ${phoneNumberId}`);
               console.log(`📞 Display Phone: ${displayPhoneNumber}`);
@@ -296,8 +300,16 @@ export class WhatsappController {
                 
                 try {
                   console.log('Processing message for phone number ID:', phoneNumberId);
+                  console.log('BSUID Data:', { userId, parentUserId, username });
                   
-                  await this.whatsappService.handleIncomingMessageWithoutContext(message, phoneNumberId, profileName);
+                  await this.whatsappService.handleIncomingMessageWithoutContext(
+                    message, 
+                    phoneNumberId, 
+                    profileName,
+                    userId,
+                    parentUserId,
+                    username
+                  );
                 } catch (msgError) {
                   console.error('Error processing message:', msgError);
                 }

@@ -44,11 +44,16 @@ model WhatsAppMessage {
   status        String
   phoneNumberId String?
   profileName   String?
+  userId        String?
+  parentUserId  String?
+  username      String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@index([phoneNumberId])
   @@index([from, phoneNumberId])
+  @@index([userId])
+  @@index([parentUserId])
 }
 
 model WhatsAppSettings {
@@ -210,7 +215,9 @@ model Contact {
   isActive               Boolean?                @default(true)
   phoneNumberId          String?
   groupId                Int?
-  
+  userId                 String?
+  parentUserId           String?
+  username               String?
 
   variable2              String?
   variable3              String?
@@ -227,6 +234,8 @@ model Contact {
 
   @@unique([phone, phoneNumberId])
   @@index([phoneNumberId])
+  @@index([userId])
+  @@index([parentUserId])
 }
 
 model ChatNote {

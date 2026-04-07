@@ -1103,7 +1103,14 @@ export class WhatsappService {
       },
     };
   }
-  async handleIncomingMessageWithoutContext(message: any, phoneNumberId: string, profileName?: string | null,) {
+  async handleIncomingMessageWithoutContext(
+    message: any, 
+    phoneNumberId: string, 
+    profileName?: string | null,
+    userId?: string,
+    parentUserId?: string,
+    username?: string
+  ) {
     try {
       this.logger.log(`📨 Webhook received - Phone: ${message.from}, Type: ${message.type}, Text: ${message.text?.body || 'N/A'}`);
 
@@ -1147,7 +1154,16 @@ export class WhatsappService {
             timestamp: Date.now()
           });
 
-          await this.processMessageForTenant(message, phoneNumberId, tenant.id, settings.id, profileName);
+          await this.processMessageForTenant(
+      message, 
+      phoneNumberId, 
+      tenant.id, 
+      settings.id, 
+      profileName,
+      userId,
+      parentUserId,
+      username
+    );
           return;
         }
       }
@@ -1328,7 +1344,16 @@ export class WhatsappService {
   //   }
   // }
 
-  private async processMessageForTenant(message: any, phoneNumberId: string, tenantId: number, settingsId: number, profileName?: string | null,) {
+  private async processMessageForTenant(
+    message: any, 
+    phoneNumberId: string, 
+    tenantId: number, 
+    settingsId: number, 
+    profileName?: string | null,
+    userId?: string,
+    parentUserId?: string,
+    username?: string
+  ) {
     const dbUrl = await this.getTenantDbUrl(tenantId);
     const tenantClient = this.tenantPrisma.getTenantClient(tenantId.toString(), dbUrl);
 
@@ -1457,6 +1482,9 @@ export class WhatsappService {
         status: 'received',
         phoneNumberId,
         profileName: profileName || null,
+        userId: userId || null,
+        parentUserId: parentUserId || null,
+        username: username || null,
       }
     });
     await this.upsertContactFromIncomingMessage(
@@ -1464,6 +1492,9 @@ export class WhatsappService {
       from,
       phoneNumberId,
       profileName,
+      userId,
+      parentUserId,
+      username
     );
     this.logger.log(`✓ Message stored successfully`);
 
@@ -1915,14 +1946,22 @@ export class WhatsappService {
 
   async sendMessageDirect(to: string, message: string, accessToken: string, phoneNumberId: string, tenantClient: any) {
     try {
+      const isBSUID = /^[A-Z]{2}\.([A-Z]+\.)?[0-9]+$/.test(to);
+      const payload: any = {
+        messaging_product: 'whatsapp',
+        type: 'text',
+        text: { body: message }
+      };
+
+      if (isBSUID) {
+        payload.recipient = to;
+      } else {
+        payload.to = to;
+      }
+
       const response = await axios.post(
         `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
-        {
-          messaging_product: 'whatsapp',
-          to,
-          type: 'text',
-          text: { body: message }
-        },
+        payload,
         {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -1952,14 +1991,22 @@ export class WhatsappService {
 
   async sendMediaMessageDirect(to: string, mediaUrl: string, mediaType: string, accessToken: string, phoneNumberId: string, tenantClient: any, caption?: string) {
     try {
+      const isBSUID = /^[A-Z]{2}\.([A-Z]+\.)?[0-9]+$/.test(to);
+      const payload: any = {
+        messaging_product: 'whatsapp',
+        type: mediaType,
+        [mediaType]: { link: mediaUrl, caption }
+      };
+
+      if (isBSUID) {
+        payload.recipient = to;
+      } else {
+        payload.to = to;
+      }
+
       const response = await axios.post(
         `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
-        {
-          messaging_product: 'whatsapp',
-          to,
-          type: mediaType,
-          [mediaType]: { link: mediaUrl, caption }
-        },
+        payload,
         {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -2397,6 +2444,9 @@ export class WhatsappService {
     phone: string,
     phoneNumberId?: string | null,
     profileName?: string | null,
+    userId?: string,
+    parentUserId?: string,
+    username?: string
   ) {
     const formattedPhone = this.formatPhoneNumber(phone);
   
@@ -2430,6 +2480,9 @@ export class WhatsappService {
           name: existingName || fallbackName,
           lastMessageDate: new Date(),
           isActive: true,
+          userId: userId || existingContact.userId,
+          parentUserId: parentUserId || existingContact.parentUserId,
+          username: username || existingContact.username,
         },
       });
   
@@ -2444,6 +2497,9 @@ export class WhatsappService {
         groupId: null,
         lastMessageDate: new Date(),
         isActive: true,
+        userId: userId || null,
+        parentUserId: parentUserId || null,
+        username: username || null,
       },
     });
   }

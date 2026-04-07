@@ -16,8 +16,8 @@ const testPayloads = {
         value: {
           messaging_product: 'whatsapp',
           metadata: {
-            display_phone_number: '15550783881',
-            phone_number_id: '106540352242922'
+            display_phone_number: '9080356538',
+            phone_number_id: '803957376127788'
           },
           contacts: [{
             profile: {
@@ -53,8 +53,8 @@ const testPayloads = {
         value: {
           messaging_product: 'whatsapp',
           metadata: {
-            display_phone_number: '15550783881',
-            phone_number_id: '106540352242922'
+            display_phone_number: '9080356538',
+            phone_number_id: '803957376127788'
           },
           contacts: [{
             profile: {

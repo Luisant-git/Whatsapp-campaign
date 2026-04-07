@@ -15,7 +15,7 @@ export class OwnerNotificationService {
       const formattedPhone = this.formatPhoneNumber(ownerPhone);
       this.logger.log(`📞 Sending appointment notification to: ${formattedPhone} (original: ${ownerPhone})`);
       
-      const message = `📅 New Appointment Booked by
+      const message = `📆 New Appointment Booked by
 
 Name: ${appointment.name}
 Phone: ${appointment.phone}

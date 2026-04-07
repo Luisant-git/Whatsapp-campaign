@@ -98,6 +98,7 @@ export class FlowAppointmentService {
             },
           });
           console.log(`✅ Flow appointment saved to tenant ${tenant.id} (${tenant.name})`);
+          console.log('📋 Saved appointment:', JSON.stringify(savedAppointment, null, 2));
           
           // Send confirmation message
           if (appointmentRecord.phone) {
@@ -111,16 +112,27 @@ export class FlowAppointmentService {
               );
               
               // Send notification to business owner
+              console.log('🔔 Attempting to send owner notification...');
               const user = await this.centralPrisma.tenant.findUnique({ where: { id: targetTenantId } });
+              console.log('👤 User data:', JSON.stringify({ id: user?.id, phoneNumber: user?.phoneNumber }, null, 2));
+              
               if (user?.phoneNumber) {
+                console.log(`📞 Sending notification to owner: ${user.phoneNumber}`);
                 await this.ownerNotification.notifyAppointmentBooking(
                   savedAppointment,
                   user.phoneNumber,
                   settings.accessToken,
                   settings.phoneNumberId
                 );
+                console.log('✅ Owner notification sent successfully');
+              } else {
+                console.log('⚠️ No phone number found for owner');
               }
+            } else {
+              console.log('⚠️ No WhatsApp settings found');
             }
+          } else {
+            console.log('⚠️ No phone number in appointment record');
           }
         } else {
           console.error(`❌ Target tenant ${targetTenantId} not found or inactive`);

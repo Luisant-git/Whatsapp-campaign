@@ -12,6 +12,10 @@ export class OwnerNotificationService {
     phoneNumberId: string
   ) {
     try {
+      // Format phone number (add country code if needed)
+      const formattedPhone = this.formatPhoneNumber(ownerPhone);
+      this.logger.log(`📞 Sending appointment notification to: ${formattedPhone} (original: ${ownerPhone})`);
+      
       const message = `🗓️ *NEW DEMO REQUEST*
 
 👤 *Customer:* ${appointment.name}
@@ -29,10 +33,11 @@ Size: ${this.extractBusinessSize(appointment.moreDetails)}
 
 _Received at ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}_`;
 
-      await this.sendWhatsAppMessage(ownerPhone, message, accessToken, phoneNumberId);
-      this.logger.log(`✅ Appointment notification sent to owner: ${ownerPhone}`);
+      await this.sendWhatsAppMessage(formattedPhone, message, accessToken, phoneNumberId);
+      this.logger.log(`✅ Appointment notification sent to owner: ${formattedPhone}`);
     } catch (error) {
       this.logger.error('Failed to send appointment notification:', error.message);
+      this.logger.error('Error stack:', error.stack);
     }
   }
 
@@ -43,6 +48,10 @@ _Received at ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
     phoneNumberId: string
   ) {
     try {
+      // Format phone number (add country code if needed)
+      const formattedPhone = this.formatPhoneNumber(ownerPhone);
+      this.logger.log(`📞 Sending order notification to: ${formattedPhone} (original: ${ownerPhone})`);
+      
       const itemsList = order.items?.map((item: any, index: number) => 
         `${index + 1}. ${item.productName || item.product?.name || 'Product'} - ₹${item.price} x ${item.quantity}`
       ).join('\n') || 'No items';
@@ -67,11 +76,25 @@ ${order.customerCity}, ${order.customerState} - ${order.customerPincode}
 
 _Received at ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}_`;
 
-      await this.sendWhatsAppMessage(ownerPhone, message, accessToken, phoneNumberId);
-      this.logger.log(`✅ Order notification sent to owner: ${ownerPhone}`);
+      await this.sendWhatsAppMessage(formattedPhone, message, accessToken, phoneNumberId);
+      this.logger.log(`✅ Order notification sent to owner: ${formattedPhone}`);
     } catch (error) {
       this.logger.error('Failed to send order notification:', error.message);
+      this.logger.error('Error stack:', error.stack);
     }
+  }
+
+  private formatPhoneNumber(phone: string): string {
+    // Remove all non-numeric characters
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    
+    // If phone is 10 digits and starts with 6-9, add India country code (91)
+    if (cleanPhone.length === 10 && /^[6-9]/.test(cleanPhone)) {
+      return `91${cleanPhone}`;
+    }
+    
+    // If already has country code, return as is
+    return cleanPhone;
   }
 
   private formatService(service: string): string {

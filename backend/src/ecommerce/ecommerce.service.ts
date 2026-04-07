@@ -396,23 +396,38 @@ async deleteVariant(id: number, userId?: number) {
       include: { items: { include: { product: true } } },
     });
     
+    console.log('📝 Order created:', JSON.stringify({ id: order.id, customerName: order.customerName, totalAmount: order.totalAmount }, null, 2));
+    
     // Send notification to business owner
     if (userId) {
       try {
+        console.log('🔔 Attempting to send owner notification for order...');
         const user = await this.centralPrisma.tenant.findUnique({ where: { id: userId } });
+        console.log('👤 User data:', JSON.stringify({ id: user?.id, phoneNumber: user?.phoneNumber }, null, 2));
+        
         const settings = await client.whatsAppSettings.findFirst();
+        console.log('⚙️ Settings found:', settings ? 'Yes' : 'No');
         
         if (user?.phoneNumber && settings) {
+          console.log(`📞 Sending order notification to owner: ${user.phoneNumber}`);
           await this.ownerNotification.notifyOrderPlaced(
             order,
             user.phoneNumber,
             settings.accessToken,
             settings.phoneNumberId
           );
+          console.log('✅ Owner notification sent successfully');
+        } else {
+          console.log('⚠️ Cannot send notification - Missing:', {
+            hasPhoneNumber: !!user?.phoneNumber,
+            hasSettings: !!settings
+          });
         }
       } catch (error) {
-        console.error('Failed to send owner notification:', error);
+        console.error('❌ Failed to send owner notification:', error.message);
       }
+    } else {
+      console.log('⚠️ No userId provided for order notification');
     }
     
     return order;

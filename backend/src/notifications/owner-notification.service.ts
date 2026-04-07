@@ -12,26 +12,10 @@ export class OwnerNotificationService {
     phoneNumberId: string
   ) {
     try {
-      // Format phone number (add country code if needed)
       const formattedPhone = this.formatPhoneNumber(ownerPhone);
       this.logger.log(`📞 Sending appointment notification to: ${formattedPhone} (original: ${ownerPhone})`);
       
-      const message = `🗓️ *NEW DEMO REQUEST*
-
-👤 *Customer:* ${appointment.name}
-📞 *Mobile:* ${appointment.phone}
-📍 *Place:* ${this.extractPlace(appointment.moreDetails)}
-
-🏢 *Business Details:*
-Name: ${this.extractBusinessName(appointment.moreDetails)}
-Type: ${this.extractBusinessType(appointment.moreDetails)}
-Size: ${this.extractBusinessSize(appointment.moreDetails)}
-
-💼 *Service Interested:* ${this.formatService(appointment.department)}
-📅 *Preferred Date:* ${appointment.date}
-⏰ *Preferred Time:* ${appointment.time}
-
-_Received at ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}_`;
+      const message = `📅 New appointment booked by ${appointment.name} (${appointment.phone}) for ${this.formatService(appointment.department)} on ${appointment.date} at ${appointment.time}`;
 
       await this.sendWhatsAppMessage(formattedPhone, message, accessToken, phoneNumberId);
       this.logger.log(`✅ Appointment notification sent to owner: ${formattedPhone}`);
@@ -48,33 +32,10 @@ _Received at ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
     phoneNumberId: string
   ) {
     try {
-      // Format phone number (add country code if needed)
       const formattedPhone = this.formatPhoneNumber(ownerPhone);
       this.logger.log(`📞 Sending order notification to: ${formattedPhone} (original: ${ownerPhone})`);
       
-      const itemsList = order.items?.map((item: any, index: number) => 
-        `${index + 1}. ${item.productName || item.product?.name || 'Product'} - ₹${item.price} x ${item.quantity}`
-      ).join('\n') || 'No items';
-
-      const message = `🛒 *NEW ORDER RECEIVED*
-
-👤 *Customer:* ${order.customerName}
-📞 *Phone:* ${order.customerPhone}
-
-📦 *Order Items:*
-${itemsList}
-
-💰 *Total Amount:* ₹${order.totalAmount}
-🚚 *Shipping:* ₹${order.shippingAmount || 0}
-
-📍 *Delivery Address:*
-${order.customerAddress}
-${order.customerCity}, ${order.customerState} - ${order.customerPincode}
-
-💳 *Payment:* ${order.paymentMethod || 'COD'}
-📊 *Status:* ${order.status}
-
-_Received at ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}_`;
+      const message = `🛒 New order received from ${order.customerName} (${order.customerPhone}) - Total: Rs.${order.totalAmount}`;
 
       await this.sendWhatsAppMessage(formattedPhone, message, accessToken, phoneNumberId);
       this.logger.log(`✅ Order notification sent to owner: ${formattedPhone}`);
@@ -99,10 +60,10 @@ _Received at ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
 
   private formatService(service: string): string {
     const serviceMap: { [key: string]: string } = {
-      'all': '🌟 All Services',
-      'whatsapp_marketing': '📢 WhatsApp Marketing',
-      'whatsapp_ecommerce': '🛒 WhatsApp Ecommerce',
-      'ai_chatbot': '🤖 AI Chat Bot'
+      'all': 'All Services',
+      'whatsapp_marketing': 'WhatsApp Marketing',
+      'whatsapp_ecommerce': 'WhatsApp Ecommerce',
+      'ai_chatbot': 'AI Chat Bot'
     };
     return serviceMap[service] || service;
   }

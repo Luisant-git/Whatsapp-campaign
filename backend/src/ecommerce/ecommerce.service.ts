@@ -396,12 +396,12 @@ async deleteVariant(id: number, userId?: number) {
       include: { items: { include: { product: true } } },
     });
     
-    console.log('📝 Order created:', JSON.stringify({ id: order.id, customerName: order.customerName, totalAmount: order.totalAmount }, null, 2));
+    console.log('📝 Order created:', JSON.stringify({ id: order.id, customerName: order.customerName, totalAmount: order.totalAmount, status: order.status }, null, 2));
     
-    // Send notification to business owner
-    if (userId) {
+    // Send notification ONLY if order status is NOT draft
+    if (userId && order.status !== 'draft') {
       try {
-        console.log('🔔 Attempting to send owner notification for order...');
+        console.log('🔔 Order is confirmed (not draft), sending owner notification...');
         const user = await this.centralPrisma.tenant.findUnique({ where: { id: userId } });
         console.log('👤 User data:', JSON.stringify({ id: user?.id, phoneNumber: user?.phoneNumber }, null, 2));
         
@@ -426,6 +426,8 @@ async deleteVariant(id: number, userId?: number) {
       } catch (error) {
         console.error('❌ Failed to send owner notification:', error.message);
       }
+    } else if (order.status === 'draft') {
+      console.log('⚠️ Order is draft - notification will be sent when order is confirmed');
     } else {
       console.log('⚠️ No userId provided for order notification');
     }
@@ -579,9 +581,32 @@ async deleteVariant(id: number, userId?: number) {
         try {
           const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}?schema=public`;
           const client = await this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-          const order = await client.order.findUnique({ where: { id } });
+          const order = await client.order.findUnique({ where: { id }, include: { items: { include: { product: true } } } });
           if (order) {
-            return client.order.update({ where: { id }, data: { status } });
+            const updatedOrder = await client.order.update({ where: { id }, data: { status } });
+            
+            // Send notification when order status changes from draft to confirmed
+            if (order.status === 'draft' && status !== 'draft') {
+              console.log('🔔 Order confirmed! Sending owner notification...');
+              const user = await this.centralPrisma.tenant.findUnique({ where: { id: tenant.id } });
+              const settings = await client.whatsAppSettings.findFirst();
+              
+              if (user?.phoneNumber && settings) {
+                const fullOrder = await client.order.findUnique({ 
+                  where: { id }, 
+                  include: { items: { include: { product: true } } } 
+                });
+                await this.ownerNotification.notifyOrderPlaced(
+                  fullOrder,
+                  user.phoneNumber,
+                  settings.accessToken,
+                  settings.phoneNumberId
+                );
+                console.log('✅ Owner notification sent for confirmed order');
+              }
+            }
+            
+            return updatedOrder;
           }
         } catch (error) {
           continue;
@@ -590,7 +615,31 @@ async deleteVariant(id: number, userId?: number) {
       throw new Error('Order not found');
     }
     const client = await this.getTenantClient(userId);
-    return client.order.update({ where: { id }, data: { status } });
+    const order = await client.order.findUnique({ where: { id }, include: { items: { include: { product: true } } } });
+    const updatedOrder = await client.order.update({ where: { id }, data: { status } });
+    
+    // Send notification when order status changes from draft to confirmed
+    if (order && order.status === 'draft' && status !== 'draft') {
+      console.log('🔔 Order confirmed! Sending owner notification...');
+      const user = await this.centralPrisma.tenant.findUnique({ where: { id: userId } });
+      const settings = await client.whatsAppSettings.findFirst();
+      
+      if (user?.phoneNumber && settings) {
+        const fullOrder = await client.order.findUnique({ 
+          where: { id }, 
+          include: { items: { include: { product: true } } } 
+        });
+        await this.ownerNotification.notifyOrderPlaced(
+          fullOrder,
+          user.phoneNumber,
+          settings.accessToken,
+          settings.phoneNumberId
+        );
+        console.log('✅ Owner notification sent for confirmed order');
+      }
+    }
+    
+    return updatedOrder;
   }
 
   async getCustomers(userId?: number) {

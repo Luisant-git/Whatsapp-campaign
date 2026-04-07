@@ -15,7 +15,13 @@ export class OwnerNotificationService {
       const formattedPhone = this.formatPhoneNumber(ownerPhone);
       this.logger.log(`📞 Sending appointment notification to: ${formattedPhone} (original: ${ownerPhone})`);
       
-      const message = `📅 New appointment booked by ${appointment.name} (${appointment.phone}) for ${this.formatService(appointment.department)} on ${appointment.date} at ${appointment.time}`;
+      const message = `📅 New Appointment Booked by
+
+Name: ${appointment.name}
+Phone: ${appointment.phone}
+Service: ${this.formatService(appointment.department)}
+Date: ${appointment.date}
+Time: ${appointment.time}`;
 
       await this.sendWhatsAppMessage(formattedPhone, message, accessToken, phoneNumberId);
       this.logger.log(`✅ Appointment notification sent to owner: ${formattedPhone}`);
@@ -35,7 +41,12 @@ export class OwnerNotificationService {
       const formattedPhone = this.formatPhoneNumber(ownerPhone);
       this.logger.log(`📞 Sending order notification to: ${formattedPhone} (original: ${ownerPhone})`);
       
-      const message = `🛒 New order received from ${order.customerName} (${order.customerPhone}) - Total: Rs.${order.totalAmount}`;
+      const message = `🛒 New Order Received by
+
+Name: ${order.customerName}
+Phone: ${order.customerPhone}
+Total: Rs.${order.totalAmount}
+Payment: ${order.paymentMethod || 'COD'}`;
 
       await this.sendWhatsAppMessage(formattedPhone, message, accessToken, phoneNumberId);
       this.logger.log(`✅ Order notification sent to owner: ${formattedPhone}`);

@@ -5,6 +5,8 @@ import { ShoppingSessionService } from './shopping-session.service';
 import { RazorpayService } from './razorpay.service';
 import { FlowTriggerService } from '../flow-message/flow-trigger.service';
 import { CustomerDetailsFlowService } from '../whatsapp/flows/customer-details-flow.service';
+import { OwnerNotificationService } from '../notifications/owner-notification.service';
+import { CentralPrismaService } from '../central-prisma.service';
 
 @Injectable()
 export class MetaCatalogService {
@@ -20,7 +22,9 @@ export class MetaCatalogService {
     private sessionService: ShoppingSessionService,
     private razorpayService: RazorpayService,
     private flowTriggerService: FlowTriggerService,
-    private customerDetailsFlowService: CustomerDetailsFlowService
+    private customerDetailsFlowService: CustomerDetailsFlowService,
+    private ownerNotification: OwnerNotificationService,
+    private centralPrisma: CentralPrismaService
   ) {
     // Create dedicated axios instance with proper timeout
     this.axiosInstance = axios.create({
@@ -1149,6 +1153,29 @@ export class MetaCatalogService {
               status: paymentMethod === 'cod' ? 'placed' : 'pending',
               items: orderItems // This will recreate the items
             }, userId);
+            
+            // Send owner notification for confirmed order
+            if (paymentMethod === 'cod' || paymentMethod === 'razorpay') {
+              console.log('🔔 Order confirmed via Meta Catalog! Sending owner notification...');
+              try {
+                const user = await this.centralPrisma.tenant.findUnique({ where: { id: userId } });
+                const tenantClient = await this.ecommerceService['getTenantClient'](userId);
+                const settings = await tenantClient.whatsAppSettings.findFirst();
+                
+                if (user?.phoneNumber && settings) {
+                  const fullOrderWithItems = await this.ecommerceService.getOrder(order.id, userId);
+                  await this.ownerNotification.notifyOrderPlaced(
+                    fullOrderWithItems,
+                    user.phoneNumber,
+                    settings.accessToken,
+                    settings.phoneNumberId
+                  );
+                  console.log('✅ Owner notification sent for Meta Catalog order');
+                }
+              } catch (notifError) {
+                console.error('❌ Failed to send owner notification:', notifError.message);
+              }
+            }
           } else {
             // Create new order
             console.log('[Meta Catalog] Creating new order');

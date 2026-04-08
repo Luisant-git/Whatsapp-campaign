@@ -412,56 +412,52 @@ sxEK+yx6I1EkGaK+/KWEpai7
   private generateTimeSlots(selectedDate?: string): Array<{id: string, title: string, enabled?: boolean}> {
     const slots: Array<{id: string, title: string, enabled?: boolean}> = [];
     const startHour = 11;
-    const endHour = 18; // 6 PM in 24-hour format
+    const endHour = 18;
     
-    // Get current date and time
     const now = new Date();
     const today = now.toISOString().split('T')[0];
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
-    
-    // Check if selected date is today
     const isToday = selectedDate === today;
     
+    console.log(`⏰ Time filtering - Current: ${currentHour}:${currentMinute}, Today: ${today}, Selected: ${selectedDate}, IsToday: ${isToday}`);
+    
     for (let hour = startHour; hour < endHour; hour++) {
-      // Add :00 slot
       const hour12 = hour > 12 ? hour - 12 : hour;
       const period = hour >= 12 ? 'PM' : 'AM';
       
-      // Check if this time slot has passed
       let isEnabled = true;
       if (isToday) {
         if (hour < currentHour || (hour === currentHour && currentMinute >= 0)) {
           isEnabled = false;
+          console.log(`⏰ Filtering out ${hour}:00 - past time`);
         }
       }
       
-      slots.push({
-        id: `${hour.toString().padStart(2, '0')}:00`,
-        title: `${hour12.toString().padStart(2, '0')}:00 ${period}`,
-        ...(isToday && !isEnabled && { enabled: false })
-      });
+      if (!isToday || isEnabled) {
+        slots.push({
+          id: `${hour.toString().padStart(2, '0')}:00`,
+          title: `${hour12.toString().padStart(2, '0')}:00 ${period}`
+        });
+      }
       
-      // Add :30 slot
       isEnabled = true;
       if (isToday) {
         if (hour < currentHour || (hour === currentHour && currentMinute >= 30)) {
           isEnabled = false;
+          console.log(`⏰ Filtering out ${hour}:30 - past time`);
         }
       }
       
-      slots.push({
-        id: `${hour.toString().padStart(2, '0')}:30`,
-        title: `${hour12.toString().padStart(2, '0')}:30 ${period}`,
-        ...(isToday && !isEnabled && { enabled: false })
-      });
+      if (!isToday || isEnabled) {
+        slots.push({
+          id: `${hour.toString().padStart(2, '0')}:30`,
+          title: `${hour12.toString().padStart(2, '0')}:30 ${period}`
+        });
+      }
     }
     
-    // Filter out disabled slots for today
-    if (isToday) {
-      return slots.filter(slot => slot.enabled !== false);
-    }
-    
+    console.log(`⏰ Generated ${slots.length} time slots for ${selectedDate || 'no date'}`);
     return slots;
   }
 }

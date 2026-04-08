@@ -707,15 +707,32 @@ export class FlowAppointmentService {
         { id: 'remote', title: 'Remote/Online' }
       ],
       dates: this.generateAvailableDates(7),
-      time_slots: [
-        { id: '09:00', title: '9:00 AM' },
-        { id: '10:00', title: '10:00 AM' },
-        { id: '11:00', title: '11:00 AM' },
-        { id: '14:00', title: '2:00 PM' },
-        { id: '15:00', title: '3:00 PM' },
-        { id: '16:00', title: '4:00 PM' }
-      ]
+      time_slots: this.generateTimeSlots()
     };
+  }
+
+  private generateTimeSlots(): Array<{id: string, title: string}> {
+    const slots: Array<{id: string, title: string}> = [];
+    const startHour = 11;
+    const endHour = 18; // 6 PM in 24-hour format
+    
+    for (let hour = startHour; hour < endHour; hour++) {
+      // Add :00 slot
+      const hour12 = hour > 12 ? hour - 12 : hour;
+      const period = hour >= 12 ? 'PM' : 'AM';
+      slots.push({
+        id: `${hour.toString().padStart(2, '0')}:00`,
+        title: `${hour12}:00 ${period}`
+      });
+      
+      // Add :30 slot
+      slots.push({
+        id: `${hour.toString().padStart(2, '0')}:30`,
+        title: `${hour12}:30 ${period}`
+      });
+    }
+    
+    return slots;
   }
 
   async cleanupEmptyAppointments(userId: number) {

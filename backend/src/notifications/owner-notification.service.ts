@@ -121,6 +121,7 @@ export class OwnerNotificationService {
             type: 'body',
             parameters: [
               { type: 'text', text: appointment.name || 'Customer' },
+              { type: 'text', text: appointment.phone || 'N/A' },
               { type: 'text', text: this.formatService(appointment.department) || 'Service' },
               { type: 'text', text: appointment.date || 'N/A' },
               { type: 'text', text: appointment.time || 'N/A' }

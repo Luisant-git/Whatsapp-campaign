@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getCampaignResults, downloadCampaignResults } from '../api/campaign';
+import { getCampaignResults, downloadCampaignResults, getAllCampaigns } from '../api/campaign';
 import { sendBulkMessages } from '../api/whatsapp';
 import { useToast } from '../contexts/ToastContext';
 import { Send, X } from 'lucide-react';
@@ -20,10 +20,21 @@ const CampaignResults = ({ campaignId, onBack }) => {
   const [showResendModal, setShowResendModal] = useState(false);
   const [resendCampaignName, setResendCampaignName] = useState('');
   const [resending, setResending] = useState(false);
+  const [allCampaigns, setAllCampaigns] = useState([]);
 
   useEffect(() => {
     fetchCampaignResults();
+    fetchAllCampaigns();
   }, [campaignId]);
+
+  const fetchAllCampaigns = async () => {
+    try {
+      const data = await getAllCampaigns();
+      setAllCampaigns(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching campaigns:', error);
+    }
+  };
 
   // Auto-refresh every 3 seconds for the first 30 seconds after campaign starts
   useEffect(() => {
@@ -130,7 +141,9 @@ const CampaignResults = ({ campaignId, onBack }) => {
       return;
     }
 
-    setResendCampaignName(`Retry - ${campaign?.name}`);
+    const resendCampaigns = allCampaigns.filter(c => c.name.startsWith('Resend ('));
+    const nextNumber = resendCampaigns.length + 1;
+    setResendCampaignName(`Resend (${nextNumber}) - ${campaign?.name}`);
     setShowResendModal(true);
   };
 

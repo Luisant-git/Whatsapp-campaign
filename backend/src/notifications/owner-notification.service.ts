@@ -114,7 +114,7 @@ export class OwnerNotificationService {
       messaging_product: 'whatsapp',
       type: 'template',
       template: {
-        name: 'appointment_notify_v1',
+        name: 'appointment_notify_v2',
         language: { code: 'en' },
         components: [
           {
@@ -159,7 +159,7 @@ export class OwnerNotificationService {
       messaging_product: 'whatsapp',
       type: 'template',
       template: {
-        name: 'orderreceived_notify_v1',
+        name: 'orderreceived_notify_v2',
         language: { code: 'en' },
         components: [
           {

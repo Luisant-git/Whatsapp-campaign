@@ -154,14 +154,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
 
         const dates = this.generateDates(5);
 
-        const timeSlots = [
-          { id: '09:00', title: '09:00 AM' },
-          { id: '10:00', title: '10:00 AM' },
-          { id: '11:00', title: '11:00 AM' },
-          { id: '14:00', title: '02:00 PM' },
-          { id: '15:00', title: '03:00 PM' },
-          { id: '16:00', title: '04:00 PM' }
-        ];
+        const timeSlots = this.generateTimeSlots();
         
         const businessServicesData = {
           services: services,
@@ -321,14 +314,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
 
           const dates = this.generateDates(5);
 
-          const timeSlots = [
-            { id: '09:00', title: '09:00 AM' },
-            { id: '10:00', title: '10:00 AM' },
-            { id: '11:00', title: '11:00 AM' },
-            { id: '14:00', title: '02:00 PM' },
-            { id: '15:00', title: '03:00 PM' },
-            { id: '16:00', title: '04:00 PM' }
-          ];
+          const timeSlots = this.generateTimeSlots();
           
           const businessServicesData = {
             services: services,
@@ -387,5 +373,29 @@ sxEK+yx6I1EkGaK+/KWEpai7
     }
     
     return dates;
+  }
+
+  private generateTimeSlots(): Array<{id: string, title: string}> {
+    const slots: Array<{id: string, title: string}> = [];
+    const startHour = 11;
+    const endHour = 18; // 6 PM in 24-hour format
+    
+    for (let hour = startHour; hour < endHour; hour++) {
+      // Add :00 slot
+      const hour12 = hour > 12 ? hour - 12 : hour;
+      const period = hour >= 12 ? 'PM' : 'AM';
+      slots.push({
+        id: `${hour.toString().padStart(2, '0')}:00`,
+        title: `${hour12.toString().padStart(2, '0')}:00 ${period}`
+      });
+      
+      // Add :30 slot
+      slots.push({
+        id: `${hour.toString().padStart(2, '0')}:30`,
+        title: `${hour12.toString().padStart(2, '0')}:30 ${period}`
+      });
+    }
+    
+    return slots;
   }
 }

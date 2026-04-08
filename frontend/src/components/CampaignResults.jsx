@@ -141,9 +141,11 @@ const CampaignResults = ({ campaignId, onBack }) => {
       return;
     }
 
-    const resendCampaigns = allCampaigns.filter(c => c.name.startsWith('Resend ('));
+    const originalName = campaign?.name.replace(/^Resend \(\d+\) - /, '');
+    const resendPattern = new RegExp(`^Resend \\(\\d+\\) - ${originalName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
+    const resendCampaigns = allCampaigns.filter(c => resendPattern.test(c.name));
     const nextNumber = resendCampaigns.length + 1;
-    setResendCampaignName(`Resend (${nextNumber}) - ${campaign?.name}`);
+    setResendCampaignName(`Resend (${nextNumber}) - ${originalName}`);
     setShowResendModal(true);
   };
 

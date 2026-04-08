@@ -17,16 +17,23 @@ export class OwnerNotificationService {
       
       this.logger.log(`📞 Sending appointment notification to: ${identifier} (type: ${isBSUID ? 'BSUID' : 'phone'})`);
       
-      const message = `📆 New Appointment Booked by
+      try {
+        await this.sendAppointmentTemplate(
+          identifier,
+          appointment,
+          accessToken,
+          phoneNumberId,
+          isBSUID
+        );
+        this.logger.log(`✅ Appointment template sent to: ${identifier}`);
+      } catch (templateError) {
+        this.logger.warn(`⚠️ Template failed, using text message: ${templateError.message}`);
+        
+        const message = `📆 New Appointment Booked\n\nName: ${appointment.name}\nPhone: ${appointment.phone}\nService: ${this.formatService(appointment.department)}\nDate: ${appointment.date}\nTime: ${appointment.time}`;
 
-Name: ${appointment.name}
-Phone: ${appointment.phone}
-Service: ${this.formatService(appointment.department)}
-Date: ${appointment.date}
-Time: ${appointment.time}`;
-
-      await this.sendWhatsAppMessage(identifier, message, accessToken, phoneNumberId, isBSUID);
-      this.logger.log(`✅ Appointment notification sent to: ${identifier}`);
+        await this.sendWhatsAppMessage(identifier, message, accessToken, phoneNumberId, isBSUID);
+        this.logger.log(`✅ Appointment text notification sent to: ${identifier}`);
+      }
     } catch (error) {
       this.logger.error('Failed to send appointment notification:', error.message);
       this.logger.error('Error stack:', error.stack);
@@ -45,15 +52,23 @@ Time: ${appointment.time}`;
       
       this.logger.log(`📞 Sending order notification to: ${identifier} (type: ${isBSUID ? 'BSUID' : 'phone'})`);
       
-      const message = `🛒 New Order Received by
+      try {
+        await this.sendOrderTemplate(
+          identifier,
+          order,
+          accessToken,
+          phoneNumberId,
+          isBSUID
+        );
+        this.logger.log(`✅ Order template sent to: ${identifier}`);
+      } catch (templateError) {
+        this.logger.warn(`⚠️ Template failed, using text message: ${templateError.message}`);
+        
+        const message = `🛒 New Order Received\n\nName: ${order.customerName}\nPhone: ${order.customerPhone}\nTotal: ₹${order.totalAmount}\nPayment: ${order.paymentMethod || 'COD'}`;
 
-Name: ${order.customerName}
-Phone: ${order.customerPhone}
-Total: Rs.${order.totalAmount}
-Payment: ${order.paymentMethod || 'COD'}`;
-
-      await this.sendWhatsAppMessage(identifier, message, accessToken, phoneNumberId, isBSUID);
-      this.logger.log(`✅ Order notification sent to: ${identifier}`);
+        await this.sendWhatsAppMessage(identifier, message, accessToken, phoneNumberId, isBSUID);
+        this.logger.log(`✅ Order text notification sent to: ${identifier}`);
+      }
     } catch (error) {
       this.logger.error('Failed to send order notification:', error.message);
       this.logger.error('Error stack:', error.stack);
@@ -61,15 +76,12 @@ Payment: ${order.paymentMethod || 'COD'}`;
   }
 
   private formatPhoneNumber(phone: string): string {
-    // Remove all non-numeric characters
     const cleanPhone = phone.replace(/[^0-9]/g, '');
     
-    // If phone is 10 digits and starts with 6-9, add India country code (91)
     if (cleanPhone.length === 10 && /^[6-9]/.test(cleanPhone)) {
       return `91${cleanPhone}`;
     }
     
-    // If already has country code, return as is
     return cleanPhone;
   }
 
@@ -83,24 +95,94 @@ Payment: ${order.paymentMethod || 'COD'}`;
     return serviceMap[service] || service;
   }
 
-  private extractPlace(details: string): string {
-    const match = details?.match(/Place: ([^,]+)/);
-    return match ? match[1] : 'N/A';
+  private async sendAppointmentTemplate(
+    to: string,
+    appointment: any,
+    accessToken: string,
+    phoneNumberId: string,
+    isBSUID: boolean = false
+  ) {
+    const url = `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`;
+    
+    const payload: any = {
+      messaging_product: 'whatsapp',
+      type: 'template',
+      template: {
+        name: 'appointment_notify',
+        language: { code: 'en' },
+        components: [
+          {
+            type: 'body',
+            parameters: [
+              { type: 'text', text: appointment.name || 'Customer' },
+              { type: 'text', text: this.formatService(appointment.department) || 'Service' },
+              { type: 'text', text: appointment.date || 'N/A' },
+              { type: 'text', text: appointment.time || 'N/A' }
+            ]
+          }
+        ]
+      }
+    };
+
+    if (isBSUID) {
+      payload.recipient = to;
+    } else {
+      payload.to = to;
+    }
+    
+    const response = await axios.post(url, payload, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    return response.data;
   }
 
-  private extractBusinessName(details: string): string {
-    const match = details?.match(/Business: ([^,]+)/);
-    return match ? match[1] : 'N/A';
-  }
+  private async sendOrderTemplate(
+    to: string,
+    order: any,
+    accessToken: string,
+    phoneNumberId: string,
+    isBSUID: boolean = false
+  ) {
+    const url = `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`;
+    
+    const payload: any = {
+      messaging_product: 'whatsapp',
+      type: 'template',
+      template: {
+        name: 'orderreceived_notify',
+        language: { code: 'en' },
+        components: [
+          {
+            type: 'body',
+            parameters: [
+              { type: 'text', text: order.customerName || 'Customer' },
+              { type: 'text', text: order.customerPhone || 'N/A' },
+              { type: 'text', text: order.totalAmount?.toString() || '0' },
+              { type: 'text', text: order.paymentMethod || 'COD' }
+            ]
+          }
+        ]
+      }
+    };
 
-  private extractBusinessType(details: string): string {
-    const match = details?.match(/Type: ([^,]+)/);
-    return match ? match[1] : 'N/A';
-  }
+    if (isBSUID) {
+      payload.recipient = to;
+    } else {
+      payload.to = to;
+    }
+    
+    const response = await axios.post(url, payload, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
 
-  private extractBusinessSize(details: string): string {
-    const match = details?.match(/Size: (.+)/);
-    return match ? match[1] : 'N/A';
+    return response.data;
   }
 
   private async sendWhatsAppMessage(

@@ -100,7 +100,7 @@ export class FlowAppointmentService {
           console.log(`✅ Flow appointment saved to tenant ${tenant.id} (${tenant.name})`);
           console.log('📋 Saved appointment:', JSON.stringify(savedAppointment, null, 2));
           
-          // Send confirmation message
+          // Send customer confirmation first (priority)
           if (appointmentRecord.phone) {
             const settings = await (tenantClient as any).whatsAppSettings.findFirst();
             if (settings) {
@@ -111,22 +111,26 @@ export class FlowAppointmentService {
                 tenantClient
               );
               
-              // Send notification to business owner
-              console.log('🔔 Attempting to send owner notification...');
-              const user = await this.centralPrisma.tenant.findUnique({ where: { id: targetTenantId } });
-              console.log('👤 User data:', JSON.stringify({ id: user?.id, phoneNumber: user?.phoneNumber }, null, 2));
-              
-              if (user?.phoneNumber) {
-                console.log(`📞 Sending notification to owner: ${user.phoneNumber}`);
-                await this.ownerNotification.notifyAppointmentBooking(
-                  savedAppointment,
-                  user.phoneNumber,
-                  settings.accessToken,
-                  settings.phoneNumberId
-                );
-                console.log('✅ Owner notification sent successfully');
-              } else {
-                console.log('⚠️ No phone number found for owner');
+              // Send notification to business owner (after customer confirmation)
+              try {
+                console.log('🔔 Attempting to send owner notification...');
+                const user = await this.centralPrisma.tenant.findUnique({ where: { id: targetTenantId } });
+                console.log('👤 User data:', JSON.stringify({ id: user?.id, phoneNumber: user?.phoneNumber }, null, 2));
+                
+                if (user?.phoneNumber) {
+                  console.log(`📞 Sending notification to owner: ${user.phoneNumber}`);
+                  await this.ownerNotification.notifyAppointmentBooking(
+                    savedAppointment,
+                    user.phoneNumber,
+                    settings.accessToken,
+                    settings.phoneNumberId
+                  );
+                  console.log('✅ Owner notification sent successfully');
+                } else {
+                  console.log('⚠️ No phone number found for owner');
+                }
+              } catch (ownerNotifError) {
+                console.error('❌ Owner notification failed (customer already notified):', ownerNotifError.message);
               }
             } else {
               console.log('⚠️ No WhatsApp settings found');
@@ -191,36 +195,40 @@ export class FlowAppointmentService {
           if (settings) {
             console.log(`✅ Using settings from target tenant ${tenant.id}`);
             
-            // 🔔 SEND OWNER NOTIFICATION HERE
-            console.log('🔔 Sending owner notification for completed appointment...');
-            const user = await this.centralPrisma.tenant.findUnique({ where: { id: tenant.id } });
-            console.log('👤 Owner data:', JSON.stringify({ id: user?.id, phoneNumber: user?.phoneNumber }, null, 2));
+            // Send customer confirmation first (priority)
+            await this.sendConfirmationMessage(phoneNumber, settings.accessToken, settings.phoneNumberId, tenantClient);
             
-            if (user?.phoneNumber) {
-              // Get the last saved appointment for this phone number
-              const lastAppointment = await (tenantClient as any).flowAppointment.findFirst({
-                where: { phone: phoneNumber, tenantId: tenant.id },
-                orderBy: { createdAt: 'desc' }
-              });
+            // Send owner notification after customer confirmation
+            try {
+              console.log('🔔 Sending owner notification for completed appointment...');
+              const user = await this.centralPrisma.tenant.findUnique({ where: { id: tenant.id } });
+              console.log('👤 Owner data:', JSON.stringify({ id: user?.id, phoneNumber: user?.phoneNumber }, null, 2));
               
-              if (lastAppointment) {
-                console.log(`📞 Sending notification to owner: ${user.phoneNumber}`);
-                await this.ownerNotification.notifyAppointmentBooking(
-                  lastAppointment,
-                  user.phoneNumber,
-                  settings.accessToken,
-                  settings.phoneNumberId
-                );
-                console.log('✅ Owner notification sent successfully');
+              if (user?.phoneNumber) {
+                const lastAppointment = await (tenantClient as any).flowAppointment.findFirst({
+                  where: { phone: phoneNumber, tenantId: tenant.id },
+                  orderBy: { createdAt: 'desc' }
+                });
+                
+                if (lastAppointment) {
+                  console.log(`📞 Sending notification to owner: ${user.phoneNumber}`);
+                  await this.ownerNotification.notifyAppointmentBooking(
+                    lastAppointment,
+                    user.phoneNumber,
+                    settings.accessToken,
+                    settings.phoneNumberId
+                  );
+                  console.log('✅ Owner notification sent successfully');
+                } else {
+                  console.log('⚠️ No appointment found for notification');
+                }
               } else {
-                console.log('⚠️ No appointment found for notification');
+                console.log('⚠️ No phone number found for owner');
               }
-            } else {
-              console.log('⚠️ No phone number found for owner');
+            } catch (ownerNotifError) {
+              console.error('❌ Owner notification failed (customer already notified):', ownerNotifError.message);
             }
             
-            // Send customer confirmation (will use template to avoid 24h window issue)
-            await this.sendConfirmationMessage(phoneNumber, settings.accessToken, settings.phoneNumberId, tenantClient);
             return;
           }
         }
@@ -244,7 +252,10 @@ export class FlowAppointmentService {
           if (settings) {
             console.log(`✅ Using settings from tenant ${tenant.id}`);
             
-            // 🔔 SEND OWNER NOTIFICATION FOR TARGET TENANT (not fallback tenant)
+            // Send customer confirmation first (priority)
+            await this.sendConfirmationMessage(phoneNumber, settings.accessToken, settings.phoneNumberId, tenantClient);
+            
+            // Send owner notification after customer confirmation
             if (targetTenantId) {
               try {
                 console.log('🔔 Sending owner notification for target tenant...');
@@ -252,7 +263,6 @@ export class FlowAppointmentService {
                 console.log('👤 Target owner data:', JSON.stringify({ id: targetUser?.id, phoneNumber: targetUser?.phoneNumber }, null, 2));
                 
                 if (targetUser?.phoneNumber) {
-                  // Get appointment from TARGET tenant database
                   const targetDbUrl = `postgresql://${targetUser.dbUser}:${targetUser.dbPassword}@${targetUser.dbHost}:${targetUser.dbPort}/${targetUser.dbName}`;
                   const targetTenantClient = this.tenantPrisma.getTenantClient(targetTenantId.toString(), targetDbUrl);
                   
@@ -275,11 +285,10 @@ export class FlowAppointmentService {
                   }
                 }
               } catch (notifError: any) {
-                console.error('❌ Error sending owner notification:', notifError.message);
+                console.error('❌ Owner notification failed (customer already notified):', notifError.message);
               }
             }
             
-            await this.sendConfirmationMessage(phoneNumber, settings.accessToken, settings.phoneNumberId, tenantClient);
             return;
           }
         }

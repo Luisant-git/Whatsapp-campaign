@@ -153,8 +153,8 @@ sxEK+yx6I1EkGaK+/KWEpai7
         ];
 
         const dates = this.generateDates(5);
-
-        const timeSlots = this.generateTimeSlots();
+        const todayDate = new Date().toISOString().split('T')[0];
+        const timeSlots = this.generateTimeSlots(todayDate);
         
         const businessServicesData = {
           services: services,
@@ -346,8 +346,8 @@ sxEK+yx6I1EkGaK+/KWEpai7
           ];
 
           const dates = this.generateDates(5);
-
-          const timeSlots = this.generateTimeSlots();
+          const todayDate = new Date().toISOString().split('T')[0];
+          const timeSlots = this.generateTimeSlots(todayDate);
           
           const businessServicesData = {
             services: services,

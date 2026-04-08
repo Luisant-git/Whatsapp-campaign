@@ -274,7 +274,7 @@ export class FlowAppointmentService {
                     console.log('✅ Owner notification sent successfully');
                   }
                 }
-              } catch (notifError) {
+              } catch (notifError: any) {
                 console.error('❌ Error sending owner notification:', notifError.message);
               }
             }
@@ -599,7 +599,7 @@ export class FlowAppointmentService {
         dates: dates,
         time_slots: timeSlots.map(t => ({ id: t.time, title: t.title }))
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching complete appointment data:', error);
       return this.getDefaultAppointmentData();
     }
@@ -660,7 +660,7 @@ export class FlowAppointmentService {
       }
 
       return { phone: phoneNumber };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching user info:', error);
       return { phone: phoneNumber };
     }

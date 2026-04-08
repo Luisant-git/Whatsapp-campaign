@@ -26,15 +26,18 @@ export class OwnerNotificationService {
           isBSUID
         );
         this.logger.log(`✅ Appointment template sent to: ${identifier}`);
-      } catch (templateError) {
+      } catch (templateError: any) {
         this.logger.warn(`⚠️ Template failed, using text message: ${templateError.message}`);
+        if (templateError.response?.data) {
+          this.logger.error('Template error details:', JSON.stringify(templateError.response.data, null, 2));
+        }
         
         const message = `📆 New Appointment Booked\n\nName: ${appointment.name}\nPhone: ${appointment.phone}\nService: ${this.formatService(appointment.department)}\nDate: ${appointment.date}\nTime: ${appointment.time}`;
 
         await this.sendWhatsAppMessage(identifier, message, accessToken, phoneNumberId, isBSUID);
         this.logger.log(`✅ Appointment text notification sent to: ${identifier}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Failed to send appointment notification:', error.message);
       this.logger.error('Error stack:', error.stack);
     }
@@ -61,15 +64,18 @@ export class OwnerNotificationService {
           isBSUID
         );
         this.logger.log(`✅ Order template sent to: ${identifier}`);
-      } catch (templateError) {
+      } catch (templateError: any) {
         this.logger.warn(`⚠️ Template failed, using text message: ${templateError.message}`);
+        if (templateError.response?.data) {
+          this.logger.error('Template error details:', JSON.stringify(templateError.response.data, null, 2));
+        }
         
         const message = `🛒 New Order Received\n\nName: ${order.customerName}\nPhone: ${order.customerPhone}\nTotal: ₹${order.totalAmount}\nPayment: ${order.paymentMethod || 'COD'}`;
 
         await this.sendWhatsAppMessage(identifier, message, accessToken, phoneNumberId, isBSUID);
         this.logger.log(`✅ Order text notification sent to: ${identifier}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Failed to send order notification:', error.message);
       this.logger.error('Error stack:', error.stack);
     }

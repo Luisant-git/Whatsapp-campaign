@@ -717,9 +717,12 @@ export class FlowAppointmentService {
     const endHour = 18;
     
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istTime = new Date(now.getTime() + istOffset);
+    
+    const today = istTime.toISOString().split('T')[0];
+    const currentHour = istTime.getUTCHours();
+    const currentMinute = istTime.getUTCMinutes();
     const isToday = selectedDate === today;
     
     for (let hour = startHour; hour < endHour; hour++) {

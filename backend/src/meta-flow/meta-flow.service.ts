@@ -414,13 +414,17 @@ sxEK+yx6I1EkGaK+/KWEpai7
     const startHour = 11;
     const endHour = 18;
     
+    // Use IST timezone (UTC+5:30)
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
+    const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+    const istTime = new Date(now.getTime() + istOffset);
+    
+    const today = istTime.toISOString().split('T')[0];
+    const currentHour = istTime.getUTCHours();
+    const currentMinute = istTime.getUTCMinutes();
     const isToday = selectedDate === today;
     
-    console.log(`⏰ Time filtering - Current: ${currentHour}:${currentMinute.toString().padStart(2, '0')}, Today: ${today}, Selected: ${selectedDate}, IsToday: ${isToday}`);
+    console.log(`⏰ Time filtering - IST Current: ${currentHour}:${currentMinute.toString().padStart(2, '0')}, Today: ${today}, Selected: ${selectedDate}, IsToday: ${isToday}`);
     
     for (let hour = startHour; hour < endHour; hour++) {
       const hour12 = hour > 12 ? hour - 12 : hour;
@@ -428,9 +432,8 @@ sxEK+yx6I1EkGaK+/KWEpai7
       
       // Check :00 slot
       if (isToday) {
-        // Skip if hour has passed OR if we're in the current hour
         if (hour < currentHour || (hour === currentHour && currentMinute > 0)) {
-          console.log(`⏰ Skipping ${hour}:00 - past time (current: ${currentHour}:${currentMinute})`);
+          console.log(`⏰ Skipping ${hour}:00 - past time (IST current: ${currentHour}:${currentMinute})`);
         } else {
           slots.push({
             id: `${hour.toString().padStart(2, '0')}:00`,
@@ -446,9 +449,8 @@ sxEK+yx6I1EkGaK+/KWEpai7
       
       // Check :30 slot
       if (isToday) {
-        // Skip if hour has passed OR if we're past the 30-minute mark of current hour
         if (hour < currentHour || (hour === currentHour && currentMinute >= 30)) {
-          console.log(`⏰ Skipping ${hour}:30 - past time (current: ${currentHour}:${currentMinute})`);
+          console.log(`⏰ Skipping ${hour}:30 - past time (IST current: ${currentHour}:${currentMinute})`);
         } else {
           slots.push({
             id: `${hour.toString().padStart(2, '0')}:30`,

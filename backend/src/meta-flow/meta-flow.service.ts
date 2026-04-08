@@ -160,6 +160,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
           services: services,
           date: dates,
           time: timeSlots,
+          available_times: timeSlots,
           is_date_enabled: true,
           is_time_enabled: true
         };
@@ -182,6 +183,10 @@ sxEK+yx6I1EkGaK+/KWEpai7
           ],
           date: this.generateDates(5),
           time: [
+            { id: '10:00', title: '10:00 AM' },
+            { id: '14:00', title: '02:00 PM' }
+          ],
+          available_times: [
             { id: '10:00', title: '10:00 AM' },
             { id: '14:00', title: '02:00 PM' }
           ],
@@ -320,6 +325,7 @@ sxEK+yx6I1EkGaK+/KWEpai7
             services: services,
             date: dates,
             time: timeSlots,
+            available_times: timeSlots,
             is_date_enabled: true,
             is_time_enabled: true
           };

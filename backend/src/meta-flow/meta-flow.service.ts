@@ -207,7 +207,35 @@ sxEK+yx6I1EkGaK+/KWEpai7
       
       // Handle SERVICE_SELECTION screen (when service is selected with on-select-action)
       if (screen === 'SERVICE_SELECTION') {
-        console.log('📝 Processing SERVICE_SELECTION screen - staying on same screen');
+        console.log('📝 Processing SERVICE_SELECTION screen');
+        
+        // Check if date was changed to refresh available times
+        if (data.trigger === 'date_changed' && data.selected_date) {
+          console.log('📅 Date changed, refreshing available times for:', data.selected_date);
+          
+          const services = [
+            { id: 'all', title: 'All' },
+            { id: 'whatsapp_marketing', title: 'WhatsApp Marketing' },
+            { id: 'whatsapp_ecommerce', title: 'WhatsApp Ecommerce' },
+            { id: 'ai_chatbot', title: 'AI Chat Bot' }
+          ];
+          
+          const dates = this.generateDates(5);
+          const timeSlots = this.generateTimeSlots(data.selected_date);
+          
+          return {
+            screen: 'SERVICE_SELECTION',
+            data: {
+              services: services,
+              date: dates,
+              time: timeSlots,
+              available_times: timeSlots,
+              is_date_enabled: true,
+              is_time_enabled: true
+            }
+          };
+        }
+        
         // Just acknowledge the selection, stay on the same screen
         return {
           screen: 'SERVICE_SELECTION',
@@ -381,25 +409,57 @@ sxEK+yx6I1EkGaK+/KWEpai7
     return dates;
   }
 
-  private generateTimeSlots(): Array<{id: string, title: string}> {
-    const slots: Array<{id: string, title: string}> = [];
+  private generateTimeSlots(selectedDate?: string): Array<{id: string, title: string, enabled?: boolean}> {
+    const slots: Array<{id: string, title: string, enabled?: boolean}> = [];
     const startHour = 11;
     const endHour = 18; // 6 PM in 24-hour format
+    
+    // Get current date and time
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    
+    // Check if selected date is today
+    const isToday = selectedDate === today;
     
     for (let hour = startHour; hour < endHour; hour++) {
       // Add :00 slot
       const hour12 = hour > 12 ? hour - 12 : hour;
       const period = hour >= 12 ? 'PM' : 'AM';
+      
+      // Check if this time slot has passed
+      let isEnabled = true;
+      if (isToday) {
+        if (hour < currentHour || (hour === currentHour && currentMinute >= 0)) {
+          isEnabled = false;
+        }
+      }
+      
       slots.push({
         id: `${hour.toString().padStart(2, '0')}:00`,
-        title: `${hour12.toString().padStart(2, '0')}:00 ${period}`
+        title: `${hour12.toString().padStart(2, '0')}:00 ${period}`,
+        ...(isToday && !isEnabled && { enabled: false })
       });
       
       // Add :30 slot
+      isEnabled = true;
+      if (isToday) {
+        if (hour < currentHour || (hour === currentHour && currentMinute >= 30)) {
+          isEnabled = false;
+        }
+      }
+      
       slots.push({
         id: `${hour.toString().padStart(2, '0')}:30`,
-        title: `${hour12.toString().padStart(2, '0')}:30 ${period}`
+        title: `${hour12.toString().padStart(2, '0')}:30 ${period}`,
+        ...(isToday && !isEnabled && { enabled: false })
       });
+    }
+    
+    // Filter out disabled slots for today
+    if (isToday) {
+      return slots.filter(slot => slot.enabled !== false);
     }
     
     return slots;

@@ -438,25 +438,38 @@ sxEK+yx6I1EkGaK+/KWEpai7
     return dates;
   }
 
-  private generateTimeSlots(): Array<{id: string, title: string}> {
+  private generateTimeSlots(selectedDate?: string): Array<{id: string, title: string}> {
     const slots: Array<{id: string, title: string}> = [];
     const startHour = 11;
-    const endHour = 18; // 6 PM in 24-hour format
+    const endHour = 18;
+    
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const isToday = selectedDate === today;
     
     for (let hour = startHour; hour < endHour; hour++) {
-      // Add :00 slot
       const hour12 = hour > 12 ? hour - 12 : hour;
       const period = hour >= 12 ? 'PM' : 'AM';
-      slots.push({
-        id: `${hour.toString().padStart(2, '0')}:00`,
-        title: `${hour12.toString().padStart(2, '0')}:00 ${period}`
-      });
       
-      // Add :30 slot
-      slots.push({
-        id: `${hour.toString().padStart(2, '0')}:30`,
-        title: `${hour12.toString().padStart(2, '0')}:30 ${period}`
-      });
+      if (isToday && (hour < currentHour || (hour === currentHour && currentMinute >= 0))) {
+        // Skip :00 slot if it's in the past
+      } else {
+        slots.push({
+          id: `${hour.toString().padStart(2, '0')}:00`,
+          title: `${hour12.toString().padStart(2, '0')}:00 ${period}`
+        });
+      }
+      
+      if (isToday && (hour < currentHour || (hour === currentHour && currentMinute >= 30))) {
+        // Skip :30 slot if it's in the past
+      } else {
+        slots.push({
+          id: `${hour.toString().padStart(2, '0')}:30`,
+          title: `${hour12.toString().padStart(2, '0')}:30 ${period}`
+        });
+      }
     }
     
     return slots;

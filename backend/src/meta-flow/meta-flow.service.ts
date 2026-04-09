@@ -386,11 +386,16 @@ sxEK+yx6I1EkGaK+/KWEpai7
   
   private generateDates(days: number): Array<{id: string, title: string}> {
     const dates: Array<{id: string, title: string}> = [];
-    const today = new Date();
+    const now = new Date();
+    const currentHour = now.getHours();
+    const lastDemoHour = 18; // Last demo time is 6:00 PM
     
-    for (let i = 0; i < days; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
+    // If current time is past last demo hour, start from tomorrow
+    const startDay = currentHour >= lastDemoHour ? 1 : 0;
+    
+    for (let i = startDay; i < days + startDay; i++) {
+      const date = new Date(now);
+      date.setDate(now.getDate() + i);
       
       const dateStr = date.toISOString().split('T')[0];
       const dateTitle = date.toLocaleDateString('en-US', { 

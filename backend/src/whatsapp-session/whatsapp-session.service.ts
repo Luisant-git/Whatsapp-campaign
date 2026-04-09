@@ -103,6 +103,21 @@ export class WhatsappSessionService {
       console.log('[SessionService] Final quick reply found:', quickReply);
       if (quickReply) {
         const buttons = quickReply.buttons as any[];
+        const sendSeparately = quickReply.sendSeparately || false;
+        
+        // If sendSeparately is true, send text and buttons as separate messages
+        if (sendSeparately && buttons && buttons.length > 0) {
+          // Send text message first (if exists)
+          if (quickReply.title || quickReply.response) {
+            const message = [quickReply.title, quickReply.response].filter(Boolean).join('\n\n');
+            await sendCallback(from, message);
+          }
+          
+          // Then send buttons as separate message
+          const buttonTexts = buttons.map(btn => typeof btn === 'string' ? btn : btn.text);
+          await sendButtonsCallback(from, '', 'Please select an option:', buttonTexts);
+          return true; // Handled
+        }
         
         // If no buttons or empty buttons array, send as simple text message
         if (!buttons || buttons.length === 0) {
@@ -111,7 +126,7 @@ export class WhatsappSessionService {
           return true; // Handled
         }
         
-        // Extract button text for WhatsApp (only text, not type/value)
+        // Send combined message (default behavior)
         const buttonTexts = buttons.map(btn => typeof btn === 'string' ? btn : btn.text);
         const title = quickReply.title || '';
         const response = quickReply.response || 'Please select an option:';

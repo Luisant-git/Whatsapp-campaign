@@ -193,14 +193,15 @@ model AutoReply {
 }
 
 model QuickReply {
-  id        Int      @id @default(autoincrement())
-  title     String?
-  response  String?
-  triggers  String[]
-  buttons   Json?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             Int      @id @default(autoincrement())
+  title          String?
+  response       String?
+  triggers       String[]
+  buttons        Json?
+  sendSeparately Boolean  @default(false)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model Contact {

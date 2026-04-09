@@ -403,3 +403,14 @@
   color: #6c757d;
   margin-left: 4px;
 }
+
+.separate-badge {
+  display: inline-block;
+  background: #e7f3ff;
+  color: #0066cc;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  margin-left: 8px;
+  font-weight: 500;
+}

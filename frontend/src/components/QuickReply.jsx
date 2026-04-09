@@ -14,7 +14,8 @@ const QuickReply = () => {
     title: '',
     response: '',
     triggersText: '',
-    buttons: ['']
+    buttons: [''],
+    sendSeparately: false
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -84,7 +85,8 @@ const QuickReply = () => {
       title: '',
       response: '',
       triggersText: '',
-      buttons: ['']
+      buttons: [''],
+      sendSeparately: false
     });
     setEditingId(null);
     setShowForm(false);
@@ -154,6 +156,7 @@ const QuickReply = () => {
           response: formData.response.trim() || '',
           triggers,
           buttons: validButtons.length > 0 ? validButtons : [],
+          sendSeparately: formData.sendSeparately,
           isActive: true
         })
       });
@@ -185,7 +188,8 @@ const QuickReply = () => {
       title: quickReply.title || '',
       response: quickReply.response || '',
       triggersText: quickReply.triggers.join(', '),
-      buttons: buttons
+      buttons: buttons,
+      sendSeparately: quickReply.sendSeparately || false
     });
     setEditingId(quickReply.id);
     setShowForm(true);
@@ -248,6 +252,7 @@ const QuickReply = () => {
                   </div>
                   <div className="buttons-preview">
                     <strong>Buttons:</strong>
+                    {reply.sendSeparately && <span className="separate-badge">📤 Sent separately</span>}
                     <div className="button-list">
                       {reply.buttons.map((button, i) => {
                         const buttonText = typeof button === 'string' ? button : button.text || button;
@@ -344,6 +349,21 @@ const QuickReply = () => {
                   value={formData.triggersText}
                   onChange={(e) => setFormData({...formData, triggersText: e.target.value})}
                 />
+              </div>
+
+              <div className="form-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={formData.sendSeparately}
+                    onChange={(e) => setFormData({...formData, sendSeparately: e.target.checked})}
+                    style={{ marginRight: '8px' }}
+                  />
+                  Send greeting text and buttons as separate messages
+                </label>
+                <small style={{ display: 'block', marginTop: '4px', color: '#666' }}>
+                  When enabled, the text message will be sent first, followed by the buttons in a second message
+                </small>
               </div>
 
               <div className="form-group">

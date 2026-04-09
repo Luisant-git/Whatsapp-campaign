@@ -684,10 +684,13 @@ export class FlowAppointmentService {
     const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
     const istTime = new Date(now.getTime() + istOffset);
     const currentHour = istTime.getUTCHours();
-    const lastDemoHour = 18; // Last demo time is 6:00 PM
+    const currentMinute = istTime.getUTCMinutes();
+    const lastDemoHour = 17; // Last demo time slot is 5:30 PM (17:30)
+    const lastDemoMinute = 30;
     
-    // If current time is past last demo hour, start from tomorrow
-    const startDay = currentHour >= lastDemoHour ? 1 : 0;
+    // If current time is past last demo slot (5:30 PM), start from tomorrow
+    const isPastLastSlot = currentHour > lastDemoHour || (currentHour === lastDemoHour && currentMinute >= lastDemoMinute);
+    const startDay = isPastLastSlot ? 1 : 0;
     
     for (let i = startDay; i < days + startDay; i++) {
       const date = new Date(istTime);

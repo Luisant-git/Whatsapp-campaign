@@ -108,16 +108,20 @@ export class FlowDataService {
 
   private generateDates(days: number): Array<{id: string, title: string}> {
     const dates: Array<{id: string, title: string}> = [];
+    
+    // Use IST timezone (UTC+5:30)
     const now = new Date();
-    const currentHour = now.getHours();
+    const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+    const istTime = new Date(now.getTime() + istOffset);
+    const currentHour = istTime.getUTCHours();
     const lastDemoHour = 18; // Last demo time is 6:00 PM
     
     // If current time is past last demo hour, start from tomorrow
     const startDay = currentHour >= lastDemoHour ? 1 : 0;
     
     for (let i = startDay; i < days + startDay; i++) {
-      const date = new Date(now);
-      date.setDate(now.getDate() + i);
+      const date = new Date(istTime);
+      date.setDate(istTime.getUTCDate() + i);
       
       const dateStr = date.toISOString().split('T')[0];
       const dateTitle = date.toLocaleDateString('en-US', { 

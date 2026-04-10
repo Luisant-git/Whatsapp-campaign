@@ -2141,7 +2141,7 @@ export class WhatsappService {
 
       const interactive: any = {
         type: 'list',
-        body: { text },
+        body: { text: text || 'Please select an option:' },
         action: {
           button: buttonText.length > 20 ? buttonText.substring(0, 20) : buttonText,
           sections: [

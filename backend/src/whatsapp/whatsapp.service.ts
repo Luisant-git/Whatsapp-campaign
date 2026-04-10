@@ -1623,7 +1623,23 @@ export class WhatsappService {
             tenantClient
           );
         }
-      ).catch(e => {
+      ,
+
+        async (to, title, msg, buttonText, menuItems) => {
+
+          return this.sendListMessageDirect(to, title, msg, buttonText, menuItems,
+
+            whatsappSettings.accessToken,
+
+            whatsappSettings.phoneNumberId,
+
+            tenantClient
+
+          );
+
+        }
+
+        ).catch(e => {
         this.logger.error('Quick Reply error:', e);
         return false;
       });
@@ -1857,7 +1873,23 @@ export class WhatsappService {
             tenantClient
           );
         }
-      ).catch(e => {
+      ,
+
+        async (to, title, msg, buttonText, menuItems) => {
+
+          return this.sendListMessageDirect(to, title, msg, buttonText, menuItems,
+
+            whatsappSettings.accessToken,
+
+            whatsappSettings.phoneNumberId,
+
+            tenantClient
+
+          );
+
+        }
+
+        ).catch(e => {
         this.logger.error('Session error:', e);
         return false;
       });

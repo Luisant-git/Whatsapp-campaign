@@ -414,3 +414,17 @@
   margin-left: 8px;
   font-weight: 500;
 }
+
+.menu-items {
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.menu-count {
+  font-size: 11px;
+  color: #6c757d;
+  margin-left: 6px;
+  font-weight: 500;
+}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Edit } from 'lucide-react';
+import { Plus, Trash2, Edit, ChevronDown } from 'lucide-react';
 import { API_BASE_URL } from '../api/config';
 import { useToast } from '../contexts/ToastContext';
 import { getProfile } from '../api/auth';
@@ -14,7 +14,7 @@ const QuickReply = () => {
     title: '',
     response: '',
     triggersText: '',
-    buttons: [''],
+    buttons: [{ type: 'normal', text: '' }],
     sendSeparately: false
   });
   const [loading, setLoading] = useState(true);
@@ -85,7 +85,7 @@ const QuickReply = () => {
       title: '',
       response: '',
       triggersText: '',
-      buttons: [''],
+      buttons: [{ type: 'normal', text: '' }],
       sendSeparately: false
     });
     setEditingId(null);
@@ -113,7 +113,7 @@ const QuickReply = () => {
   const addButton = () => {
     setFormData({
       ...formData,
-      buttons: [...formData.buttons, '']
+      buttons: [...formData.buttons, { type: 'normal', text: '' }]
     });
   };
 
@@ -122,9 +122,30 @@ const QuickReply = () => {
     setFormData({ ...formData, buttons: newButtons });
   };
 
-  const updateButton = (index, value) => {
+  const updateButton = (index, field, value) => {
     const newButtons = [...formData.buttons];
-    newButtons[index] = value;
+    newButtons[index] = { ...newButtons[index], [field]: value };
+    setFormData({ ...formData, buttons: newButtons });
+  };
+
+  const addMenuItem = (buttonIndex) => {
+    const newButtons = [...formData.buttons];
+    if (!newButtons[buttonIndex].menuItems) {
+      newButtons[buttonIndex].menuItems = [];
+    }
+    newButtons[buttonIndex].menuItems.push('');
+    setFormData({ ...formData, buttons: newButtons });
+  };
+
+  const updateMenuItem = (buttonIndex, menuIndex, value) => {
+    const newButtons = [...formData.buttons];
+    newButtons[buttonIndex].menuItems[menuIndex] = value;
+    setFormData({ ...formData, buttons: newButtons });
+  };
+
+  const removeMenuItem = (buttonIndex, menuIndex) => {
+    const newButtons = [...formData.buttons];
+    newButtons[buttonIndex].menuItems = newButtons[buttonIndex].menuItems.filter((_, i) => i !== menuIndex);
     setFormData({ ...formData, buttons: newButtons });
   };
 
@@ -136,11 +157,11 @@ const QuickReply = () => {
     }
     
     // Filter out empty buttons
-    const validButtons = formData.buttons.filter(b => b.trim());
-    if (validButtons.length > 0 && validButtons.some(b => !b.trim())) {
-      showError('Please complete all button fields or remove empty ones');
-      return;
-    }
+    const validButtons = formData.buttons.filter(b => b.text?.trim()).map(b => ({
+      type: b.type || 'normal',
+      text: b.text.trim(),
+      ...(b.type === 'menu' && b.menuItems ? { menuItems: b.menuItems.filter(m => m.trim()) } : {})
+    }));
 
     setSaving(true);
     try {
@@ -179,9 +200,9 @@ const QuickReply = () => {
     // Handle both old format (string[]) and new format (object[])
     const buttons = quickReply.buttons.map(btn => {
       if (typeof btn === 'string') {
-        return btn;
+        return { type: 'normal', text: btn };
       }
-      return btn.text || '';
+      return { type: btn.type || 'normal', text: btn.text || '', menuItems: btn.menuItems || [] };
     });
 
     setFormData({
@@ -255,11 +276,14 @@ const QuickReply = () => {
                     {reply.sendSeparately && <span className="separate-badge">📤 Sent separately</span>}
                     <div className="button-list">
                       {reply.buttons.map((button, i) => {
-                        const buttonText = typeof button === 'string' ? button : button.text || button;
+                        const btn = typeof button === 'string' ? { type: 'normal', text: button } : button;
                         return (
                           <div key={i} className="button-item">
-                            <span className="button-type-badge">💬</span>
-                            {buttonText}
+                            <span className="button-type-badge">{btn.type === 'menu' ? '📋' : '💬'}</span>
+                            {btn.text}
+                            {btn.type === 'menu' && btn.menuItems?.length > 0 && (
+                              <span className="menu-count">({btn.menuItems.length} items)</span>
+                            )}
                           </div>
                         );
                       })}
@@ -367,15 +391,24 @@ const QuickReply = () => {
               </div>
 
               <div className="form-group">
-                <label>Buttons (Text only) - Optional</label>
+                <label>Buttons - Optional</label>
                 {formData.buttons.map((button, index) => (
                   <div key={index} className="button-config">
                     <div className="button-fields">
+                      <select
+                        value={button.type || 'normal'}
+                        onChange={(e) => updateButton(index, 'type', e.target.value)}
+                        style={{ width: '120px', marginRight: '8px' }}
+                      >
+                        <option value="normal">Normal</option>
+                        <option value="menu">Menu</option>
+                      </select>
                       <input
                         type="text"
-                        placeholder="Button text (e.g., Book Demo, Contact Us)"
-                        value={button}
-                        onChange={(e) => updateButton(index, e.target.value)}
+                        placeholder={button.type === 'menu' ? 'Menu title' : 'Button text'}
+                        value={button.text || ''}
+                        onChange={(e) => updateButton(index, 'text', e.target.value)}
+                        style={{ flex: 1 }}
                       />
                       {formData.buttons.length > 1 && (
                         <button 
@@ -387,6 +420,36 @@ const QuickReply = () => {
                         </button>
                       )}
                     </div>
+                    {button.type === 'menu' && (
+                      <div className="menu-items" style={{ marginLeft: '20px', marginTop: '8px' }}>
+                        {button.menuItems?.map((item, menuIndex) => (
+                          <div key={menuIndex} className="button-fields" style={{ marginBottom: '4px' }}>
+                            <input
+                              type="text"
+                              placeholder="Menu item text"
+                              value={item}
+                              onChange={(e) => updateMenuItem(index, menuIndex, e.target.value)}
+                              style={{ flex: 1 }}
+                            />
+                            <button 
+                              type="button" 
+                              onClick={() => removeMenuItem(index, menuIndex)}
+                              className="btn-danger-small"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
+                        <button 
+                          type="button" 
+                          onClick={() => addMenuItem(index)} 
+                          className="btn-secondary"
+                          style={{ marginTop: '4px', fontSize: '12px', padding: '4px 8px' }}
+                        >
+                          <Plus size={12} /> Add Menu Item
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
                 

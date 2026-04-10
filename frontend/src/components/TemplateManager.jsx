@@ -1025,14 +1025,12 @@ const TemplateManager = () => {
                   background: 'rgba(0, 0, 0, 0.6)',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: 8
+                  justifyContent: 'center'
                 }}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
                     <path d="M8 5v14l11-7z"/>
                   </svg>
                 </div>
-                <ImageIcon size={48} color="#8d949e" strokeWidth={1} />
               </div>
             )
           )}

@@ -122,7 +122,18 @@ export class WhatsappSessionService {
           const menuItems = firstBtn.menuItems || [];
           const message = quickReply.response || 'Please select an option:';
           
-          await sendListCallback(from, quickReply.title || '', message, menuName, menuItems);
+          if (sendSeparately) {
+            // Send text first if exists
+            if (quickReply.title || quickReply.response) {
+              const textMsg = [quickReply.title, quickReply.response].filter(Boolean).join('\n\n');
+              await sendCallback(from, textMsg);
+            }
+            // Then send list separately
+            await sendListCallback(from, '', 'Please select an option:', menuName, menuItems);
+          } else {
+            // Send combined
+            await sendListCallback(from, quickReply.title || '', message, menuName, menuItems);
+          }
           return true;
         }
         

@@ -228,6 +228,7 @@ const TemplateManager = () => {
       name: '',
       category: 'MARKETING',
       language: 'en',
+      headerType: 'NONE',
       components: [{ type: 'BODY', text: 'Hello {{1}}, welcome to our service!' }],
       sampleValues: {},
       // Authentication template specific fields
@@ -996,18 +997,41 @@ const TemplateManager = () => {
                     borderRadius: '6px 6px 0 0'
                   }}
                 />
-                <div className="play-icon-sim" style={{
+                <div style={{
                   position: 'absolute',
                   top: '50%',
                   left: '50%',
-                  transform: 'translate(-50%, -50%)'
+                  transform: 'translate(-50%, -50%)',
+                  width: 48,
+                  height: 48,
+                  borderRadius: '50%',
+                  background: 'rgba(0, 0, 0, 0.6)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
                 }}>
-                  <Plus size={16} fill="white" />
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
                 </div>
               </div>
             ) : (
               <div className="wa-media-placeholder">
-                <div className="play-icon-sim"><Plus size={16} fill="white" /></div>
+                <div style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: '50%',
+                  background: 'rgba(0, 0, 0, 0.6)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 8
+                }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                </div>
                 <ImageIcon size={48} color="#8d949e" strokeWidth={1} />
               </div>
             )
@@ -1029,7 +1053,11 @@ const TemplateManager = () => {
           {/* Body - Always show for authentication templates or when body text exists */}
           {(body?.text || formData.category === 'AUTHENTICATION') && (
             <div className="wa-body" dangerouslySetInnerHTML={{ 
-              __html: body?.text ? formatBody(body.text) : formatBody('{{1}} is your verification code.')
+              __html: body?.text 
+                ? formatBody(body.text) 
+                : formData.category === 'AUTHENTICATION' 
+                ? formatBody('{{1}} is your verification code.')
+                : ''
             }} />
           )}
           
@@ -1597,7 +1625,37 @@ const TemplateManager = () => {
                   <select 
                     className="select-field"
                     value={formData.category}
-                    onChange={(e) => setFormData({...formData, category: e.target.value})}
+                    onChange={(e) => {
+                      const newCategory = e.target.value;
+                      const components = Array.isArray(formData.components) ? formData.components : [];
+                      
+                      // If switching to Authentication category, update body text to valid format
+                      if (newCategory === 'AUTHENTICATION') {
+                        const bodyIndex = components.findIndex(c => c.type === 'BODY');
+                        const updatedComponents = [...components];
+                        
+                        if (bodyIndex !== -1) {
+                          updatedComponents[bodyIndex] = {
+                            type: 'BODY',
+                            text: '{{1}} is your verification code.'
+                          };
+                        } else {
+                          updatedComponents.push({
+                            type: 'BODY',
+                            text: '{{1}} is your verification code.'
+                          });
+                        }
+                        
+                        setFormData({
+                          ...formData, 
+                          category: newCategory,
+                          components: updatedComponents
+                        });
+                      } else {
+                        // For other categories, keep existing body or set default
+                        setFormData({...formData, category: newCategory});
+                      }
+                    }}
                   >
                     {categories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
@@ -1954,11 +2012,15 @@ const TemplateManager = () => {
                                 const headerIndex = components.findIndex(c => c.type === 'HEADER');
                                 
                                 if (type === 'NONE') {
-                                  // Remove header component if exists
+                                  // Remove header component completely
                                   if (headerIndex !== -1) {
-                                    removeComponent(headerIndex);
+                                    const updatedComponents = components.filter((_, idx) => idx !== headerIndex);
+                                    setFormData({...formData, headerType: type, components: updatedComponents});
+                                  } else {
+                                    setFormData({...formData, headerType: type});
                                   }
-                                  setFormData({...formData, headerType: type});
+                                  // Clear uploaded file if any
+                                  setUploadedFile(null);
                                 } else {
                                   // Add or update header component
                                   if (headerIndex === -1) {

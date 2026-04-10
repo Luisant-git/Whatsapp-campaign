@@ -14,7 +14,9 @@ const QuickReply = () => {
     title: '',
     response: '',
     triggersText: '',
-    buttons: [{ type: 'normal', text: '' }],
+    buttonType: 'normal',
+    menuName: '',
+    buttons: [''],
     sendSeparately: false
   });
   const [loading, setLoading] = useState(true);
@@ -85,7 +87,9 @@ const QuickReply = () => {
       title: '',
       response: '',
       triggersText: '',
-      buttons: [{ type: 'normal', text: '' }],
+      buttonType: 'normal',
+      menuName: '',
+      buttons: [''],
       sendSeparately: false
     });
     setEditingId(null);
@@ -113,7 +117,7 @@ const QuickReply = () => {
   const addButton = () => {
     setFormData({
       ...formData,
-      buttons: [...formData.buttons, { type: 'normal', text: '' }]
+      buttons: [...formData.buttons, '']
     });
   };
 
@@ -122,30 +126,9 @@ const QuickReply = () => {
     setFormData({ ...formData, buttons: newButtons });
   };
 
-  const updateButton = (index, field, value) => {
+  const updateButton = (index, value) => {
     const newButtons = [...formData.buttons];
-    newButtons[index] = { ...newButtons[index], [field]: value };
-    setFormData({ ...formData, buttons: newButtons });
-  };
-
-  const addMenuItem = (buttonIndex) => {
-    const newButtons = [...formData.buttons];
-    if (!newButtons[buttonIndex].menuItems) {
-      newButtons[buttonIndex].menuItems = [];
-    }
-    newButtons[buttonIndex].menuItems.push('');
-    setFormData({ ...formData, buttons: newButtons });
-  };
-
-  const updateMenuItem = (buttonIndex, menuIndex, value) => {
-    const newButtons = [...formData.buttons];
-    newButtons[buttonIndex].menuItems[menuIndex] = value;
-    setFormData({ ...formData, buttons: newButtons });
-  };
-
-  const removeMenuItem = (buttonIndex, menuIndex) => {
-    const newButtons = [...formData.buttons];
-    newButtons[buttonIndex].menuItems = newButtons[buttonIndex].menuItems.filter((_, i) => i !== menuIndex);
+    newButtons[index] = value;
     setFormData({ ...formData, buttons: newButtons });
   };
 
@@ -157,11 +140,23 @@ const QuickReply = () => {
     }
     
     // Filter out empty buttons
-    const validButtons = formData.buttons.filter(b => b.text?.trim()).map(b => ({
-      type: b.type || 'normal',
-      text: b.text.trim(),
-      ...(b.type === 'menu' && b.menuItems ? { menuItems: b.menuItems.filter(m => m.trim()) } : {})
-    }));
+    const validButtons = formData.buttons.filter(b => b.trim());
+    
+    // Prepare button data based on type
+    let buttonData;
+    if (formData.buttonType === 'menu') {
+      if (!formData.menuName.trim()) {
+        showError('Please provide a menu name');
+        return;
+      }
+      if (validButtons.length === 0) {
+        showError('Please add at least one menu item');
+        return;
+      }
+      buttonData = [{ type: 'menu', text: formData.menuName.trim(), menuItems: validButtons }];
+    } else {
+      buttonData = validButtons.map(b => ({ type: 'normal', text: b }));
+    }
 
     setSaving(true);
     try {
@@ -176,7 +171,7 @@ const QuickReply = () => {
           title: formData.title.trim() || '',
           response: formData.response.trim() || '',
           triggers,
-          buttons: validButtons.length > 0 ? validButtons : [],
+          buttons: buttonData,
           sendSeparately: formData.sendSeparately,
           isActive: true
         })
@@ -197,21 +192,35 @@ const QuickReply = () => {
   };
 
   const handleEdit = (quickReply) => {
-    // Handle both old format (string[]) and new format (object[])
-    const buttons = quickReply.buttons.map(btn => {
-      if (typeof btn === 'string') {
-        return { type: 'normal', text: btn };
-      }
-      return { type: btn.type || 'normal', text: btn.text || '', menuItems: btn.menuItems || [] };
-    });
-
-    setFormData({
-      title: quickReply.title || '',
-      response: quickReply.response || '',
-      triggersText: quickReply.triggers.join(', '),
-      buttons: buttons,
-      sendSeparately: quickReply.sendSeparately || false
-    });
+    // Check if it's a menu type
+    const firstBtn = quickReply.buttons[0];
+    const isMenu = firstBtn && typeof firstBtn === 'object' && firstBtn.type === 'menu';
+    
+    if (isMenu) {
+      setFormData({
+        title: quickReply.title || '',
+        response: quickReply.response || '',
+        triggersText: quickReply.triggers.join(', '),
+        buttonType: 'menu',
+        menuName: firstBtn.text || '',
+        buttons: firstBtn.menuItems || [''],
+        sendSeparately: quickReply.sendSeparately || false
+      });
+    } else {
+      // Normal buttons
+      const buttons = quickReply.buttons.map(btn => 
+        typeof btn === 'string' ? btn : btn.text || ''
+      );
+      setFormData({
+        title: quickReply.title || '',
+        response: quickReply.response || '',
+        triggersText: quickReply.triggers.join(', '),
+        buttonType: 'normal',
+        menuName: '',
+        buttons: buttons.length > 0 ? buttons : [''],
+        sendSeparately: quickReply.sendSeparately || false
+      });
+    }
     setEditingId(quickReply.id);
     setShowForm(true);
   };
@@ -391,72 +400,80 @@ const QuickReply = () => {
               </div>
 
               <div className="form-group">
-                <label>Buttons - Optional</label>
-                {formData.buttons.map((button, index) => (
-                  <div key={index} className="button-config">
-                    <div className="button-fields">
-                      <select
-                        value={button.type || 'normal'}
-                        onChange={(e) => updateButton(index, 'type', e.target.value)}
-                        style={{ width: '120px', marginRight: '8px' }}
-                      >
-                        <option value="normal">Normal</option>
-                        <option value="menu">Menu</option>
-                      </select>
-                      <input
-                        type="text"
-                        placeholder={button.type === 'menu' ? 'Menu title' : 'Button text'}
-                        value={button.text || ''}
-                        onChange={(e) => updateButton(index, 'text', e.target.value)}
-                        style={{ flex: 1 }}
-                      />
-                      {formData.buttons.length > 1 && (
-                        <button 
-                          type="button" 
-                          onClick={() => removeButton(index)}
-                          className="btn-danger-small"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </div>
-                    {button.type === 'menu' && (
-                      <div className="menu-items" style={{ marginLeft: '20px', marginTop: '8px' }}>
-                        {button.menuItems?.map((item, menuIndex) => (
-                          <div key={menuIndex} className="button-fields" style={{ marginBottom: '4px' }}>
-                            <input
-                              type="text"
-                              placeholder="Menu item text"
-                              value={item}
-                              onChange={(e) => updateMenuItem(index, menuIndex, e.target.value)}
-                              style={{ flex: 1 }}
-                            />
-                            <button 
-                              type="button" 
-                              onClick={() => removeMenuItem(index, menuIndex)}
-                              className="btn-danger-small"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        ))}
-                        <button 
-                          type="button" 
-                          onClick={() => addMenuItem(index)} 
-                          className="btn-secondary"
-                          style={{ marginTop: '4px', fontSize: '12px', padding: '4px 8px' }}
-                        >
-                          <Plus size={12} /> Add Menu Item
-                        </button>
+                <label>Button Type</label>
+                <select
+                  value={formData.buttonType}
+                  onChange={(e) => setFormData({...formData, buttonType: e.target.value})}
+                  style={{ width: '100%', padding: '10px', marginBottom: '16px' }}
+                >
+                  <option value="normal">Normal Buttons</option>
+                  <option value="menu">Menu (Dropdown)</option>
+                </select>
+
+                {formData.buttonType === 'menu' ? (
+                  <>
+                    <label>Menu Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Our Services, Options, Choose One"
+                      value={formData.menuName}
+                      onChange={(e) => setFormData({...formData, menuName: e.target.value})}
+                      style={{ marginBottom: '16px' }}
+                    />
+                    <label>Menu Items</label>
+                    {formData.buttons.map((button, index) => (
+                      <div key={index} className="button-fields" style={{ marginBottom: '8px' }}>
+                        <input
+                          type="text"
+                          placeholder={`Item ${index + 1}`}
+                          value={button}
+                          onChange={(e) => updateButton(index, e.target.value)}
+                        />
+                        {formData.buttons.length > 1 && (
+                          <button 
+                            type="button" 
+                            onClick={() => removeButton(index)}
+                            className="btn-danger-small"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
+                    ))}
+                    {formData.buttons.length < 10 && (
+                      <button type="button" onClick={addButton} className="btn-secondary">
+                        <Plus size={16} /> Add Menu Item
+                      </button>
                     )}
-                  </div>
-                ))}
-                
-                {formData.buttons.length < 3 && (
-                  <button type="button" onClick={addButton} className="btn-secondary">
-                    <Plus size={16} /> Add Button
-                  </button>
+                  </>
+                ) : (
+                  <>
+                    <label>Buttons</label>
+                    {formData.buttons.map((button, index) => (
+                      <div key={index} className="button-fields" style={{ marginBottom: '8px' }}>
+                        <input
+                          type="text"
+                          placeholder="Button text"
+                          value={button}
+                          onChange={(e) => updateButton(index, e.target.value)}
+                        />
+                        {formData.buttons.length > 1 && (
+                          <button 
+                            type="button" 
+                            onClick={() => removeButton(index)}
+                            className="btn-danger-small"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {formData.buttons.length < 3 && (
+                      <button type="button" onClick={addButton} className="btn-secondary">
+                        <Plus size={16} /> Add Button
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
 

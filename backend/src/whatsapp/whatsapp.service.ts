@@ -2100,6 +2100,69 @@ export class WhatsappService {
     }
   }
 
+  async sendListMessageDirect(to: string, title: string, text: string, buttonText: string, menuItems: string[], accessToken: string, phoneNumberId: string, tenantClient: any) {
+    try {
+      const rows = menuItems.slice(0, 10).map((item, index) => ({
+        id: `item_${index}`,
+        title: item.length > 24 ? item.substring(0, 24) : item
+      }));
+
+      const interactive: any = {
+        type: 'list',
+        body: { text },
+        action: {
+          button: buttonText.length > 20 ? buttonText.substring(0, 20) : buttonText,
+          sections: [
+            {
+              title: 'Options',
+              rows
+            }
+          ]
+        }
+      };
+
+      if (title && title.trim()) {
+        interactive.header = {
+          type: 'text',
+          text: title
+        };
+      }
+
+      const response = await axios.post(
+        `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          to,
+          type: 'interactive',
+          interactive
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      await tenantClient.whatsAppMessage.create({
+        data: {
+          messageId: response.data.messages[0].id,
+          to,
+          from: to,
+          message: `Interactive list: ${title} - ${text}`,
+          direction: 'outgoing',
+          status: 'sent',
+          phoneNumberId,
+        }
+      });
+
+      return { success: true, messageId: response.data.messages[0].id };
+    } catch (error) {
+      this.logger.error('WhatsApp List API Error:', error.response?.data || error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
   async sendBulkTemplateMessage(phoneNumbers: string[], templateName: string, userId: number, parameters?: any[]) {
     const settings = await this.getSettings(userId);
     const results: Array<{ phoneNumber: string; success: boolean; messageId?: string; error?: string }> = [];

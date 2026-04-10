@@ -26,6 +26,13 @@ export class WhatsappSessionService {
       text: string,
       buttons: string[],
     ) => Promise<any>,
+    sendListCallback?: (
+      to: string,
+      title: string,
+      text: string,
+      buttonText: string,
+      menuItems: string[],
+    ) => Promise<any>,
   ): Promise<boolean> {
     const lowerText = text.toLowerCase().trim();
     console.log('[SessionService] Processing message:', lowerText, 'for userId:', userId);
@@ -104,6 +111,20 @@ export class WhatsappSessionService {
       if (quickReply) {
         const buttons = quickReply.buttons as any[];
         const sendSeparately = quickReply.sendSeparately || false;
+        
+        // Check if it's a menu type (list message)
+        const firstBtn = buttons && buttons[0];
+        const isMenu = firstBtn && typeof firstBtn === 'object' && firstBtn.type === 'menu';
+        
+        if (isMenu && sendListCallback) {
+          // Send as WhatsApp List Message
+          const menuName = firstBtn.text || 'Options';
+          const menuItems = firstBtn.menuItems || [];
+          const message = quickReply.response || 'Please select an option:';
+          
+          await sendListCallback(from, quickReply.title || '', message, menuName, menuItems);
+          return true;
+        }
         
         // If sendSeparately is true, send text and buttons as separate messages
         if (sendSeparately && buttons && buttons.length > 0) {

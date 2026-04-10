@@ -1017,7 +1017,13 @@ const TemplateManager = () => {
                 </div>
               </div>
             ) : (
-              <div className="wa-media-placeholder"></div>
+              <div style={{
+                width: '100%',
+                height: 180,
+                background: '#f0f2f5',
+                borderRadius: '6px',
+                marginBottom: 8
+              }}></div>
             )
           )}
           {formData.headerType === 'DOCUMENT' && (

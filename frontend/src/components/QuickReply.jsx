@@ -16,6 +16,7 @@ const QuickReply = () => {
     triggersText: '',
     buttonType: 'normal',
     menuName: '',
+    menuButtonText: '',
     buttons: [''],
     sendSeparately: false
   });
@@ -89,6 +90,7 @@ const QuickReply = () => {
       triggersText: '',
       buttonType: 'normal',
       menuName: '',
+      menuButtonText: '',
       buttons: [''],
       sendSeparately: false
     });
@@ -145,15 +147,15 @@ const QuickReply = () => {
     // Prepare button data based on type
     let buttonData;
     if (formData.buttonType === 'menu') {
-      if (!formData.menuName.trim()) {
-        showError('Please provide a menu name');
+      if (!formData.menuButtonText.trim()) {
+        showError('Please provide a button text for the menu');
         return;
       }
       if (validButtons.length === 0) {
         showError('Please add at least one menu item');
         return;
       }
-      buttonData = [{ type: 'menu', text: formData.menuName.trim(), menuItems: validButtons }];
+      buttonData = [{ type: 'menu', text: formData.menuButtonText.trim(), menuItems: validButtons }];
     } else {
       buttonData = validButtons.map(b => ({ type: 'normal', text: b }));
     }
@@ -202,7 +204,8 @@ const QuickReply = () => {
         response: quickReply.response || '',
         triggersText: quickReply.triggers.join(', '),
         buttonType: 'menu',
-        menuName: firstBtn.text || '',
+        menuName: '',
+        menuButtonText: firstBtn.text || '',
         buttons: firstBtn.menuItems || [''],
         sendSeparately: quickReply.sendSeparately || false
       });
@@ -217,6 +220,7 @@ const QuickReply = () => {
         triggersText: quickReply.triggers.join(', '),
         buttonType: 'normal',
         menuName: '',
+        menuButtonText: '',
         buttons: buttons.length > 0 ? buttons : [''],
         sendSeparately: quickReply.sendSeparately || false
       });
@@ -412,12 +416,12 @@ const QuickReply = () => {
 
                 {formData.buttonType === 'menu' ? (
                   <>
-                    <label>Menu Name</label>
+                    <label>Button Text (Menu Name)</label>
                     <input
                       type="text"
-                      placeholder="e.g., Our Services, Options, Choose One"
-                      value={formData.menuName}
-                      onChange={(e) => setFormData({...formData, menuName: e.target.value})}
+                      placeholder="e.g., View Options, Select Service"
+                      value={formData.menuButtonText}
+                      onChange={(e) => setFormData({...formData, menuButtonText: e.target.value})}
                       style={{ marginBottom: '16px' }}
                     />
                     <label>Menu Items</label>

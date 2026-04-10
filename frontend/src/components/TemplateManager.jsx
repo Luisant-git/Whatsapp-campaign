@@ -1017,21 +1017,7 @@ const TemplateManager = () => {
                 </div>
               </div>
             ) : (
-              <div className="wa-media-placeholder">
-                <div style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: '50%',
-                  background: 'rgba(0, 0, 0, 0.6)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                    <path d="M8 5v14l11-7z"/>
-                  </svg>
-                </div>
-              </div>
+              <div className="wa-media-placeholder"></div>
             )
           )}
           {formData.headerType === 'DOCUMENT' && (

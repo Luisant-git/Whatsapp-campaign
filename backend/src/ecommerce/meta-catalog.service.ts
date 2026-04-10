@@ -1154,9 +1154,9 @@ export class MetaCatalogService {
               items: orderItems // This will recreate the items
             }, userId);
             
-            // Send owner notification for confirmed order
-            if (paymentMethod === 'cod' || paymentMethod === 'razorpay') {
-              console.log('🔔 Order confirmed via Meta Catalog! Sending owner notification...');
+            // Send owner notification ONLY for COD orders (not for online payment)
+            if (paymentMethod === 'cod') {
+              console.log('🔔 COD Order confirmed via Meta Catalog! Sending owner notification...');
               try {
                 const user = await this.centralPrisma.tenant.findUnique({ where: { id: userId } });
                 const tenantClient = await this.ecommerceService['getTenantClient'](userId);
@@ -1170,11 +1170,13 @@ export class MetaCatalogService {
                     settings.accessToken,
                     settings.phoneNumberId
                   );
-                  console.log('✅ Owner notification sent for Meta Catalog order');
+                  console.log('✅ Owner notification sent for COD order');
                 }
               } catch (notifError) {
                 console.error('❌ Failed to send owner notification:', notifError.message);
               }
+            } else {
+              console.log('⏳ Online payment order - owner notification will be sent after payment success');
             }
           } else {
             // Create new order
@@ -1659,8 +1661,29 @@ export class MetaCatalogService {
     
     const confirmationMessage = `✅ *Payment Successful!*\n\nOrder #${orderId}\nProduct: ${productName}\nAmount: ₹${orderDetails.totalAmount}\n\nName: ${orderDetails.customerName}\nAddress: ${orderDetails.customerAddress}\n\nYour order is confirmed. We'll contact you soon 🙂`;
     
-    console.log('[Payment] Payment successful, sending confirmation notification');
+    console.log('[Payment] Payment successful, sending confirmation notification to customer');
     await this.sendTextMessage(orderDetails.customerPhone, phoneNumberId, confirmationMessage);
+    
+    // Send owner notification after successful payment
+    console.log('🔔 Payment successful! Sending owner notification...');
+    try {
+      const user = await this.centralPrisma.tenant.findUnique({ where: { id: userId } });
+      const tenantClient = await this.ecommerceService['getTenantClient'](userId);
+      const settings = await tenantClient.whatsAppSettings.findFirst();
+      
+      if (user?.phoneNumber && settings) {
+        await this.ownerNotification.notifyOrderPlaced(
+          orderDetails,
+          user.phoneNumber,
+          settings.accessToken,
+          settings.phoneNumberId
+        );
+        console.log('✅ Owner notification sent after successful payment');
+      }
+    } catch (notifError) {
+      console.error('❌ Failed to send owner notification:', notifError.message);
+    }
+    
     return order;
   }
 }

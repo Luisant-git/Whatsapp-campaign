@@ -38,14 +38,18 @@ export class EcommerceController {
 
   @Get('payment-callback')
   async paymentCallback(@Query() query: any) {
-    const { razorpay_payment_id, razorpay_payment_link_id } = query;
+    const { razorpay_payment_id, razorpay_payment_link_id, razorpay_payment_link_status } = query;
     const orderId = parseInt(query.order_id);
     const userId = parseInt(query.user_id);
 
-    if (razorpay_payment_id && orderId) {
+    // Only send notification if payment was successful
+    if (razorpay_payment_id && orderId && razorpay_payment_link_status === 'paid') {
+      console.log('[Payment Callback] Payment successful, sending notification');
       await this.metaCatalogService.handlePaymentSuccess(orderId, razorpay_payment_id, userId);
       return '<html><body><h1>Payment Successful!</h1><p>Your order is confirmed. You will receive a WhatsApp message shortly.</p></body></html>';
     }
+    
+    console.log('[Payment Callback] Payment failed or incomplete');
     return '<html><body><h1>Payment Failed</h1><p>Please try again.</p></body></html>';
   }
 

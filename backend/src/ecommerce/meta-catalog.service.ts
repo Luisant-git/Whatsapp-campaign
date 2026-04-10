@@ -1638,6 +1638,13 @@ export class MetaCatalogService {
   }
 
   async handlePaymentSuccess(orderId: number, paymentId: string, userId: number) {
+    // First verify payment is actually successful
+    if (!paymentId) {
+      console.log('[Payment] No payment ID provided, skipping notification');
+      return null;
+    }
+    
+    // Update order status to paid
     const order = await this.ecommerceService.updateOrder(orderId, {
       paymentStatus: 'paid',
       status: 'confirmed',
@@ -1646,11 +1653,13 @@ export class MetaCatalogService {
     const orderDetails = await this.ecommerceService.getOrder(orderId, userId);
     if (!orderDetails) return order;
     
+    // ONLY send notification after payment is confirmed successful
     const phoneNumberId = process.env.PHONE_NUMBER_ID || '';
     const productName = orderDetails.items?.[0]?.product?.name || 'Product';
     
     const confirmationMessage = `✅ *Payment Successful!*\n\nOrder #${orderId}\nProduct: ${productName}\nAmount: ₹${orderDetails.totalAmount}\n\nName: ${orderDetails.customerName}\nAddress: ${orderDetails.customerAddress}\n\nYour order is confirmed. We'll contact you soon 🙂`;
     
+    console.log('[Payment] Payment successful, sending confirmation notification');
     await this.sendTextMessage(orderDetails.customerPhone, phoneNumberId, confirmationMessage);
     return order;
   }

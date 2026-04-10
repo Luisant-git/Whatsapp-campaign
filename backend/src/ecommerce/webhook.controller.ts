@@ -46,11 +46,12 @@ export class WebhookController {
 
   @Post('razorpay')
   async handleRazorpayWebhook(@Body() body: any, @Headers() headers: any) {
-    console.log('Razorpay webhook received:', body);
+    console.log('[Razorpay Webhook] Received:', body.event);
 
     const event = body.event;
     const payload = body.payload?.payment?.entity || body.payload?.order?.entity;
 
+    // Only process successful payment events
     if (event === 'payment.captured' || event === 'order.paid') {
       const notes = payload.notes || {};
       const orderId = parseInt(notes.order_id);
@@ -58,6 +59,7 @@ export class WebhookController {
       const referenceId = notes.reference_id;
 
       if (orderId) {
+        console.log('[Razorpay Webhook] Payment successful for order:', orderId);
         await this.ecommerceService.updateOrderStatus(orderId, 'placed', userId);
         
         const order = await this.ecommerceService.getOrder(orderId, userId);
@@ -71,6 +73,8 @@ export class WebhookController {
               'completed'
             );
             
+            // Send confirmation ONLY after payment is captured
+            console.log('[Razorpay Webhook] Sending order confirmation notification');
             await this.razorpayService.sendOrderConfirmation(
               order.customerPhone,
               phoneNumberId,
@@ -79,6 +83,8 @@ export class WebhookController {
           }
         }
       }
+    } else {
+      console.log('[Razorpay Webhook] Non-success event, skipping notification:', event);
     }
 
     return { status: 'ok' };

@@ -34,7 +34,7 @@ const MetaLeads = () => {
   };
 
   const syncLeads = async () => {
-    const formId = prompt('Enter Form ID from Meta Leads Centre:');
+    const formId = prompt('Enter Form ID from Meta Leads:');
     
     if (!formId) return;
 
@@ -78,7 +78,7 @@ const MetaLeads = () => {
   return (
     <div className="meta-leads-container">
       <div className="leads-header">
-        <h1>Meta Leads Centre</h1>
+        <h1>Meta Leads Center</h1>
         <div className="leads-actions">
           <button onClick={syncLeads} disabled={syncing} className="sync-btn">
             <RefreshCw size={16} />

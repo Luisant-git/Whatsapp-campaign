@@ -45,16 +45,18 @@ const MetaLeads = () => {
 
     try {
       setSyncing(true);
-      const { data: config } = await axios.get(`${API_BASE_URL}/master-config`, {
+      
+      // Get Meta Config instead of Master Config
+      const { data: metaConfigs } = await axios.get(`${API_BASE_URL}/meta-config`, {
         withCredentials: true,
       });
       
-      if (!config || config.length === 0) {
-        alert('No Master Config found. Please configure Master Config first.');
+      if (!metaConfigs || metaConfigs.length === 0) {
+        alert('No Meta Leads Config found. Please configure Meta Leads first in Settings.');
         return;
       }
 
-      const activeConfig = config.find(c => c.isActive) || config[0];
+      const activeConfig = metaConfigs.find(c => c.isActive) || metaConfigs[0];
       
       // Get form info to extract page ID
       const { data: formInfo } = await axios.get(
@@ -62,7 +64,7 @@ const MetaLeads = () => {
         { withCredentials: true }
       );
       
-      const pageId = formInfo.page_id;
+      const pageId = formInfo.page_id || activeConfig.pageId;
       
       if (!pageId) {
         alert('Could not determine Page ID from form. Please contact support.');
@@ -73,7 +75,7 @@ const MetaLeads = () => {
         pageId,
         formId, 
         accessToken: activeConfig.accessToken,
-        phoneNumberId: activeConfig.phoneNumberId,
+        phoneNumberId: activeConfig.pageId, // Use pageId as identifier
       }, {
         withCredentials: true,
       });

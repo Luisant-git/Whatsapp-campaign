@@ -574,9 +574,10 @@ model MessageTemplate {
 
 model MetaConfig {
   id           Int      @id @default(autoincrement())
-  pageId       String   @unique
+  name         String   @unique
+  pageId       String
   accessToken  String
-  verifyToken  String
+  verifyToken  String?
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

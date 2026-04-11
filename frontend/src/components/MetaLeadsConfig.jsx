@@ -101,12 +101,14 @@ const MetaLeadsConfig = () => {
   };
 
   return (
-    <div className="meta-config-container">
-      <div className="config-header">
-        <h1>Meta Leads Configuration</h1>
-        <button onClick={() => setShowForm(true)} className="btn-primary">
-          <Plus size={16} />
-          Add Configuration
+    <div className="settings-container">
+      <div className="settings-header">
+        <div>
+          <h1>Meta Leads Configuration</h1>
+          <p>Manage Facebook Page credentials for Meta Lead Forms integration.</p>
+        </div>
+        <button className="btn-primary" onClick={() => setShowForm(true)}>
+          <Plus size={16} /> Add Configuration
         </button>
       </div>
 
@@ -191,7 +193,7 @@ const MetaLeadsConfig = () => {
         </div>
       )}
 
-      <div className="configs-list">
+      <div className="settings-list">
         {loading ? (
           <div className="loading">Loading configurations...</div>
         ) : configs.length === 0 ? (
@@ -200,32 +202,34 @@ const MetaLeadsConfig = () => {
             <p>Click "Add Configuration" to create one.</p>
           </div>
         ) : (
-          configs.map((config) => (
-            <div key={config.id} className="config-card">
-              <div className="config-info">
-                <h3>{config.name}</h3>
-                <div className="config-details">
-                  <p><strong>Page ID:</strong> {config.pageId}</p>
-                  <p><strong>Status:</strong> 
-                    <span className={`status ${config.isActive ? 'active' : 'inactive'}`}>
-                      {config.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </p>
-                  <p><strong>Created:</strong> {new Date(config.createdAt).toLocaleDateString()}</p>
+          <div className="configurations-grid">
+            {configs.map((config) => (
+              <div key={config.id} className="config-card">
+                <div className="config-info">
+                  <h3>{config.name}</h3>
+                  <div className="config-details">
+                    <p><strong>Page ID:</strong> {config.pageId}</p>
+                    <p><strong>Status:</strong> 
+                      <span className={`status ${config.isActive ? 'active' : 'inactive'}`}>
+                        {config.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </p>
+                    <p><strong>Created:</strong> {new Date(config.createdAt).toLocaleDateString()}</p>
+                  </div>
+                </div>
+                <div className="config-actions">
+                  <button onClick={() => handleEdit(config)} className="btn-secondary">
+                    <Edit2 size={16} />
+                    Edit
+                  </button>
+                  <button onClick={() => handleDelete(config.id)} className="btn-danger">
+                    <Trash2 size={16} />
+                    Delete
+                  </button>
                 </div>
               </div>
-              <div className="config-actions">
-                <button onClick={() => handleEdit(config)} className="btn-edit">
-                  <Edit2 size={16} />
-                  Edit
-                </button>
-                <button onClick={() => handleDelete(config.id)} className="btn-delete">
-                  <Trash2 size={16} />
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
     </div>

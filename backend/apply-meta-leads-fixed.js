@@ -6,17 +6,23 @@ const { URL } = require('url');
 
 function parsePostgresUrl(urlString) {
   try {
+    // Handle case where URL might not have protocol
+    if (!urlString.startsWith('postgres://') && !urlString.startsWith('postgresql://')) {
+      urlString = 'postgresql://' + urlString;
+    }
+    
     const url = new URL(urlString);
     return {
       host: url.hostname,
       port: url.port || 5432,
-      database: url.pathname.slice(1),
+      database: url.pathname.slice(1).split('?')[0], // Remove query params from db name
       user: decodeURIComponent(url.username),
       password: decodeURIComponent(url.password),
       ssl: url.searchParams.get('sslmode') === 'require' ? { rejectUnauthorized: false } : false,
     };
   } catch (error) {
-    console.error('Failed to parse URL:', error.message);
+    console.error('Failed to parse URL:', urlString);
+    console.error('Error:', error.message);
     return null;
   }
 }

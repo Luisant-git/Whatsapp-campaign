@@ -26,7 +26,6 @@ export const MENU_CONFIG = [
       children: [
         { key: "campaigns.bulk", label: "Compose Campaign" },
         { key: "campaigns.reports", label: "Campaign Reports" },
-        { key: "campaigns.meta-leads", label: "Meta Leads" },
         { key: "automation.logs", label: "Automation Logs", icon: "clipboardList" }
       ],
     },

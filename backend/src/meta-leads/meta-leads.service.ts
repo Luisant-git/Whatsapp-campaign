@@ -8,6 +8,11 @@ export class MetaLeadsService {
 
   constructor(private prisma: TenantPrismaService) {}
 
+  private getClient(tenantId: string) {
+    const dbUrl = process.env.TENANT_DATABASE_URL || '';
+    return this.prisma.getTenantClient(tenantId, dbUrl) as any;
+  }
+
   async getLeads(tenantId: string, page = 1, limit = 10, search = '', status = '') {
     const skip = (page - 1) * limit;
     const where: any = {};
@@ -24,30 +29,40 @@ export class MetaLeadsService {
       where.status = status;
     }
 
-    const [leads, total] = await Promise.all([
-      this.prisma['metaLead'].findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdTime: 'desc' },
-      }),
-      this.prisma['metaLead'].count({ where }),
-    ]);
+    try {
+      const client = this.getClient(tenantId);
+      const [leads, total] = await Promise.all([
+        client.metaLead.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { createdTime: 'desc' },
+        }),
+        client.metaLead.count({ where }),
+      ]);
 
-    return {
-      data: leads,
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    };
+      return {
+        data: leads,
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      };
+    } catch (error) {
+      this.logger.error('Error fetching leads:', error);
+      return {
+        data: [],
+        pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+      };
+    }
   }
 
-  async updateLeadStatus(id: number, status: string) {
-    return this.prisma['metaLead'].update({
+  async updateLeadStatus(id: number, status: string, tenantId: string) {
+    const client = this.getClient(tenantId);
+    return client.metaLead.update({
       where: { id },
       data: { status },
     });
   }
 
-  async syncLeadsFromFacebook(pageId: string, formId: string, accessToken: string, phoneNumberId?: string) {
+  async syncLeadsFromFacebook(pageId: string, formId: string, accessToken: string, phoneNumberId?: string, tenantId?: string) {
     try {
       const url = `https://graph.facebook.com/v25.0/${formId}/leads`;
       const { data } = await axios.get(url, {
@@ -56,11 +71,12 @@ export class MetaLeadsService {
 
       const leads = data.data || [];
       const savedLeads: any[] = [];
+      const client = this.getClient(tenantId || 'default');
 
       for (const lead of leads) {
         const fieldData = this.parseLeadFields(lead.field_data);
         
-        const saved = await this.prisma['metaLead'].upsert({
+        const saved = await client.metaLead.upsert({
           where: { leadId: lead.id },
           update: { ...fieldData },
           create: {
@@ -73,7 +89,7 @@ export class MetaLeadsService {
         });
 
         if (fieldData.phone) {
-          await this.syncToContact(fieldData, phoneNumberId);
+          await this.syncToContact(fieldData, phoneNumberId, tenantId);
         }
 
         savedLeads.push(saved);
@@ -86,9 +102,10 @@ export class MetaLeadsService {
     }
   }
 
-  private async syncToContact(leadData: any, phoneNumberId?: string) {
+  private async syncToContact(leadData: any, phoneNumberId?: string, tenantId?: string) {
     try {
-      await this.prisma['contact'].upsert({
+      const client = this.getClient(tenantId || 'default');
+      await client.contact.upsert({
         where: {
           phone_phoneNumberId: {
             phone: leadData.phone,
@@ -127,7 +144,7 @@ export class MetaLeadsService {
     return parsed;
   }
 
-  async handleWebhook(body: any) {
+  async handleWebhook(body: any, tenantId?: string) {
     try {
       const entry = body.entry?.[0];
       const changes = entry?.changes?.[0];
@@ -137,7 +154,8 @@ export class MetaLeadsService {
         const pageId = changes.value.page_id;
         const formId = changes.value.form_id;
         
-        const masterConfig = await this.prisma['masterConfig'].findFirst({
+        const client = this.getClient(tenantId || 'default');
+        const masterConfig = await client.masterConfig.findFirst({
           where: { isActive: true },
         });
 
@@ -153,7 +171,7 @@ export class MetaLeadsService {
 
         const fieldData = this.parseLeadFields(data.field_data);
         
-        await this.prisma['metaLead'].create({
+        await client.metaLead.create({
           data: {
             leadId: leadgenId,
             formId,
@@ -164,7 +182,7 @@ export class MetaLeadsService {
         });
 
         if (fieldData.phone) {
-          await this.syncToContact(fieldData, masterConfig.phoneNumberId);
+          await this.syncToContact(fieldData, masterConfig.phoneNumberId, tenantId);
         }
 
         this.logger.log(`Lead synced: ${leadgenId}`);
@@ -176,8 +194,9 @@ export class MetaLeadsService {
     }
   }
 
-  async getMasterConfig() {
-    return this.prisma['masterConfig'].findFirst({
+  async getMasterConfig(tenantId?: string) {
+    const client = this.getClient(tenantId || 'default');
+    return client.masterConfig.findFirst({
       where: { isActive: true },
     });
   }

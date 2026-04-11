@@ -24,27 +24,36 @@ export class MetaLeadsController {
   }
 
   @Patch(':id/status')
-  async updateStatus(@Param('id') id: string, @Body('status') status: string) {
-    return this.metaLeadsService.updateLeadStatus(parseInt(id), status);
+  async updateStatus(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body('status') status: string,
+  ) {
+    const tenantId = req.headers['x-tenant-id'] || 'default';
+    return this.metaLeadsService.updateLeadStatus(parseInt(id), status, tenantId);
   }
 
   @Post('sync')
   async syncLeads(
+    @Req() req: any,
     @Body('pageId') pageId: string,
     @Body('formId') formId: string,
     @Body('accessToken') accessToken: string,
     @Body('phoneNumberId') phoneNumberId?: string,
   ) {
-    return this.metaLeadsService.syncLeadsFromFacebook(pageId, formId, accessToken, phoneNumberId);
+    const tenantId = req.headers['x-tenant-id'] || 'default';
+    return this.metaLeadsService.syncLeadsFromFacebook(pageId, formId, accessToken, phoneNumberId, tenantId);
   }
 
   @Get('webhook')
   async verifyWebhook(
+    @Req() req: any,
     @Query('hub.mode') mode: string,
     @Query('hub.verify_token') token: string,
     @Query('hub.challenge') challenge: string,
   ) {
-    const masterConfig = await this.metaLeadsService.getMasterConfig();
+    const tenantId = req.headers['x-tenant-id'] || 'default';
+    const masterConfig = await this.metaLeadsService.getMasterConfig(tenantId);
     if (mode === 'subscribe' && token === masterConfig?.verifyToken) {
       return challenge;
     }
@@ -52,7 +61,8 @@ export class MetaLeadsController {
   }
 
   @Post('webhook')
-  async handleWebhook(@Body() body: any) {
-    return this.metaLeadsService.handleWebhook(body);
+  async handleWebhook(@Req() req: any, @Body() body: any) {
+    const tenantId = req.headers['x-tenant-id'] || 'default';
+    return this.metaLeadsService.handleWebhook(body, tenantId);
   }
 }

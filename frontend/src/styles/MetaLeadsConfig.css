@@ -1,29 +1,29 @@
-.meta-config-container {
+.meta-leads-config-container {
   padding: 20px;
   max-width: 1400px;
   margin: 0 auto;
 }
 
-.config-header {
+.meta-leads-config-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 30px;
 }
 
-.config-header h1 {
+.meta-leads-config-header h1 {
   font-size: 28px;
   color: #075e54;
   margin: 0 0 8px 0;
 }
 
-.config-header p {
+.meta-leads-config-header p {
   color: #666;
   margin: 0;
   font-size: 14px;
 }
 
-.btn-primary {
+.meta-leads-btn-primary {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -38,11 +38,11 @@
   transition: background 0.2s;
 }
 
-.btn-primary:hover {
+.meta-leads-btn-primary:hover {
   background: #20ba5a;
 }
 
-.config-form-overlay {
+.meta-leads-config-form-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -55,7 +55,7 @@
   z-index: 1000;
 }
 
-.config-form-modal {
+.meta-leads-config-form-modal {
   background: white;
   border-radius: 12px;
   width: 90%;
@@ -65,7 +65,7 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
-.form-header {
+.meta-leads-form-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -73,14 +73,14 @@
   border-bottom: 1px solid #e0e0e0;
 }
 
-.form-header h2 {
+.meta-leads-form-header h2 {
   margin: 0;
   font-size: 20px;
   color: #075e54;
   font-weight: 600;
 }
 
-.btn-close {
+.meta-leads-btn-close {
   background: none;
   border: none;
   cursor: pointer;
@@ -92,19 +92,19 @@
   transition: color 0.2s;
 }
 
-.btn-close:hover {
+.meta-leads-btn-close:hover {
   color: #000;
 }
 
-.config-form-modal form {
+.meta-leads-config-form-modal form {
   padding: 24px;
 }
 
-.form-group {
+.meta-leads-form-group {
   margin-bottom: 20px;
 }
 
-.form-group label {
+.meta-leads-form-group label {
   display: block;
   margin-bottom: 8px;
   font-weight: 500;
@@ -112,8 +112,8 @@
   font-size: 14px;
 }
 
-.form-group input,
-.form-group textarea {
+.meta-leads-form-group input,
+.meta-leads-form-group textarea {
   width: 100%;
   padding: 12px;
   border: 1px solid #ddd;
@@ -123,13 +123,13 @@
   box-sizing: border-box;
 }
 
-.form-group input:focus,
-.form-group textarea:focus {
+.meta-leads-form-group input:focus,
+.meta-leads-form-group textarea:focus {
   outline: none;
   border-color: #25d366;
 }
 
-.form-group small {
+.meta-leads-form-group small {
   display: block;
   margin-top: 6px;
   color: #666;
@@ -137,11 +137,11 @@
   line-height: 1.4;
 }
 
-.form-group-checkbox {
+.meta-leads-form-group-checkbox {
   margin-bottom: 20px;
 }
 
-.form-group-checkbox label {
+.meta-leads-form-group-checkbox label {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -149,13 +149,13 @@
   font-size: 14px;
 }
 
-.form-group-checkbox input[type="checkbox"] {
+.meta-leads-form-group-checkbox input[type="checkbox"] {
   width: 18px;
   height: 18px;
   cursor: pointer;
 }
 
-.form-actions {
+.meta-leads-form-actions {
   display: flex;
   gap: 12px;
   justify-content: flex-end;
@@ -163,7 +163,7 @@
   border-top: 1px solid #e0e0e0;
 }
 
-.btn-secondary {
+.meta-leads-btn-secondary {
   padding: 12px 24px;
   border: 1px solid #ddd;
   background: white;
@@ -175,16 +175,16 @@
   transition: background 0.2s;
 }
 
-.btn-secondary:hover {
+.meta-leads-btn-secondary:hover {
   background: #f5f5f5;
 }
 
-.configs-list {
+.meta-leads-configs-list {
   display: grid;
   gap: 20px;
 }
 
-.config-card {
+.meta-leads-config-card {
   background: white;
   border: 1px solid #e0e0e0;
   border-radius: 12px;
@@ -195,59 +195,59 @@
   transition: box-shadow 0.2s;
 }
 
-.config-card:hover {
+.meta-leads-config-card:hover {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.config-info h3 {
+.meta-leads-config-info h3 {
   margin: 0 0 12px 0;
   font-size: 18px;
   color: #075e54;
   font-weight: 600;
 }
 
-.config-details {
+.meta-leads-config-details {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.config-details p {
+.meta-leads-config-details p {
   margin: 0;
   font-size: 14px;
   color: #666;
 }
 
-.config-details strong {
+.meta-leads-config-details strong {
   color: #333;
   margin-right: 8px;
   font-weight: 500;
 }
 
-.status {
+.meta-leads-status {
   padding: 4px 12px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
 }
 
-.status.active {
+.meta-leads-status.active {
   background: #d4edda;
   color: #155724;
 }
 
-.status.inactive {
+.meta-leads-status.inactive {
   background: #f8d7da;
   color: #721c24;
 }
 
-.config-actions {
+.meta-leads-config-actions {
   display: flex;
   gap: 12px;
 }
 
-.btn-edit,
-.btn-delete {
+.meta-leads-btn-edit,
+.meta-leads-btn-delete {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -260,49 +260,49 @@
   transition: all 0.2s;
 }
 
-.btn-edit {
+.meta-leads-btn-edit {
   background: #e3f2fd;
   color: #1976d2;
 }
 
-.btn-edit:hover {
+.meta-leads-btn-edit:hover {
   background: #bbdefb;
 }
 
-.btn-delete {
+.meta-leads-btn-delete {
   background: #ffebee;
   color: #c62828;
 }
 
-.btn-delete:hover {
+.meta-leads-btn-delete:hover {
   background: #ffcdd2;
 }
 
-.loading,
-.empty-state {
+.meta-leads-loading,
+.meta-leads-empty-state {
   text-align: center;
   padding: 60px 20px;
   color: #666;
 }
 
-.empty-state p {
+.meta-leads-empty-state p {
   margin: 8px 0;
   font-size: 14px;
 }
 
 @media (max-width: 768px) {
-  .config-card {
+  .meta-leads-config-card {
     flex-direction: column;
     align-items: flex-start;
     gap: 16px;
   }
 
-  .config-actions {
+  .meta-leads-config-actions {
     width: 100%;
     justify-content: flex-end;
   }
 
-  .config-header {
+  .meta-leads-config-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 16px;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
-import '../styles/MetaLeadsConfig.css';
+import '../styles/Settings.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010';
 
@@ -113,11 +113,11 @@ const MetaLeadsConfig = () => {
       </div>
 
       {showForm && (
-        <div className="config-form-overlay">
-          <div className="config-form-modal">
-            <div className="form-header">
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
               <h2>{editingId ? 'Edit' : 'Add'} Meta Leads Configuration</h2>
-              <button onClick={resetForm} className="btn-close">
+              <button onClick={resetForm} className="close-btn">
                 <X size={20} />
               </button>
             </div>
@@ -169,7 +169,7 @@ const MetaLeadsConfig = () => {
               </div>
 
               <div className="form-group-checkbox">
-                <label>
+                <label className="checkbox-label">
                   <input
                     type="checkbox"
                     checked={formData.isActive}
@@ -197,7 +197,7 @@ const MetaLeadsConfig = () => {
         {loading ? (
           <div className="loading">Loading configurations...</div>
         ) : configs.length === 0 ? (
-          <div className="empty-state">
+          <div className="loading">
             <p>No Meta Leads configurations found.</p>
             <p>Click "Add Configuration" to create one.</p>
           </div>
@@ -210,7 +210,15 @@ const MetaLeadsConfig = () => {
                   <div className="config-details">
                     <p><strong>Page ID:</strong> {config.pageId}</p>
                     <p><strong>Status:</strong> 
-                      <span className={`status ${config.isActive ? 'active' : 'inactive'}`}>
+                      <span style={{
+                        padding: '4px 12px',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        background: config.isActive ? '#d4edda' : '#f8d7da',
+                        color: config.isActive ? '#155724' : '#721c24',
+                        marginLeft: '8px'
+                      }}>
                         {config.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </p>

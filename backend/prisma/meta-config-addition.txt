@@ -1,0 +1,1 @@
+model MetaConfig {\n  id           Int      @id @default(autoincrement())\n  pageId       String   @unique\n  accessToken  String\n  verifyToken  String\n  isActive     Boolean  @default(true)\n  createdAt    DateTime @default(now())\n  updatedAt    DateTime @updatedAt\n}

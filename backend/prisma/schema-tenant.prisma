@@ -572,6 +572,35 @@ model MessageTemplate {
   @@index([category])
 }
 
+model MetaConfig {
+  id           Int      @id @default(autoincrement())
+  pageId       String   @unique
+  accessToken  String
+  verifyToken  String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model MetaLead {
+  id          Int      @id @default(autoincrement())
+  leadId      String   @unique
+  formId      String
+  pageId      String
+  name        String?
+  email       String?
+  phone       String?
+  company     String?
+  status      String   @default("Intake")
+  createdTime DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([formId])
+  @@index([pageId])
+  @@index([status])
+}
+
 enum AutomationEventType {
   DOB
   ANNIVERSARY

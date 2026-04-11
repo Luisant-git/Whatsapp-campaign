@@ -32,6 +32,7 @@ import { RunDailyAutomationModule } from './run-daily-automation/run-daily-autom
 import { TemplateModule } from './template/template.module';
 import { UploadModule } from './upload/upload.module';
 import { TenentnoteModule } from './tenentnote/tenentnote.module';
+import { MetaLeadsModule } from './meta-leads/meta-leads.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { TenentnoteModule } from './tenentnote/tenentnote.module';
     TemplateModule,
     UploadModule,
     TenentnoteModule,
+    MetaLeadsModule,
   ],
   controllers: [AppController, TestController],
   providers: [AppService],
@@ -91,6 +93,7 @@ export class AppModule implements NestModule {
         { path: 'customer-details-flow/*path', method: RequestMethod.ALL },
         { path: 'flow-appointments/exchange', method: RequestMethod.ALL },
         { path: 'flow-appointments/:id/finish', method: RequestMethod.ALL },
+        { path: 'meta-leads/webhook', method: RequestMethod.ALL },
       )
       .forRoutes('*');
   }

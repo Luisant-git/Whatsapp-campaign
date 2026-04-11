@@ -24,10 +24,12 @@ const MetaLeads = () => {
       const { data } = await axios.get('/meta-leads', {
         params: { page, limit: 10, search, status: statusFilter },
       });
-      setLeads(data.data);
-      setTotalPages(data.pagination.totalPages);
+      setLeads(data.data || []);
+      setTotalPages(data.pagination?.totalPages || 1);
     } catch (error) {
       console.error('Error fetching leads:', error);
+      setLeads([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }

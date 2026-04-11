@@ -43,7 +43,11 @@ export class MetaLeadsController {
       const { data } = await this.metaLeadsService.getFormInfo(formId, accessToken);
       return data;
     } catch (error) {
-      throw new Error(error.message || 'Failed to get form info');
+      return {
+        error: true,
+        message: error.message || 'Failed to get form info',
+        details: 'Please verify: 1) Form ID is correct, 2) Access token has leads_retrieval permission, 3) Form belongs to your Page'
+      };
     }
   }
 
@@ -57,9 +61,14 @@ export class MetaLeadsController {
   ) {
     try {
       const tenantId = req.headers['x-tenant-id'] || 'default';
-      return this.metaLeadsService.syncLeadsFromFacebook(pageId, formId, accessToken, phoneNumberId, tenantId);
+      const result = await this.metaLeadsService.syncLeadsFromFacebook(pageId, formId, accessToken, phoneNumberId, tenantId);
+      return result;
     } catch (error) {
-      throw new Error(error.message || 'Failed to sync leads');
+      return {
+        error: true,
+        message: error.message || 'Failed to sync leads',
+        details: 'Common issues: 1) Invalid Form ID, 2) Missing permissions (leads_retrieval, pages_manage_metadata), 3) Form not linked to Page ID, 4) Expired access token'
+      };
     }
   }
 

@@ -46,7 +46,7 @@ const MetaLeads = () => {
     try {
       setSyncing(true);
       
-      // Get Meta Config instead of Master Config
+      // Get Meta Config
       const { data: metaConfigs } = await axios.get(`${API_BASE_URL}/meta-config`, {
         withCredentials: true,
       });
@@ -58,34 +58,43 @@ const MetaLeads = () => {
 
       const activeConfig = metaConfigs.find(c => c.isActive) || metaConfigs[0];
       
-      // Get form info to extract page ID
-      const { data: formInfo } = await axios.get(
-        `${API_BASE_URL}/meta-leads/${formId}/info?accessToken=${activeConfig.accessToken}`,
-        { withCredentials: true }
-      );
-      
-      const pageId = formInfo.page_id || activeConfig.pageId;
-      
-      if (!pageId) {
-        alert('Could not determine Page ID from form. Please contact support.');
+      if (!activeConfig.pageId) {
+        alert('Page ID is missing in Meta Config. Please update your configuration.');
         return;
       }
       
-      await axios.post(`${API_BASE_URL}/meta-leads/sync`, { 
-        pageId,
+      // Sync leads directly without pre-fetching form info
+      const response = await axios.post(`${API_BASE_URL}/meta-leads/sync`, { 
+        pageId: activeConfig.pageId,
         formId, 
         accessToken: activeConfig.accessToken,
-        phoneNumberId: activeConfig.pageId, // Use pageId as identifier
+        phoneNumberId: activeConfig.phoneNumberId || activeConfig.pageId,
       }, {
         withCredentials: true,
       });
       
-      alert('Leads synced successfully!');
+      if (response.data.error) {
+        alert(`Sync failed: ${response.data.message}\n\nDetails: ${response.data.details || ''}`);
+        return;
+      }
+      
+      alert(`Leads synced successfully! ${response.data.count || 0} leads imported.`);
       fetchLeads();
     } catch (error) {
-      const errorMsg = error.response?.data?.message || error.message;
-      alert('Failed to sync leads: ' + errorMsg);
-      console.error(error);
+      const errorData = error.response?.data;
+      let errorMsg = 'Failed to sync leads.';
+      
+      if (errorData?.message) {
+        errorMsg = errorData.message;
+        if (errorData.details) {
+          errorMsg += '\n\n' + errorData.details;
+        }
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      
+      alert(errorMsg);
+      console.error('Sync error:', error);
     } finally {
       setSyncing(false);
     }

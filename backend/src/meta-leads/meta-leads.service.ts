@@ -86,10 +86,22 @@ export class MetaLeadsService {
     try {
       const url = `https://graph.facebook.com/v25.0/${formId}/leads`;
       const { data } = await axios.get(url, {
-        params: { access_token: accessToken },
+        params: { 
+          access_token: accessToken,
+          fields: 'id,created_time,field_data'
+        },
       });
 
       const leads = data.data || [];
+      
+      if (leads.length === 0) {
+        return { 
+          success: true, 
+          count: 0,
+          message: 'No leads found for this form. The form may not have any submissions yet.'
+        };
+      }
+
       const savedLeads: any[] = [];
       const client = this.getClient(tenantId || 'default');
 
@@ -119,13 +131,22 @@ export class MetaLeadsService {
     } catch (error) {
       this.logger.error('Failed to sync leads:', error);
       
-      // Return Meta API error message if available
+      // Return detailed Meta API error
       if (error.response?.data?.error) {
         const metaError = error.response.data.error;
-        throw new Error(`Meta API Error: ${metaError.message}`);
+        let errorMessage = metaError.message;
+        
+        // Add helpful context based on error code
+        if (metaError.code === 100) {
+          errorMessage += ' - This usually means: 1) The Form ID is incorrect, 2) Your access token lacks required permissions (leads_retrieval), or 3) The form doesn\'t belong to your Page.';
+        } else if (metaError.code === 190) {
+          errorMessage += ' - Your access token has expired or is invalid. Please generate a new token.';
+        }
+        
+        throw new Error(errorMessage);
       }
       
-      throw new Error(error.message || 'Failed to sync leads');
+      throw new Error(error.message || 'Failed to sync leads from Facebook');
     }
   }
 

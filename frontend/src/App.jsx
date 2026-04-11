@@ -61,6 +61,7 @@ import "./App.css";
 import "./styles/Analytics.css";
 import "./styles/Settings.css";
 import "./styles/Profile.css";
+import MetaLeads from "./components/MetaLeads";
 import { getCurrentPlan } from "./api/subscription";
 import { logoutUser, getProfile } from "./api/auth";
 import AutomationTemplatesSettings from "./components/AutomationTemplatesSettings.jsx";
@@ -82,6 +83,7 @@ const ICON_MAP = {
   workflow: Workflow,
   calendar: Calendar,
   layout: Layout,
+  clipboardList: ClipboardList,
 };
 
 // Map MENU_CONFIG keys to activeView values
@@ -95,6 +97,7 @@ const MENU_TO_VIEW = {
 
   "campaigns.bulk": "bulk",
   "campaigns.reports": "campaigns",
+  "campaigns.meta-leads": "meta-leads",
 
   chatbot: "chatbot",
   "quick-reply": "quick-reply",
@@ -575,6 +578,7 @@ function App() {
             {activeView === "chatbot" && <Chatbot />}
             {activeView === "flow-manager" && <FlowManager />}
             {activeView === "flow-appointments" && <FlowAppointments />}
+            {activeView === "meta-leads" && <MetaLeads />}
             {activeView === "templates" && <TemplateManager />}
             {activeView === "analytics" && <Analytics />}
             {activeView === "settings" && (

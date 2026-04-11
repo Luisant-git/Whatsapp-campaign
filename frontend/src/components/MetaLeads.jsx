@@ -68,7 +68,12 @@ const MetaLeads = () => {
       alert('Leads synced successfully!');
       fetchLeads();
     } catch (error) {
-      alert('Failed to sync leads: ' + (error.response?.data?.message || error.message));
+      const errorMsg = error.response?.data?.message || error.message;
+      if (errorMsg.includes('does not exist') || errorMsg.includes('missing permissions')) {
+        alert('Failed to sync leads: Invalid Form ID or missing permissions.\n\nPlease ensure:\n1. The Form ID is correct\n2. Your access token has "leads_retrieval" permission\n3. The form belongs to your Facebook Page');
+      } else {
+        alert('Failed to sync leads: ' + errorMsg);
+      }
       console.error(error);
     } finally {
       setSyncing(false);

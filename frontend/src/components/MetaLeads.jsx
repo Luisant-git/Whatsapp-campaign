@@ -3,6 +3,8 @@ import axios from 'axios';
 import { Phone, Mail, Building2, Calendar, RefreshCw } from 'lucide-react';
 import '../styles/MetaLeads.css';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010';
+
 const MetaLeads = () => {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,8 +23,9 @@ const MetaLeads = () => {
   const fetchLeads = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get('/meta-leads', {
+      const { data } = await axios.get(`${API_BASE_URL}/meta-leads`, {
         params: { page, limit: 10, search, status: statusFilter },
+        withCredentials: true,
       });
       setLeads(data.data || []);
       setTotalPages(data.pagination?.totalPages || 1);
@@ -42,7 +45,9 @@ const MetaLeads = () => {
 
     try {
       setSyncing(true);
-      const { data: config } = await axios.get('/master-config');
+      const { data: config } = await axios.get(`${API_BASE_URL}/master-config`, {
+        withCredentials: true,
+      });
       
       if (!config || config.length === 0) {
         alert('No Master Config found. Please configure Master Config first.');
@@ -51,11 +56,13 @@ const MetaLeads = () => {
 
       const activeConfig = config.find(c => c.isActive) || config[0];
       
-      await axios.post('/meta-leads/sync', { 
+      await axios.post(`${API_BASE_URL}/meta-leads/sync`, { 
         pageId: activeConfig.wabaId || activeConfig.appId,
         formId, 
         accessToken: activeConfig.accessToken,
         phoneNumberId: activeConfig.phoneNumberId,
+      }, {
+        withCredentials: true,
       });
       
       alert('Leads synced successfully!');
@@ -70,7 +77,9 @@ const MetaLeads = () => {
 
   const updateStatus = async (id, status) => {
     try {
-      await axios.patch(`/meta-leads/${id}/status`, { status });
+      await axios.patch(`${API_BASE_URL}/meta-leads/${id}/status`, { status }, {
+        withCredentials: true,
+      });
       fetchLeads();
     } catch (error) {
       console.error('Error updating status:', error);

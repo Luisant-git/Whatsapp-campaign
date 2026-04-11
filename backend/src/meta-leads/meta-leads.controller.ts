@@ -33,6 +33,20 @@ export class MetaLeadsController {
     return this.metaLeadsService.updateLeadStatus(parseInt(id), status, tenantId);
   }
 
+  @Get(':formId/info')
+  async getFormInfo(
+    @Req() req: any,
+    @Param('formId') formId: string,
+    @Query('accessToken') accessToken: string,
+  ) {
+    try {
+      const { data } = await this.metaLeadsService.getFormInfo(formId, accessToken);
+      return data;
+    } catch (error) {
+      throw new Error(error.message || 'Failed to get form info');
+    }
+  }
+
   @Post('sync')
   async syncLeads(
     @Req() req: any,
@@ -41,8 +55,12 @@ export class MetaLeadsController {
     @Body('accessToken') accessToken: string,
     @Body('phoneNumberId') phoneNumberId?: string,
   ) {
-    const tenantId = req.headers['x-tenant-id'] || 'default';
-    return this.metaLeadsService.syncLeadsFromFacebook(pageId, formId, accessToken, phoneNumberId, tenantId);
+    try {
+      const tenantId = req.headers['x-tenant-id'] || 'default';
+      return this.metaLeadsService.syncLeadsFromFacebook(pageId, formId, accessToken, phoneNumberId, tenantId);
+    } catch (error) {
+      throw new Error(error.message || 'Failed to sync leads');
+    }
   }
 
   @Get('webhook')

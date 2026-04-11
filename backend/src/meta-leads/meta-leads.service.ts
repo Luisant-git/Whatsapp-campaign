@@ -62,6 +62,26 @@ export class MetaLeadsService {
     });
   }
 
+  async getFormInfo(formId: string, accessToken: string) {
+    try {
+      const url = `https://graph.facebook.com/v25.0/${formId}`;
+      const response = await axios.get(url, {
+        params: { 
+          access_token: accessToken,
+          fields: 'id,name,page_id,status,leads_count'
+        },
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to get form info:', error);
+      if (error.response?.data?.error) {
+        const metaError = error.response.data.error;
+        throw new Error(`Meta API Error: ${metaError.message}`);
+      }
+      throw new Error(error.message || 'Failed to get form info');
+    }
+  }
+
   async syncLeadsFromFacebook(pageId: string, formId: string, accessToken: string, phoneNumberId?: string, tenantId?: string) {
     try {
       const url = `https://graph.facebook.com/v25.0/${formId}/leads`;
@@ -98,7 +118,14 @@ export class MetaLeadsService {
       return { success: true, count: savedLeads.length };
     } catch (error) {
       this.logger.error('Failed to sync leads:', error);
-      throw error;
+      
+      // Return Meta API error message if available
+      if (error.response?.data?.error) {
+        const metaError = error.response.data.error;
+        throw new Error(`Meta API Error: ${metaError.message}`);
+      }
+      
+      throw new Error(error.message || 'Failed to sync leads');
     }
   }
 

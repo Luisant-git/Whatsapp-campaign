@@ -56,8 +56,21 @@ const MetaLeads = () => {
 
       const activeConfig = config.find(c => c.isActive) || config[0];
       
+      // Get form info to extract page ID
+      const { data: formInfo } = await axios.get(
+        `${API_BASE_URL}/meta-leads/${formId}/info?accessToken=${activeConfig.accessToken}`,
+        { withCredentials: true }
+      );
+      
+      const pageId = formInfo.page_id;
+      
+      if (!pageId) {
+        alert('Could not determine Page ID from form. Please contact support.');
+        return;
+      }
+      
       await axios.post(`${API_BASE_URL}/meta-leads/sync`, { 
-        pageId: activeConfig.wabaId || activeConfig.appId,
+        pageId,
         formId, 
         accessToken: activeConfig.accessToken,
         phoneNumberId: activeConfig.phoneNumberId,
@@ -69,11 +82,7 @@ const MetaLeads = () => {
       fetchLeads();
     } catch (error) {
       const errorMsg = error.response?.data?.message || error.message;
-      if (errorMsg.includes('does not exist') || errorMsg.includes('missing permissions')) {
-        alert('Failed to sync leads: Invalid Form ID or missing permissions.\n\nPlease ensure:\n1. The Form ID is correct\n2. Your access token has "leads_retrieval" permission\n3. The form belongs to your Facebook Page');
-      } else {
-        alert('Failed to sync leads: ' + errorMsg);
-      }
+      alert('Failed to sync leads: ' + errorMsg);
       console.error(error);
     } finally {
       setSyncing(false);

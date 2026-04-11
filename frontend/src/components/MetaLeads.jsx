@@ -34,19 +34,32 @@ const MetaLeads = () => {
   };
 
   const syncLeads = async () => {
-    const pageId = prompt('Enter Facebook Page ID:');
-    const formId = prompt('Enter Form ID:');
-    const accessToken = prompt('Enter Access Token:');
+    const formId = prompt('Enter Form ID from Meta Leads Centre:');
     
-    if (!pageId || !formId || !accessToken) return;
+    if (!formId) return;
 
     try {
       setSyncing(true);
-      await axios.post('/meta-leads/sync', { pageId, formId, accessToken });
+      const { data: config } = await axios.get('/master-config');
+      
+      if (!config || config.length === 0) {
+        alert('No Master Config found. Please configure Master Config first.');
+        return;
+      }
+
+      const activeConfig = config.find(c => c.isActive) || config[0];
+      
+      await axios.post('/meta-leads/sync', { 
+        pageId: activeConfig.wabaId || activeConfig.appId,
+        formId, 
+        accessToken: activeConfig.accessToken,
+        phoneNumberId: activeConfig.phoneNumberId,
+      });
+      
       alert('Leads synced successfully!');
       fetchLeads();
     } catch (error) {
-      alert('Failed to sync leads');
+      alert('Failed to sync leads: ' + (error.response?.data?.message || error.message));
       console.error(error);
     } finally {
       setSyncing(false);

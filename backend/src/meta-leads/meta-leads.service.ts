@@ -25,13 +25,13 @@ export class MetaLeadsService {
     }
 
     const [leads, total] = await Promise.all([
-      this.prisma.metaLead.findMany({
+      this.prisma['metaLead'].findMany({
         where,
         skip,
         take: limit,
         orderBy: { createdTime: 'desc' },
       }),
-      this.prisma.metaLead.count({ where }),
+      this.prisma['metaLead'].count({ where }),
     ]);
 
     return {
@@ -41,7 +41,7 @@ export class MetaLeadsService {
   }
 
   async updateLeadStatus(id: number, status: string) {
-    return this.prisma.metaLead.update({
+    return this.prisma['metaLead'].update({
       where: { id },
       data: { status },
     });
@@ -55,12 +55,12 @@ export class MetaLeadsService {
       });
 
       const leads = data.data || [];
-      const savedLeads = [];
+      const savedLeads: any[] = [];
 
       for (const lead of leads) {
         const fieldData = this.parseLeadFields(lead.field_data);
         
-        const saved = await this.prisma.metaLead.upsert({
+        const saved = await this.prisma['metaLead'].upsert({
           where: { leadId: lead.id },
           update: { ...fieldData },
           create: {
@@ -72,7 +72,6 @@ export class MetaLeadsService {
           },
         });
 
-        // Sync to Contact table
         if (fieldData.phone) {
           await this.syncToContact(fieldData, phoneNumberId);
         }
@@ -89,7 +88,7 @@ export class MetaLeadsService {
 
   private async syncToContact(leadData: any, phoneNumberId?: string) {
     try {
-      await this.prisma.contact.upsert({
+      await this.prisma['contact'].upsert({
         where: {
           phone_phoneNumberId: {
             phone: leadData.phone,
@@ -128,7 +127,7 @@ export class MetaLeadsService {
     return parsed;
   }
 
-  async handleWebhook(body: any, accessToken: string, phoneNumberId?: string) {
+  async handleWebhook(body: any) {
     try {
       const entry = body.entry?.[0];
       const changes = entry?.changes?.[0];
@@ -138,16 +137,23 @@ export class MetaLeadsService {
         const pageId = changes.value.page_id;
         const formId = changes.value.form_id;
         
-        // Fetch lead details
+        const masterConfig = await this.prisma['masterConfig'].findFirst({
+          where: { isActive: true },
+        });
+
+        if (!masterConfig) {
+          this.logger.error('No active MasterConfig found');
+          return { success: false, error: 'No active config' };
+        }
+
         const { data } = await axios.get(
           `https://graph.facebook.com/v25.0/${leadgenId}`,
-          { params: { access_token: accessToken } }
+          { params: { access_token: masterConfig.accessToken } }
         );
 
         const fieldData = this.parseLeadFields(data.field_data);
         
-        // Save to MetaLead
-        await this.prisma.metaLead.create({
+        await this.prisma['metaLead'].create({
           data: {
             leadId: leadgenId,
             formId,
@@ -157,9 +163,8 @@ export class MetaLeadsService {
           },
         });
 
-        // Sync to Contact
         if (fieldData.phone) {
-          await this.syncToContact(fieldData, phoneNumberId);
+          await this.syncToContact(fieldData, masterConfig.phoneNumberId);
         }
 
         this.logger.log(`Lead synced: ${leadgenId}`);
@@ -169,5 +174,11 @@ export class MetaLeadsService {
       this.logger.error('Webhook processing failed:', error);
       throw error;
     }
+  }
+
+  async getMasterConfig() {
+    return this.prisma['masterConfig'].findFirst({
+      where: { isActive: true },
+    });
   }
 }

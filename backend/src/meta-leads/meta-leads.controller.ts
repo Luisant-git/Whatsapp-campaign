@@ -44,7 +44,8 @@ export class MetaLeadsController {
     @Query('hub.verify_token') token: string,
     @Query('hub.challenge') challenge: string,
   ) {
-    if (mode === 'subscribe' && token === process.env.META_VERIFY_TOKEN) {
+    const masterConfig = await this.metaLeadsService.getMasterConfig();
+    if (mode === 'subscribe' && token === masterConfig?.verifyToken) {
       return challenge;
     }
     return 'Verification failed';
@@ -52,8 +53,6 @@ export class MetaLeadsController {
 
   @Post('webhook')
   async handleWebhook(@Body() body: any) {
-    const accessToken = process.env.META_ACCESS_TOKEN;
-    const phoneNumberId = process.env.META_PHONE_NUMBER_ID;
-    return this.metaLeadsService.handleWebhook(body, accessToken, phoneNumberId);
+    return this.metaLeadsService.handleWebhook(body);
   }
 }

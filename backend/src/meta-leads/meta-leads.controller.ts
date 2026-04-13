@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Body, Param, Query, Req, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MetaLeadsService } from './meta-leads.service';
-import * as csv from 'csv-parser';
+import csv from 'csv-parser';
 
 @Controller('meta-leads')
 export class MetaLeadsController {

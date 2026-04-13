@@ -102,7 +102,7 @@ export class MetaLeadsService {
       // Build initial URL - fetch ALL leads without date filter
       let baseUrl = `https://graph.facebook.com/v25.0/${formId}/leads?access_token=${accessToken}&fields=id,created_time,field_data&limit=500`;
       
-      let url = baseUrl;
+      let url: string | null = baseUrl;
       let allLeads: any[] = [];
       let pageCount = 0;
 

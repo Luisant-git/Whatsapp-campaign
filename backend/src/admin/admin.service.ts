@@ -765,4 +765,38 @@ async getSubUserById(id: number) {
     },
   });
 }
+
+  async getLandingContacts(page: number = 1, limit: number = 10, search: string = '') {
+    const skip = (page - 1) * limit;
+    
+    const where = search
+      ? {
+          OR: [
+            { businessName: { contains: search, mode: 'insensitive' as any } },
+            { yourName: { contains: search, mode: 'insensitive' as any } },
+            { whatsappNumber: { contains: search } },
+          ],
+        }
+      : {};
+
+    const [submissions, total] = await Promise.all([
+      this.prisma.landingContactSubmission.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.landingContactSubmission.count({ where }),
+    ]);
+
+    return {
+      submissions,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
 }

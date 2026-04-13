@@ -233,10 +233,15 @@ export class MetaLeadsService {
     
     fieldData.forEach(field => {
       const name = field.name.toLowerCase();
-      if (name.includes('name') || name === 'full_name') parsed.name = field.values[0];
-      else if (name.includes('email')) parsed.email = field.values[0];
-      else if (name.includes('phone')) parsed.phone = field.values[0];
-      else if (name.includes('company')) parsed.company = field.values[0];
+      if (name === 'full_name' || (name.includes('name') && !name.includes('company'))) {
+        parsed.name = field.values[0];
+      } else if (name.includes('email')) {
+        parsed.email = field.values[0];
+      } else if (name.includes('phone')) {
+        parsed.phone = field.values[0];
+      } else if (name.includes('company')) {
+        parsed.company = field.values[0];
+      }
     });
 
     return parsed;

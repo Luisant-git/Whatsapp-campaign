@@ -8,13 +8,9 @@ import {
   RefreshCw, 
   Search, 
   Download, 
-  Filter, 
-  MoreHorizontal,
-  ArrowRight,
+  Filter,
   ExternalLink,
-  UserCheck,
   Upload,
-  FileSpreadsheet,
   Trash2
 } from 'lucide-react';
 import '../styles/MetaLeads.css';
@@ -32,6 +28,8 @@ const MetaLeads = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [activeTab, setActiveTab] = useState('All');
   const [tabCounts, setTabCounts] = useState({ All: 0, Intake: 0, Qualified: 0, Converted: 0 });
+  const [selectedLead, setSelectedLead] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const fileInputRef = useRef(null);
 
   const statuses = ['Intake', 'Qualified', 'Converted'];
@@ -231,6 +229,16 @@ const MetaLeads = () => {
     }
   };
 
+  const viewLeadDetails = (lead) => {
+    setSelectedLead(lead);
+    setShowDetailsModal(true);
+  };
+
+  const closeDetailsModal = () => {
+    setShowDetailsModal(false);
+    setSelectedLead(null);
+  };
+
   return (
     <div className="meta-leads-wrapper">
       <div className="meta-leads-container">
@@ -312,6 +320,7 @@ const MetaLeads = () => {
                 <th>Name</th>
                 <th>Status</th>
                 <th>Contact</th>
+                <th>Company</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
@@ -320,14 +329,14 @@ const MetaLeads = () => {
               {loading ? (
                 Array(5).fill(0).map((_, i) => (
                   <tr key={i}>
-                    <td colSpan="5">
+                    <td colSpan="6">
                       <div className="shimmer" style={{ height: '40px', borderRadius: '4px' }}></div>
                     </td>
                   </tr>
                 ))
               ) : leads.length === 0 ? (
                 <tr>
-                  <td colSpan="5" style={{ textAlign: 'center', padding: '40px', color: '#65676B' }}>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#65676B' }}>
                     No leads found matching your criteria.
                   </td>
                 </tr>
@@ -342,8 +351,6 @@ const MetaLeads = () => {
                         <div className="lead-name-info">
                           <span className="lead-name">{lead.name || 'Anonymous Lead'}</span>
                           <span className="lead-source">Meta Lead Forms</span>
-                          {lead.city && <span className="lead-meta-field" style={{ fontSize: '11px', color: '#65676B' }}>📍 {lead.city}</span>}
-                          {lead.businessType && <span className="lead-meta-field" style={{ fontSize: '11px', color: '#65676B' }}>🏢 {lead.businessType}</span>}
                         </div>
                       </div>
                     </td>
@@ -360,18 +367,15 @@ const MetaLeads = () => {
                       </select>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <span style={{ fontSize: '13px', color: '#1C1E21', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Phone size={12} color="#65676B" /> {lead.phone || 'N/A'}
-                        </span>
-                        <span style={{ fontSize: '12px', color: '#65676B', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Mail size={12} color="#65676B" /> {lead.email || 'N/A'}
-                        </span>
-                        {lead.company && (
-                          <span style={{ fontSize: '12px', color: '#65676B', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <Building2 size={12} color="#65676B" /> {lead.company}
-                          </span>
-                        )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Phone size={14} color="#65676B" />
+                        <span style={{ fontSize: '13px', color: '#1C1E21' }}>{lead.phone || 'N/A'}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Building2 size={14} color="#65676B" />
+                        <span style={{ fontSize: '13px', color: '#1C1E21' }}>{lead.company || 'N/A'}</span>
                       </div>
                     </td>
                     <td>
@@ -385,17 +389,13 @@ const MetaLeads = () => {
                       </div>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button className="action-dots" title="View details">
-                          <ExternalLink size={16} />
-                        </button>
-                        <button className="action-dots" title="Quick assign">
-                          <UserCheck size={16} />
-                        </button>
-                        <button className="action-dots">
-                          <MoreHorizontal size={18} />
-                        </button>
-                      </div>
+                      <button 
+                        className="action-dots" 
+                        title="View details"
+                        onClick={() => viewLeadDetails(lead)}
+                      >
+                        <ExternalLink size={16} />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -429,6 +429,92 @@ const MetaLeads = () => {
           )}
         </div>
       </div>
+
+      {/* Lead Details Modal */}
+      {showDetailsModal && selectedLead && (
+        <div className="modal-overlay" onClick={closeDetailsModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Lead Details</h2>
+              <button className="modal-close" onClick={closeDetailsModal}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="detail-section">
+                <h3>Basic Information</h3>
+                <div className="detail-grid">
+                  <div className="detail-item">
+                    <label>Name</label>
+                    <p>{selectedLead.name || 'N/A'}</p>
+                  </div>
+                  <div className="detail-item">
+                    <label>Status</label>
+                    <p><span className={`status-pill ${selectedLead.status?.toLowerCase()}`}>{selectedLead.status}</span></p>
+                  </div>
+                  <div className="detail-item">
+                    <label><Phone size={14} /> Phone</label>
+                    <p>{selectedLead.phone || 'N/A'}</p>
+                  </div>
+                  <div className="detail-item">
+                    <label><Mail size={14} /> Email</label>
+                    <p>{selectedLead.email || 'N/A'}</p>
+                  </div>
+                  <div className="detail-item">
+                    <label><Building2 size={14} /> Company</label>
+                    <p>{selectedLead.company || 'N/A'}</p>
+                  </div>
+                  <div className="detail-item">
+                    <label>City</label>
+                    <p>{selectedLead.city || 'N/A'}</p>
+                  </div>
+                  <div className="detail-item">
+                    <label>Business Type</label>
+                    <p>{selectedLead.businessType || 'N/A'}</p>
+                  </div>
+                  <div className="detail-item">
+                    <label><Calendar size={14} /> Created</label>
+                    <p>{new Date(selectedLead.createdTime).toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+
+              {selectedLead.customFields && Object.keys(selectedLead.customFields).length > 0 && (
+                <div className="detail-section">
+                  <h3>Additional Fields</h3>
+                  <div className="detail-grid">
+                    {Object.entries(selectedLead.customFields).map(([key, value]) => (
+                      <div className="detail-item" key={key}>
+                        <label>{key}</label>
+                        <p>{value || 'N/A'}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="detail-section">
+                <h3>Meta Information</h3>
+                <div className="detail-grid">
+                  <div className="detail-item">
+                    <label>Lead ID</label>
+                    <p style={{ fontSize: '12px', wordBreak: 'break-all' }}>{selectedLead.leadId}</p>
+                  </div>
+                  <div className="detail-item">
+                    <label>Form ID</label>
+                    <p style={{ fontSize: '12px', wordBreak: 'break-all' }}>{selectedLead.formId}</p>
+                  </div>
+                  <div className="detail-item">
+                    <label>Page ID</label>
+                    <p style={{ fontSize: '12px', wordBreak: 'break-all' }}>{selectedLead.pageId}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="sync-btn secondary" onClick={closeDetailsModal}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

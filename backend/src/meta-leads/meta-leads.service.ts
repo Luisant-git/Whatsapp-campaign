@@ -90,25 +90,35 @@ export class MetaLeadsService {
         // Convert date to Unix timestamp if provided (e.g., '2023-01-01')
         const sinceTimestamp = Math.floor(new Date(since).getTime() / 1000);
         baseUrl += `&since=${sinceTimestamp}`;
+        this.logger.log(`Fetching historical leads since ${since} (timestamp: ${sinceTimestamp})`);
       }
       
       let url = baseUrl;
       let allLeads: any[] = [];
+      let pageCount = 0;
 
       // Loop through all pages to get ALL leads
       while (url) {
+        pageCount++;
+        this.logger.log(`Fetching page ${pageCount}...`);
+        
         const { data } = await axios.get(url);
         const leads = data.data || [];
         allLeads.push(...leads);
+        
+        this.logger.log(`Page ${pageCount}: Got ${leads.length} leads. Total so far: ${allLeads.length}`);
 
         // Get next page URL from pagination
         url = data.paging?.next || null;
         
-        // Log progress for large datasets
-        if (allLeads.length % 100 === 0) {
-          this.logger.log(`Fetched ${allLeads.length} leads so far...`);
+        if (url) {
+          this.logger.log(`Next page URL exists, continuing...`);
+        } else {
+          this.logger.log(`No more pages. Finished fetching.`);
         }
       }
+      
+      this.logger.log(`Total leads fetched from Meta: ${allLeads.length}`);
       
       if (allLeads.length === 0) {
         return { 
@@ -143,6 +153,7 @@ export class MetaLeadsService {
         savedLeads.push(saved);
       }
 
+      this.logger.log(`Successfully saved ${savedLeads.length} leads to database`);
       return { success: true, count: savedLeads.length };
     } catch (error) {
       this.logger.error('Failed to sync leads:', error);

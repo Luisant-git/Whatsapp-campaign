@@ -40,7 +40,7 @@ const MetaLeads = () => {
     try {
       setLoading(true);
       const { data } = await axios.get(`${API_BASE_URL}/meta-leads`, {
-        params: { page, limit: 10, search, status: statusFilter },
+        params: { page, limit: 50, search, status: statusFilter },
         withCredentials: true,
       });
       setLeads(data.data || []);
@@ -87,8 +87,8 @@ const MetaLeads = () => {
     const formId = prompt('Enter Form ID from Meta Leads:');
     if (!formId) return;
 
-    // Optional: Ask if user wants to fetch historical data
-    const fetchHistorical = confirm('Do you want to fetch ALL historical leads? (This may take longer but ensures you get all old leads)');
+    // Ask if user wants to fetch historical data - default to YES
+    const fetchHistorical = confirm('⚠️ IMPORTANT: Do you want to fetch ALL historical leads?\n\n✅ Click OK to get ALL leads (including old ones from 2021-2024)\n❌ Click Cancel to get only recent leads\n\nRecommended: Click OK for first-time sync');
     
     try {
       setSyncing(true);
@@ -110,11 +110,12 @@ const MetaLeads = () => {
         phoneNumberId: activeConfig.phoneNumberId || activeConfig.pageId,
       };
       
-      // Add 'since' parameter for historical data (fetch from 2 years ago)
+      // Add 'since' parameter for historical data (fetch from 3 years ago)
       if (fetchHistorical) {
-        const twoYearsAgo = new Date();
-        twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
-        payload.since = twoYearsAgo.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+        const threeYearsAgo = new Date();
+        threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
+        payload.since = threeYearsAgo.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+        console.log('Fetching historical leads since:', payload.since);
       }
       
       const response = await axios.post(`${API_BASE_URL}/meta-leads/sync`, payload, { 
@@ -122,14 +123,18 @@ const MetaLeads = () => {
       });
       
       if (response.data.error) {
-        alert(`Sync failed: ${response.data.message}`);
+        alert(`❌ Sync failed: ${response.data.message}`);
         return;
       }
       
-      alert(`✅ Leads synced successfully! ${response.data.count || 0} leads imported.${fetchHistorical ? ' (Including historical data)' : ''}`);
+      const message = fetchHistorical 
+        ? `✅ SUCCESS! ${response.data.count || 0} leads imported (including historical data from 2021-2024)` 
+        : `✅ ${response.data.count || 0} recent leads imported`;
+      
+      alert(message);
       fetchLeads();
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to sync leads.');
+      alert('❌ ' + (error.response?.data?.message || 'Failed to sync leads.'));
     } finally {
       setSyncing(false);
     }

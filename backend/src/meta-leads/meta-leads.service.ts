@@ -229,18 +229,27 @@ export class MetaLeadsService {
   }
 
   private parseLeadFields(fieldData: any[]) {
-    const parsed: any = { status: 'Intake' };
+    const parsed: any = { status: 'Intake', customFields: {} };
     
     fieldData.forEach(field => {
       const name = field.name.toLowerCase();
+      const value = field.values[0];
+      
       if (name === 'full_name' || (name.includes('name') && !name.includes('company'))) {
-        parsed.name = field.values[0];
+        parsed.name = value;
       } else if (name.includes('email')) {
-        parsed.email = field.values[0];
+        parsed.email = value;
       } else if (name.includes('phone')) {
-        parsed.phone = field.values[0];
+        parsed.phone = value;
       } else if (name.includes('company')) {
-        parsed.company = field.values[0];
+        parsed.company = value;
+      } else if (name.includes('city')) {
+        parsed.city = value;
+      } else if (name.includes('business') && name.includes('type')) {
+        parsed.businessType = value;
+      } else {
+        // Store any other fields in customFields JSON
+        parsed.customFields[field.name] = value;
       }
     });
 
@@ -326,12 +335,11 @@ export class MetaLeadsService {
 
       for (const row of csvData) {
         try {
-          // Parse CSV row - Meta CSV format
           const leadData: any = {
             status: 'Intake',
+            customFields: {},
           };
 
-          // Map CSV columns to lead fields (flexible mapping)
           Object.keys(row).forEach(key => {
             const lowerKey = key.toLowerCase().trim();
             const value = row[key]?.toString().trim();
@@ -339,44 +347,44 @@ export class MetaLeadsService {
             if (!value) return;
 
             if (lowerKey.includes('name') || lowerKey === 'full_name') {
-              leadData.name = value;
+              if (!lowerKey.includes('company')) leadData.name = value;
             } else if (lowerKey.includes('email')) {
               leadData.email = value;
             } else if (lowerKey.includes('phone')) {
               leadData.phone = value;
             } else if (lowerKey.includes('company')) {
               leadData.company = value;
+            } else if (lowerKey.includes('city')) {
+              leadData.city = value;
+            } else if (lowerKey.includes('business') && lowerKey.includes('type')) {
+              leadData.businessType = value;
             } else if (lowerKey.includes('created') || lowerKey.includes('date')) {
               try {
                 const parsedDate = new Date(value);
                 if (!isNaN(parsedDate.getTime())) {
                   leadData.createdTime = parsedDate;
                 }
-              } catch (e) {
-                // Skip invalid dates
-              }
+              } catch (e) {}
             } else if (lowerKey.includes('id') && !lowerKey.includes('form') && !lowerKey.includes('page')) {
               leadData.leadId = value;
+            } else {
+              leadData.customFields[key] = value;
             }
           });
 
-          // Generate a unique leadId if not present
           if (!leadData.leadId) {
             leadData.leadId = `csv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
           }
 
-          // Set default createdTime if not present
           if (!leadData.createdTime) {
             leadData.createdTime = new Date();
           }
 
-          // Skip if no name and no email and no phone
           if (!leadData.name && !leadData.email && !leadData.phone) {
             skipped++;
             continue;
           }
 
-          // Upsert lead
           const saved = await client.metaLead.upsert({
             where: { leadId: leadData.leadId },
             update: {
@@ -384,6 +392,9 @@ export class MetaLeadsService {
               email: leadData.email,
               phone: leadData.phone,
               company: leadData.company,
+              city: leadData.city,
+              businessType: leadData.businessType,
+              customFields: leadData.customFields,
               status: leadData.status,
             },
             create: {
@@ -395,6 +406,9 @@ export class MetaLeadsService {
               email: leadData.email,
               phone: leadData.phone,
               company: leadData.company,
+              city: leadData.city,
+              businessType: leadData.businessType,
+              customFields: leadData.customFields,
               status: leadData.status,
             },
           });

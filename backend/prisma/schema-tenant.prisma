@@ -584,18 +584,21 @@ model MetaConfig {
 }
 
 model MetaLead {
-  id          Int      @id @default(autoincrement())
-  leadId      String   @unique
-  formId      String
-  pageId      String
-  name        String?
-  email       String?
-  phone       String?
-  company     String?
-  status      String   @default("Intake")
-  createdTime DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           Int      @id @default(autoincrement())
+  leadId       String   @unique
+  formId       String
+  pageId       String
+  name         String?
+  email        String?
+  phone        String?
+  company      String?
+  city         String?
+  businessType String?
+  customFields Json?    @default("{}")
+  status       String   @default("Intake")
+  createdTime  DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([formId])
   @@index([pageId])

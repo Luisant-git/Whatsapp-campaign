@@ -342,6 +342,8 @@ const MetaLeads = () => {
                         <div className="lead-name-info">
                           <span className="lead-name">{lead.name || 'Anonymous Lead'}</span>
                           <span className="lead-source">Meta Lead Forms</span>
+                          {lead.city && <span className="lead-meta-field" style={{ fontSize: '11px', color: '#65676B' }}>📍 {lead.city}</span>}
+                          {lead.businessType && <span className="lead-meta-field" style={{ fontSize: '11px', color: '#65676B' }}>🏢 {lead.businessType}</span>}
                         </div>
                       </div>
                     </td>
@@ -365,6 +367,11 @@ const MetaLeads = () => {
                         <span style={{ fontSize: '12px', color: '#65676B', display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <Mail size={12} color="#65676B" /> {lead.email || 'N/A'}
                         </span>
+                        {lead.company && (
+                          <span style={{ fontSize: '12px', color: '#65676B', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Building2 size={12} color="#65676B" /> {lead.company}
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td>

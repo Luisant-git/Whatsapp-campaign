@@ -94,7 +94,7 @@ export class LandingContactService {
               {
                 type: 'image',
                 image: {
-                  link: 'https://whatsapp.api.luisant.cloud/uploads/header-1775826375109-98410528.png'
+                  link: 'https://whatsapp.api.luisant.cloud/uploads/header-1776079065789-806612507.png'
                 }
               }
             ]

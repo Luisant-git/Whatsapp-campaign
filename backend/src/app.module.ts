@@ -33,6 +33,7 @@ import { TemplateModule } from './template/template.module';
 import { UploadModule } from './upload/upload.module';
 import { TenentnoteModule } from './tenentnote/tenentnote.module';
 import { MetaLeadsModule } from './meta-leads/meta-leads.module';
+import { LandingContactModule } from './landing-contact/landing-contact.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { MetaLeadsModule } from './meta-leads/meta-leads.module';
     UploadModule,
     TenentnoteModule,
     MetaLeadsModule,
+    LandingContactModule,
   ],
   controllers: [AppController, TestController],
   providers: [AppService],
@@ -94,6 +96,7 @@ export class AppModule implements NestModule {
         { path: 'flow-appointments/exchange', method: RequestMethod.ALL },
         { path: 'flow-appointments/:id/finish', method: RequestMethod.ALL },
         { path: 'meta-leads/webhook', method: RequestMethod.ALL },
+        { path: 'landing-contact/submit', method: RequestMethod.ALL },
       )
       .forRoutes('*');
   }

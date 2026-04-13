@@ -175,3 +175,19 @@ model TenantNote {
 
   @@index([tenantId])
 }
+
+model LandingContactSubmission {
+  id                  Int      @id @default(autoincrement())
+  businessName        String
+  yourName            String
+  whatsappNumber      String
+  hasWebsite          String
+  primaryGoal         String
+  whatsappMessageSent Boolean  @default(false)
+  whatsappMessageId   String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([whatsappNumber])
+  @@index([createdAt])
+}

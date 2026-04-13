@@ -79,6 +79,25 @@
   cursor: pointer;
   position: relative;
   transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tab-count {
+  background: #e4e6eb;
+  color: #65676b;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 24px;
+  text-align: center;
+}
+
+.tab-item.active .tab-count {
+  background: #e7f3ff;
+  color: #1877f2;
 }
 
 .tab-item:hover {

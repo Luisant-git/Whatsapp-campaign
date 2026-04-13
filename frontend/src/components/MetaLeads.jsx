@@ -27,6 +27,7 @@ const MetaLeads = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [activeTab, setActiveTab] = useState('All');
+  const [tabCounts, setTabCounts] = useState({ All: 0, Intake: 0, Qualified: 0, Converted: 0 });
 
   const statuses = ['Intake', 'Qualified', 'Converted'];
   const tabs = ['All', 'Intake', 'Qualified', 'Converted'];
@@ -44,6 +45,9 @@ const MetaLeads = () => {
       });
       setLeads(data.data || []);
       setTotalPages(data.pagination?.totalPages || 1);
+      
+      // Fetch counts for all tabs
+      fetchTabCounts();
     } catch (error) {
       console.error('Error fetching leads:', error);
       setLeads([]);
@@ -53,10 +57,39 @@ const MetaLeads = () => {
     }
   };
 
+  const fetchTabCounts = async () => {
+    try {
+      const counts = { All: 0, Intake: 0, Qualified: 0, Converted: 0 };
+      
+      // Fetch total count
+      const allResponse = await axios.get(`${API_BASE_URL}/meta-leads`, {
+        params: { page: 1, limit: 1, search: '' },
+        withCredentials: true,
+      });
+      counts.All = allResponse.data.pagination?.total || 0;
+      
+      // Fetch counts for each status
+      for (const status of statuses) {
+        const response = await axios.get(`${API_BASE_URL}/meta-leads`, {
+          params: { page: 1, limit: 1, status },
+          withCredentials: true,
+        });
+        counts[status] = response.data.pagination?.total || 0;
+      }
+      
+      setTabCounts(counts);
+    } catch (error) {
+      console.error('Error fetching tab counts:', error);
+    }
+  };
+
   const syncLeads = async () => {
     const formId = prompt('Enter Form ID from Meta Leads:');
     if (!formId) return;
 
+    // Optional: Ask if user wants to fetch historical data
+    const fetchHistorical = confirm('Do you want to fetch ALL historical leads? (This may take longer but ensures you get all old leads)');
+    
     try {
       setSyncing(true);
       const { data: metaConfigs } = await axios.get(`${API_BASE_URL}/meta-config`, {
@@ -69,19 +102,31 @@ const MetaLeads = () => {
       }
 
       const activeConfig = metaConfigs.find(c => c.isActive) || metaConfigs[0];
-      const response = await axios.post(`${API_BASE_URL}/meta-leads/sync`, { 
+      
+      const payload: any = { 
         pageId: activeConfig.pageId,
         formId, 
         accessToken: activeConfig.accessToken,
         phoneNumberId: activeConfig.phoneNumberId || activeConfig.pageId,
-      }, { withCredentials: true });
+      };
+      
+      // Add 'since' parameter for historical data (fetch from 2 years ago)
+      if (fetchHistorical) {
+        const twoYearsAgo = new Date();
+        twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+        payload.since = twoYearsAgo.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+      }
+      
+      const response = await axios.post(`${API_BASE_URL}/meta-leads/sync`, payload, { 
+        withCredentials: true 
+      });
       
       if (response.data.error) {
         alert(`Sync failed: ${response.data.message}`);
         return;
       }
       
-      alert(`Leads synced successfully! ${response.data.count || 0} leads imported.`);
+      alert(`✅ Leads synced successfully! ${response.data.count || 0} leads imported.${fetchHistorical ? ' (Including historical data)' : ''}`);
       fetchLeads();
     } catch (error) {
       alert(error.response?.data?.message || 'Failed to sync leads.');
@@ -136,7 +181,8 @@ const MetaLeads = () => {
               className={`tab-item ${activeTab === tab ? 'active' : ''}`}
               onClick={() => handleTabChange(tab)}
             >
-              {tab === 'Intake' ? 'Needs Action' : tab}
+              {tab}
+              <span className="tab-count">{tabCounts[tab] || 0}</span>
             </div>
           ))}
         </div>
@@ -212,7 +258,7 @@ const MetaLeads = () => {
                         style={{ border: 'none', cursor: 'pointer', outline: 'none' }}
                       >
                         {statuses.map((s) => (
-                          <option key={s} value={s}>{s === 'Intake' ? 'Needs Action' : s}</option>
+                          <option key={s} value={s}>{s}</option>
                         ))}
                       </select>
                     </td>

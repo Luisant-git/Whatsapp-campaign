@@ -106,13 +106,21 @@ export class MetaLeadsService {
         allLeads = await this.fetchLeadsFromForm(formId, accessToken);
       } else {
         this.logger.log(`Fetching all forms from page: ${pageId}`);
-        const formsUrl = `https://graph.facebook.com/v25.0/${pageId}/leadgen_forms?access_token=${accessToken}`;
-        const { data: formsData } = await axios.get(formsUrl);
-        const forms = formsData.data || [];
         
-        this.logger.log(`Found ${forms.length} forms on this page`);
+        // Fetch ALL forms with pagination
+        let formsUrl: string | null = `https://graph.facebook.com/v25.0/${pageId}/leadgen_forms?access_token=${accessToken}&limit=100`;
+        let allForms: any[] = [];
+        
+        while (formsUrl) {
+          const { data: formsData } = await axios.get(formsUrl);
+          const forms = formsData.data || [];
+          allForms.push(...forms);
+          formsUrl = formsData.paging?.next || null;
+        }
+        
+        this.logger.log(`Found ${allForms.length} forms on this page`);
 
-        for (const form of forms) {
+        for (const form of allForms) {
           this.logger.log(`Fetching leads from form: ${form.id} (${form.name || 'Unnamed'})`);
           const formLeads = await this.fetchLeadsFromForm(form.id, accessToken);
           allLeads.push(...formLeads);

@@ -89,8 +89,13 @@ const MetaLeads = () => {
   };
 
   const syncLeads = async () => {
-    const formId = prompt('Enter Form ID from Meta Leads:');
-    if (!formId) return;
+    const choice = confirm('Sync ALL forms or specific form?\n\nOK = Sync ALL forms (recommended)\nCancel = Enter specific Form ID');
+    
+    let formId = 'all';
+    if (!choice) {
+      formId = prompt('Enter Form ID from Meta Leads:');
+      if (!formId) return;
+    }
     
     try {
       setSyncing(true);
@@ -112,7 +117,7 @@ const MetaLeads = () => {
         phoneNumberId: activeConfig.phoneNumberId || activeConfig.pageId,
       };
       
-      console.log('Syncing all leads from Meta...');
+      console.log('Syncing leads from Meta...');
       
       const response = await axios.post(`${API_BASE_URL}/meta-leads/sync`, payload, { 
         withCredentials: true 

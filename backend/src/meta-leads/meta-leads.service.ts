@@ -99,44 +99,24 @@ export class MetaLeadsService {
 
   async syncLeadsFromFacebook(pageId: string, formId: string, accessToken: string, phoneNumberId?: string, tenantId?: string, since?: string) {
     try {
-      // Build initial URL - fetch ALL leads without date filter
-      let baseUrl = `https://graph.facebook.com/v25.0/${formId}/leads?access_token=${accessToken}&fields=id,created_time,field_data&limit=500`;
-      
-      let url: string | null = baseUrl;
       let allLeads: any[] = [];
-      let pageCount = 0;
 
-      // Loop through all pages to get ALL leads
-      while (url) {
-        pageCount++;
-        this.logger.log(`Fetching page ${pageCount}...`);
+      if (formId && formId !== 'all') {
+        this.logger.log(`Syncing leads from single form: ${formId}`);
+        allLeads = await this.fetchLeadsFromForm(formId, accessToken);
+      } else {
+        this.logger.log(`Fetching all forms from page: ${pageId}`);
+        const formsUrl = `https://graph.facebook.com/v25.0/${pageId}/leadgen_forms?access_token=${accessToken}`;
+        const { data: formsData } = await axios.get(formsUrl);
+        const forms = formsData.data || [];
         
-        const response = await axios.get(url);
-        const data = response.data;
-        const leads = data.data || [];
-        allLeads.push(...leads);
-        
-        this.logger.log(`Page ${pageCount}: Got ${leads.length} leads. Total so far: ${allLeads.length}`);
-        
-        // Check for next page in multiple ways
-        if (data.paging) {
-          this.logger.log(`Paging object:`, JSON.stringify(data.paging));
-          
-          // Try to get next URL
-          if (data.paging.next) {
-            url = data.paging.next;
-            this.logger.log(`Found paging.next, continuing to next page...`);
-          } else if (data.paging.cursors?.after) {
-            // Manually construct next URL using 'after' cursor
-            url = `https://graph.facebook.com/v25.0/${formId}/leads?access_token=${accessToken}&fields=id,created_time,field_data&limit=500&after=${data.paging.cursors.after}`;
-            this.logger.log(`No paging.next found, but cursors.after exists. Constructing URL manually...`);
-          } else {
-            url = null;
-            this.logger.log(`No more pages (no next URL or after cursor).`);
-          }
-        } else {
-          url = null;
-          this.logger.log(`No paging object. Finished fetching.`);
+        this.logger.log(`Found ${forms.length} forms on this page`);
+
+        for (const form of forms) {
+          this.logger.log(`Fetching leads from form: ${form.id} (${form.name || 'Unnamed'})`);
+          const formLeads = await this.fetchLeadsFromForm(form.id, accessToken);
+          allLeads.push(...formLeads);
+          this.logger.log(`Got ${formLeads.length} leads from form ${form.id}`);
         }
       }
       
@@ -146,7 +126,7 @@ export class MetaLeadsService {
         return { 
           success: true, 
           count: 0,
-          message: 'No leads found for this form. The form may not have any submissions yet.'
+          message: 'No leads found. The forms may not have any submissions yet.'
         };
       }
 
@@ -161,7 +141,7 @@ export class MetaLeadsService {
           update: { ...fieldData },
           create: {
             leadId: lead.id,
-            formId,
+            formId: lead.form_id || formId || 'unknown',
             pageId,
             createdTime: new Date(lead.created_time),
             ...fieldData,
@@ -180,12 +160,10 @@ export class MetaLeadsService {
     } catch (error) {
       this.logger.error('Failed to sync leads:', error);
       
-      // Return detailed Meta API error
       if (error.response?.data?.error) {
         const metaError = error.response.data.error;
         let errorMessage = metaError.message;
         
-        // Add helpful context based on error code
         if (metaError.code === 100) {
           errorMessage += ' - This usually means: 1) The Form ID is incorrect, 2) Your access token lacks required permissions (leads_retrieval), or 3) The form doesn\'t belong to your Page.';
         } else if (metaError.code === 190) {
@@ -197,6 +175,21 @@ export class MetaLeadsService {
       
       throw new Error(error.message || 'Failed to sync leads from Facebook');
     }
+  }
+
+  private async fetchLeadsFromForm(formId: string, accessToken: string): Promise<any[]> {
+    let url: string | null = `https://graph.facebook.com/v25.0/${formId}/leads?access_token=${accessToken}&fields=id,created_time,field_data,form_id&limit=500`;
+    let allLeads: any[] = [];
+
+    while (url) {
+      const response = await axios.get(url);
+      const data = response.data;
+      const leads = data.data || [];
+      allLeads.push(...leads);
+      url = data.paging?.next || null;
+    }
+
+    return allLeads;
   }
 
   private async syncToContact(leadData: any, phoneNumberId?: string, tenantId?: string) {

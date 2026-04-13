@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Phone, Mail, Building2, Calendar, RefreshCw } from 'lucide-react';
+import { 
+  Phone, 
+  Mail, 
+  Building2, 
+  Calendar, 
+  RefreshCw, 
+  Search, 
+  Download, 
+  Filter, 
+  MoreHorizontal,
+  ArrowRight,
+  ExternalLink,
+  UserCheck
+} from 'lucide-react';
 import '../styles/MetaLeads.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010';
@@ -13,8 +26,10 @@ const MetaLeads = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [activeTab, setActiveTab] = useState('All');
 
   const statuses = ['Intake', 'Qualified', 'Converted'];
+  const tabs = ['All', 'Intake', 'Qualified', 'Converted'];
 
   useEffect(() => {
     fetchLeads();
@@ -40,13 +55,10 @@ const MetaLeads = () => {
 
   const syncLeads = async () => {
     const formId = prompt('Enter Form ID from Meta Leads:');
-    
     if (!formId) return;
 
     try {
       setSyncing(true);
-      
-      // Get Meta Config
       const { data: metaConfigs } = await axios.get(`${API_BASE_URL}/meta-config`, {
         withCredentials: true,
       });
@@ -57,44 +69,22 @@ const MetaLeads = () => {
       }
 
       const activeConfig = metaConfigs.find(c => c.isActive) || metaConfigs[0];
-      
-      if (!activeConfig.pageId) {
-        alert('Page ID is missing in Meta Config. Please update your configuration.');
-        return;
-      }
-      
-      // Sync leads directly without pre-fetching form info
       const response = await axios.post(`${API_BASE_URL}/meta-leads/sync`, { 
         pageId: activeConfig.pageId,
         formId, 
         accessToken: activeConfig.accessToken,
         phoneNumberId: activeConfig.phoneNumberId || activeConfig.pageId,
-      }, {
-        withCredentials: true,
-      });
+      }, { withCredentials: true });
       
       if (response.data.error) {
-        alert(`Sync failed: ${response.data.message}\n\nDetails: ${response.data.details || ''}`);
+        alert(`Sync failed: ${response.data.message}`);
         return;
       }
       
       alert(`Leads synced successfully! ${response.data.count || 0} leads imported.`);
       fetchLeads();
     } catch (error) {
-      const errorData = error.response?.data;
-      let errorMsg = 'Failed to sync leads.';
-      
-      if (errorData?.message) {
-        errorMsg = errorData.message;
-        if (errorData.details) {
-          errorMsg += '\n\n' + errorData.details;
-        }
-      } else if (error.message) {
-        errorMsg = error.message;
-      }
-      
-      alert(errorMsg);
-      console.error('Sync error:', error);
+      alert(error.response?.data?.message || 'Failed to sync leads.');
     } finally {
       setSyncing(false);
     }
@@ -111,129 +101,189 @@ const MetaLeads = () => {
     }
   };
 
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setStatusFilter(tab === 'All' ? '' : tab);
+    setPage(1);
+  };
+
   return (
-    <div className="meta-leads-container">
-      <div className="leads-header">
-        <h1>Meta Leads Center</h1>
-        <div className="leads-actions">
-          <button onClick={syncLeads} disabled={syncing} className="sync-btn">
-            <RefreshCw size={16} />
-            {syncing ? 'Syncing...' : 'Sync Leads'}
-          </button>
+    <div className="meta-leads-wrapper">
+      <div className="meta-leads-container">
+        {/* Header Section */}
+        <div className="leads-header">
+          <div className="header-title-section">
+            <h1>Lead Center</h1>
+            <p className="header-subtitle">Manage and nurture your leads from Facebook and Instagram</p>
+          </div>
+          <div className="leads-actions">
+            <button className="sync-btn secondary">
+              <Download size={16} />
+              Export
+            </button>
+            <button onClick={syncLeads} disabled={syncing} className="sync-btn">
+              <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
+              {syncing ? 'Syncing...' : 'Sync Leads'}
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className="leads-filters">
-        <input
-          type="text"
-          placeholder="Search leads..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="search-input"
-        />
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="status-filter"
-        >
-          <option value="">All Status</option>
-          {statuses.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="leads-stats">
-        <div className="stat-card">
-          <h3>Intake: {leads.filter(l => l.status === 'Intake').length}</h3>
-        </div>
-        <div className="stat-card">
-          <h3>Qualified: {leads.filter(l => l.status === 'Qualified').length}</h3>
-        </div>
-        <div className="stat-card">
-          <h3>Converted: {leads.filter(l => l.status === 'Converted').length}</h3>
-        </div>
-      </div>
-
-      <div className="leads-board">
-        {statuses.map((status) => (
-          <div key={status} className="leads-column">
-            <div className="column-header">
-              <h3>{status}</h3>
-              <span className="count">{leads.filter(l => l.status === status).length}</span>
+        {/* Tabs Section */}
+        <div className="leads-tabs">
+          {tabs.map(tab => (
+            <div 
+              key={tab} 
+              className={`tab-item ${activeTab === tab ? 'active' : ''}`}
+              onClick={() => handleTabChange(tab)}
+            >
+              {tab === 'Intake' ? 'Needs Action' : tab}
             </div>
-            <div className="leads-list">
-              {leads
-                .filter((lead) => lead.status === status)
-                .map((lead) => (
-                  <div key={lead.id} className="lead-card">
-                    <div className="lead-header">
-                      <div className="lead-avatar">
-                        {lead.name?.charAt(0) || 'L'}
-                      </div>
-                      <div className="lead-info">
-                        <h4>{lead.name || 'Unknown'}</h4>
-                        <span className="lead-badge">Paid</span>
-                      </div>
-                    </div>
-                    
-                    {lead.phone && (
-                      <div className="lead-detail">
-                        <Phone size={16} />
-                        <span>{lead.phone}</span>
-                      </div>
-                    )}
-                    
-                    {lead.email && (
-                      <div className="lead-detail">
-                        <Mail size={16} />
-                        <span>{lead.email}</span>
-                      </div>
-                    )}
-                    
-                    {lead.company && (
-                      <div className="lead-detail">
-                        <Building2 size={16} />
-                        <span>{lead.company}</span>
-                      </div>
-                    )}
-                    
-                    <div className="lead-detail">
-                      <Calendar size={16} />
-                      <span>{new Date(lead.createdTime).toLocaleDateString()}</span>
-                    </div>
+          ))}
+        </div>
 
-                    <div className="lead-actions">
+        {/* Filters & Table Section */}
+        <div className="leads-filters-bar">
+          <div className="filters-left">
+            <div className="search-wrapper">
+              <Search size={16} className="search-icon" />
+              <input
+                type="text"
+                placeholder="Search by name, email or phone..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="search-input"
+              />
+            </div>
+            <button className="sync-btn secondary" style={{ padding: '6px 12px' }}>
+              <Filter size={14} />
+              Filters
+            </button>
+          </div>
+          <div className="filters-right">
+            <p className="pagination-info">Showing {leads.length} leads</p>
+          </div>
+        </div>
+
+        <div className="leads-table-container">
+          <table className="meta-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Contact</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array(5).fill(0).map((_, i) => (
+                  <tr key={i}>
+                    <td colSpan="5">
+                      <div className="shimmer" style={{ height: '40px', borderRadius: '4px' }}></div>
+                    </td>
+                  </tr>
+                ))
+              ) : leads.length === 0 ? (
+                <tr>
+                  <td colSpan="5" style={{ textAlign: 'center', padding: '40px', color: '#65676B' }}>
+                    No leads found matching your criteria.
+                  </td>
+                </tr>
+              ) : (
+                leads.map((lead) => (
+                  <tr key={lead.id}>
+                    <td>
+                      <div className="lead-name-cell">
+                        <div className="lead-initials">
+                          {lead.name?.charAt(0) || 'L'}
+                        </div>
+                        <div className="lead-name-info">
+                          <span className="lead-name">{lead.name || 'Anonymous Lead'}</span>
+                          <span className="lead-source">Meta Lead Forms</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
                       <select
                         value={lead.status}
                         onChange={(e) => updateStatus(lead.id, e.target.value)}
-                        className="status-select"
+                        className={`status-pill ${lead.status?.toLowerCase()}`}
+                        style={{ border: 'none', cursor: 'pointer', outline: 'none' }}
                       >
                         {statuses.map((s) => (
-                          <option key={s} value={s}>{s}</option>
+                          <option key={s} value={s}>{s === 'Intake' ? 'Needs Action' : s}</option>
                         ))}
                       </select>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </div>
-        ))}
-      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <span style={{ fontSize: '13px', color: '#1C1E21', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Phone size={12} color="#65676B" /> {lead.phone || 'N/A'}
+                        </span>
+                        <span style={{ fontSize: '12px', color: '#65676B', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Mail size={12} color="#65676B" /> {lead.email || 'N/A'}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '13px', color: '#1C1E21' }}>
+                          {new Date(lead.createdTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
+                        <span style={{ fontSize: '12px', color: '#65676B' }}>
+                          {new Date(lead.createdTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button className="action-dots" title="View details">
+                          <ExternalLink size={16} />
+                        </button>
+                        <button className="action-dots" title="Quick assign">
+                          <UserCheck size={16} />
+                        </button>
+                        <button className="action-dots">
+                          <MoreHorizontal size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
 
-      {totalPages > 1 && (
-        <div className="pagination">
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-            Previous
-          </button>
-          <span>Page {page} of {totalPages}</span>
-          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
-            Next
-          </button>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="meta-pagination">
+              <div className="pagination-info">
+                Page {page} of {totalPages}
+              </div>
+              <div className="pagination-controls">
+                <button 
+                  className="page-btn" 
+                  onClick={() => setPage(p => Math.max(1, p - 1))} 
+                  disabled={page === 1}
+                >
+                  Previous
+                </button>
+                <button 
+                  className="page-btn" 
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+                  disabled={page === totalPages}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
 
 export default MetaLeads;
+

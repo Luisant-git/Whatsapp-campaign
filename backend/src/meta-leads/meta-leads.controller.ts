@@ -1,5 +1,7 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, Req } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, Req, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { MetaLeadsService } from './meta-leads.service';
+import csv from 'csv-parser';
 
 @Controller('meta-leads')
 export class MetaLeadsController {
@@ -92,5 +94,65 @@ export class MetaLeadsController {
   async handleWebhook(@Req() req: any, @Body() body: any) {
     const tenantId = req.headers['x-tenant-id'] || 'default';
     return this.metaLeadsService.handleWebhook(body, tenantId);
+  }
+
+  @Post('import-csv')
+  @UseInterceptors(FileInterceptor('file'))
+  async importCSV(
+    @Req() req: any,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('pageId') pageId?: string,
+    @Body('formId') formId?: string,
+    @Body('phoneNumberId') phoneNumberId?: string,
+  ) {
+    try {
+      const tenantId = req.headers['x-tenant-id'] || 'default';
+      
+      if (!file) {
+        return { error: true, message: 'No file uploaded' };
+      }
+
+      // Parse CSV
+      const csvData: any[] = [];
+      const Readable = require('stream').Readable;
+      
+      return new Promise((resolve, reject) => {
+        const stream = Readable.from(file.buffer.toString());
+        
+        stream
+          .pipe(csv())
+          .on('data', (row: any) => {
+            csvData.push(row);
+          })
+          .on('end', async () => {
+            try {
+              const result = await this.metaLeadsService.importLeadsFromCSV(
+                csvData,
+                pageId || 'csv-import',
+                formId || 'csv-import',
+                phoneNumberId,
+                tenantId
+              );
+              resolve(result);
+            } catch (error) {
+              resolve({
+                error: true,
+                message: error.message || 'Failed to import CSV'
+              });
+            }
+          })
+          .on('error', (error: any) => {
+            resolve({
+              error: true,
+              message: 'Failed to parse CSV file: ' + error.message
+            });
+          });
+      });
+    } catch (error) {
+      return {
+        error: true,
+        message: error.message || 'Failed to process CSV file'
+      };
+    }
   }
 }

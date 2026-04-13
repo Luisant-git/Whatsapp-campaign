@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { 
   Phone, 
@@ -12,7 +12,9 @@ import {
   MoreHorizontal,
   ArrowRight,
   ExternalLink,
-  UserCheck
+  UserCheck,
+  Upload,
+  FileSpreadsheet
 } from 'lucide-react';
 import '../styles/MetaLeads.css';
 
@@ -22,12 +24,14 @@ const MetaLeads = () => {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [activeTab, setActiveTab] = useState('All');
   const [tabCounts, setTabCounts] = useState({ All: 0, Intake: 0, Qualified: 0, Converted: 0 });
+  const fileInputRef = useRef(null);
 
   const statuses = ['Intake', 'Qualified', 'Converted'];
   const tabs = ['All', 'Intake', 'Qualified', 'Converted'];
@@ -144,6 +148,56 @@ const MetaLeads = () => {
     setPage(1);
   };
 
+  const handleCSVImport = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.csv')) {
+      alert('❌ Please upload a CSV file');
+      return;
+    }
+
+    try {
+      setImporting(true);
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const { data: metaConfigs } = await axios.get(`${API_BASE_URL}/meta-config`, {
+        withCredentials: true,
+      });
+      
+      if (metaConfigs && metaConfigs.length > 0) {
+        const activeConfig = metaConfigs.find(c => c.isActive) || metaConfigs[0];
+        formData.append('pageId', activeConfig.pageId);
+        formData.append('phoneNumberId', activeConfig.phoneNumberId || activeConfig.pageId);
+      }
+
+      const response = await axios.post(`${API_BASE_URL}/meta-leads/import-csv`, formData, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (response.data.error) {
+        alert(`❌ Import failed: ${response.data.message}`);
+        return;
+      }
+
+      alert(`✅ SUCCESS! ${response.data.count || 0} leads imported from CSV${response.data.skipped ? ` (${response.data.skipped} rows skipped)` : ''}`);
+      fetchLeads();
+      
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      alert('❌ ' + (error.response?.data?.message || 'Failed to import CSV'));
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <div className="meta-leads-wrapper">
       <div className="meta-leads-container">
@@ -154,6 +208,18 @@ const MetaLeads = () => {
             <p className="header-subtitle">Manage and nurture your leads from Facebook and Instagram</p>
           </div>
           <div className="leads-actions">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleCSVImport}
+              style={{ display: 'none' }}
+              id="csv-upload"
+            />
+            <label htmlFor="csv-upload" className="sync-btn secondary" style={{ cursor: 'pointer', margin: 0 }}>
+              <Upload size={16} />
+              {importing ? 'Importing...' : 'Import CSV'}
+            </label>
             <button className="sync-btn secondary">
               <Download size={16} />
               Export

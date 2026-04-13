@@ -68,9 +68,24 @@ export class MetaLeadsService {
       const response = await axios.get(url, {
         params: { 
           access_token: accessToken,
-          fields: 'id,name,page_id,status,leads_count'
+          fields: 'id,name,page_id,status,leads_count,lead_gen_export_csv_url'
         },
       });
+      
+      this.logger.log(`Form Info for ${formId}:`, JSON.stringify(response.data));
+      
+      // Also try to get the total count directly
+      const leadsCountUrl = `https://graph.facebook.com/v25.0/${formId}/leads`;
+      const leadsResponse = await axios.get(leadsCountUrl, {
+        params: { 
+          access_token: accessToken,
+          summary: true,
+          limit: 0
+        },
+      });
+      
+      this.logger.log(`Leads summary:`, JSON.stringify(leadsResponse.data));
+      
       return response;
     } catch (error) {
       this.logger.error('Failed to get form info:', error);
@@ -84,15 +99,8 @@ export class MetaLeadsService {
 
   async syncLeadsFromFacebook(pageId: string, formId: string, accessToken: string, phoneNumberId?: string, tenantId?: string, since?: string) {
     try {
-      // Build initial URL - DON'T use 'since' parameter as it filters out old leads
-      // Instead, fetch ALL leads without date filter
-      let baseUrl = `https://graph.facebook.com/v25.0/${formId}/leads?access_token=${accessToken}&fields=id,created_time,field_data&limit=100`;
-      
-      // Note: Removed 'since' parameter because Meta API filters results with it
-      // We'll fetch ALL leads and let the database handle duplicates with upsert
-      if (since) {
-        this.logger.log(`Note: Ignoring 'since' parameter to fetch ALL leads without date filtering`);
-      }
+      // Build initial URL - fetch ALL leads without date filter
+      let baseUrl = `https://graph.facebook.com/v25.0/${formId}/leads?access_token=${accessToken}&fields=id,created_time,field_data&limit=500`;
       
       let url = baseUrl;
       let allLeads: any[] = [];
@@ -101,26 +109,38 @@ export class MetaLeadsService {
       // Loop through all pages to get ALL leads
       while (url) {
         pageCount++;
-        this.logger.log(`Fetching page ${pageCount} from URL: ${url.substring(0, 100)}...`);
+        this.logger.log(`Fetching page ${pageCount}...`);
         
-        const { data } = await axios.get(url);
+        const response = await axios.get(url);
+        const data = response.data;
         const leads = data.data || [];
         allLeads.push(...leads);
         
         this.logger.log(`Page ${pageCount}: Got ${leads.length} leads. Total so far: ${allLeads.length}`);
-        this.logger.log(`Pagination info:`, JSON.stringify(data.paging || 'No paging info'));
-
-        // Get next page URL from pagination
-        url = data.paging?.next || null;
         
-        if (url) {
-          this.logger.log(`Next page URL exists, continuing...`);
+        // Check for next page in multiple ways
+        if (data.paging) {
+          this.logger.log(`Paging object:`, JSON.stringify(data.paging));
+          
+          // Try to get next URL
+          if (data.paging.next) {
+            url = data.paging.next;
+            this.logger.log(`Found paging.next, continuing to next page...`);
+          } else if (data.paging.cursors?.after) {
+            // Manually construct next URL using 'after' cursor
+            url = `https://graph.facebook.com/v25.0/${formId}/leads?access_token=${accessToken}&fields=id,created_time,field_data&limit=500&after=${data.paging.cursors.after}`;
+            this.logger.log(`No paging.next found, but cursors.after exists. Constructing URL manually...`);
+          } else {
+            url = null;
+            this.logger.log(`No more pages (no next URL or after cursor).`);
+          }
         } else {
-          this.logger.log(`No more pages. Finished fetching.`);
+          url = null;
+          this.logger.log(`No paging object. Finished fetching.`);
         }
       }
       
-      this.logger.log(`Total leads fetched from Meta: ${allLeads.length}`);
+      this.logger.log(`✅ Total leads fetched from Meta API: ${allLeads.length}`);
       
       if (allLeads.length === 0) {
         return { 
@@ -155,7 +175,7 @@ export class MetaLeadsService {
         savedLeads.push(saved);
       }
 
-      this.logger.log(`Successfully saved ${savedLeads.length} leads to database`);
+      this.logger.log(`✅ Successfully saved ${savedLeads.length} leads to database`);
       return { success: true, count: savedLeads.length };
     } catch (error) {
       this.logger.error('Failed to sync leads:', error);
@@ -276,5 +296,112 @@ export class MetaLeadsService {
     return client.masterConfig.findFirst({
       where: { isActive: true },
     });
+  }
+
+  async importLeadsFromCSV(csvData: any[], pageId: string, formId: string, phoneNumberId?: string, tenantId?: string) {
+    try {
+      const client = this.getClient(tenantId || 'default');
+      const savedLeads: any[] = [];
+      let skipped = 0;
+
+      this.logger.log(`Starting CSV import: ${csvData.length} rows`);
+
+      for (const row of csvData) {
+        try {
+          // Parse CSV row - Meta CSV format
+          const leadData: any = {
+            status: 'Intake',
+          };
+
+          // Map CSV columns to lead fields (flexible mapping)
+          Object.keys(row).forEach(key => {
+            const lowerKey = key.toLowerCase().trim();
+            const value = row[key]?.toString().trim();
+            
+            if (!value) return;
+
+            if (lowerKey.includes('name') || lowerKey === 'full_name') {
+              leadData.name = value;
+            } else if (lowerKey.includes('email')) {
+              leadData.email = value;
+            } else if (lowerKey.includes('phone')) {
+              leadData.phone = value;
+            } else if (lowerKey.includes('company')) {
+              leadData.company = value;
+            } else if (lowerKey.includes('created') || lowerKey.includes('date')) {
+              // Try to parse date
+              try {
+                leadData.createdTime = new Date(value);
+              } catch (e) {
+                // If date parsing fails, use current time
+                leadData.createdTime = new Date();
+              }
+            } else if (lowerKey.includes('id') && !lowerKey.includes('form') && !lowerKey.includes('page')) {
+              leadData.leadId = value;
+            }
+          });
+
+          // Generate a unique leadId if not present
+          if (!leadData.leadId) {
+            leadData.leadId = `csv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          }
+
+          // Set default createdTime if not present
+          if (!leadData.createdTime) {
+            leadData.createdTime = new Date();
+          }
+
+          // Skip if no name and no email and no phone
+          if (!leadData.name && !leadData.email && !leadData.phone) {
+            skipped++;
+            continue;
+          }
+
+          // Upsert lead
+          const saved = await client.metaLead.upsert({
+            where: { leadId: leadData.leadId },
+            update: {
+              name: leadData.name,
+              email: leadData.email,
+              phone: leadData.phone,
+              company: leadData.company,
+              status: leadData.status,
+            },
+            create: {
+              leadId: leadData.leadId,
+              formId: formId || 'csv-import',
+              pageId: pageId || 'csv-import',
+              createdTime: leadData.createdTime,
+              name: leadData.name,
+              email: leadData.email,
+              phone: leadData.phone,
+              company: leadData.company,
+              status: leadData.status,
+            },
+          });
+
+          // Sync to contacts if phone exists
+          if (leadData.phone) {
+            await this.syncToContact(leadData, phoneNumberId, tenantId);
+          }
+
+          savedLeads.push(saved);
+        } catch (rowError) {
+          this.logger.error(`Error processing row:`, rowError);
+          skipped++;
+        }
+      }
+
+      this.logger.log(`✅ CSV Import complete: ${savedLeads.length} imported, ${skipped} skipped`);
+      return { 
+        success: true, 
+        count: savedLeads.length, 
+        skipped,
+        message: `Successfully imported ${savedLeads.length} leads${skipped > 0 ? `, skipped ${skipped} invalid rows` : ''}` 
+      };
+    } catch (error) {
+      this.logger.error('CSV import failed:', error);
+      throw new Error(error.message || 'Failed to import CSV');
+    }
   }
 }

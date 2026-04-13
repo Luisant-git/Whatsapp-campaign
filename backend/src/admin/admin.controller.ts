@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Patch, Param, Delete, Session, HttpCode, HttpStatus, UnauthorizedException, ParseIntPipe, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Patch, Param, Delete, Session, HttpCode, HttpStatus, UnauthorizedException, ParseIntPipe, ForbiddenException, Query } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { LoginAdminDto } from './dto/login-admin.dto';
@@ -136,6 +136,24 @@ async getTenantSubUsers(
       sessionId: session?.id,
       sessionData: session,
     };
+  }
+
+  @Get('landing-contacts')
+  @ApiOperation({ summary: 'Get all landing page contact submissions' })
+  async getLandingContacts(
+    @Session() session: Record<string, any>,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+  ) {
+    if (!session?.adminId) {
+      throw new UnauthorizedException('Admin authentication required');
+    }
+    return this.adminService.getLandingContacts(
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 10,
+      search || '',
+    );
   }
 
   @Get()
@@ -289,6 +307,4 @@ async updateSubUser(
     }
     return this.adminService.createUserSubscription(+id, data);
   }
-
-
 }

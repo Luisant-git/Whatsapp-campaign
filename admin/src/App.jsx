@@ -6,6 +6,7 @@ import Users from './pages/Users';
 import Subscriptions from './pages/Subscriptions';
 import SubscriptionOrders from './pages/SubscriptionOrders';
 import TenantDomains from './pages/TenantDomains';
+import LandingContacts from './pages/LandingContacts';
 import Layout from './components/Layout';
 import './App.css';
 
@@ -34,6 +35,7 @@ function AppContent() {
         <Route path="/tenant-domains" element={<TenantDomains />} />
         <Route path="/subscriptions" element={<Subscriptions />} />
         <Route path="/subscription-orders" element={<SubscriptionOrders />} />
+        <Route path="/landing-contacts" element={<LandingContacts />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Layout>

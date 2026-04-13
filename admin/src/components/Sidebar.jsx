@@ -6,7 +6,8 @@ import {
   MdCardMembership,
   MdReceipt,
   MdDomain,
-  MdClose
+  MdClose,
+  MdContactMail
 } from 'react-icons/md';
 import '../styles/Sidebar.css';
 
@@ -23,6 +24,8 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
       ? 'orders'
       : location.pathname === '/tenant-domains'
       ? 'domains'
+      : location.pathname === '/landing-contacts'
+      ? 'landing-contacts'
       : 'dashboard';
 
   const menuItems = [
@@ -31,6 +34,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
     { id: 'domains', label: 'Tenant Domains', icon: MdDomain, path: '/tenant-domains' },
     { id: 'subscriptions', label: 'Subscriptions', icon: MdCardMembership, path: '/subscriptions' },
     { id: 'orders', label: 'Subscription Orders', icon: MdReceipt, path: '/subscription-orders' },
+    { id: 'landing-contacts', label: 'Landing Contacts', icon: MdContactMail, path: '/landing-contacts' },
   ];
 
   const handleNavigate = (path) => {

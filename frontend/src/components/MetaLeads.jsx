@@ -103,7 +103,7 @@ const MetaLeads = () => {
 
       const activeConfig = metaConfigs.find(c => c.isActive) || metaConfigs[0];
       
-      const payload: any = { 
+      const payload = { 
         pageId: activeConfig.pageId,
         formId, 
         accessToken: activeConfig.accessToken,

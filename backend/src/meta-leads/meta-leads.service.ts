@@ -298,6 +298,18 @@ export class MetaLeadsService {
     });
   }
 
+  async deleteAllLeads(tenantId?: string) {
+    try {
+      const client = this.getClient(tenantId || 'default');
+      const result = await client.metaLead.deleteMany({});
+      this.logger.log(`✅ Deleted ${result.count} leads`);
+      return { success: true, count: result.count };
+    } catch (error) {
+      this.logger.error('Failed to delete leads:', error);
+      throw new Error(error.message || 'Failed to delete leads');
+    }
+  }
+
   async importLeadsFromCSV(csvData: any[], pageId: string, formId: string, phoneNumberId?: string, tenantId?: string) {
     try {
       const client = this.getClient(tenantId || 'default');

@@ -96,6 +96,20 @@ export class MetaLeadsController {
     return this.metaLeadsService.handleWebhook(body, tenantId);
   }
 
+  @Delete('all')
+  async deleteAllLeads(@Req() req: any) {
+    try {
+      const tenantId = req.headers['x-tenant-id'] || 'default';
+      const result = await this.metaLeadsService.deleteAllLeads(tenantId);
+      return result;
+    } catch (error) {
+      return {
+        error: true,
+        message: error.message || 'Failed to delete leads'
+      };
+    }
+  }
+
   @Post('import-csv')
   @UseInterceptors(FileInterceptor('file'))
   async importCSV(

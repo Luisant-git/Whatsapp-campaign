@@ -82,19 +82,35 @@ export class MetaLeadsService {
     }
   }
 
-  async syncLeadsFromFacebook(pageId: string, formId: string, accessToken: string, phoneNumberId?: string, tenantId?: string) {
+  async syncLeadsFromFacebook(pageId: string, formId: string, accessToken: string, phoneNumberId?: string, tenantId?: string, since?: string) {
     try {
-      const url = `https://graph.facebook.com/v25.0/${formId}/leads`;
-      const { data } = await axios.get(url, {
-        params: { 
-          access_token: accessToken,
-          fields: 'id,created_time,field_data'
-        },
-      });
-
-      const leads = data.data || [];
+      // Build initial URL with optional since parameter for historical data
+      let baseUrl = `https://graph.facebook.com/v25.0/${formId}/leads?access_token=${accessToken}&fields=id,created_time,field_data`;
+      if (since) {
+        // Convert date to Unix timestamp if provided (e.g., '2023-01-01')
+        const sinceTimestamp = Math.floor(new Date(since).getTime() / 1000);
+        baseUrl += `&since=${sinceTimestamp}`;
+      }
       
-      if (leads.length === 0) {
+      let url = baseUrl;
+      let allLeads: any[] = [];
+
+      // Loop through all pages to get ALL leads
+      while (url) {
+        const { data } = await axios.get(url);
+        const leads = data.data || [];
+        allLeads.push(...leads);
+
+        // Get next page URL from pagination
+        url = data.paging?.next || null;
+        
+        // Log progress for large datasets
+        if (allLeads.length % 100 === 0) {
+          this.logger.log(`Fetched ${allLeads.length} leads so far...`);
+        }
+      }
+      
+      if (allLeads.length === 0) {
         return { 
           success: true, 
           count: 0,
@@ -105,7 +121,7 @@ export class MetaLeadsService {
       const savedLeads: any[] = [];
       const client = this.getClient(tenantId || 'default');
 
-      for (const lead of leads) {
+      for (const lead of allLeads) {
         const fieldData = this.parseLeadFields(lead.field_data);
         
         const saved = await client.metaLead.upsert({

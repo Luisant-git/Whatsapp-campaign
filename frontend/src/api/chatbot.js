@@ -11,7 +11,7 @@ export const chatbotAPI = {
     });
 
     const result = await response.json();
-    
+
     if (!response.ok || !result.success) {
       throw new Error(result.message || 'Failed to upload document');
     }
@@ -71,6 +71,19 @@ export const chatbotAPI = {
 
     if (!response.ok) {
       throw new Error('Failed to delete document');
+    }
+
+    return response.json();
+  },
+
+  clearChatHistory: async (phone) => {
+    const response = await fetch(`${API_BASE_URL}/chatbot/history?phone=${phone}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to clear chat history');
     }
 
     return response.json();

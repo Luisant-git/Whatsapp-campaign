@@ -23,7 +23,7 @@ export class ChatbotService {
       where: { id: userId },
     });
     if (!tenant) throw new Error('Tenant not found');
-    
+
     const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
     return this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
   }
@@ -37,7 +37,7 @@ export class ChatbotService {
     if (!uploadDocumentDto.filename) {
       throw new Error('Document filename is required');
     }
-    
+
     try {
       return await prisma.document.create({
         data: {
@@ -76,7 +76,7 @@ export class ChatbotService {
 
     if (documents.length === 0) {
       const fallbackResponse = 'I don\'t have any documents to reference. Please contact our support team for assistance.';
-      
+
       await prisma.chatMessage.create({
         data: {
           message: fallbackResponse,
@@ -84,7 +84,7 @@ export class ChatbotService {
           sessionId: session.id,
         },
       });
-      
+
       return { response: fallbackResponse };
     }
 
@@ -146,5 +146,20 @@ export class ChatbotService {
     return prisma.document.delete({
       where: { id: documentId },
     });
+  }
+
+  async clearChatHistory(userId: number, phone: string) {
+    const prisma = await this.getPrisma(userId);
+    const session = await prisma.chatSession.findFirst({
+      where: { phone },
+    });
+
+    if (session) {
+      await prisma.chatMessage.deleteMany({
+        where: { sessionId: session.id },
+      });
+    }
+
+    return { success: true };
   }
 }

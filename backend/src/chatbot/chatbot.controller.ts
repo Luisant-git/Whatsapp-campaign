@@ -24,12 +24,12 @@ export class ChatbotController {
   constructor(
     private readonly chatbotService: ChatbotService,
     private readonly menuPermissionService: MenuPermissionService,
-  ) {}
+  ) { }
 
   private async checkChatbotPermission(tenantId: number) {
     const menuPermission = await this.menuPermissionService.findByTenant(tenantId);
     const permissions = menuPermission?.permission as any;
-    
+
     // Check if chatbot permission exists and is explicitly set to false
     // If no permission record exists, allow access (default behavior)
     if (permissions && permissions.hasOwnProperty('chatbot') && permissions.chatbot === false) {
@@ -56,7 +56,7 @@ export class ChatbotController {
       }
 
       let content = '';
-      
+
       if (file.mimetype === 'application/pdf') {
         try {
           const pdfData = await pdfParse(file.buffer);
@@ -151,5 +151,20 @@ export class ChatbotController {
     await this.checkChatbotPermission(userId);
 
     return this.chatbotService.deleteDocument(userId, parseInt(id));
+  }
+
+  @Delete('history')
+  async clearChatHistory(
+    @Query('phone') phone: string,
+    @Session() session: any,
+  ) {
+    const userId = session.user?.id;
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+
+    await this.checkChatbotPermission(userId);
+
+    return this.chatbotService.clearChatHistory(userId, phone);
   }
 }

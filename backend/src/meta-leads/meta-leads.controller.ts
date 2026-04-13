@@ -58,10 +58,11 @@ export class MetaLeadsController {
     @Body('formId') formId: string,
     @Body('accessToken') accessToken: string,
     @Body('phoneNumberId') phoneNumberId?: string,
+    @Body('since') since?: string,
   ) {
     try {
       const tenantId = req.headers['x-tenant-id'] || 'default';
-      const result = await this.metaLeadsService.syncLeadsFromFacebook(pageId, formId, accessToken, phoneNumberId, tenantId);
+      const result = await this.metaLeadsService.syncLeadsFromFacebook(pageId, formId, accessToken, phoneNumberId, tenantId, since);
       return result;
     } catch (error) {
       return {

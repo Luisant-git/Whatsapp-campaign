@@ -1,53 +1,52 @@
-import { Controller, Post, Body, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, HttpException, HttpStatus, ValidationPipe, UsePipes } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { LandingContactService } from './landing-contact.service';
+import { SubmitContactDto } from './dto/submit-contact.dto';
 
-export class SubmitContactDto {
-  businessName: string;
-  yourName: string;
-  whatsappNumber: string;
-  hasWebsite: string;
-  primaryGoal: string;
-}
-
+@ApiTags('Landing Contact')
 @Controller('landing-contact')
 export class LandingContactController {
   constructor(private readonly landingContactService: LandingContactService) {}
 
   @Post('submit')
+  @ApiOperation({ 
+    summary: 'Submit landing page contact form',
+    description: 'Submits contact form data and sends WhatsApp welcome message'
+  })
+  @ApiBody({ type: SubmitContactDto })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Form submitted successfully',
+    schema: {
+      example: {
+        success: true,
+        message: 'Form submitted successfully',
+        data: {
+          submissionId: 123,
+          whatsappMessageSent: true
+        }
+      }
+    }
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Validation error',
+    schema: {
+      example: {
+        success: false,
+        message: 'Validation error',
+        errors: {
+          whatsappNumber: 'Valid WhatsApp number is required'
+        }
+      }
+    }
+  })
+  @ApiResponse({ 
+    status: 500, 
+    description: 'Internal server error' 
+  })
+  @UsePipes(new ValidationPipe({ transform: true }))
   async submitContactForm(@Body() dto: SubmitContactDto) {
-    const errors: any = {};
-
-    if (!dto.businessName?.trim()) {
-      errors.businessName = 'Business name is required';
-    }
-
-    if (!dto.yourName?.trim()) {
-      errors.yourName = 'Your name is required';
-    }
-
-    if (!dto.whatsappNumber || !/^\+?[1-9]\d{1,14}$/.test(dto.whatsappNumber)) {
-      errors.whatsappNumber = 'Valid WhatsApp number is required';
-    }
-
-    if (!['yes', 'no'].includes(dto.hasWebsite)) {
-      errors.hasWebsite = 'Please select if you have a website';
-    }
-
-    if (!['marketing', 'ecommerce', 'appointment', 'all'].includes(dto.primaryGoal)) {
-      errors.primaryGoal = 'Please select a primary goal';
-    }
-
-    if (Object.keys(errors).length > 0) {
-      throw new HttpException(
-        {
-          success: false,
-          message: 'Validation error',
-          errors,
-        },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
     try {
       const result = await this.landingContactService.submitForm(dto);
       return {

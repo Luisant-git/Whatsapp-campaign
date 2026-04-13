@@ -41,6 +41,8 @@ export class MetaLeadsService {
         client.metaLead.count({ where }),
       ]);
 
+      this.logger.log(`Fetched ${leads.length} leads. Sample lead:`, JSON.stringify(leads[0]));
+
       return {
         data: leads,
         pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, Req, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, Req, UseInterceptors, UploadedFile, Delete } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MetaLeadsService } from './meta-leads.service';
 import csv from 'csv-parser';
@@ -94,6 +94,20 @@ export class MetaLeadsController {
   async handleWebhook(@Req() req: any, @Body() body: any) {
     const tenantId = req.headers['x-tenant-id'] || 'default';
     return this.metaLeadsService.handleWebhook(body, tenantId);
+  }
+
+  @Delete('all')
+  async deleteAllLeads(@Req() req: any) {
+    try {
+      const tenantId = req.headers['x-tenant-id'] || 'default';
+      const result = await this.metaLeadsService.deleteAllLeads(tenantId);
+      return result;
+    } catch (error) {
+      return {
+        error: true,
+        message: error.message || 'Failed to delete leads'
+      };
+    }
   }
 
   @Post('import-csv')

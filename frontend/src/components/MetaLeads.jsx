@@ -14,7 +14,8 @@ import {
   ExternalLink,
   UserCheck,
   Upload,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Trash2
 } from 'lucide-react';
 import '../styles/MetaLeads.css';
 
@@ -198,6 +199,33 @@ const MetaLeads = () => {
     }
   };
 
+  const handleDeleteAll = async () => {
+    const confirmed = confirm('⚠️ WARNING: This will permanently delete ALL leads!\n\nAre you sure you want to continue?');
+    if (!confirmed) return;
+
+    const doubleConfirm = confirm('⚠️ FINAL CONFIRMATION\n\nThis action CANNOT be undone. All lead data will be lost forever.\n\nType YES in your mind and click OK to proceed.');
+    if (!doubleConfirm) return;
+
+    try {
+      setLoading(true);
+      const response = await axios.delete(`${API_BASE_URL}/meta-leads/all`, {
+        withCredentials: true,
+      });
+
+      if (response.data.error) {
+        alert(`❌ Delete failed: ${response.data.message}`);
+        return;
+      }
+
+      alert(`✅ Successfully deleted ${response.data.count || 0} leads`);
+      fetchLeads();
+    } catch (error) {
+      alert('❌ ' + (error.response?.data?.message || 'Failed to delete leads'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="meta-leads-wrapper">
       <div className="meta-leads-container">
@@ -216,6 +244,10 @@ const MetaLeads = () => {
               style={{ display: 'none' }}
               id="csv-upload"
             />
+            <button onClick={handleDeleteAll} className="sync-btn" style={{ background: '#dc3545' }}>
+              <Trash2 size={16} />
+              Delete All
+            </button>
             <label htmlFor="csv-upload" className="sync-btn secondary" style={{ cursor: 'pointer', margin: 0 }}>
               <Upload size={16} />
               {importing ? 'Importing...' : 'Import CSV'}

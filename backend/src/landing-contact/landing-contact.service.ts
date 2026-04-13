@@ -89,6 +89,17 @@ export class LandingContactService {
         },
         components: [
           {
+            type: 'header',
+            parameters: [
+              {
+                type: 'image',
+                image: {
+                  link: 'https://whatsapp.api.luisant.cloud/uploads/header-1776079065789-806612507.png'
+                }
+              }
+            ]
+          },
+          {
             type: 'body',
             parameters: [
               {

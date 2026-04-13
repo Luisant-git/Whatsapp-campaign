@@ -86,9 +86,6 @@ const MetaLeads = () => {
   const syncLeads = async () => {
     const formId = prompt('Enter Form ID from Meta Leads:');
     if (!formId) return;
-
-    // Ask if user wants to fetch historical data - default to YES
-    const fetchHistorical = confirm('⚠️ IMPORTANT: Do you want to fetch ALL historical leads?\n\n✅ Click OK to get ALL leads (including old ones from 2021-2024)\n❌ Click Cancel to get only recent leads\n\nRecommended: Click OK for first-time sync');
     
     try {
       setSyncing(true);
@@ -110,13 +107,7 @@ const MetaLeads = () => {
         phoneNumberId: activeConfig.phoneNumberId || activeConfig.pageId,
       };
       
-      // Add 'since' parameter for historical data (fetch from 3 years ago)
-      if (fetchHistorical) {
-        const threeYearsAgo = new Date();
-        threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
-        payload.since = threeYearsAgo.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-        console.log('Fetching historical leads since:', payload.since);
-      }
+      console.log('Syncing all leads from Meta...');
       
       const response = await axios.post(`${API_BASE_URL}/meta-leads/sync`, payload, { 
         withCredentials: true 
@@ -127,11 +118,7 @@ const MetaLeads = () => {
         return;
       }
       
-      const message = fetchHistorical 
-        ? `✅ SUCCESS! ${response.data.count || 0} leads imported (including historical data from 2021-2024)` 
-        : `✅ ${response.data.count || 0} recent leads imported`;
-      
-      alert(message);
+      alert(`✅ SUCCESS! ${response.data.count || 0} leads imported from Meta`);
       fetchLeads();
     } catch (error) {
       alert('❌ ' + (error.response?.data?.message || 'Failed to sync leads.'));

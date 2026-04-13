@@ -84,13 +84,14 @@ export class MetaLeadsService {
 
   async syncLeadsFromFacebook(pageId: string, formId: string, accessToken: string, phoneNumberId?: string, tenantId?: string, since?: string) {
     try {
-      // Build initial URL with optional since parameter for historical data
-      let baseUrl = `https://graph.facebook.com/v25.0/${formId}/leads?access_token=${accessToken}&fields=id,created_time,field_data`;
+      // Build initial URL - DON'T use 'since' parameter as it filters out old leads
+      // Instead, fetch ALL leads without date filter
+      let baseUrl = `https://graph.facebook.com/v25.0/${formId}/leads?access_token=${accessToken}&fields=id,created_time,field_data&limit=100`;
+      
+      // Note: Removed 'since' parameter because Meta API filters results with it
+      // We'll fetch ALL leads and let the database handle duplicates with upsert
       if (since) {
-        // Convert date to Unix timestamp if provided (e.g., '2023-01-01')
-        const sinceTimestamp = Math.floor(new Date(since).getTime() / 1000);
-        baseUrl += `&since=${sinceTimestamp}`;
-        this.logger.log(`Fetching historical leads since ${since} (timestamp: ${sinceTimestamp})`);
+        this.logger.log(`Note: Ignoring 'since' parameter to fetch ALL leads without date filtering`);
       }
       
       let url = baseUrl;
@@ -100,13 +101,14 @@ export class MetaLeadsService {
       // Loop through all pages to get ALL leads
       while (url) {
         pageCount++;
-        this.logger.log(`Fetching page ${pageCount}...`);
+        this.logger.log(`Fetching page ${pageCount} from URL: ${url.substring(0, 100)}...`);
         
         const { data } = await axios.get(url);
         const leads = data.data || [];
         allLeads.push(...leads);
         
         this.logger.log(`Page ${pageCount}: Got ${leads.length} leads. Total so far: ${allLeads.length}`);
+        this.logger.log(`Pagination info:`, JSON.stringify(data.paging || 'No paging info'));
 
         // Get next page URL from pagination
         url = data.paging?.next || null;

@@ -329,12 +329,13 @@ export class MetaLeadsService {
             } else if (lowerKey.includes('company')) {
               leadData.company = value;
             } else if (lowerKey.includes('created') || lowerKey.includes('date')) {
-              // Try to parse date
               try {
-                leadData.createdTime = new Date(value);
+                const parsedDate = new Date(value);
+                if (!isNaN(parsedDate.getTime())) {
+                  leadData.createdTime = parsedDate;
+                }
               } catch (e) {
-                // If date parsing fails, use current time
-                leadData.createdTime = new Date();
+                // Skip invalid dates
               }
             } else if (lowerKey.includes('id') && !lowerKey.includes('form') && !lowerKey.includes('page')) {
               leadData.leadId = value;

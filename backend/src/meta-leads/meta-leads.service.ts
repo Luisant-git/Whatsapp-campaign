@@ -132,6 +132,11 @@ export class MetaLeadsService {
       
       this.logger.log(`✅ Total leads fetched from Meta API: ${allLeads.length}`);
       
+      // Log sample lead for debugging
+      if (allLeads.length > 0) {
+        this.logger.log('Sample lead from Meta API:', JSON.stringify(allLeads[0], null, 2));
+      }
+      
       if (allLeads.length === 0) {
         return { 
           success: true, 
@@ -233,38 +238,64 @@ export class MetaLeadsService {
   private parseLeadFields(fieldData: any[]) {
     const parsed: any = { status: 'Intake', customFields: {} };
     
-    this.logger.log('Parsing field data:', JSON.stringify(fieldData));
+    this.logger.log('=== PARSING LEAD FIELDS ===');
+    this.logger.log('Raw field data:', JSON.stringify(fieldData, null, 2));
     
     fieldData.forEach(field => {
       const name = field.name.toLowerCase();
       const values = field.values || [];
-      const value = values[0];
       
-      this.logger.log(`Field: ${field.name}, Values:`, values);
+      this.logger.log(`Processing field: "${field.name}"`);
+      this.logger.log(`  - Values array:`, values);
+      this.logger.log(`  - First value:`, values[0]);
       
       if (name === 'full_name' || (name.includes('name') && !name.includes('company'))) {
-        parsed.name = value;
+        parsed.name = values[0];
       } else if (name.includes('email')) {
-        parsed.email = value;
+        parsed.email = values[0];
       } else if (name.includes('phone') || name.includes('mobile') || name.includes('number')) {
-        // Extract actual phone number from values array
-        const phoneValue = values.find(v => v && /\d/.test(v));
-        if (phoneValue) {
-          parsed.phone = phoneValue.toString().replace(/\D/g, '');
+        // Meta API returns phone in different formats:
+        // 1. Sometimes as { values: ["9876543210"] }
+        // 2. Sometimes as { values: [true] } with actual number elsewhere
+        // 3. Sometimes with country code
+        
+        this.logger.log(`  - PHONE FIELD DETECTED`);
+        this.logger.log(`  - Values:`, JSON.stringify(values));
+        
+        // Try to find a value that looks like a phone number
+        let phoneValue = null;
+        
+        for (const val of values) {
+          const strVal = String(val).trim();
+          // Check if it contains digits and is not just "true" or "false"
+          if (strVal && strVal !== 'true' && strVal !== 'false' && /\d/.test(strVal)) {
+            // Extract only digits
+            phoneValue = strVal.replace(/\D/g, '');
+            break;
+          }
+        }
+        
+        if (phoneValue && phoneValue.length >= 10) {
+          parsed.phone = phoneValue;
+          this.logger.log(`  - ✅ Extracted phone: ${phoneValue}`);
+        } else {
+          this.logger.warn(`  - ⚠️ Could not extract valid phone number from:`, values);
+          parsed.phone = null;
         }
       } else if (name.includes('company')) {
-        parsed.company = value;
+        parsed.company = values[0];
       } else if (name.includes('city')) {
-        parsed.city = value;
+        parsed.city = values[0];
       } else if (name.includes('business') && name.includes('type')) {
-        parsed.businessType = value;
+        parsed.businessType = values[0];
       } else {
         // Store any other fields in customFields JSON
-        parsed.customFields[field.name] = value;
+        parsed.customFields[field.name] = values[0];
       }
     });
 
-    this.logger.log('Parsed result:', JSON.stringify(parsed));
+    this.logger.log('=== PARSED RESULT ===');
+    this.logger.log(JSON.stringify(parsed, null, 2));
     return parsed;
   }
 

@@ -457,10 +457,6 @@ const MetaLeads = () => {
                     <p>{typeof selectedLead.phone === 'string' ? selectedLead.phone : (selectedLead.phone ? String(selectedLead.phone) : 'N/A')}</p>
                   </div>
                   <div className="detail-item">
-                    <label><Mail size={14} /> Email</label>
-                    <p>{selectedLead.email || 'N/A'}</p>
-                  </div>
-                  <div className="detail-item">
                     <label><Building2 size={14} /> Company</label>
                     <p>{selectedLead.company || 'N/A'}</p>
                   </div>

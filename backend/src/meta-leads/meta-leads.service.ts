@@ -263,7 +263,7 @@ export class MetaLeadsService {
         this.logger.log(`  - Values:`, JSON.stringify(values));
         
         // Try to find a value that looks like a phone number
-        let phoneValue = null;
+        let phoneValue: string | null = null;
         
         for (const val of values) {
           const strVal = String(val).trim();

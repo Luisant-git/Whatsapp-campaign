@@ -3,10 +3,25 @@
  * This will set them to null so they can be re-synced properly
  */
 
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient: TenantPrismaClient } = require('@prisma/client-tenant');
 
 async function fixPhoneValues() {
-  const prisma = new PrismaClient();
+  // You need to provide your tenant database URL
+  const tenantDbUrl = process.env.TENANT_DATABASE_URL || process.env.DATABASE_URL;
+  
+  if (!tenantDbUrl) {
+    console.error('❌ Error: TENANT_DATABASE_URL or DATABASE_URL not found in environment');
+    console.log('Please set the database URL in your .env file');
+    return;
+  }
+  
+  const prisma = new TenantPrismaClient({
+    datasources: {
+      db: {
+        url: tenantDbUrl
+      }
+    }
+  });
   
   try {
     console.log('🔍 Finding leads with invalid phone values...');
@@ -18,10 +33,23 @@ async function fixPhoneValues() {
           { phone: 'true' },
           { phone: 'false' },
         ]
+      },
+      select: {
+        id: true,
+        leadId: true,
+        name: true,
+        phone: true,
       }
     });
     
     console.log(`Found ${invalidLeads.length} leads with invalid phone values`);
+    
+    if (invalidLeads.length > 0) {
+      console.log('\nSample records:');
+      invalidLeads.slice(0, 5).forEach(lead => {
+        console.log(`  - ID: ${lead.id}, Name: ${lead.name}, Phone: "${lead.phone}"`);
+      });
+    }
     
     if (invalidLeads.length === 0) {
       console.log('✅ No invalid phone values found!');
@@ -41,11 +69,12 @@ async function fixPhoneValues() {
       }
     });
     
-    console.log(`✅ Updated ${result.count} leads - set phone to null`);
+    console.log(`\n✅ Updated ${result.count} leads - set phone to null`);
     console.log('💡 Now re-sync your leads from Meta to get the correct phone numbers');
     
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('❌ Error:', error.message);
+    console.error(error);
   } finally {
     await prisma.$disconnect();
   }

@@ -41,10 +41,20 @@ export class MetaLeadsService {
         client.metaLead.count({ where }),
       ]);
 
-      this.logger.log(`Fetched ${leads.length} leads. Sample lead:`, JSON.stringify(leads[0]));
+      // Transform leads to ensure proper serialization
+      const transformedLeads = leads.map(lead => ({
+        ...lead,
+        phone: lead.phone || null,
+        email: lead.email || null,
+        company: lead.company || null,
+        city: lead.city || null,
+        businessType: lead.businessType || null,
+      }));
+
+      this.logger.log(`Fetched ${transformedLeads.length} leads. Sample lead:`, JSON.stringify(transformedLeads[0]));
 
       return {
-        data: leads,
+        data: transformedLeads,
         pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       };
     } catch (error) {

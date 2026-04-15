@@ -233,16 +233,25 @@ export class MetaLeadsService {
   private parseLeadFields(fieldData: any[]) {
     const parsed: any = { status: 'Intake', customFields: {} };
     
+    this.logger.log('Parsing field data:', JSON.stringify(fieldData));
+    
     fieldData.forEach(field => {
       const name = field.name.toLowerCase();
-      const value = field.values[0];
+      const values = field.values || [];
+      const value = values[0];
+      
+      this.logger.log(`Field: ${field.name}, Values:`, values);
       
       if (name === 'full_name' || (name.includes('name') && !name.includes('company'))) {
         parsed.name = value;
       } else if (name.includes('email')) {
         parsed.email = value;
-      } else if (name.includes('phone')) {
-        parsed.phone = value;
+      } else if (name.includes('phone') || name.includes('mobile') || name.includes('number')) {
+        // Extract actual phone number from values array
+        const phoneValue = values.find(v => v && /\d/.test(v));
+        if (phoneValue) {
+          parsed.phone = phoneValue.toString().replace(/\D/g, '');
+        }
       } else if (name.includes('company')) {
         parsed.company = value;
       } else if (name.includes('city')) {
@@ -255,6 +264,7 @@ export class MetaLeadsService {
       }
     });
 
+    this.logger.log('Parsed result:', JSON.stringify(parsed));
     return parsed;
   }
 

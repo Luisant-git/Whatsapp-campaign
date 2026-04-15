@@ -369,7 +369,9 @@ const MetaLeads = () => {
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <Phone size={14} color="#65676B" />
-                        <span style={{ fontSize: '13px', color: '#1C1E21' }}>{lead.phone || 'N/A'}</span>
+                        <span style={{ fontSize: '13px', color: '#1C1E21' }}>
+                          {typeof lead.phone === 'string' ? lead.phone : (lead.phone ? String(lead.phone) : 'N/A')}
+                        </span>
                       </div>
                     </td>
                     <td>
@@ -452,7 +454,7 @@ const MetaLeads = () => {
                   </div>
                   <div className="detail-item">
                     <label><Phone size={14} /> Phone</label>
-                    <p>{selectedLead.phone || 'N/A'}</p>
+                    <p>{typeof selectedLead.phone === 'string' ? selectedLead.phone : (selectedLead.phone ? String(selectedLead.phone) : 'N/A')}</p>
                   </div>
                   <div className="detail-item">
                     <label><Mail size={14} /> Email</label>

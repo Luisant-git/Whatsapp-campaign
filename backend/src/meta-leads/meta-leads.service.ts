@@ -263,33 +263,29 @@ export class MetaLeadsService {
         parsed.name = values[0];
       } else if (name.includes('email')) {
         parsed.email = values[0];
-      } else if (name.includes('phone') || name.includes('mobile') || name.includes('number')) {
-        // Meta API returns phone in different formats:
-        // 1. Sometimes as { values: ["9876543210"] }
-        // 2. Sometimes as { values: [true] } with actual number elsewhere
-        // 3. Sometimes with country code
+      } else if ((name.includes('phone') || name.includes('mobile')) && !name.includes('verified')) {
+        // Only process phone fields that are NOT the "verified" field
+        // Meta returns: phone_number (actual number) and phone_number_verified (true/false)
         
         this.logger.log(`  - PHONE FIELD DETECTED`);
         this.logger.log(`  - Values:`, JSON.stringify(values));
         
-        // Try to find a value that looks like a phone number
-        let phoneValue: string | null = null;
+        const phoneValue = values[0];
         
-        for (const val of values) {
-          const strVal = String(val).trim();
-          // Check if it contains digits and is not just "true" or "false"
-          if (strVal && strVal !== 'true' && strVal !== 'false' && /\d/.test(strVal)) {
-            // Extract only digits
-            phoneValue = strVal.replace(/\D/g, '');
-            break;
+        if (phoneValue && typeof phoneValue === 'string') {
+          // Remove all non-digit characters to get clean phone number
+          const cleanPhone = phoneValue.replace(/\D/g, '');
+          
+          // Check if it's a valid phone number (at least 10 digits)
+          if (cleanPhone.length >= 10) {
+            parsed.phone = cleanPhone;
+            this.logger.log(`  - ✅ Extracted phone: ${cleanPhone} (from ${phoneValue})`);
+          } else {
+            this.logger.warn(`  - ⚠️ Phone too short: ${cleanPhone} (${cleanPhone.length} digits)`);
+            parsed.phone = null;
           }
-        }
-        
-        if (phoneValue && phoneValue.length >= 10) {
-          parsed.phone = phoneValue;
-          this.logger.log(`  - ✅ Extracted phone: ${phoneValue}`);
         } else {
-          this.logger.warn(`  - ⚠️ Could not extract valid phone number from:`, values);
+          this.logger.warn(`  - ⚠️ Invalid phone value:`, phoneValue);
           parsed.phone = null;
         }
       } else if (name.includes('company')) {

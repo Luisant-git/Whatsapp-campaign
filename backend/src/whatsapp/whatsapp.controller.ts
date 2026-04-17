@@ -110,10 +110,10 @@ export class WhatsappController {
 
   private async processWebhookWithTokenAsync(verifyToken: string, body: any) {
     try {
-      console.log('\n=== WEBHOOK POST RECEIVED ===');
+      console.log('\n=== WEBHOOK POST RECEIVED (WITH TOKEN) ===');
       console.log('Timestamp:', new Date().toISOString());
       console.log('Verify Token:', verifyToken);
-      console.log('Body:', JSON.stringify(body, null, 2));
+      console.log('🔍 FULL WEBHOOK BODY:', JSON.stringify(body, null, 2));
      
       if (!body || !body.object) {
         console.log('⚠️ Empty or invalid webhook body');
@@ -129,8 +129,12 @@ export class WhatsappController {
               const displayPhoneNumber = change.value.metadata?.display_phone_number;
               const profileName = change.value.contacts?.[0]?.profile?.name || null;
               
+              console.log('\n🔔 MESSAGE DETECTED');
               console.log(`📞 Phone Number ID: ${phoneNumberId}`);
               console.log(`📞 Display Phone: ${displayPhoneNumber}`);
+              console.log(`👤 From: ${message?.from}`);
+              console.log(`📝 Message Type: ${message?.type}`);
+              console.log(`🔑 Verify Token Used: ${verifyToken}`);
               
               if (message) {
                 // Check if it's a flow response
@@ -162,30 +166,35 @@ export class WhatsappController {
                 }
                 
                 try {
-                  console.log('Processing incoming message:', message);
+                  console.log('\n🔍 USER LOOKUP PROCESS:');
+                  console.log('Step 1: Looking up by verify token:', verifyToken);
                  
                   let userId = await this.whatsappService.findUserByVerifyToken(verifyToken);
-                  console.log('User ID from verify token:', userId);
+                  console.log('→ User ID from verify token:', userId || 'NOT FOUND');
                   
                   if (!userId) {
+                    console.log('Step 2: Looking up by phone_number_id:', phoneNumberId);
                     const userIds = await this.whatsappService.findAllUsersByPhoneNumberId(phoneNumberId);
-                    console.log('User IDs from phone number ID:', userIds);
+                    console.log('→ User IDs from phone_number_id:', userIds.length > 0 ? userIds : 'NOT FOUND');
                     userId = userIds.length > 0 ? userIds[0] : null;
                   }
                   
                   if (!userId) {
+                    console.log('Step 3: Using fallback to first active user');
                     userId = await this.whatsappService.findFirstActiveUser();
-                    console.log('Fallback user ID:', userId);
+                    console.log('→ Fallback user ID:', userId || 'NOT FOUND');
                   }
                  
                   if (userId) {
-                    console.log(`✓ Processing message for user ID: ${userId}`);
+                    console.log(`\n✅ PROCESSING MESSAGE for user ID: ${userId}`);
                     await this.whatsappService.handleIncomingMessage(message, userId, profileName);
                   } else {
-                    console.log('✗ No user found for phone number ID:', phoneNumberId);
+                    console.log(`\n❌ NO USER FOUND - Message ignored`);
+                    console.log('Phone Number ID:', phoneNumberId);
+                    console.log('Verify Token:', verifyToken);
                   }
                 } catch (msgError) {
-                  console.error('Error processing message:', msgError);
+                  console.error('❌ Error processing message:', msgError);
                 }
               }
               
@@ -245,9 +254,9 @@ export class WhatsappController {
 
   private async processWebhookAsync(body: any) {
     try {
-      console.log('\n⚠️ WEBHOOK POST WITHOUT TOKEN');
+      console.log('\n=== WEBHOOK POST RECEIVED (WITHOUT TOKEN) ===');
       console.log('Timestamp:', new Date().toISOString());
-      console.log('Body:', JSON.stringify(body, null, 2));
+      console.log('🔍 FULL WEBHOOK BODY:', JSON.stringify(body, null, 2));
      
       if (!body || !body.object) {
         return;
@@ -266,8 +275,12 @@ export class WhatsappController {
               const parentUserId = contacts?.parent_user_id || message?.from_parent_user_id;
               const username = contacts?.profile?.username;
               
+              console.log('\n🔔 MESSAGE DETECTED');
               console.log(`📞 Phone Number ID: ${phoneNumberId}`);
               console.log(`📞 Display Phone: ${displayPhoneNumber}`);
+              console.log(`👤 From: ${message?.from}`);
+              console.log(`📝 Message Type: ${message?.type}`);
+              console.log(`🔑 No verify token (catch-all route)`);
               
               if (message) {
                 // Check if it's a flow response
@@ -299,9 +312,11 @@ export class WhatsappController {
                 }
                 
                 try {
-                  console.log('Processing message for phone number ID:', phoneNumberId);
+                  console.log('\n🔍 PROCESSING WITHOUT CONTEXT:');
+                  console.log('Phone Number ID:', phoneNumberId);
                   console.log('BSUID Data:', { userId, parentUserId, username });
                   
+                  console.log('\n✅ Calling handleIncomingMessageWithoutContext');
                   await this.whatsappService.handleIncomingMessageWithoutContext(
                     message, 
                     phoneNumberId, 
@@ -311,7 +326,7 @@ export class WhatsappController {
                     username
                   );
                 } catch (msgError) {
-                  console.error('Error processing message:', msgError);
+                  console.error('❌ Error processing message:', msgError);
                 }
               }
               

@@ -665,10 +665,12 @@ export class WhatsappService {
 
   async findAllUsersByPhoneNumberId(phoneNumberId: string): Promise<number[]> {
     try {
+      console.log(`\n🔍 SEARCHING FOR USERS WITH phone_number_id: ${phoneNumberId}`);
       const userIds: number[] = [];
       const tenants = await this.centralPrisma.tenant.findMany({
         where: { isActive: true }
       });
+      console.log(`→ Found ${tenants.length} active tenants to search`);
 
       for (const tenant of tenants) {
         const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
@@ -677,22 +679,39 @@ export class WhatsappService {
         // Check WhatsApp Settings
         const settings = await tenantClient.whatsAppSettings.findMany({
           where: { phoneNumberId },
-          select: { id: true }
+          select: { id: true, name: true, phoneNumberId: true }
         });
 
-        userIds.push(...settings.map(s => s.id));
+        if (settings.length > 0) {
+          console.log(`  ✅ Tenant ${tenant.id}: Found ${settings.length} WhatsApp Settings`);
+          settings.forEach(s => {
+            console.log(`     - Settings ID: ${s.id}, Name: ${s.name}, PhoneID: ${s.phoneNumberId}`);
+          });
+          userIds.push(...settings.map(s => s.id));
+        }
 
         // ✅ ALSO CHECK MASTER CONFIG
         const masterConfigs = await tenantClient.masterConfig.findMany({
           where: { phoneNumberId },
-          select: { id: true }
+          select: { id: true, name: true, phoneNumberId: true }
         });
 
         // If master config found, add tenant ID
         if (masterConfigs.length > 0) {
+          console.log(`  ✅ Tenant ${tenant.id}: Found ${masterConfigs.length} Master Configs`);
+          masterConfigs.forEach(mc => {
+            console.log(`     - MasterConfig: ${mc.name}, PhoneID: ${mc.phoneNumberId}`);
+          });
           userIds.push(tenant.id);
         }
+
+        if (settings.length === 0 && masterConfigs.length === 0) {
+          console.log(`  ❌ Tenant ${tenant.id}: No matching phone_number_id`);
+        }
       }
+      
+      console.log(`\n📊 TOTAL USERS FOUND: ${userIds.length}`);
+      console.log(`User IDs: ${userIds.join(', ') || 'NONE'}`);
       return userIds;
     } catch (error) {
       this.logger.error('Error finding users by phone number ID:', error);
@@ -731,10 +750,11 @@ export class WhatsappService {
 
   async validateVerifyToken(token: string): Promise<boolean> {
     try {
-      this.logger.log(`🔍 Validating verify token: ${token}`);
+      console.log(`\n🔍 VALIDATING VERIFY TOKEN: ${token}`);
       const tenants = await this.centralPrisma.tenant.findMany({
         where: { isActive: true }
       });
+      console.log(`→ Checking ${tenants.length} active tenants`);
 
       for (const tenant of tenants) {
         const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
@@ -742,25 +762,33 @@ export class WhatsappService {
 
         // Check WhatsApp Settings
         const settings = await tenantClient.whatsAppSettings.findFirst({
-          where: { verifyToken: token }
+          where: { verifyToken: token },
+          select: { id: true, name: true, phoneNumberId: true }
         });
 
         if (settings) {
-          this.logger.log(`✅ Token found in WhatsAppSettings for tenant ${tenant.id}`);
+          console.log(`✅ Token found in WhatsAppSettings`);
+          console.log(`   Tenant: ${tenant.id}`);
+          console.log(`   Settings: ${settings.name}`);
+          console.log(`   PhoneNumberId: ${settings.phoneNumberId}`);
           return true;
         }
 
         // ✅ ALSO CHECK MASTER CONFIG
         const masterConfig = await tenantClient.masterConfig.findFirst({
-          where: { verifyToken: token, isActive: true }
+          where: { verifyToken: token, isActive: true },
+          select: { id: true, name: true, phoneNumberId: true }
         });
 
         if (masterConfig) {
-          this.logger.log(`✅ Token found in MasterConfig: ${masterConfig.name} (${masterConfig.phoneNumberId})`);
+          console.log(`✅ Token found in MasterConfig`);
+          console.log(`   Tenant: ${tenant.id}`);
+          console.log(`   MasterConfig: ${masterConfig.name}`);
+          console.log(`   PhoneNumberId: ${masterConfig.phoneNumberId}`);
           return true;
         }
       }
-      this.logger.warn(`❌ Token not found in any tenant database`);
+      console.log(`❌ Token NOT FOUND in any tenant database`);
       return false;
     } catch (error) {
       this.logger.error('Error validating verify token:', error);

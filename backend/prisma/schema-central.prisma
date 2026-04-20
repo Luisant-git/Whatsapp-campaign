@@ -182,7 +182,7 @@ model LandingContactSubmission {
   yourName            String
   whatsappNumber      String
   hasWebsite          String
-  primaryGoal         String
+  primaryGoal         String[]
   whatsappMessageSent Boolean  @default(false)
   whatsappMessageId   String?
   createdAt           DateTime @default(now())

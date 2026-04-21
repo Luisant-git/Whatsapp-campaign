@@ -1371,12 +1371,14 @@ export class WhatsappService {
     const from = message.from;
     const messageId = message.id;
     let text = message.text?.body;
+    let buttonClicked = null;
 
     // 🔥 CRITICAL: Handle button clicks from templates FIRST (before any other processing)
     if (message.type === 'button' && message.button) {
       const buttonPayload = message.button.payload;
       const buttonText = message.button.text;
       text = buttonText || buttonPayload; // Use button text or payload
+      buttonClicked = `🔘 Button: ${buttonText}`;
       this.logger.log(`🔘 Template button clicked: ${buttonText} (Payload: ${buttonPayload})`);
     }
 
@@ -1384,12 +1386,15 @@ export class WhatsappService {
     if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
       const buttonTitle = message.interactive.button_reply.title;
       text = buttonTitle;
+      buttonClicked = `🔘 Button: ${buttonTitle}`;
       this.logger.log(`🔘 Interactive button clicked: ${buttonTitle}`);
     }
 
     // Handle interactive list replies
     if (message.type === 'interactive' && message.interactive?.type === 'list_reply') {
-      text = message.interactive.list_reply.id;
+      const listTitle = message.interactive.list_reply.title;
+      text = listTitle || message.interactive.list_reply.id;
+      buttonClicked = `📋 List: ${text}`;
       this.logger.log(`📋 List item selected: ${text}`);
     }
 
@@ -1486,7 +1491,7 @@ export class WhatsappService {
         messageId,
         to: from,
         from,
-        message: text || (mediaType ? `${mediaType} file` : 'media message'),
+        message: buttonClicked || text || (mediaType ? `${mediaType} file` : 'interaction'),
         mediaType,
         mediaUrl,
         direction: 'incoming',

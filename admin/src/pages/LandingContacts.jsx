@@ -47,7 +47,9 @@ export default function LandingContacts() {
 
   const filteredSubmissions = submissions.filter(sub => {
     if (filterGoal === 'all') return true;
-    return sub.primaryGoal === filterGoal;
+    return Array.isArray(sub.primaryGoal) 
+      ? sub.primaryGoal.includes(filterGoal)
+      : sub.primaryGoal === filterGoal;
   });
 
   const formatDate = (dateString) => {
@@ -297,16 +299,33 @@ export default function LandingContacts() {
                   </span>
                 </td>
                 <td>
-                  <span style={{
-                    padding: '4px 12px',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    fontWeight: '500',
-                    background: `${getGoalBadgeColor(sub.primaryGoal)}20`,
-                    color: getGoalBadgeColor(sub.primaryGoal)
-                  }}>
-                    {sub.primaryGoal.charAt(0).toUpperCase() + sub.primaryGoal.slice(1)}
-                  </span>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {Array.isArray(sub.primaryGoal) ? (
+                      sub.primaryGoal.map((goal, i) => (
+                        <span key={i} style={{
+                          padding: '4px 12px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: '500',
+                          background: `${getGoalBadgeColor(goal)}20`,
+                          color: getGoalBadgeColor(goal)
+                        }}>
+                          {goal.charAt(0).toUpperCase() + goal.slice(1)}
+                        </span>
+                      ))
+                    ) : (
+                      <span style={{
+                        padding: '4px 12px',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        background: `${getGoalBadgeColor(sub.primaryGoal)}20`,
+                        color: getGoalBadgeColor(sub.primaryGoal)
+                      }}>
+                        {sub.primaryGoal.charAt(0).toUpperCase() + sub.primaryGoal.slice(1)}
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td>
                   {sub.whatsappMessageSent ? (

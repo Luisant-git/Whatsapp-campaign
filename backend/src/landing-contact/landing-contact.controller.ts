@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpException, HttpStatus, ValidationPipe, UsePipes } from '@nestjs/common';
+import { Controller, Post, Get, Body, HttpException, HttpStatus, ValidationPipe, UsePipes, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { LandingContactService } from './landing-contact.service';
 import { SubmitContactDto } from './dto/submit-contact.dto';
@@ -59,6 +59,38 @@ export class LandingContactController {
         {
           success: false,
           message: 'Failed to submit form',
+          error: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('submissions')
+  @ApiOperation({ 
+    summary: 'Get all landing contact submissions',
+    description: 'Retrieves paginated list of contact form submissions'
+  })
+  async getSubmissions(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+  ) {
+    try {
+      const result = await this.landingContactService.getSubmissions(
+        page ? parseInt(page) : 1,
+        limit ? parseInt(limit) : 10,
+        search || '',
+      );
+      return {
+        success: true,
+        data: result,
+      };
+    } catch (error) {
+      throw new HttpException(
+        {
+          success: false,
+          message: 'Failed to fetch submissions',
           error: error.message,
         },
         HttpStatus.INTERNAL_SERVER_ERROR,

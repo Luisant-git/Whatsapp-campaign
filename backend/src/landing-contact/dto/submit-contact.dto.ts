@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsIn, Matches } from 'class-validator';
+import { IsString, IsNotEmpty, IsIn, Matches, IsArray, ArrayNotEmpty } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class SubmitContactDto {
@@ -43,14 +43,18 @@ export class SubmitContactDto {
   hasWebsite: string;
 
   @ApiProperty({
-    description: 'Primary business goal',
-    example: 'all',
-    enum: ['marketing', 'ecommerce', 'appointment', 'all'],
+    description: 'Primary business goals',
+    example: ['marketing', 'ecommerce'],
+    enum: ['marketing', 'ecommerce', 'appointment'],
+    isArray: true,
     required: true,
   })
-  @IsString()
-  @IsIn(['marketing', 'ecommerce', 'appointment', 'all'], {
-    message: 'Please select a valid primary goal',
+  @IsArray()
+  @ArrayNotEmpty({ message: 'At least one primary goal is required' })
+  @IsString({ each: true })
+  @IsIn(['marketing', 'ecommerce', 'appointment'], {
+    each: true,
+    message: 'Each goal must be one of: marketing, ecommerce, appointment',
   })
-  primaryGoal: string;
+  primaryGoal: string[];
 }

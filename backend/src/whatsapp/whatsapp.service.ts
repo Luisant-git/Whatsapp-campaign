@@ -1146,56 +1146,39 @@ export class WhatsappService {
       const cached = this.phoneNumberIdCache.get(phoneNumberId);
       if (cached && (Date.now() - cached.timestamp) < this.CACHE_TTL) {
         this.logger.log(`Using cached tenant ${cached.tenantId} for phoneNumberId ${phoneNumberId}`);
-        await this.processMessageForTenant(message, phoneNumberId, cached.tenantId, cached.settingsId, profileName);
+        await this.processMessageForTenant(message, phoneNumberId, cached.tenantId, cached.settingsId, profileName, userId, parentUserId, username);
         return;
       }
 
-      // Cache miss - find tenant with retry logic
-      let tenants;
-      let retries = 3;
-      while (retries > 0) {
-        try {
-          tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
-          break;
-        } catch (error) {
-          retries--;
-          if (retries === 0) throw error;
-          this.logger.warn(`Database connection error, retrying... (${retries} attempts left)`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+      // Cache miss - lookup from central database mapping
+      const mapping = await this.centralPrisma.phoneNumberMapping.findUnique({
+        where: { phoneNumberId }
+      });
+
+      if (!mapping) {
+        this.logger.warn(`No tenant mapping found for phoneNumberId: ${phoneNumberId}`);
+        return;
       }
 
-      for (const tenant of tenants) {
-        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+      const tenantId = mapping.tenantId;
+      const dbUrl = await this.getTenantDbUrl(tenantId);
+      const tenantClient = this.tenantPrisma.getTenantClient(tenantId.toString(), dbUrl);
 
-        const settings = await tenantClient.whatsAppSettings.findFirst({
-          where: { phoneNumberId },
-          select: { id: true }
-        });
+      const settings = await tenantClient.whatsAppSettings.findFirst({
+        where: { phoneNumberId },
+        select: { id: true }
+      });
 
-        if (settings) {
-          // Cache the mapping
-          this.phoneNumberIdCache.set(phoneNumberId, {
-            tenantId: tenant.id,
-            settingsId: settings.id,
-            timestamp: Date.now()
-          });
+      const settingsId = settings?.id || tenantId;
 
-          await this.processMessageForTenant(
-      message, 
-      phoneNumberId, 
-      tenant.id, 
-      settings.id, 
-      profileName,
-      userId,
-      parentUserId,
-      username
-    );
-          return;
-        }
-      }
-      this.logger.warn(`No tenant found with phoneNumberId: ${phoneNumberId}`);
+      // Cache the mapping
+      this.phoneNumberIdCache.set(phoneNumberId, {
+        tenantId,
+        settingsId,
+        timestamp: Date.now()
+      });
+
+      await this.processMessageForTenant(message, phoneNumberId, tenantId, settingsId, profileName, userId, parentUserId, username);
     } catch (error) {
       this.logger.error('Error handling incoming message:', error);
     }

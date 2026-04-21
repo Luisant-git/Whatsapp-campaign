@@ -1371,7 +1371,7 @@ export class WhatsappService {
     const from = message.from;
     const messageId = message.id;
     let text = message.text?.body;
-    let buttonClicked = null;
+    let buttonClicked: string | null = null;
 
     // 🔥 CRITICAL: Handle button clicks from templates FIRST (before any other processing)
     if (message.type === 'button' && message.button) {

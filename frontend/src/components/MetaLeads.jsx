@@ -26,6 +26,8 @@ const MetaLeads = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [campaignFilter, setCampaignFilter] = useState('');
+  const [campaigns, setCampaigns] = useState([]);
   const [activeTab, setActiveTab] = useState('All');
   const [tabCounts, setTabCounts] = useState({ All: 0, Intake: 0, Qualified: 0, Converted: 0 });
   const [selectedLead, setSelectedLead] = useState(null);
@@ -37,13 +39,17 @@ const MetaLeads = () => {
 
   useEffect(() => {
     fetchLeads();
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, campaignFilter]);
+
+  useEffect(() => {
+    fetchCampaigns();
+  }, []);
 
   const fetchLeads = async () => {
     try {
       setLoading(true);
       const { data } = await axios.get(`${API_BASE_URL}/meta-leads`, {
-        params: { page, limit: 50, search, status: statusFilter },
+        params: { page, limit: 50, search, status: statusFilter, campaignName: campaignFilter },
         withCredentials: true,
       });
       setLeads(data.data || []);
@@ -57,6 +63,20 @@ const MetaLeads = () => {
       setTotalPages(1);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCampaigns = async () => {
+    try {
+      const { data } = await axios.get(`${API_BASE_URL}/meta-leads`, {
+        params: { page: 1, limit: 1000 },
+        withCredentials: true,
+      });
+      
+      const uniqueCampaigns = [...new Set(data.data?.map(lead => lead.campaignName).filter(Boolean))];
+      setCampaigns(uniqueCampaigns);
+    } catch (error) {
+      console.error('Error fetching campaigns:', error);
     }
   };
 
@@ -239,6 +259,58 @@ const MetaLeads = () => {
     setSelectedLead(null);
   };
 
+  const handleExport = async () => {
+    try {
+      const { data } = await axios.get(`${API_BASE_URL}/meta-leads`, {
+        params: { page: 1, limit: 10000, search, status: statusFilter, campaignName: campaignFilter },
+        withCredentials: true,
+      });
+
+      const leadsToExport = data.data || [];
+      
+      if (leadsToExport.length === 0) {
+        alert('No leads to export');
+        return;
+      }
+
+      // Create CSV content
+      const headers = ['Name', 'Campaign', 'Status', 'Phone', 'Email', 'Company', 'City', 'Business Type', 'Created Date'];
+      const csvRows = [headers.join(',')];
+
+      leadsToExport.forEach(lead => {
+        const row = [
+          lead.name || '',
+          lead.campaignName || '',
+          lead.status || '',
+          lead.phone || '',
+          lead.email || '',
+          lead.company || '',
+          lead.city || '',
+          lead.businessType || '',
+          new Date(lead.createdTime).toLocaleString()
+        ];
+        csvRows.push(row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','));
+      });
+
+      const csvContent = csvRows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      
+      link.setAttribute('href', url);
+      link.setAttribute('download', `leads_export_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      alert(`✅ Successfully exported ${leadsToExport.length} leads`);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('❌ Failed to export leads');
+    }
+  };
+
   return (
     <div className="meta-leads-wrapper">
       <div className="meta-leads-container">
@@ -265,7 +337,7 @@ const MetaLeads = () => {
               <Upload size={16} />
               {importing ? 'Importing...' : 'Import CSV'}
             </label>
-            <button className="sync-btn secondary">
+            <button className="sync-btn secondary" onClick={handleExport}>
               <Download size={16} />
               Export
             </button>
@@ -303,10 +375,17 @@ const MetaLeads = () => {
                 className="search-input"
               />
             </div>
-            <button className="sync-btn secondary" style={{ padding: '6px 12px' }}>
-              <Filter size={14} />
-              Filters
-            </button>
+            <select 
+              value={campaignFilter} 
+              onChange={(e) => setCampaignFilter(e.target.value)}
+              className="sync-btn secondary"
+              style={{ padding: '6px 12px', cursor: 'pointer' }}
+            >
+              <option value="">All Campaigns</option>
+              {campaigns.map(campaign => (
+                <option key={campaign} value={campaign}>{campaign}</option>
+              ))}
+            </select>
           </div>
           <div className="filters-right">
             <p className="pagination-info">Showing {leads.length} leads</p>
@@ -318,6 +397,7 @@ const MetaLeads = () => {
             <thead>
               <tr>
                 <th>Name</th>
+                <th>Campaign</th>
                 <th>Status</th>
                 <th>Contact</th>
                 <th>Company</th>
@@ -329,14 +409,14 @@ const MetaLeads = () => {
               {loading ? (
                 Array(5).fill(0).map((_, i) => (
                   <tr key={i}>
-                    <td colSpan="6">
+                    <td colSpan="7">
                       <div className="shimmer" style={{ height: '40px', borderRadius: '4px' }}></div>
                     </td>
                   </tr>
                 ))
               ) : leads.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#65676B' }}>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#65676B' }}>
                     No leads found matching your criteria.
                   </td>
                 </tr>
@@ -353,6 +433,11 @@ const MetaLeads = () => {
                           <span className="lead-source">Meta Lead Forms</span>
                         </div>
                       </div>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '13px', color: '#1C1E21' }}>
+                        {lead.campaignName || 'N/A'}
+                      </span>
                     </td>
                     <td>
                       <select
@@ -447,6 +532,10 @@ const MetaLeads = () => {
                   <div className="detail-item">
                     <label>Name</label>
                     <p>{selectedLead.name || 'N/A'}</p>
+                  </div>
+                  <div className="detail-item">
+                    <label>Campaign</label>
+                    <p>{selectedLead.campaignName || 'N/A'}</p>
                   </div>
                   <div className="detail-item">
                     <label>Status</label>

@@ -13,7 +13,7 @@ export class MetaLeadsService {
     return this.prisma.getTenantClient(tenantId, dbUrl) as any;
   }
 
-  async getLeads(tenantId: string, page = 1, limit = 10, search = '', status = '') {
+  async getLeads(tenantId: string, page = 1, limit = 10, search = '', status = '', campaignName = '') {
     const skip = (page - 1) * limit;
     const where: any = {};
 
@@ -27,6 +27,10 @@ export class MetaLeadsService {
 
     if (status) {
       where.status = status;
+    }
+
+    if (campaignName) {
+      where.campaignName = campaignName;
     }
 
     try {
@@ -49,6 +53,7 @@ export class MetaLeadsService {
         company: lead.company || null,
         city: lead.city || null,
         businessType: lead.businessType || null,
+        campaignName: lead.campaignName || null,
       }));
 
       this.logger.log(`Fetched ${transformedLeads.length} leads. Sample lead:`, JSON.stringify(transformedLeads[0]));
@@ -112,15 +117,27 @@ export class MetaLeadsService {
   async syncLeadsFromFacebook(pageId: string, formId: string, accessToken: string, phoneNumberId?: string, tenantId?: string, since?: string) {
     try {
       let allLeads: any[] = [];
+      let formNameMap = new Map<string, string>();
 
       if (formId && formId !== 'all') {
         this.logger.log(`Syncing leads from single form: ${formId}`);
+        
+        // Get form name
+        try {
+          const formResponse = await axios.get(`https://graph.facebook.com/v25.0/${formId}`, {
+            params: { access_token: accessToken, fields: 'id,name' }
+          });
+          formNameMap.set(formId, formResponse.data.name || 'Unnamed Form');
+        } catch (e) {
+          this.logger.warn(`Could not fetch form name for ${formId}`);
+        }
+        
         allLeads = await this.fetchLeadsFromForm(formId, accessToken);
       } else {
         this.logger.log(`Fetching all forms from page: ${pageId}`);
         
         // Fetch ALL forms with pagination
-        let formsUrl: string | null = `https://graph.facebook.com/v25.0/${pageId}/leadgen_forms?access_token=${accessToken}&limit=100`;
+        let formsUrl: string | null = `https://graph.facebook.com/v25.0/${pageId}/leadgen_forms?access_token=${accessToken}&limit=100&fields=id,name`;
         let allForms: any[] = [];
         
         while (formsUrl) {
@@ -131,6 +148,11 @@ export class MetaLeadsService {
         }
         
         this.logger.log(`Found ${allForms.length} forms on this page`);
+
+        // Build form name map
+        allForms.forEach(form => {
+          formNameMap.set(form.id, form.name || 'Unnamed Form');
+        });
 
         for (const form of allForms) {
           this.logger.log(`Fetching leads from form: ${form.id} (${form.name || 'Unnamed'})`);
@@ -160,14 +182,17 @@ export class MetaLeadsService {
 
       for (const lead of allLeads) {
         const fieldData = this.parseLeadFields(lead.field_data);
+        const leadFormId = lead.form_id || formId || 'unknown';
+        const campaignName = formNameMap.get(leadFormId) || null;
         
         const saved = await client.metaLead.upsert({
           where: { leadId: lead.id },
-          update: { ...fieldData },
+          update: { ...fieldData, campaignName },
           create: {
             leadId: lead.id,
-            formId: lead.form_id || formId || 'unknown',
+            formId: leadFormId,
             pageId,
+            campaignName,
             createdTime: new Date(lead.created_time),
             ...fieldData,
           },

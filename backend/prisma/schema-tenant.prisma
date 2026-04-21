@@ -588,6 +588,7 @@ model MetaLead {
   leadId       String   @unique
   formId       String
   pageId       String
+  campaignName String?
   name         String?
   email        String?
   phone        String?
@@ -603,6 +604,7 @@ model MetaLead {
   @@index([formId])
   @@index([pageId])
   @@index([status])
+  @@index([campaignName])
 }
 
 enum AutomationEventType {

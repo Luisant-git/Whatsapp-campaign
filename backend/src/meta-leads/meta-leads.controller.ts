@@ -14,6 +14,7 @@ export class MetaLeadsController {
     @Query('limit') limit = '10',
     @Query('search') search = '',
     @Query('status') status = '',
+    @Query('campaignName') campaignName = '',
   ) {
     const tenantId = req.headers['x-tenant-id'] || 'default';
     return this.metaLeadsService.getLeads(
@@ -22,6 +23,7 @@ export class MetaLeadsController {
       parseInt(limit),
       search,
       status,
+      campaignName,
     );
   }
 

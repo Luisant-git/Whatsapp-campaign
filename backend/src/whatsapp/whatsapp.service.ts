@@ -1409,13 +1409,30 @@ export class WhatsappService {
     this.logger.log(`📨 Webhook received - Phone: ${from}, Type: ${message.type}, Text: ${text || 'N/A'}`);
     this.logger.log(`Incoming media debug: image=${!!image}, video=${!!video}, document=${!!document}, audio=${!!audio}`);
 
-    const whatsappSettings = await tenantClient.whatsAppSettings.findFirst({
+    // Check both WhatsAppSettings and MasterConfig
+    let whatsappSettings = await tenantClient.whatsAppSettings.findFirst({
       where: { phoneNumberId }
     });
 
+    // If not found in settings, check MasterConfig
     if (!whatsappSettings) {
-      this.logger.warn(`No WhatsApp settings found for phoneNumberId: ${phoneNumberId}`);
-      return;
+      const masterConfig = await tenantClient.masterConfig.findFirst({
+        where: { phoneNumberId, isActive: true }
+      });
+
+      if (masterConfig) {
+        this.logger.log(`Using MasterConfig: ${masterConfig.name}`);
+        // Create a settings-like object from masterConfig
+        whatsappSettings = {
+          phoneNumberId: masterConfig.phoneNumberId,
+          accessToken: masterConfig.accessToken,
+          apiUrl: 'https://graph.facebook.com/v18.0',
+          language: 'en'
+        } as any;
+      } else {
+        this.logger.warn(`No WhatsApp settings or MasterConfig found for phoneNumberId: ${phoneNumberId}`);
+        return;
+      }
     }
 
     const apiUrl = process.env.WHATSAPP_API_URL;

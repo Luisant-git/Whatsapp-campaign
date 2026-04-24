@@ -25,7 +25,9 @@ const MetaLeadsConfig = () => {
   const fetchConfigs = async () => {
     try {
       setLoading(true);
+      const tenantId = localStorage.getItem('tenantId');
       const { data } = await axios.get(`${API_BASE_URL}/meta-config`, {
+        headers: { 'x-tenant-id': tenantId },
         withCredentials: true,
       });
       setConfigs(data);
@@ -41,13 +43,16 @@ const MetaLeadsConfig = () => {
     e.preventDefault();
     
     try {
+      const tenantId = localStorage.getItem('tenantId');
       if (editingId) {
         await axios.put(`${API_BASE_URL}/meta-config/${editingId}`, formData, {
+          headers: { 'x-tenant-id': tenantId },
           withCredentials: true,
         });
         alert('Configuration updated successfully!');
       } else {
         await axios.post(`${API_BASE_URL}/meta-config`, formData, {
+          headers: { 'x-tenant-id': tenantId },
           withCredentials: true,
         });
         alert('Configuration created successfully!');
@@ -77,7 +82,9 @@ const MetaLeadsConfig = () => {
     if (!confirm('Are you sure you want to delete this configuration?')) return;
     
     try {
+      const tenantId = localStorage.getItem('tenantId');
       await axios.delete(`${API_BASE_URL}/meta-config/${id}`, {
+        headers: { 'x-tenant-id': tenantId },
         withCredentials: true,
       });
       alert('Configuration deleted successfully!');

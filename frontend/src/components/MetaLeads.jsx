@@ -48,8 +48,10 @@ const MetaLeads = () => {
   const fetchLeads = async () => {
     try {
       setLoading(true);
+      const tenantId = localStorage.getItem('tenantId');
       const { data } = await axios.get(`${API_BASE_URL}/meta-leads`, {
         params: { page, limit: 50, search, status: statusFilter, campaignName: campaignFilter },
+        headers: { 'x-tenant-id': tenantId },
         withCredentials: true,
       });
       setLeads(data.data || []);
@@ -68,8 +70,10 @@ const MetaLeads = () => {
 
   const fetchCampaigns = async () => {
     try {
+      const tenantId = localStorage.getItem('tenantId');
       const { data } = await axios.get(`${API_BASE_URL}/meta-leads`, {
         params: { page: 1, limit: 1000 },
+        headers: { 'x-tenant-id': tenantId },
         withCredentials: true,
       });
       
@@ -82,11 +86,13 @@ const MetaLeads = () => {
 
   const fetchTabCounts = async () => {
     try {
+      const tenantId = localStorage.getItem('tenantId');
       const counts = { All: 0, Intake: 0, Qualified: 0, Converted: 0 };
       
       // Fetch total count
       const allResponse = await axios.get(`${API_BASE_URL}/meta-leads`, {
         params: { page: 1, limit: 1, search: '' },
+        headers: { 'x-tenant-id': tenantId },
         withCredentials: true,
       });
       counts.All = allResponse.data.pagination?.total || 0;
@@ -95,6 +101,7 @@ const MetaLeads = () => {
       for (const status of statuses) {
         const response = await axios.get(`${API_BASE_URL}/meta-leads`, {
           params: { page: 1, limit: 1, status },
+          headers: { 'x-tenant-id': tenantId },
           withCredentials: true,
         });
         counts[status] = response.data.pagination?.total || 0;
@@ -117,7 +124,9 @@ const MetaLeads = () => {
     
     try {
       setSyncing(true);
+      const tenantId = localStorage.getItem('tenantId');
       const { data: metaConfigs } = await axios.get(`${API_BASE_URL}/meta-config`, {
+        headers: { 'x-tenant-id': tenantId },
         withCredentials: true,
       });
       
@@ -138,6 +147,7 @@ const MetaLeads = () => {
       console.log('Syncing leads from Meta...');
       
       const response = await axios.post(`${API_BASE_URL}/meta-leads/sync`, payload, { 
+        headers: { 'x-tenant-id': tenantId },
         withCredentials: true 
       });
       
@@ -157,7 +167,9 @@ const MetaLeads = () => {
 
   const updateStatus = async (id, status) => {
     try {
+      const tenantId = localStorage.getItem('tenantId');
       await axios.patch(`${API_BASE_URL}/meta-leads/${id}/status`, { status }, {
+        headers: { 'x-tenant-id': tenantId },
         withCredentials: true,
       });
       fetchLeads();
@@ -183,11 +195,13 @@ const MetaLeads = () => {
 
     try {
       setImporting(true);
+      const tenantId = localStorage.getItem('tenantId');
       
       const formData = new FormData();
       formData.append('file', file);
       
       const { data: metaConfigs } = await axios.get(`${API_BASE_URL}/meta-config`, {
+        headers: { 'x-tenant-id': tenantId },
         withCredentials: true,
       });
       
@@ -200,6 +214,7 @@ const MetaLeads = () => {
       const response = await axios.post(`${API_BASE_URL}/meta-leads/import-csv`, formData, {
         withCredentials: true,
         headers: {
+          'x-tenant-id': tenantId,
           'Content-Type': 'multipart/form-data',
         },
       });
@@ -231,7 +246,9 @@ const MetaLeads = () => {
 
     try {
       setLoading(true);
+      const tenantId = localStorage.getItem('tenantId');
       const response = await axios.delete(`${API_BASE_URL}/meta-leads/all`, {
+        headers: { 'x-tenant-id': tenantId },
         withCredentials: true,
       });
 
@@ -261,8 +278,10 @@ const MetaLeads = () => {
 
   const handleExport = async () => {
     try {
+      const tenantId = localStorage.getItem('tenantId');
       const { data } = await axios.get(`${API_BASE_URL}/meta-leads`, {
         params: { page: 1, limit: 10000, search, status: statusFilter, campaignName: campaignFilter },
+        headers: { 'x-tenant-id': tenantId },
         withCredentials: true,
       });
 

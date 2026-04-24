@@ -36,6 +36,20 @@ export class SettingsController {
     return this.settingsService.getFeatureAssignments(session.tenantId);
   }
 
+  @Get('meta-catalog')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Get Meta Catalog configuration' })
+  @ApiResponse({ status: 200, description: 'Meta Catalog configuration retrieved successfully' })
+  async getMetaCatalogConfig(@Session() session: any): Promise<any> {
+    try {
+      return await this.settingsService.getMetaCatalogConfig(session.tenantId);
+    } catch (error) {
+      console.error('Error in getMetaCatalogConfig controller:', error);
+      // Return empty config instead of throwing error
+      return { catalogId: '', accessToken: '' };
+    }
+  }
+
   @Get(':id')
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Get WhatsApp settings by ID' })
@@ -132,14 +146,6 @@ export class SettingsController {
   @ApiResponse({ status: 200, description: 'Feature assignments saved successfully' })
   async saveFeatureAssignments(@Session() session: any, @Body() assignments: any): Promise<any> {
     return this.settingsService.saveFeatureAssignments(session.tenantId, assignments);
-  }
-
-  @Get('meta-catalog')
-  @UseGuards(SessionGuard)
-  @ApiOperation({ summary: 'Get Meta Catalog configuration' })
-  @ApiResponse({ status: 200, description: 'Meta Catalog configuration retrieved successfully' })
-  async getMetaCatalogConfig(@Session() session: any): Promise<any> {
-    return this.settingsService.getMetaCatalogConfig(session.tenantId);
   }
 
   @Post('meta-catalog')

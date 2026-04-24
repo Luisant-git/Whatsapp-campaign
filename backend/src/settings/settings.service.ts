@@ -390,19 +390,27 @@ export class SettingsService {
   async getMetaCatalogConfig(userId: number): Promise<any> {
     const prisma = await this.getPrisma(userId);
     
-    const config = await prisma.metaCatalogConfig.findFirst();
+    try {
+      const config = await prisma.metaCatalogConfig.findFirst();
 
-    if (!config) {
+      if (!config) {
+        return {
+          catalogId: '',
+          accessToken: ''
+        };
+      }
+
+      return {
+        catalogId: config.catalogId || '',
+        accessToken: config.accessToken || ''
+      };
+    } catch (error) {
+      console.error('Error fetching meta catalog config:', error);
       return {
         catalogId: '',
         accessToken: ''
       };
     }
-
-    return {
-      catalogId: config.catalogId || '',
-      accessToken: config.accessToken || ''
-    };
   }
 
   async saveMetaCatalogConfig(userId: number, config: any): Promise<any> {

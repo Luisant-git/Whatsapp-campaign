@@ -130,12 +130,17 @@ const MasterConfig = () => {
 
   const fetchMetaCatalogConfig = async () => {
     try {
+      console.log('Fetching meta catalog config from:', `${API_BASE_URL}/settings/meta-catalog`);
       const response = await fetch(`${API_BASE_URL}/settings/meta-catalog`, {
         credentials: 'include'
       });
+      console.log('Meta catalog response status:', response.status);
       if (response.ok) {
         const data = await response.json();
+        console.log('Fetched meta catalog config:', data);
         setMetaCatalogConfig(data || { catalogId: '', accessToken: '' });
+      } else {
+        console.error('Failed to fetch meta catalog config, status:', response.status);
       }
     } catch (error) {
       console.error('Failed to fetch meta catalog config:', error);
@@ -145,14 +150,20 @@ const MasterConfig = () => {
   const handleSaveMetaCatalog = async () => {
     setSavingMetaCatalog(true);
     try {
+      console.log('Saving meta catalog config:', metaCatalogConfig);
       const response = await fetch(`${API_BASE_URL}/settings/meta-catalog`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(metaCatalogConfig)
       });
+      console.log('Save response status:', response.status);
+      const responseData = await response.json();
+      console.log('Save response data:', responseData);
       if (response.ok) {
         showSuccess('Meta Catalog configuration saved successfully!');
+        // Refresh the data after saving
+        await fetchMetaCatalogConfig();
       } else {
         throw new Error('Failed to save');
       }

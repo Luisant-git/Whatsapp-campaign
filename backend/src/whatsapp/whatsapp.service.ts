@@ -68,6 +68,22 @@ export class WhatsappService {
       }
     }
 
+    // If no feature assignment, check if there's any active MasterConfig
+    if (!assignedPhoneId) {
+      const masterConfig = await this.prisma.masterConfig.findFirst({
+        where: { isActive: true },
+        orderBy: { createdAt: 'desc' }
+      });
+      if (masterConfig) {
+        this.logger.log(`✅ Using first active MasterConfig: ${masterConfig.name} (${masterConfig.phoneNumberId})`);
+        return {
+          phoneNumberId: masterConfig.phoneNumberId,
+          accessToken: masterConfig.accessToken,
+          apiUrl: 'https://graph.facebook.com/v18.0'
+        };
+      }
+    }
+
     // Fallback to default WhatsApp Settings
     this.logger.log(`📋 Falling back to WhatsApp Settings for userId: ${userId}`);
     const settings = await this.getSettings(userId);

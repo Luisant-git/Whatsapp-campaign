@@ -1410,7 +1410,7 @@ export class WhatsappService {
     this.logger.log(`Incoming media debug: image=${!!image}, video=${!!video}, document=${!!document}, audio=${!!audio}`);
 
     // Check both WhatsAppSettings and MasterConfig
-    let whatsappSettings = await tenantClient.whatsAppSettings.findFirst({
+    let whatsappSettings: any = await tenantClient.whatsAppSettings.findFirst({
       where: { phoneNumberId }
     });
 
@@ -1428,12 +1428,15 @@ export class WhatsappService {
           accessToken: masterConfig.accessToken,
           apiUrl: 'https://graph.facebook.com/v18.0',
           language: 'en'
-        } as any;
+        };
       } else {
         this.logger.warn(`No WhatsApp settings or MasterConfig found for phoneNumberId: ${phoneNumberId}`);
         return;
       }
     }
+
+    // At this point, whatsappSettings is guaranteed to be non-null
+    const { accessToken, phoneNumberId: phoneId } = whatsappSettings;
 
     const apiUrl = process.env.WHATSAPP_API_URL;
 
@@ -1445,28 +1448,28 @@ export class WhatsappService {
       mediaType = 'image';
       mediaUrl = await this.downloadMediaDirect(
         image.id,
-        whatsappSettings.accessToken,
+        accessToken,
         apiUrl
       );
     } else if (video) {
       mediaType = 'video';
       mediaUrl = await this.downloadMediaDirect(
         video.id,
-        whatsappSettings.accessToken,
+        accessToken,
         apiUrl
       );
     } else if (document) {
       mediaType = 'document';
       mediaUrl = await this.downloadMediaDirect(
         document.id,
-        whatsappSettings.accessToken,
+        accessToken,
         apiUrl
       );
     } else if (audio) {
       mediaType = 'audio';
       mediaUrl = await this.downloadMediaDirect(
         audio.id,
-        whatsappSettings.accessToken,
+        accessToken,
         apiUrl
       );
     }
@@ -1488,7 +1491,7 @@ export class WhatsappService {
 
       const metaCatalogService = this.ecommerceService['metaCatalogService'];
       if (metaCatalogService) {
-        await metaCatalogService.handleOrderMessage(from, whatsappSettings.phoneNumberId, order, tenantId, profileName || undefined);
+        await metaCatalogService.handleOrderMessage(from, phoneId, order, tenantId, profileName || undefined);
         this.logger.log('✅ Order message handled');
       }
       return;
@@ -1583,8 +1586,8 @@ export class WhatsappService {
         await this.sendMessageDirect(
           from,
           '⏱️ Session expired. Please send *shop* again to start a new order.',
-          whatsappSettings.accessToken,
-          whatsappSettings.phoneNumberId,
+          accessToken,
+          phoneId,
           tenantClient
         );
         return;
@@ -1598,8 +1601,8 @@ export class WhatsappService {
           from,
           text,
           tenantId,
-          whatsappSettings.accessToken,
-          whatsappSettings.phoneNumberId
+          accessToken,
+          phoneId
         );
 
         if (

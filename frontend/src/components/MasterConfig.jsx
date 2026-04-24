@@ -33,16 +33,25 @@ const MasterConfig = () => {
     ecommerce: '',
     campaigns: ''
   });
+  const [metaCatalogConfig, setMetaCatalogConfig] = useState({
+    catalogId: '',
+    accessToken: ''
+  });
+  const [savingMetaCatalog, setSavingMetaCatalog] = useState(false);
+  const [showMetaToken, setShowMetaToken] = useState(false);
 
   useEffect(() => {
     fetchMasterConfigs();
     fetchAllSettings();
     fetchFeatureAssignments();
+    fetchMetaCatalogConfig();
   }, []);
 
   useEffect(() => {
     if (activeTab === 'assignments') {
       fetchFeatureAssignments();
+    } else if (activeTab === 'metaCatalog') {
+      fetchMetaCatalogConfig();
     }
   }, [activeTab]);
 
@@ -116,6 +125,42 @@ const MasterConfig = () => {
       console.error('Failed to save feature assignment:', error);
       showError('Failed to save assignment');
       setFeatureAssignments(previousAssignments);
+    }
+  };
+
+  const fetchMetaCatalogConfig = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/settings/meta-catalog`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setMetaCatalogConfig(data || { catalogId: '', accessToken: '' });
+      }
+    } catch (error) {
+      console.error('Failed to fetch meta catalog config:', error);
+    }
+  };
+
+  const handleSaveMetaCatalog = async () => {
+    setSavingMetaCatalog(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/settings/meta-catalog`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(metaCatalogConfig)
+      });
+      if (response.ok) {
+        showSuccess('Meta Catalog configuration saved successfully!');
+      } else {
+        throw new Error('Failed to save');
+      }
+    } catch (error) {
+      console.error('Failed to save meta catalog config:', error);
+      showError('Failed to save Meta Catalog configuration');
+    } finally {
+      setSavingMetaCatalog(false);
     }
   };
 
@@ -244,7 +289,84 @@ const MasterConfig = () => {
         >
           Feature Assignment
         </button>
+        <button 
+          className={activeTab === 'metaCatalog' ? 'tab active' : 'tab'}
+          onClick={() => setActiveTab('metaCatalog')}
+          style={{
+            padding: '12px 24px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'metaCatalog' ? '2px solid #25d366' : '2px solid transparent',
+            marginBottom: '-2px',
+            cursor: 'pointer',
+            fontSize: '15px',
+            fontWeight: activeTab === 'metaCatalog' ? '600' : '500',
+            color: activeTab === 'metaCatalog' ? '#25d366' : '#666'
+          }}
+        >
+          Meta Catalog Configuration
+        </button>
       </div>
+
+      {activeTab === 'metaCatalog' && (
+        <div className="preference-container">
+          <div className="preference-card">
+            <div className="preference-header">
+              <h2>🛍️ Meta Commerce Catalog Configuration</h2>
+              <p>Configure your Meta Catalog ID and Access Token for product catalog integration</p>
+            </div>
+
+            <div style={{display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '20px'}}>
+              <div className="form-group">
+                <label>Meta Catalog ID *</label>
+                <input
+                  type="text"
+                  placeholder="Enter Meta Catalog ID"
+                  value={metaCatalogConfig.catalogId}
+                  onChange={(e) => setMetaCatalogConfig({...metaCatalogConfig, catalogId: e.target.value})}
+                  style={{width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px'}}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Meta Access Token *</label>
+                <div className="input-with-icon">
+                  <input
+                    type={showMetaToken ? "text" : "password"}
+                    placeholder="Enter Meta Access Token"
+                    value={metaCatalogConfig.accessToken}
+                    onChange={(e) => setMetaCatalogConfig({...metaCatalogConfig, accessToken: e.target.value})}
+                    style={{width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px'}}
+                  />
+                  <button
+                    type="button"
+                    className="toggle-visibility"
+                    onClick={() => setShowMetaToken(!showMetaToken)}
+                  >
+                    {showMetaToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <button 
+                onClick={handleSaveMetaCatalog}
+                disabled={savingMetaCatalog || !metaCatalogConfig.catalogId || !metaCatalogConfig.accessToken}
+                className="btn-primary"
+                style={{alignSelf: 'flex-start', padding: '12px 24px'}}
+              >
+                {savingMetaCatalog ? 'Saving...' : 'Save Configuration'}
+              </button>
+            </div>
+
+            <div className="preference-info" style={{marginTop: '20px'}}>
+              <div className="info-icon">ℹ️</div>
+              <div className="info-content">
+                <strong>Note:</strong> This configuration is used for Meta Commerce Catalog integration. Make sure to use a valid Catalog ID and Access Token from your Meta Business account.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeTab === 'assignments' && (
         <div className="preference-container">

@@ -432,6 +432,14 @@ model FeatureAssignment {
   updatedAt    DateTime @updatedAt
 }
 
+model MetaCatalogConfig {
+  id          Int      @id @default(autoincrement())
+  catalogId   String
+  accessToken String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model WhatsappFlow {
   id           Int           @id @default(autoincrement())
   name         String

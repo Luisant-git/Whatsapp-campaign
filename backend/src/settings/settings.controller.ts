@@ -133,4 +133,20 @@ export class SettingsController {
   async saveFeatureAssignments(@Session() session: any, @Body() assignments: any): Promise<any> {
     return this.settingsService.saveFeatureAssignments(session.tenantId, assignments);
   }
+
+  @Get('meta-catalog')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Get Meta Catalog configuration' })
+  @ApiResponse({ status: 200, description: 'Meta Catalog configuration retrieved successfully' })
+  async getMetaCatalogConfig(@Session() session: any): Promise<any> {
+    return this.settingsService.getMetaCatalogConfig(session.tenantId);
+  }
+
+  @Post('meta-catalog')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Save Meta Catalog configuration' })
+  @ApiResponse({ status: 200, description: 'Meta Catalog configuration saved successfully' })
+  async saveMetaCatalogConfig(@Session() session: any, @Body() config: any): Promise<any> {
+    return this.settingsService.saveMetaCatalogConfig(session.tenantId, config);
+  }
 }

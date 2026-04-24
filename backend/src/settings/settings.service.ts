@@ -386,4 +386,53 @@ export class SettingsService {
       campaigns: assignments.campaigns || ''
     };
   }
+
+  async getMetaCatalogConfig(userId: number): Promise<any> {
+    const prisma = await this.getPrisma(userId);
+    
+    const config = await prisma.metaCatalogConfig.findFirst();
+
+    if (!config) {
+      return {
+        catalogId: '',
+        accessToken: ''
+      };
+    }
+
+    return {
+      catalogId: config.catalogId || '',
+      accessToken: config.accessToken || ''
+    };
+  }
+
+  async saveMetaCatalogConfig(userId: number, config: any): Promise<any> {
+    const prisma = await this.getPrisma(userId);
+    
+    const existing = await prisma.metaCatalogConfig.findFirst();
+    
+    if (existing) {
+      await prisma.metaCatalogConfig.update({
+        where: { id: existing.id },
+        data: {
+          catalogId: config.catalogId,
+          accessToken: config.accessToken
+        }
+      });
+    } else {
+      await prisma.metaCatalogConfig.create({
+        data: {
+          catalogId: config.catalogId,
+          accessToken: config.accessToken
+        }
+      });
+    }
+
+    return {
+      success: true,
+      config: {
+        catalogId: config.catalogId,
+        accessToken: config.accessToken
+      }
+    };
+  }
 }

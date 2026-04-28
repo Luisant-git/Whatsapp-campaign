@@ -6,16 +6,15 @@ import { RazorpayService } from './razorpay.service';
 import { FlowTriggerService } from '../flow-message/flow-trigger.service';
 import { CustomerDetailsFlowService } from '../whatsapp/flows/customer-details-flow.service';
 import { OwnerNotificationService } from '../notifications/owner-notification.service';
+import { TenantPrismaService } from '../tenant-prisma.service';
 import { CentralPrismaService } from '../central-prisma.service';
 
 @Injectable()
 export class MetaCatalogService {
-  private readonly catalogId = process.env.META_CATALOG_ID;
-  private readonly accessToken = process.env.META_ACCESS_TOKEN;
   private readonly apiUrl = 'https://graph.facebook.com/v18.0';
   private catalogCache: { products: any[], timestamp: number } | null = null;
   private readonly CACHE_TTL = 300000; // 5 minutes
-  private readonly axiosInstance;
+  private currentTenantId: number | null = null;
 
   constructor(
     private ecommerceService: EcommerceService,
@@ -24,24 +23,50 @@ export class MetaCatalogService {
     private flowTriggerService: FlowTriggerService,
     private customerDetailsFlowService: CustomerDetailsFlowService,
     private ownerNotification: OwnerNotificationService,
+    private tenantPrisma: TenantPrismaService,
     private centralPrisma: CentralPrismaService
-  ) {
-    // Create dedicated axios instance with proper timeout
-    this.axiosInstance = axios.create({
-      timeout: 30000, // 30 seconds
+  ) {}
+
+  private async getPrisma(userId: number) {
+    const tenant = await this.centralPrisma.tenant.findUnique({
+      where: { id: userId },
+    });
+    if (!tenant) throw new Error('Tenant not found');
+    
+    const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+    return this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+  }
+
+  private async getMetaCatalogConfig(tenantId?: number) {
+    const tid = tenantId || this.currentTenantId;
+    if (!tid) throw new Error('Tenant ID is required');
+    const prisma = await this.getPrisma(tid);
+    const config = await prisma.metaCatalogConfig.findFirst();
+    if (!config || !config.catalogId || !config.accessToken) {
+      throw new Error('Meta Catalog ID or Access Token not configured');
+    }
+    return { catalogId: config.catalogId, accessToken: config.accessToken };
+  }
+
+  private async getAxiosInstance(tenantId?: number) {
+    const { accessToken } = await this.getMetaCatalogConfig(tenantId);
+    return axios.create({
+      timeout: 30000,
       headers: {
-        'Authorization': `Bearer ${this.accessToken}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
     });
   }
 
-  async syncProductToCatalog(product: any, meta?: any) {
+  async syncProductToCatalog(product: any, meta?: any, tenantId?: number) {
     try {
-      // Validate Meta credentials
-      if (!this.catalogId || !this.accessToken) {
-        throw new Error('Meta Catalog ID or Access Token not configured');
+      if (!tenantId) {
+        throw new Error('Tenant ID is required for Meta Catalog sync');
       }
+      this.currentTenantId = tenantId;
+      const { catalogId, accessToken } = await this.getMetaCatalogConfig(tenantId);
+      const axiosInstance = await this.getAxiosInstance(tenantId);
 
       console.log('[Meta Sync] Starting sync for product:', product.id);
 
@@ -139,8 +164,8 @@ export class MetaCatalogService {
           }
   
           console.log(`[Meta Sync] Uploading variant ${i + 1}/${meta.variants.length}:`, variantRetailerId, `(${v.size || ''} ${v.color || ''})`.trim());
-          const resp = await this.axiosInstance.post(
-            `${this.apiUrl}/${this.catalogId}/products`,
+          const resp = await axiosInstance.post(
+            `${this.apiUrl}/${catalogId}/products`,
             payload,
           );
   
@@ -175,8 +200,8 @@ export class MetaCatalogService {
       };
   
       console.log('[Meta Sync] Uploading product:', baseRetailerId);
-      const response = await this.axiosInstance.post(
-        `${this.apiUrl}/${this.catalogId}/products`,
+      const response = await axiosInstance.post(
+        `${this.apiUrl}/${catalogId}/products`,
         payload,
       );
   
@@ -191,8 +216,6 @@ export class MetaCatalogService {
         status: errorCode,
         message: errorMsg,
         details: errorDetails,
-        catalogId: this.catalogId,
-        hasToken: !!this.accessToken,
         errorCode: error.code,
       });
       
@@ -217,9 +240,8 @@ export class MetaCatalogService {
       : product.contentId || `product_${product.id}`;
     
     try {
-      if (!this.catalogId || !this.accessToken) {
-        throw new Error('Meta Catalog ID or Access Token not configured');
-      }
+      const { catalogId, accessToken } = await this.getMetaCatalogConfig();
+      const axiosInstance = await this.getAxiosInstance();
 
       console.log('[Meta Update] Starting update for product:', product.id, 'metaProductId:', product.metaProductId);
 
@@ -242,7 +264,7 @@ export class MetaCatalogService {
       if (product.metaProductId) {
         try {
           console.log('[Meta Update] Deleting old product:', product.metaProductId);
-          await this.axiosInstance.delete(
+          await axiosInstance.delete(
             `${this.apiUrl}/${product.metaProductId}`,
           );
           console.log('[Meta Update] Old product deleted successfully');
@@ -265,10 +287,11 @@ export class MetaCatalogService {
       // Delete all old variants if they exist
       if (product.variants && product.variants.length > 0) {
         console.log(`[Meta Update] Deleting ${product.variants.length} old variants...`);
+        const axiosInst = await this.getAxiosInstance();
         for (const variant of product.variants) {
           if (variant.metaProductId) {
             try {
-              await this.axiosInstance.delete(`${this.apiUrl}/${variant.metaProductId}`);
+              await axiosInst.delete(`${this.apiUrl}/${variant.metaProductId}`);
               console.log(`[Meta Update] Deleted variant: ${variant.metaProductId}`);
             } catch (err) {
               console.log(`[Meta Update] Could not delete variant ${variant.metaProductId}:`, err.message);
@@ -334,8 +357,8 @@ export class MetaCatalogService {
           if (v.customAttribute) payload.additional_variant_attribute = v.customAttribute;
           
           console.log(`[Meta Update] Uploading variant ${i + 1}/${meta.variants.length}:`, variantRetailerId);
-          const resp = await this.axiosInstance.post(
-            `${this.apiUrl}/${this.catalogId}/products`,
+          const resp = await axiosInstance.post(
+            `${this.apiUrl}/${catalogId}/products`,
             payload,
           );
           
@@ -365,8 +388,8 @@ export class MetaCatalogService {
       };
       
       console.log('[Meta Update] Creating updated product with retailer_id:', baseRetailerId);
-      const response = await this.axiosInstance.post(
-        `${this.apiUrl}/${this.catalogId}/products`,
+      const response = await axiosInstance.post(
+        `${this.apiUrl}/${catalogId}/products`,
         payload,
       );
 
@@ -406,14 +429,13 @@ export class MetaCatalogService {
 
   async deleteProductFromCatalog(metaProductId: string) {
     try {
-      if (!this.catalogId || !this.accessToken) {
-        throw new Error('Meta Catalog ID or Access Token not configured');
-      }
+      const { catalogId, accessToken } = await this.getMetaCatalogConfig();
+      const axiosInstance = await this.getAxiosInstance();
 
       console.log('[Meta Delete] Deleting product with metaProductId:', metaProductId);
 
       // Meta API requires DELETE request to specific product endpoint
-      const response = await this.axiosInstance.delete(
+      const response = await axiosInstance.delete(
         `${this.apiUrl}/${metaProductId}`,
       );
 
@@ -445,18 +467,17 @@ export class MetaCatalogService {
 
   async deleteProductByRetailerId(retailerId: string) {
     try {
-      if (!this.catalogId || !this.accessToken) {
-        throw new Error('Meta Catalog ID or Access Token not configured');
-      }
+      const { catalogId, accessToken } = await this.getMetaCatalogConfig();
+      const axiosInstance = await this.getAxiosInstance();
 
       console.log('[Meta Delete] Deleting product by retailer_id:', retailerId);
 
       // First, find the product by retailer_id
       const products = await axios.get(
-        `${this.apiUrl}/${this.catalogId}/products?fields=id,retailer_id`,
+        `${this.apiUrl}/${catalogId}/products?fields=id,retailer_id`,
         {
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
+            'Authorization': `Bearer ${accessToken}`,
           },
           timeout: 30000,
         }
@@ -470,7 +491,7 @@ export class MetaCatalogService {
       }
 
       // Delete using the Meta product ID
-      await this.axiosInstance.delete(
+      await axiosInstance.delete(
         `${this.apiUrl}/${product.id}`,
       );
 
@@ -489,9 +510,8 @@ export class MetaCatalogService {
 
   async syncVariantToCatalog(variant: any, parentProduct: any, parentRetailerId: string, meta?: any) {
     try {
-      if (!this.catalogId || !this.accessToken) {
-        throw new Error('Meta Catalog ID or Access Token not configured');
-      }
+      const { catalogId, accessToken } = await this.getMetaCatalogConfig();
+      const axiosInstance = await this.getAxiosInstance();
 
       console.log('[Meta Sync Variant] Starting sync for variant:', variant.id, 'parent:', parentRetailerId);
 
@@ -559,8 +579,8 @@ export class MetaCatalogService {
       }
 
       console.log('[Meta Sync Variant] Uploading variant with item_group_id:', parentRetailerId, `(${payload.size || ''} ${payload.color || ''})`.trim());
-      const response = await this.axiosInstance.post(
-        `${this.apiUrl}/${this.catalogId}/products`,
+      const response = await axiosInstance.post(
+        `${this.apiUrl}/${catalogId}/products`,
         payload,
       );
 
@@ -584,11 +604,12 @@ export class MetaCatalogService {
   }
   async fetchProductsFromMeta() {
     try {
+      const { catalogId, accessToken } = await this.getMetaCatalogConfig();
       const response = await axios.get(
-        `${this.apiUrl}/${this.catalogId}/products?fields=id,retailer_id,name,description,price,currency,image_url,url,availability`,
+        `${this.apiUrl}/${catalogId}/products?fields=id,retailer_id,name,description,price,currency,image_url,url,availability`,
         {
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
+            'Authorization': `Bearer ${accessToken}`,
           },
           timeout: 30000, // 30 seconds
         }
@@ -682,6 +703,7 @@ export class MetaCatalogService {
 
   async sendCatalogMessage(phone: string, phoneNumberId: string, userId?: number) {
     try {
+      const { catalogId, accessToken } = await this.getMetaCatalogConfig();
       // Check cache first
       let catalogProducts;
       if (this.catalogCache && (Date.now() - this.catalogCache.timestamp) < this.CACHE_TTL) {
@@ -690,10 +712,10 @@ export class MetaCatalogService {
       } else {
         console.log('Fetching fresh catalog products');
         catalogProducts = await axios.get(
-          `${this.apiUrl}/${this.catalogId}/products?fields=id,retailer_id,name,availability`,
+          `${this.apiUrl}/${catalogId}/products?fields=id,retailer_id,name,availability`,
           {
             headers: {
-              'Authorization': `Bearer ${this.accessToken}`,
+              'Authorization': `Bearer ${accessToken}`,
             },
             timeout: 30000, // 30 seconds
           }
@@ -736,7 +758,7 @@ export class MetaCatalogService {
             text: 'Tap to view details'
           },
           action: {
-            catalog_id: this.catalogId,
+            catalog_id: catalogId,
             sections: [
               {
                 title: 'Available Now',
@@ -752,7 +774,7 @@ export class MetaCatalogService {
         messagePayload,
         {
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
+            'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
           timeout: 30000, // 30 seconds
@@ -766,7 +788,6 @@ export class MetaCatalogService {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
-        catalogId: this.catalogId,
         phoneNumberId: phoneNumberId
       });
       throw new Error(error.response?.data?.error?.message || 'Failed to send catalog message');
@@ -1249,6 +1270,7 @@ export class MetaCatalogService {
 
   private async sendTextMessage(phone: string, phoneNumberId: string, text: string) {
     try {
+      const { accessToken } = await this.getMetaCatalogConfig();
       const response = await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,
         {
@@ -1259,7 +1281,7 @@ export class MetaCatalogService {
         },
         {
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
+            'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
           timeout: 15000, // Reduced from 30s to 15s
@@ -1274,6 +1296,7 @@ export class MetaCatalogService {
 
   private async sendPaymentMethodSelection(phone: string, phoneNumberId: string, userId: number) {
     try {
+      const { accessToken } = await this.getMetaCatalogConfig();
       await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,
         {
@@ -1307,7 +1330,7 @@ export class MetaCatalogService {
         },
         {
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
+            'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
           timeout: 30000, // 30 seconds
@@ -1330,6 +1353,7 @@ export class MetaCatalogService {
 
   private async sendCustomerDetailsConfirmation(phone: string, phoneNumberId: string, customer: any, userId: number) {
     try {
+      const { accessToken } = await this.getMetaCatalogConfig();
       const name = customer.customerName || 'Not provided';
       const city = customer.customerCity || '';
       const state = customer.customerState || '';
@@ -1408,7 +1432,7 @@ export class MetaCatalogService {
         },
         {
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
+            'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
           timeout: 30000, // 30 seconds
@@ -1583,6 +1607,7 @@ export class MetaCatalogService {
 
   private async sendOrderDetailsWithPayment(phone: string, phoneNumberId: string, product: any, orderId: number, customerName: string, address: string) {
     try {
+      const { accessToken } = await this.getMetaCatalogConfig();
       await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,
         {
@@ -1628,7 +1653,7 @@ export class MetaCatalogService {
         },
         {
           headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
+            'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
         }

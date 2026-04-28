@@ -1,11 +1,24 @@
 import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_BASE_URL;
+import { API_BASE_URL } from './config';
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: API_BASE_URL,
   withCredentials: true,
 });
+
+let metaCatalogConfig = null;
+
+const getMetaCatalogConfig = async () => {
+  if (!metaCatalogConfig) {
+    const response = await fetch(`${API_BASE_URL}/settings/meta-catalog`, {
+      credentials: 'include'
+    });
+    if (response.ok) {
+      metaCatalogConfig = await response.json();
+    }
+  }
+  return metaCatalogConfig;
+};
 
 export const ecommerceApi = {
   // Categories

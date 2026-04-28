@@ -444,7 +444,7 @@ export class EcommerceController {
         };
       }
 
-      const result = await this.metaCatalogService.syncProductToCatalog(product, body);
+      const result = await this.metaCatalogService.syncProductToCatalog(product, body, tenantId);
       
       await this.ecommerceService.updateProduct(productId, {
         metaProductId: result.metaProductId,
@@ -480,7 +480,7 @@ export class EcommerceController {
         return;
       }
 
-      const result = await this.metaCatalogService.syncProductToCatalog(product, body);
+      const result = await this.metaCatalogService.syncProductToCatalog(product, body, tenantId);
       
       await this.ecommerceService.updateProduct(productId, {
         metaProductId: result.metaProductId,

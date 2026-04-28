@@ -602,9 +602,10 @@ export class MetaCatalogService {
       throw new Error(errorMsg || 'Failed to sync variant to Meta Catalog');
     }
   }
-  async fetchProductsFromMeta() {
+  async fetchProductsFromMeta(tenantId?: number) {
     try {
-      const { catalogId, accessToken } = await this.getMetaCatalogConfig();
+      if (tenantId) this.currentTenantId = tenantId;
+      const { catalogId, accessToken } = await this.getMetaCatalogConfig(tenantId);
       const response = await axios.get(
         `${this.apiUrl}/${catalogId}/products?fields=id,retailer_id,name,description,price,currency,image_url,url,availability`,
         {
@@ -623,7 +624,8 @@ export class MetaCatalogService {
 
   async syncMetaProductsToDatabase(userId?: number) {
     try {
-      const metaProducts = await this.fetchProductsFromMeta();
+      if (userId) this.currentTenantId = userId;
+      const metaProducts = await this.fetchProductsFromMeta(userId);
       const createdProducts: any[] = [];
       const updatedProducts: any[] = [];
       const skippedProducts: any[] = [];
@@ -703,7 +705,8 @@ export class MetaCatalogService {
 
   async sendCatalogMessage(phone: string, phoneNumberId: string, userId?: number) {
     try {
-      const { catalogId, accessToken } = await this.getMetaCatalogConfig();
+      if (userId) this.currentTenantId = userId;
+      const { catalogId, accessToken } = await this.getMetaCatalogConfig(userId);
       // Check cache first
       let catalogProducts;
       if (this.catalogCache && (Date.now() - this.catalogCache.timestamp) < this.CACHE_TTL) {
@@ -1268,9 +1271,10 @@ export class MetaCatalogService {
     }
   }
 
-  private async sendTextMessage(phone: string, phoneNumberId: string, text: string) {
+  private async sendTextMessage(phone: string, phoneNumberId: string, text: string, userId?: number) {
     try {
-      const { accessToken } = await this.getMetaCatalogConfig();
+      if (userId) this.currentTenantId = userId;
+      const { accessToken } = await this.getMetaCatalogConfig(userId);
       const response = await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,
         {
@@ -1296,7 +1300,8 @@ export class MetaCatalogService {
 
   private async sendPaymentMethodSelection(phone: string, phoneNumberId: string, userId: number) {
     try {
-      const { accessToken } = await this.getMetaCatalogConfig();
+      if (userId) this.currentTenantId = userId;
+      const { accessToken } = await this.getMetaCatalogConfig(userId);
       await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,
         {
@@ -1353,7 +1358,8 @@ export class MetaCatalogService {
 
   private async sendCustomerDetailsConfirmation(phone: string, phoneNumberId: string, customer: any, userId: number) {
     try {
-      const { accessToken } = await this.getMetaCatalogConfig();
+      if (userId) this.currentTenantId = userId;
+      const { accessToken } = await this.getMetaCatalogConfig(userId);
       const name = customer.customerName || 'Not provided';
       const city = customer.customerCity || '';
       const state = customer.customerState || '';
@@ -1605,9 +1611,10 @@ export class MetaCatalogService {
     return null;
   }
 
-  private async sendOrderDetailsWithPayment(phone: string, phoneNumberId: string, product: any, orderId: number, customerName: string, address: string) {
+  private async sendOrderDetailsWithPayment(phone: string, phoneNumberId: string, product: any, orderId: number, customerName: string, address: string, userId?: number) {
     try {
-      const { accessToken } = await this.getMetaCatalogConfig();
+      if (userId) this.currentTenantId = userId;
+      const { accessToken } = await this.getMetaCatalogConfig(userId);
       await axios.post(
         `${this.apiUrl}/${phoneNumberId}/messages`,
         {

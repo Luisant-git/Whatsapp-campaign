@@ -52,6 +52,14 @@ export class ChatbotService {
 
   async processMessage(userId: number, chatMessageDto: ChatMessageDto) {
     const prisma = await this.getPrisma(userId);
+
+    // Fetch company name from central DB
+    const tenant = await this.centralPrisma.tenant.findUnique({
+      where: { id: userId },
+      select: { companyName: true, name: true },
+    });
+    const companyName = tenant?.companyName || tenant?.name || 'our company';
+
     let session = await prisma.chatSession.findFirst({
       where: { phone: chatMessageDto.phone },
     });
@@ -89,13 +97,12 @@ export class ChatbotService {
     }
 
     const context = documents.map(doc => `Document: ${doc.filename}\n${doc.content}`).join('\n\n');
-    const documentNames = documents.map(doc => doc.filename.replace(/\.[^/.]+$/, '')).join(', ');
 
     const completion = await this.groq.chat.completions.create({
       messages: [
         {
           role: 'system',
-          content: `You are a helpful customer support assistant for ${documentNames}. Answer questions based ONLY on the following documents:\n\n${context}\n\nFor greetings or first messages, respond with: "Hi there! 👋 Welcome to ${documentNames}!"\n\nFor other questions, answer based on the documents. If the question cannot be answered from the documents, respond with: "I don't have information about that in my knowledge base. Please contact our support team for further assistance."`,
+          content: `You are a helpful customer support assistant for ${companyName}. Answer questions based ONLY on the following documents:\n\n${context}\n\nFor greetings or first messages, respond with: "Hi there! 👋 Welcome to ${companyName}!"\n\nFor other questions, answer based on the documents. If the question cannot be answered from the documents, respond with: "I don't have information about that in my knowledge base. Please contact our support team for further assistance."`,
         },
         {
           role: 'user',

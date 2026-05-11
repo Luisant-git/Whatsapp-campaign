@@ -177,12 +177,7 @@ export class ContactService {
   ) {
     const prisma = this.getPrisma(tenantContext);
     await prisma.contact.upsert({
-      where: { 
-        phone_phoneNumberId: { 
-          phone, 
-          phoneNumberId: (phoneNumberId ?? null) as any 
-        } 
-      },
+      where: { phone },
       update: {
         name: name || phone,
         lastMessageDate: new Date(),

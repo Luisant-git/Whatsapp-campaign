@@ -324,10 +324,12 @@ export default function Contact() {
       resetForm();
     } catch (err) {
       console.error("Save error", err);
+      const apiMessage = err.response?.data?.message;
       showError(
-        editingContact
-          ? "Failed to update contact. Please try again."
-          : "Failed to create contact. Please try again."
+        apiMessage ||
+          (editingContact
+            ? "Failed to update contact. Please try again."
+            : "Failed to create contact. Please try again.")
       );
     } finally {
       setLoading(false);

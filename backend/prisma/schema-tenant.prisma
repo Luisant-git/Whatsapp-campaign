@@ -233,7 +233,7 @@ model Contact {
   runDailyAutomation     RunDailyAutomation[]
   runDailyAutomationLogs RunDailyAutomationLog[]
 
-  @@unique([phone, phoneNumberId])
+  @@unique([phone])
   @@index([phoneNumberId])
   @@index([userId])
   @@index([parentUserId])

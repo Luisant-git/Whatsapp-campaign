@@ -2482,73 +2482,45 @@ export class WhatsappService {
     username?: string
   ) {
     const formattedPhone = this.formatPhoneNumber(phone);
-  
+
     const normalizedProfileName =
       profileName &&
       !['null', 'undefined', 'unknown'].includes(profileName.trim().toLowerCase()) &&
       profileName.trim() !== formattedPhone
         ? profileName.trim()
         : '';
-  
+
     const fallbackName = normalizedProfileName || formattedPhone;
-  
-    // First, try to find contact by userId if provided
-    let existingContact;
-    if (userId && phoneNumberId) {
-      existingContact = await prismaClient.contact.findFirst({
-        where: {
-          userId: userId,
-          phoneNumberId: phoneNumberId,
-        },
-      });
-    }
-    
-    // If not found by userId, try by phone and phoneNumberId
-    if (!existingContact) {
-      existingContact = await prismaClient.contact.findFirst({
-        where: {
-          phone: formattedPhone,
-          phoneNumberId: phoneNumberId ?? null,
-        },
-      });
-    }
-  
-    if (existingContact) {
-      const existingName =
-        existingContact.name &&
-        !['null', 'undefined', 'unknown'].includes(existingContact.name.trim().toLowerCase()) &&
-        existingContact.name.trim() !== formattedPhone
-          ? existingContact.name.trim()
-          : '';
-  
-      await prismaClient.contact.update({
-        where: { id: existingContact.id },
-        data: {
-          name: existingName || fallbackName,
+
+    try {
+      await prismaClient.contact.upsert({
+        where: { phone: formattedPhone },
+        update: {
           lastMessageDate: new Date(),
           isActive: true,
-          userId: userId || existingContact.userId,
-          parentUserId: parentUserId || existingContact.parentUserId,
-          username: username || existingContact.username,
+          ...(normalizedProfileName && { name: normalizedProfileName }),
+          ...(userId && { userId }),
+          ...(parentUserId && { parentUserId }),
+          ...(username && { username }),
+        },
+        create: {
+          name: fallbackName,
+          phone: formattedPhone,
+          phoneNumberId: phoneNumberId ?? null,
+          groupId: null,
+          lastMessageDate: new Date(),
+          isActive: true,
+          userId: userId || null,
+          parentUserId: parentUserId || null,
+          username: username || null,
         },
       });
-  
-      return;
+    } catch (err: any) {
+      // P2002 = unique constraint — contact already exists, safe to ignore
+      if (err?.code !== 'P2002') {
+        this.logger.warn(`upsertContact failed for ${formattedPhone}:`, err.message);
+      }
     }
-  
-    await prismaClient.contact.create({
-      data: {
-        name: fallbackName,
-        phone: formattedPhone,
-        phoneNumberId: phoneNumberId ?? null,
-        groupId: null,
-        lastMessageDate: new Date(),
-        isActive: true,
-        userId: userId || null,
-        parentUserId: parentUserId || null,
-        username: username || null,
-      },
-    });
   }
   private getErrorMessage(error: any): string {
     // Log the full error for debugging

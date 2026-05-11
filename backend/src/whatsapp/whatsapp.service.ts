@@ -15,6 +15,8 @@ export class WhatsappService {
   private readonly logger = new Logger(WhatsappService.name);
   private phoneNumberIdCache = new Map<string, { tenantId: number; settingsId: number; timestamp: number }>();
   private readonly CACHE_TTL = 3600000; // 1 hour
+  private phoneCredentialsCache = new Map<string, { phoneNumberId: string; accessToken: string; apiUrl: string; expiresAt: number }>();
+  private readonly CREDENTIALS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
   constructor(
     private prisma: PrismaService,
@@ -47,51 +49,43 @@ export class WhatsappService {
   }
 
   private async getPhoneCredentials(featureType: 'whatsappChat' | 'campaigns' | 'ecommerce' | 'aiChatbot' | 'quickReply', userId: number) {
+    const cacheKey = `${featureType}:${userId}`;
+    const cached = this.phoneCredentialsCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiresAt) return cached;
+
     const featureAssignment = await this.prisma.featureAssignment.findFirst();
     const assignedPhoneId = featureAssignment?.[featureType];
 
     this.logger.log(`🔍 Getting credentials for ${featureType}, assigned phoneId: ${assignedPhoneId}`);
+
+    let result: { phoneNumberId: string; accessToken: string; apiUrl: string } | null = null;
 
     if (assignedPhoneId) {
       const masterConfig = await this.prisma.masterConfig.findFirst({
         where: { phoneNumberId: assignedPhoneId, isActive: true }
       });
       if (masterConfig) {
-        this.logger.log(`✅ Using MasterConfig: ${masterConfig.name} (${masterConfig.phoneNumberId})`);
-        return {
-          phoneNumberId: masterConfig.phoneNumberId,
-          accessToken: masterConfig.accessToken,
-          apiUrl: 'https://graph.facebook.com/v18.0'
-        };
-      } else {
-        this.logger.warn(`⚠️ No active MasterConfig found for phoneId: ${assignedPhoneId}`);
+        result = { phoneNumberId: masterConfig.phoneNumberId, accessToken: masterConfig.accessToken, apiUrl: 'https://graph.facebook.com/v18.0' };
       }
     }
 
-    // If no feature assignment, check if there's any active MasterConfig
-    if (!assignedPhoneId) {
+    if (!result) {
       const masterConfig = await this.prisma.masterConfig.findFirst({
         where: { isActive: true },
         orderBy: { createdAt: 'desc' }
       });
       if (masterConfig) {
-        this.logger.log(`✅ Using first active MasterConfig: ${masterConfig.name} (${masterConfig.phoneNumberId})`);
-        return {
-          phoneNumberId: masterConfig.phoneNumberId,
-          accessToken: masterConfig.accessToken,
-          apiUrl: 'https://graph.facebook.com/v18.0'
-        };
+        result = { phoneNumberId: masterConfig.phoneNumberId, accessToken: masterConfig.accessToken, apiUrl: 'https://graph.facebook.com/v18.0' };
       }
     }
 
-    // Fallback to default WhatsApp Settings
-    this.logger.log(`📋 Falling back to WhatsApp Settings for userId: ${userId}`);
-    const settings = await this.getSettings(userId);
-    return {
-      phoneNumberId: settings.phoneNumberId,
-      accessToken: settings.accessToken,
-      apiUrl: settings.apiUrl
-    };
+    if (!result) {
+      const settings = await this.getSettings(userId);
+      result = { phoneNumberId: settings.phoneNumberId, accessToken: settings.accessToken, apiUrl: settings.apiUrl };
+    }
+
+    this.phoneCredentialsCache.set(cacheKey, { ...result, expiresAt: Date.now() + this.CREDENTIALS_CACHE_TTL });
+    return result;
   }
 
   private isEcommerceMessage(lowerText: string): boolean {
@@ -1943,10 +1937,19 @@ export class WhatsappService {
     }
   }
 
+  private readonly tenantUrlCache = new Map<number, { dbUrl: string; expiresAt: number }>();
+  private readonly TENANT_CACHE_TTL = 5 * 60 * 1000;
+
   private async getTenantDbUrl(tenantId: number): Promise<string> {
+    const cached = this.tenantUrlCache.get(tenantId);
+    if (cached && Date.now() < cached.expiresAt) return cached.dbUrl;
+
     const tenant = await this.centralPrisma.tenant.findUnique({ where: { id: tenantId } });
     if (!tenant) throw new Error('Tenant not found');
-    return `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+
+    const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+    this.tenantUrlCache.set(tenantId, { dbUrl, expiresAt: Date.now() + this.TENANT_CACHE_TTL });
+    return dbUrl;
   }
 
   async updateMessageStatusWithoutContext(messageId: string, status: string, phoneNumberId: string, errorDetails?: any) {

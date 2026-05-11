@@ -1022,40 +1022,35 @@ export class WhatsappService {
       };
     }
   
-    // -----------------------------
-    // CASE 2: no phone => return paginated unique numbers/chats
-    // -----------------------------
-    const whereCondition = allowedPhones
-      ? { from: { in: allowedPhones } }
-      : {};
-  
-    const allMessages = await this.prisma.whatsAppMessage.findMany({
-      where: whereCondition,
-      orderBy: { createdAt: 'desc' },
-    });
-  
-    const uniqueChatsMap = new Map();
-  
-    for (const msg of allMessages) {
-      const key = `${msg.from}_${msg.phoneNumberId || ''}`;
-      if (!uniqueChatsMap.has(key)) {
-        uniqueChatsMap.set(key, msg);
-      }
-    }
-  
-    const uniqueChats = Array.from(uniqueChatsMap.values());
-    const total = uniqueChats.length;
-  
-    const skip = (page - 1) * limit;
-    const paginatedChats = uniqueChats.slice(skip, skip + limit);
+    // CASE 2: no phone => return paginated unique chats using DB-level DISTINCT
+    const whereClause = allowedPhones ? `AND "from" = ANY($3)` : '';
+    const params: any[] = [(page - 1) * limit, limit];
+    if (allowedPhones) params.push(allowedPhones);
+
+    const [uniqueChats, countResult] = await Promise.all([
+      this.prisma.$queryRawUnsafe<any[]>(
+        `SELECT DISTINCT ON ("from", "phoneNumberId") id, "from", "phoneNumberId", message, "mediaType", "mediaUrl", direction, status, "profileName", "createdAt", "updatedAt"
+         FROM "WhatsAppMessage"
+         ${allowedPhones ? 'WHERE "from" = ANY($3)' : ''}
+         ORDER BY "from", "phoneNumberId", "createdAt" DESC
+         LIMIT $2 OFFSET $1`,
+        ...params
+      ),
+      this.prisma.$queryRawUnsafe<[{ count: bigint }]>(
+        `SELECT COUNT(*) FROM (SELECT DISTINCT "from", "phoneNumberId" FROM "WhatsAppMessage" ${allowedPhones ? 'WHERE "from" = ANY($1)' : ''}) t`,
+        ...(allowedPhones ? [allowedPhones] : [])
+      ),
+    ]);
+
+    const total = Number(countResult[0]?.count || 0);
   
     const uniquePhoneNumberIds = [
-      ...new Set(paginatedChats.map((m) => m.phoneNumberId).filter(Boolean)),
+      ...new Set(uniqueChats.map((m) => m.phoneNumberId).filter(Boolean)),
     ] as string[];
   
     const uniquePhones = [
       ...new Set(
-        paginatedChats.map((m) => this.formatPhoneNumber(m.from)).filter(Boolean),
+        uniqueChats.map((m) => this.formatPhoneNumber(m.from)).filter(Boolean),
       ),
     ] as string[];
   
@@ -1096,7 +1091,7 @@ export class WhatsappService {
       }
     });
   
-    const enrichedChats = paginatedChats.map((msg) => {
+    const enrichedChats = uniqueChats.map((msg) => {
       let displayPhoneNumber: string | null = null;
   
       if (msg.phoneNumberId) {
@@ -2306,9 +2301,28 @@ export class WhatsappService {
   }
 
   async sendBulkTemplateMessageWithNames(contacts: Array<{ name: string; phone: string }>, templateName: string, userId: number, settingsId?: number, headerImageUrl?: string) {
-    // Use campaigns feature assignment
     const { phoneNumberId, accessToken, apiUrl } = await this.getPhoneCredentials('campaigns', userId);
-    const language = 'en'; // Default language
+    const language = 'en';
+
+    // Fetch template ONCE before the loop (was queried 3x per contact)
+    const dbTemplate = await this.prisma.messageTemplate.findFirst({
+      where: { OR: [{ name: templateName }, { name: { startsWith: templateName + '_v' } }] },
+      orderBy: { updatedAt: 'desc' },
+    });
+    const actualTemplateName = dbTemplate?.name || templateName;
+    const templateComponents = dbTemplate?.components
+      ? (typeof dbTemplate.components === 'string' ? JSON.parse(dbTemplate.components as string) : dbTemplate.components as any[])
+      : [];
+    const headerComponent = templateComponents.find((c: any) => c.type === 'HEADER');
+    const bodyComponent = templateComponents.find((c: any) => c.type === 'BODY');
+    const templateBodyVariables: string[] = bodyComponent?.text?.match(/{{\d+}}/g) || [];
+
+    // Fetch all contact data in one query before the loop
+    const allFormattedPhones = contacts.map(c => this.formatPhoneNumber(c.phone));
+    const allContactData = await this.prisma.contact.findMany({
+      where: { phone: { in: allFormattedPhones } },
+    });
+    const contactDataMap = new Map(allContactData.map(c => [c.phone, c]));
 
     const results: Array<{ phoneNumber: string; success: boolean; messageId?: string; error?: string }> = [];
 
@@ -2327,161 +2341,30 @@ export class WhatsappService {
 
         const components: any[] = [];
 
+        // Use pre-fetched template + contact data — zero DB queries inside loop
         if (headerImageUrl && headerImageUrl.trim() !== '' && headerImageUrl.startsWith('http')) {
-          // Get template information to determine the correct header format
-          let headerFormat = 'IMAGE'; // Default fallback
-
-          try {
-            // Try to get template from database to determine actual header format
-            const template = await this.prisma.messageTemplate.findFirst({
-              where: { name: templateName }
-            });
-
-            if (template && template.components) {
-              const templateComponents = typeof template.components === 'string'
-                ? JSON.parse(template.components)
-                : template.components;
-
-              const headerComponent = templateComponents.find((c: any) => c.type === 'HEADER');
-              if (headerComponent && headerComponent.format) {
-                headerFormat = headerComponent.format;
-                this.logger.log(`Using template header format: ${headerFormat}`);
-              }
-            }
-          } catch (error) {
-            this.logger.warn('Could not determine template header format, using file extension detection');
-            // Fallback to file extension detection
+          let headerFormat = headerComponent?.format || 'IMAGE';
+          if (!headerComponent) {
             const isVideo = /\.(mp4|avi|mov)$/i.test(headerImageUrl);
             const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i.test(headerImageUrl);
-
-            if (isDocument) {
-              headerFormat = 'DOCUMENT';
-            } else if (isVideo) {
-              headerFormat = 'VIDEO';
-            } else {
-              headerFormat = 'IMAGE';
-            }
+            headerFormat = isDocument ? 'DOCUMENT' : isVideo ? 'VIDEO' : 'IMAGE';
           }
-
-          // Use the determined format
           const mediaType = headerFormat.toLowerCase();
-
-          components.push({
-            type: 'header',
-            parameters: [
-              {
-                type: mediaType,
-                [mediaType]: {
-                  link: headerImageUrl
-                }
-              }
-            ]
-          });
+          components.push({ type: 'header', parameters: [{ type: mediaType, [mediaType]: { link: headerImageUrl } }] });
         }
 
-        // ✅ FETCH FULL CONTACT DATA FIRST (before building parameters)
-        const fullContact = await this.prisma.contact.findFirst({
-          where: { phone: formattedPhone }
-        });
+        const fullContact = contactDataMap.get(formattedPhone);
 
-        // Add body parameters if the template has variables
-        try {
-          // First try to find the actual template name from database
-          const dbTemplate = await this.prisma.messageTemplate.findFirst({
-            where: {
-              OR: [
-                { name: templateName },
-                { name: { startsWith: templateName + '_v' } } // Handle versioned names
-              ]
-            },
-            orderBy: { updatedAt: 'desc' } // Get the most recent version
+        if (templateBodyVariables.length > 0) {
+          const varFields = ['name', 'variable2', 'variable3', 'variable4', 'variable5', 'variable6'];
+          const bodyParameters = templateBodyVariables.map((_: string, i: number) => {
+            const field = varFields[i];
+            const value = i === 0
+              ? (fullContact?.name || contact.name || 'Customer')
+              : (fullContact?.[field] || '');
+            return { type: 'text', text: value || ' ' };
           });
-
-          const actualTemplateName = dbTemplate?.name || templateName;
-          this.logger.log(`Using actual template name: ${actualTemplateName}`);
-
-          if (dbTemplate && dbTemplate.components) {
-            const templateComponents = typeof dbTemplate.components === 'string'
-              ? JSON.parse(dbTemplate.components)
-              : dbTemplate.components;
-
-            const bodyComponent = templateComponents.find((c: any) => c.type === 'BODY');
-            if (bodyComponent && bodyComponent.text) {
-              // Count variables in body text ({{1}}, {{2}}, etc.)
-              const variables = bodyComponent.text.match(/{{\d+}}/g);
-              if (variables && variables.length > 0) {
-                this.logger.log(`Template ${actualTemplateName} has ${variables.length} body parameters`);
-
-                // Map template variables to contact fields
-                // {{1}} → name, {{2}} → variable2, {{3}} → variable3, etc.
-                const bodyParameters: Array<{ type: string; text: string }> = [];
-                for (let i = 0; i < variables.length; i++) {
-                  const varNumber = i + 1;
-                  let value = '';
-
-                  if (varNumber === 1) {
-                    // {{1}} → Contact Name
-                    value = fullContact?.name || contact.name || 'Customer';
-                  } else if (varNumber === 2) {
-                    // {{2}} → variable2
-                    value = fullContact?.variable2 || '';
-                  } else if (varNumber === 3) {
-                    // {{3}} → variable3
-                    value = fullContact?.variable3 || '';
-                  } else if (varNumber === 4) {
-                    // {{4}} → variable4
-                    value = fullContact?.variable4 || '';
-                  } else if (varNumber === 5) {
-                    // {{5}} → variable5
-                    value = fullContact?.variable5 || '';
-                  } else if (varNumber === 6) {
-                    // {{6}} → variable6
-                    value = fullContact?.variable6 || '';
-                  } else {
-                    // Fallback for any additional variables
-                    value = contact.name || 'Customer';
-                  }
-
-                  bodyParameters.push({
-                    type: 'text',
-                    text: value || ' ' // Use space if empty to avoid Meta API errors
-                  });
-
-                  this.logger.log(`Variable {{${varNumber}}} mapped to: ${value}`);
-                }
-
-                components.push({
-                  type: 'body',
-                  parameters: bodyParameters
-                });
-              } else {
-                this.logger.log(`Template ${actualTemplateName} has no body parameters`);
-              }
-            }
-          }
-        } catch (error) {
-          this.logger.warn('Could not determine template body parameters:', error.message);
-        }
-
-        // Get the actual template name to use for sending
-        let actualTemplateName = templateName;
-        try {
-          const dbTemplate = await this.prisma.messageTemplate.findFirst({
-            where: {
-              OR: [
-                { name: templateName },
-                { name: { startsWith: templateName + '_v' } }
-              ]
-            },
-            orderBy: { updatedAt: 'desc' }
-          });
-
-          if (dbTemplate) {
-            actualTemplateName = dbTemplate.name;
-            this.logger.log(`Using actual template name for sending: ${actualTemplateName}`);
-          }
-        } catch (error) {
-          this.logger.warn('Could not find template in database, using original name:', templateName);
+          components.push({ type: 'body', parameters: bodyParameters });
         }
 
         const requestBody = {
@@ -2807,39 +2690,41 @@ export class WhatsappService {
       orderBy: { updatedAt: 'desc' },
     });
 
-    const enriched = await Promise.all(
-      assignments.map(async (a) => {
-        const subUser = await this.centralPrisma.subUser.findUnique({
-          where: { id: a.subUserId },
-          select: {
-            id: true,
-            email: true,
-            designation: true,
-          },
-        });
+    if (assignments.length === 0) return [];
 
-        const contact = await this.prisma.contact.findFirst({
-          where: { phone: a.phone },
-          include: {
-            group: true,
-          },
-        });
+    const subUserIds = assignments.map(a => a.subUserId);
+    const phones = assignments.map(a => a.phone);
 
-        return {
-          id: a.id,
-          phone: a.phone,
-          subUserId: a.subUserId,
-          subUserEmail: subUser?.email || "",
-          subUserName: subUser?.designation || "",
-          contactName: contact?.name || "",
-          groupName: contact?.group?.name || "",
-          createdAt: a.createdAt,
-          updatedAt: a.updatedAt,
-        };
-      })
-    );
+    // 2 queries instead of 2N queries
+    const [subUsers, contacts] = await Promise.all([
+      this.centralPrisma.subUser.findMany({
+        where: { id: { in: subUserIds } },
+        select: { id: true, email: true, designation: true },
+      }),
+      this.prisma.contact.findMany({
+        where: { phone: { in: phones } },
+        include: { group: true },
+      }),
+    ]);
 
-    return enriched;
+    const subUserMap = new Map(subUsers.map(u => [u.id, u]));
+    const contactMap = new Map(contacts.map(c => [c.phone, c]));
+
+    return assignments.map(a => {
+      const subUser = subUserMap.get(a.subUserId);
+      const contact = contactMap.get(a.phone);
+      return {
+        id: a.id,
+        phone: a.phone,
+        subUserId: a.subUserId,
+        subUserEmail: subUser?.email || '',
+        subUserName: subUser?.designation || '',
+        contactName: contact?.name || '',
+        groupName: contact?.group?.name || '',
+        createdAt: a.createdAt,
+        updatedAt: a.updatedAt,
+      };
+    });
   }
   async removeChatAssignment(phone: string) {
     const formattedPhone = this.formatPhoneNumber(phone);

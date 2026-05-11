@@ -123,12 +123,16 @@ const SubscriptionOrders = () => {
     return endDate < today ? 'expired' : 'active';
   };
 
-  const filteredOrders = orders
-    .filter((order) =>
-      (order.tenant?.name || '')
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase())
-    )
+const filteredOrders = orders
+  .filter((order) => {
+    const company = order.tenant?.companyName || '';
+    const email = order.tenant?.email || '';
+
+    return (
+      company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  })
     .filter((order) => {
       const effectiveStatus = getEffectiveStatus(order);
 
@@ -176,12 +180,12 @@ const SubscriptionOrders = () => {
         </div>
 
         <div className="search-control">
-          <input
-            type="text"
-            placeholder="Search User..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+         <input
+  type="text"
+  placeholder="Search company or email..."
+  value={searchTerm}
+  onChange={(e) => setSearchTerm(e.target.value)}
+/>
         </div>
         <div className="entries-control">
           <label>Status</label>
@@ -202,7 +206,7 @@ const SubscriptionOrders = () => {
             <thead>
               <tr>
                 <th>Order ID</th>
-                <th className="user-col">User</th>
+                <th className="user-col">Company Name</th>
                 <th className="plan-col">Plan</th>
                 <th>Amount</th>
                 <th>Start Date</th>
@@ -218,7 +222,9 @@ const SubscriptionOrders = () => {
                   <td>#{order.id}</td>
                   <td className="user-col">
                     <div className="user-info">
-                      <div className="user-name">{order.tenant?.name || 'N/A'}</div>
+                      <div className="user-name">
+  {order.tenant?.companyName || 'N/A'}
+</div>
                       <div className="user-email">{order.tenant?.email || 'N/A'}</div>
                     </div>
                   </td>
@@ -271,7 +277,7 @@ const SubscriptionOrders = () => {
             <div className="order-card-top">
               <div>
                 <h3>Order #{order.id}</h3>
-                <p>{order.tenant?.name || 'N/A'}</p>
+              <p>{order.tenant?.companyName || 'N/A'}</p>
                 <span className="user-email">{order.tenant?.email || 'N/A'}</span>
               </div>
 

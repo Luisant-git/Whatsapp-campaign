@@ -185,7 +185,7 @@ export class SubscriptionService {
   
     return this.prisma.subscriptionOrder.findMany({
       include: {
-        tenant: { select: { id: true, email: true, name: true } },
+        tenant: { select: { id: true, email: true, name: true ,companyName: true, } },
         plan: true,
       },
       orderBy: { createdAt: 'desc' },

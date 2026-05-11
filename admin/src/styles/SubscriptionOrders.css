@@ -107,15 +107,6 @@
   gap: 2px;
 }
 
-.user-name {
-  font-weight: 500;
-  color: #333;
-}
-
-.user-email {
-  font-size: 12px;
-  color: #999;
-}
 
 .amount {
   font-weight: 600;
@@ -626,7 +617,7 @@
 .orders-table td.user-col,
 .orders-table td.plan-col {
   max-width: 220px;
-  white-space: normal;
+  white-space: normal!important;
   word-break: break-word;
   overflow-wrap: anywhere;
 }
@@ -652,4 +643,55 @@
 .order-card-row span:last-child {
   text-align: right;
   max-width: 65%;
+}
+
+/* ===== COMPANY COLUMN (make it look like User page) ===== */
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 220px; /* same as table constraint */
+}
+
+/* Company name → ellipsis */
+.user-name {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;   /* IMPORTANT */
+  display: block;
+}
+
+/* Email also safe */
+.user-email {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+/* ===== MOBILE COMPANY STYLE ===== */
+
+.order-card-top > div {
+  max-width: 70%;
+}
+
+.order-card-top p {
+  font-weight: 600;
+  font-size: 14px;
+  color: #111827;
+  margin: 0 0 4px;
+
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.order-card-top .user-email {
+  font-size: 12px;
+  color: #6b7280;
+
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }

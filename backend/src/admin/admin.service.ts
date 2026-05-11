@@ -727,6 +727,7 @@ async getSubUserById(id: number) {
     const tenants = await this.prisma.tenant.findMany({
       select: {
         id: true,
+        companyName: true,
         name: true,
         email: true,
         isActive: true,

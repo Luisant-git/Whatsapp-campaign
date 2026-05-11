@@ -23,6 +23,8 @@ const TenantDomainManager = () => {
     fetchTenantDomains();
   }, []);
 
+
+  
   const fetchTenantDomains = async () => {
     try {
       setLoading(true);
@@ -128,9 +130,13 @@ const TenantDomainManager = () => {
 
 
   const filteredTenants = tenants.filter((tenant) => {
-    const matchesSearch =
-      tenant.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tenant.email?.toLowerCase().includes(searchTerm.toLowerCase());
+ const matchesSearch =
+  (tenant.companyName || '')
+    .toLowerCase()
+    .includes(searchTerm.toLowerCase()) ||
+  (tenant.email || '')
+    .toLowerCase()
+    .includes(searchTerm.toLowerCase());
 
     const matchesStatus =
       statusFilter === 'all' ||
@@ -232,7 +238,7 @@ const TenantDomainManager = () => {
               <thead>
                 <tr>
                   <th>Tenant ID</th>
-                  <th>Name</th>
+                  <th>Company Name</th>
                   <th className="email-col">Email</th>
                   <th className="domain-col">Custom Domain</th>
                   <th>Status</th>
@@ -243,7 +249,14 @@ const TenantDomainManager = () => {
                 {paginatedTenants.map((tenant) => (
                   <tr key={tenant.id}>
                     <td className="tenant-id">{tenant.id}</td>
-                    <td className="tenant-name">{tenant.name || 'N/A'}</td>
+   <td className="tenant-name">
+  <div
+    className="tenant-name-text"
+    title={tenant.companyName || tenant.name}
+  >
+    {tenant.companyName || tenant.name}
+  </div>
+</td>
                     <td className="tenant-email email-col">{tenant.email}</td>
                     <td className="domain-col">
                       <span
@@ -303,7 +316,7 @@ const TenantDomainManager = () => {
               <div className="domain-card" key={tenant.id}>
                 <div className="domain-card-top">
                   <div>
-                    <h3>{tenant.name || 'N/A'}</h3>
+                   <h3>{tenant.companyName || tenant.name || 'N/A'}</h3>
                     <p>{tenant.email}</p>
                   </div>
 
@@ -407,7 +420,9 @@ const TenantDomainManager = () => {
             </div>
             <div className="modal-body">
               <div className="tenant-info">
-                <p><strong>Company:</strong> {modalTenant?.name || 'N/A'}</p>
+                <p>
+  <strong>Company:</strong> {modalTenant?.companyName || modalTenant?.name || 'N/A'}
+</p>
                 <p><strong>Email:</strong> {modalTenant?.email}</p>
                 <p><strong>Current Domain:</strong> {modalTenant?.domain || 'None'}</p>
               </div>

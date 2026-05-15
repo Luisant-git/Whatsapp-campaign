@@ -47,6 +47,40 @@
   box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
 }
 
+.add-first-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
+  gap: 0.5rem;
+  line-height: 1;
+  padding: 1rem 1.5rem;
+  background: #25D366;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.plus-icon {
+  padding: 0px 10px;
+  font-size: 1.2rem;
+}
+
+.add-first-trigger-btn:hover {
+  background: #20BA5A;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
 .triggers-grid {
   padding: 2rem;
   display: grid;

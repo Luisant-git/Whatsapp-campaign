@@ -178,25 +178,31 @@ export class MetaLeadsService {
       }
 
       const savedLeads: any[] = [];
-      const client = this.getClient(tenantId || 'default');
+      const dbUrl = process.env.TENANT_DATABASE_URL || '';
 
       for (const lead of allLeads) {
         const fieldData = this.parseLeadFields(lead.field_data);
         const leadFormId = lead.form_id || formId || 'unknown';
         const campaignName = formNameMap.get(leadFormId) || null;
         
-        const saved = await client.metaLead.upsert({
-          where: { leadId: lead.id },
-          update: { ...fieldData, campaignName },
-          create: {
-            leadId: lead.id,
-            formId: leadFormId,
-            pageId,
-            campaignName,
-            createdTime: new Date(lead.created_time),
-            ...fieldData,
-          },
-        });
+        const saved = await this.prisma.executeWithRetry(
+          tenantId || 'default',
+          dbUrl,
+          async (client) => {
+            return await client.metaLead.upsert({
+              where: { leadId: lead.id },
+              update: { ...fieldData, campaignName },
+              create: {
+                leadId: lead.id,
+                formId: leadFormId,
+                pageId,
+                campaignName,
+                createdTime: new Date(lead.created_time),
+                ...fieldData,
+              },
+            });
+          }
+        );
 
         if (fieldData.phone) {
           await this.syncToContact(fieldData, phoneNumberId, tenantId);
@@ -223,7 +229,11 @@ export class MetaLeadsService {
         throw new Error(errorMessage);
       }
       
-      throw new Error(error.message || 'Failed to sync leads from Facebook');
+      throw new Error({
+        error: true,
+        message: error.message || 'Failed to sync leads from Facebook',
+        details: 'Common issues: 1) Invalid Form ID, 2) Missing permissions (leads_retrieval, pages_manage_metadata), 3) Form not linked to Page ID, 4) Expired access token'
+      });
     }
   }
 

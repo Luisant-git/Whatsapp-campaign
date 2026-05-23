@@ -7,18 +7,44 @@ import csv from 'csv-parser';
 export class MetaLeadsController {
   constructor(private readonly metaLeadsService: MetaLeadsService) {}
 
-  private getTenantContext(req: any): { tenantId: string; dbUrl?: string } {
+  private async getTenantContext(req: any): Promise<{ tenantId: string; dbUrl: string }> {
     // Try tenantContext from middleware first
-    if (req.tenantContext) {
+    if (req.tenantContext?.tenantId && req.tenantContext?.dbUrl) {
       return {
         tenantId: req.tenantContext.tenantId,
         dbUrl: req.tenantContext.dbUrl
       };
     }
     
-    // Fallback to header
-    const tenantId = req.headers['x-tenant-id'] || 'default';
-    return { tenantId };
+    // Fallback: manually resolve tenant from header
+    const tenantHeader = req.headers['x-tenant-id'];
+    if (!tenantHeader) {
+      throw new Error('x-tenant-id header is required');
+    }
+
+    // Import CentralPrismaService to look up tenant
+    const { CentralPrismaService } = require('../central-prisma.service');
+    const centralPrisma = new CentralPrismaService();
+    
+    const tenant = await centralPrisma.executeWithRetry((prisma) =>
+      prisma.tenant.findFirst({
+        where: { 
+          OR: [
+            { email: { contains: tenantHeader, mode: 'insensitive' } }, 
+            { dbName: tenantHeader },
+            { id: isNaN(Number(tenantHeader)) ? undefined : Number(tenantHeader) }
+          ], 
+          isActive: true 
+        },
+      })
+    );
+
+    if (!tenant) {
+      throw new Error(`Tenant not found for: ${tenantHeader}`);
+    }
+
+    const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+    return { tenantId: String(tenant.id), dbUrl };
   }
 
   @Get()
@@ -30,16 +56,25 @@ export class MetaLeadsController {
     @Query('status') status = '',
     @Query('campaignName') campaignName = '',
   ) {
-    const { tenantId, dbUrl } = this.getTenantContext(req);
-    return this.metaLeadsService.getLeads(
-      tenantId,
-      parseInt(page),
-      parseInt(limit),
-      search,
-      status,
-      campaignName,
-      dbUrl,
-    );
+    try {
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
+      return this.metaLeadsService.getLeads(
+        tenantId,
+        parseInt(page),
+        parseInt(limit),
+        search,
+        status,
+        campaignName,
+        dbUrl,
+      );
+    } catch (error) {
+      return {
+        error: true,
+        message: error.message || 'Failed to fetch leads',
+        data: [],
+        pagination: { page: 1, limit: 10, total: 0, totalPages: 0 }
+      };
+    }
   }
 
   @Patch(':id/status')
@@ -48,8 +83,15 @@ export class MetaLeadsController {
     @Param('id') id: string,
     @Body('status') status: string,
   ) {
-    const { tenantId, dbUrl } = this.getTenantContext(req);
-    return this.metaLeadsService.updateLeadStatus(parseInt(id), status, tenantId, dbUrl);
+    try {
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
+      return this.metaLeadsService.updateLeadStatus(parseInt(id), status, tenantId, dbUrl);
+    } catch (error) {
+      return {
+        error: true,
+        message: error.message || 'Failed to update status'
+      };
+    }
   }
 
   @Get(':formId/info')
@@ -80,50 +122,7 @@ export class MetaLeadsController {
     @Body('since') since?: string,
   ) {
     try {
-      // Try to get from tenantContext first, fallback to header
-      let tenantId: string;
-      let dbUrl: string;
-
-      if (req.tenantContext) {
-        tenantId = req.tenantContext.tenantId;
-        dbUrl = req.tenantContext.dbUrl;
-      } else {
-        // Fallback: manually resolve tenant from header
-        const tenantHeader = req.headers['x-tenant-id'];
-        if (!tenantHeader) {
-          return {
-            error: true,
-            message: 'x-tenant-id header is required'
-          };
-        }
-
-        // Import CentralPrismaService to look up tenant
-        const { CentralPrismaService } = require('../central-prisma.service');
-        const centralPrisma = new CentralPrismaService();
-        
-        const tenant = await centralPrisma.executeWithRetry((prisma) =>
-          prisma.tenant.findFirst({
-            where: { 
-              OR: [
-                { email: { contains: tenantHeader, mode: 'insensitive' } }, 
-                { dbName: tenantHeader }
-              ], 
-              isActive: true 
-            },
-          })
-        );
-
-        if (!tenant) {
-          return {
-            error: true,
-            message: `Tenant not found for: ${tenantHeader}`
-          };
-        }
-
-        dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-        tenantId = String(tenant.id);
-      }
-
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
       const result = await this.metaLeadsService.syncLeadsFromFacebook(pageId, formId, accessToken, phoneNumberId, tenantId, dbUrl, since);
       return result;
     } catch (error) {
@@ -142,24 +141,32 @@ export class MetaLeadsController {
     @Query('hub.verify_token') token: string,
     @Query('hub.challenge') challenge: string,
   ) {
-    const { tenantId, dbUrl } = this.getTenantContext(req);
-    const masterConfig = await this.metaLeadsService.getMasterConfig(tenantId, dbUrl);
-    if (mode === 'subscribe' && token === masterConfig?.verifyToken) {
-      return challenge;
+    try {
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
+      const masterConfig = await this.metaLeadsService.getMasterConfig(tenantId, dbUrl);
+      if (mode === 'subscribe' && token === masterConfig?.verifyToken) {
+        return challenge;
+      }
+      return 'Verification failed';
+    } catch (error) {
+      return 'Verification failed: ' + error.message;
     }
-    return 'Verification failed';
   }
 
   @Post('webhook')
   async handleWebhook(@Req() req: any, @Body() body: any) {
-    const { tenantId, dbUrl } = this.getTenantContext(req);
-    return this.metaLeadsService.handleWebhook(body, tenantId, dbUrl);
+    try {
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
+      return this.metaLeadsService.handleWebhook(body, tenantId, dbUrl);
+    } catch (error) {
+      return { error: true, message: error.message };
+    }
   }
 
   @Delete('all')
   async deleteAllLeads(@Req() req: any) {
     try {
-      const { tenantId, dbUrl } = this.getTenantContext(req);
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
       const result = await this.metaLeadsService.deleteAllLeads(tenantId, dbUrl);
       return result;
     } catch (error) {
@@ -180,7 +187,7 @@ export class MetaLeadsController {
     @Body('phoneNumberId') phoneNumberId?: string,
   ) {
     try {
-      const { tenantId, dbUrl } = this.getTenantContext(req);
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
       
       if (!file) {
         return { error: true, message: 'No file uploaded' };

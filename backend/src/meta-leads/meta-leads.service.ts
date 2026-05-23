@@ -8,9 +8,9 @@ export class MetaLeadsService {
 
   constructor(private prisma: TenantPrismaService) {}
 
-  private getClient(tenantId: string, dbUrl?: string) {
+  private async getClient(tenantId: string, dbUrl?: string) {
     const url = dbUrl || process.env.TENANT_DATABASE_URL || '';
-    return this.prisma.getTenantClient(tenantId, url) as any;
+    return await this.prisma.getTenantClient(tenantId, url) as any;
   }
 
   async getLeads(tenantId: string, page = 1, limit = 10, search = '', status = '', campaignName = '') {
@@ -34,7 +34,7 @@ export class MetaLeadsService {
     }
 
     try {
-      const client = this.getClient(tenantId);
+      const client = await this.getClient(tenantId);
       const [leads, total] = await Promise.all([
         client.metaLead.findMany({
           where,
@@ -72,7 +72,7 @@ export class MetaLeadsService {
   }
 
   async updateLeadStatus(id: number, status: string, tenantId: string) {
-    const client = this.getClient(tenantId);
+    const client = await this.getClient(tenantId);
     return client.metaLead.update({
       where: { id },
       data: { status },
@@ -200,9 +200,6 @@ export class MetaLeadsService {
             tid,
             url,
             async (client) => {
-              // Ensure client is connected
-              await client.$connect();
-              
               return await client.metaLead.upsert({
                 where: { leadId: lead.id },
                 update: { ...fieldData, campaignName },
@@ -371,7 +368,7 @@ export class MetaLeadsService {
         const pageId = changes.value.page_id;
         const formId = changes.value.form_id;
         
-        const client = this.getClient(tenantId || 'default');
+        const client = await this.getClient(tenantId || 'default');
         const masterConfig = await client.masterConfig.findFirst({
           where: { isActive: true },
         });
@@ -412,7 +409,7 @@ export class MetaLeadsService {
   }
 
   async getMasterConfig(tenantId?: string) {
-    const client = this.getClient(tenantId || 'default');
+    const client = await this.getClient(tenantId || 'default');
     return client.masterConfig.findFirst({
       where: { isActive: true },
     });
@@ -420,7 +417,7 @@ export class MetaLeadsService {
 
   async deleteAllLeads(tenantId?: string) {
     try {
-      const client = this.getClient(tenantId || 'default');
+      const client = await this.getClient(tenantId || 'default');
       const result = await client.metaLead.deleteMany({});
       this.logger.log(`✅ Deleted ${result.count} leads`);
       return { success: true, count: result.count };

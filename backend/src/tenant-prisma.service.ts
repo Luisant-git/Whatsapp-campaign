@@ -100,10 +100,10 @@ export class TenantPrismaService implements OnModuleDestroy {
   /**
    * Get or create tenant client
    */
-  getTenantClient(
+  async getTenantClient(
     tenantId: string,
     dbUrl: string,
-  ): TenantPrismaClient {
+  ): Promise<TenantPrismaClient> {
     const id = String(tenantId);
 
     if (!this.clients.has(id)) {
@@ -112,7 +112,14 @@ export class TenantPrismaService implements OnModuleDestroy {
       const client = this.createClient(id, dbUrl);
       this.clients.set(id, client);
 
-      this.connectAndVerify(id, client);
+      // ✅ WAIT for connection to be ready
+      await this.connectAndVerify(id, client);
+    } else {
+      // ✅ Wait for existing client to be ready
+      const readyPromise = this.readyPromises.get(id);
+      if (readyPromise) {
+        await readyPromise;
+      }
     }
 
     return this.clients.get(id)!;

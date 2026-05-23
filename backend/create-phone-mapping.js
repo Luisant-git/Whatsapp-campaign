@@ -28,7 +28,7 @@ async function createPhoneNumberMapping() {
       if (existingMapping.rows[0].tenantId !== tenantId) {
         console.log(`\n⚠️  Updating mapping to point to tenant ${tenantId}...`);
         await centralClient.query(
-          'UPDATE "PhoneNumberMapping" SET "tenantId" = $1, "updatedAt" = NOW() WHERE "phoneNumberId" = $2',
+          'UPDATE "PhoneNumberMapping" SET "tenantId" = $1 WHERE "phoneNumberId" = $2',
           [tenantId, phoneNumberId]
         );
         console.log('✅ Mapping updated successfully!');
@@ -38,7 +38,7 @@ async function createPhoneNumberMapping() {
     } else {
       console.log('Creating new mapping...');
       await centralClient.query(
-        'INSERT INTO "PhoneNumberMapping" ("phoneNumberId", "tenantId", "createdAt", "updatedAt") VALUES ($1, $2, NOW(), NOW())',
+        'INSERT INTO "PhoneNumberMapping" ("phoneNumberId", "tenantId", "createdAt") VALUES ($1, $2, NOW())',
         [phoneNumberId, tenantId]
       );
       console.log('✅ Mapping created successfully!');
@@ -54,7 +54,6 @@ async function createPhoneNumberMapping() {
     console.log('Phone Number ID:', verifyMapping.rows[0].phoneNumberId);
     console.log('Tenant ID:', verifyMapping.rows[0].tenantId);
     console.log('Created:', verifyMapping.rows[0].createdAt);
-    console.log('Updated:', verifyMapping.rows[0].updatedAt);
 
     console.log('\n=== WEBHOOK CONFIGURATION ===');
     console.log('✅ Everything is now configured correctly!');

@@ -1,39 +1,42 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Req, UseGuards, Session } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Req, Session } from '@nestjs/common';
 import { MetaConfigService } from './meta-config.service';
-import { SessionGuard } from '../auth/session.guard';
 
 @Controller('meta-config')
-@UseGuards(SessionGuard)
 export class MetaConfigController {
   constructor(private readonly metaConfigService: MetaConfigService) {}
 
+  private getTenantId(req: any, session: any): string {
+    // Try x-tenant-id header first, then session
+    return req.headers['x-tenant-id'] || session?.tenantId || session?.userId || 'default';
+  }
+
   @Get()
-  async getAll(@Session() session: any) {
-    const tenantId = session.tenantId || session.userId;
+  async getAll(@Req() req: any, @Session() session: any) {
+    const tenantId = this.getTenantId(req, session);
     return this.metaConfigService.getAll(tenantId);
   }
 
   @Get(':id')
-  async getOne(@Session() session: any, @Param('id') id: string) {
-    const tenantId = session.tenantId || session.userId;
+  async getOne(@Req() req: any, @Session() session: any, @Param('id') id: string) {
+    const tenantId = this.getTenantId(req, session);
     return this.metaConfigService.getOne(tenantId, parseInt(id));
   }
 
   @Post()
-  async create(@Session() session: any, @Body() data: any) {
-    const tenantId = session.tenantId || session.userId;
+  async create(@Req() req: any, @Session() session: any, @Body() data: any) {
+    const tenantId = this.getTenantId(req, session);
     return this.metaConfigService.create(tenantId, data);
   }
 
   @Put(':id')
-  async update(@Session() session: any, @Param('id') id: string, @Body() data: any) {
-    const tenantId = session.tenantId || session.userId;
+  async update(@Req() req: any, @Session() session: any, @Param('id') id: string, @Body() data: any) {
+    const tenantId = this.getTenantId(req, session);
     return this.metaConfigService.update(tenantId, parseInt(id), data);
   }
 
   @Delete(':id')
-  async delete(@Session() session: any, @Param('id') id: string) {
-    const tenantId = session.tenantId || session.userId;
+  async delete(@Req() req: any, @Session() session: any, @Param('id') id: string) {
+    const tenantId = this.getTenantId(req, session);
     return this.metaConfigService.delete(tenantId, parseInt(id));
   }
 }

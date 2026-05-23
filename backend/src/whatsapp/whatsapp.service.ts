@@ -15,6 +15,8 @@ export class WhatsappService {
   private readonly logger = new Logger(WhatsappService.name);
   private phoneNumberIdCache = new Map<string, { tenantId: number; settingsId: number; timestamp: number }>();
   private readonly CACHE_TTL = 3600000; // 1 hour
+  private phoneCredentialsCache = new Map<string, { phoneNumberId: string; accessToken: string; apiUrl: string; expiresAt: number }>();
+  private readonly CREDENTIALS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
   constructor(
     private prisma: PrismaService,
@@ -47,51 +49,43 @@ export class WhatsappService {
   }
 
   private async getPhoneCredentials(featureType: 'whatsappChat' | 'campaigns' | 'ecommerce' | 'aiChatbot' | 'quickReply', userId: number) {
+    const cacheKey = `${featureType}:${userId}`;
+    const cached = this.phoneCredentialsCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiresAt) return cached;
+
     const featureAssignment = await this.prisma.featureAssignment.findFirst();
     const assignedPhoneId = featureAssignment?.[featureType];
 
     this.logger.log(`🔍 Getting credentials for ${featureType}, assigned phoneId: ${assignedPhoneId}`);
+
+    let result: { phoneNumberId: string; accessToken: string; apiUrl: string } | null = null;
 
     if (assignedPhoneId) {
       const masterConfig = await this.prisma.masterConfig.findFirst({
         where: { phoneNumberId: assignedPhoneId, isActive: true }
       });
       if (masterConfig) {
-        this.logger.log(`✅ Using MasterConfig: ${masterConfig.name} (${masterConfig.phoneNumberId})`);
-        return {
-          phoneNumberId: masterConfig.phoneNumberId,
-          accessToken: masterConfig.accessToken,
-          apiUrl: 'https://graph.facebook.com/v18.0'
-        };
-      } else {
-        this.logger.warn(`⚠️ No active MasterConfig found for phoneId: ${assignedPhoneId}`);
+        result = { phoneNumberId: masterConfig.phoneNumberId, accessToken: masterConfig.accessToken, apiUrl: 'https://graph.facebook.com/v18.0' };
       }
     }
 
-    // If no feature assignment, check if there's any active MasterConfig
-    if (!assignedPhoneId) {
+    if (!result) {
       const masterConfig = await this.prisma.masterConfig.findFirst({
         where: { isActive: true },
         orderBy: { createdAt: 'desc' }
       });
       if (masterConfig) {
-        this.logger.log(`✅ Using first active MasterConfig: ${masterConfig.name} (${masterConfig.phoneNumberId})`);
-        return {
-          phoneNumberId: masterConfig.phoneNumberId,
-          accessToken: masterConfig.accessToken,
-          apiUrl: 'https://graph.facebook.com/v18.0'
-        };
+        result = { phoneNumberId: masterConfig.phoneNumberId, accessToken: masterConfig.accessToken, apiUrl: 'https://graph.facebook.com/v18.0' };
       }
     }
 
-    // Fallback to default WhatsApp Settings
-    this.logger.log(`📋 Falling back to WhatsApp Settings for userId: ${userId}`);
-    const settings = await this.getSettings(userId);
-    return {
-      phoneNumberId: settings.phoneNumberId,
-      accessToken: settings.accessToken,
-      apiUrl: settings.apiUrl
-    };
+    if (!result) {
+      const settings = await this.getSettings(userId);
+      result = { phoneNumberId: settings.phoneNumberId, accessToken: settings.accessToken, apiUrl: settings.apiUrl };
+    }
+
+    this.phoneCredentialsCache.set(cacheKey, { ...result, expiresAt: Date.now() + this.CREDENTIALS_CACHE_TTL });
+    return result;
   }
 
   private isEcommerceMessage(lowerText: string): boolean {
@@ -1022,40 +1016,35 @@ export class WhatsappService {
       };
     }
   
-    // -----------------------------
-    // CASE 2: no phone => return paginated unique numbers/chats
-    // -----------------------------
-    const whereCondition = allowedPhones
-      ? { from: { in: allowedPhones } }
-      : {};
-  
-    const allMessages = await this.prisma.whatsAppMessage.findMany({
-      where: whereCondition,
-      orderBy: { createdAt: 'desc' },
-    });
-  
-    const uniqueChatsMap = new Map();
-  
-    for (const msg of allMessages) {
-      const key = `${msg.from}_${msg.phoneNumberId || ''}`;
-      if (!uniqueChatsMap.has(key)) {
-        uniqueChatsMap.set(key, msg);
-      }
-    }
-  
-    const uniqueChats = Array.from(uniqueChatsMap.values());
-    const total = uniqueChats.length;
-  
-    const skip = (page - 1) * limit;
-    const paginatedChats = uniqueChats.slice(skip, skip + limit);
+    // CASE 2: no phone => return paginated unique chats using DB-level DISTINCT
+    const whereClause = allowedPhones ? `AND "from" = ANY($3)` : '';
+    const params: any[] = [(page - 1) * limit, limit];
+    if (allowedPhones) params.push(allowedPhones);
+
+    const [uniqueChats, countResult] = await Promise.all([
+      this.prisma.$queryRawUnsafe<any[]>(
+        `SELECT DISTINCT ON ("from", "phoneNumberId") id, "from", "phoneNumberId", message, "mediaType", "mediaUrl", direction, status, "profileName", "createdAt", "updatedAt"
+         FROM "WhatsAppMessage"
+         ${allowedPhones ? 'WHERE "from" = ANY($3)' : ''}
+         ORDER BY "from", "phoneNumberId", "createdAt" DESC
+         LIMIT $2 OFFSET $1`,
+        ...params
+      ),
+      this.prisma.$queryRawUnsafe<[{ count: bigint }]>(
+        `SELECT COUNT(*) FROM (SELECT DISTINCT "from", "phoneNumberId" FROM "WhatsAppMessage" ${allowedPhones ? 'WHERE "from" = ANY($1)' : ''}) t`,
+        ...(allowedPhones ? [allowedPhones] : [])
+      ),
+    ]);
+
+    const total = Number(countResult[0]?.count || 0);
   
     const uniquePhoneNumberIds = [
-      ...new Set(paginatedChats.map((m) => m.phoneNumberId).filter(Boolean)),
+      ...new Set(uniqueChats.map((m) => m.phoneNumberId).filter(Boolean)),
     ] as string[];
   
     const uniquePhones = [
       ...new Set(
-        paginatedChats.map((m) => this.formatPhoneNumber(m.from)).filter(Boolean),
+        uniqueChats.map((m) => this.formatPhoneNumber(m.from)).filter(Boolean),
       ),
     ] as string[];
   
@@ -1096,7 +1085,7 @@ export class WhatsappService {
       }
     });
   
-    const enrichedChats = paginatedChats.map((msg) => {
+    const enrichedChats = uniqueChats.map((msg) => {
       let displayPhoneNumber: string | null = null;
   
       if (msg.phoneNumberId) {
@@ -1948,10 +1937,19 @@ export class WhatsappService {
     }
   }
 
+  private readonly tenantUrlCache = new Map<number, { dbUrl: string; expiresAt: number }>();
+  private readonly TENANT_CACHE_TTL = 5 * 60 * 1000;
+
   private async getTenantDbUrl(tenantId: number): Promise<string> {
+    const cached = this.tenantUrlCache.get(tenantId);
+    if (cached && Date.now() < cached.expiresAt) return cached.dbUrl;
+
     const tenant = await this.centralPrisma.tenant.findUnique({ where: { id: tenantId } });
     if (!tenant) throw new Error('Tenant not found');
-    return `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+
+    const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+    this.tenantUrlCache.set(tenantId, { dbUrl, expiresAt: Date.now() + this.TENANT_CACHE_TTL });
+    return dbUrl;
   }
 
   async updateMessageStatusWithoutContext(messageId: string, status: string, phoneNumberId: string, errorDetails?: any) {
@@ -2306,9 +2304,28 @@ export class WhatsappService {
   }
 
   async sendBulkTemplateMessageWithNames(contacts: Array<{ name: string; phone: string }>, templateName: string, userId: number, settingsId?: number, headerImageUrl?: string) {
-    // Use campaigns feature assignment
     const { phoneNumberId, accessToken, apiUrl } = await this.getPhoneCredentials('campaigns', userId);
-    const language = 'en'; // Default language
+    const language = 'en';
+
+    // Fetch template ONCE before the loop (was queried 3x per contact)
+    const dbTemplate = await this.prisma.messageTemplate.findFirst({
+      where: { OR: [{ name: templateName }, { name: { startsWith: templateName + '_v' } }] },
+      orderBy: { updatedAt: 'desc' },
+    });
+    const actualTemplateName = dbTemplate?.name || templateName;
+    const templateComponents = dbTemplate?.components
+      ? (typeof dbTemplate.components === 'string' ? JSON.parse(dbTemplate.components as string) : dbTemplate.components as any[])
+      : [];
+    const headerComponent = templateComponents.find((c: any) => c.type === 'HEADER');
+    const bodyComponent = templateComponents.find((c: any) => c.type === 'BODY');
+    const templateBodyVariables: string[] = bodyComponent?.text?.match(/{{\d+}}/g) || [];
+
+    // Fetch all contact data in one query before the loop
+    const allFormattedPhones = contacts.map(c => this.formatPhoneNumber(c.phone));
+    const allContactData = await this.prisma.contact.findMany({
+      where: { phone: { in: allFormattedPhones } },
+    });
+    const contactDataMap = new Map(allContactData.map(c => [c.phone, c]));
 
     const results: Array<{ phoneNumber: string; success: boolean; messageId?: string; error?: string }> = [];
 
@@ -2327,161 +2344,30 @@ export class WhatsappService {
 
         const components: any[] = [];
 
+        // Use pre-fetched template + contact data — zero DB queries inside loop
         if (headerImageUrl && headerImageUrl.trim() !== '' && headerImageUrl.startsWith('http')) {
-          // Get template information to determine the correct header format
-          let headerFormat = 'IMAGE'; // Default fallback
-
-          try {
-            // Try to get template from database to determine actual header format
-            const template = await this.prisma.messageTemplate.findFirst({
-              where: { name: templateName }
-            });
-
-            if (template && template.components) {
-              const templateComponents = typeof template.components === 'string'
-                ? JSON.parse(template.components)
-                : template.components;
-
-              const headerComponent = templateComponents.find((c: any) => c.type === 'HEADER');
-              if (headerComponent && headerComponent.format) {
-                headerFormat = headerComponent.format;
-                this.logger.log(`Using template header format: ${headerFormat}`);
-              }
-            }
-          } catch (error) {
-            this.logger.warn('Could not determine template header format, using file extension detection');
-            // Fallback to file extension detection
+          let headerFormat = headerComponent?.format || 'IMAGE';
+          if (!headerComponent) {
             const isVideo = /\.(mp4|avi|mov)$/i.test(headerImageUrl);
             const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i.test(headerImageUrl);
-
-            if (isDocument) {
-              headerFormat = 'DOCUMENT';
-            } else if (isVideo) {
-              headerFormat = 'VIDEO';
-            } else {
-              headerFormat = 'IMAGE';
-            }
+            headerFormat = isDocument ? 'DOCUMENT' : isVideo ? 'VIDEO' : 'IMAGE';
           }
-
-          // Use the determined format
           const mediaType = headerFormat.toLowerCase();
-
-          components.push({
-            type: 'header',
-            parameters: [
-              {
-                type: mediaType,
-                [mediaType]: {
-                  link: headerImageUrl
-                }
-              }
-            ]
-          });
+          components.push({ type: 'header', parameters: [{ type: mediaType, [mediaType]: { link: headerImageUrl } }] });
         }
 
-        // ✅ FETCH FULL CONTACT DATA FIRST (before building parameters)
-        const fullContact = await this.prisma.contact.findFirst({
-          where: { phone: formattedPhone }
-        });
+        const fullContact = contactDataMap.get(formattedPhone);
 
-        // Add body parameters if the template has variables
-        try {
-          // First try to find the actual template name from database
-          const dbTemplate = await this.prisma.messageTemplate.findFirst({
-            where: {
-              OR: [
-                { name: templateName },
-                { name: { startsWith: templateName + '_v' } } // Handle versioned names
-              ]
-            },
-            orderBy: { updatedAt: 'desc' } // Get the most recent version
+        if (templateBodyVariables.length > 0) {
+          const varFields = ['name', 'variable2', 'variable3', 'variable4', 'variable5', 'variable6'];
+          const bodyParameters = templateBodyVariables.map((_: string, i: number) => {
+            const field = varFields[i];
+            const value = i === 0
+              ? (fullContact?.name || contact.name || 'Customer')
+              : (fullContact?.[field] || '');
+            return { type: 'text', text: value || ' ' };
           });
-
-          const actualTemplateName = dbTemplate?.name || templateName;
-          this.logger.log(`Using actual template name: ${actualTemplateName}`);
-
-          if (dbTemplate && dbTemplate.components) {
-            const templateComponents = typeof dbTemplate.components === 'string'
-              ? JSON.parse(dbTemplate.components)
-              : dbTemplate.components;
-
-            const bodyComponent = templateComponents.find((c: any) => c.type === 'BODY');
-            if (bodyComponent && bodyComponent.text) {
-              // Count variables in body text ({{1}}, {{2}}, etc.)
-              const variables = bodyComponent.text.match(/{{\d+}}/g);
-              if (variables && variables.length > 0) {
-                this.logger.log(`Template ${actualTemplateName} has ${variables.length} body parameters`);
-
-                // Map template variables to contact fields
-                // {{1}} → name, {{2}} → variable2, {{3}} → variable3, etc.
-                const bodyParameters: Array<{ type: string; text: string }> = [];
-                for (let i = 0; i < variables.length; i++) {
-                  const varNumber = i + 1;
-                  let value = '';
-
-                  if (varNumber === 1) {
-                    // {{1}} → Contact Name
-                    value = fullContact?.name || contact.name || 'Customer';
-                  } else if (varNumber === 2) {
-                    // {{2}} → variable2
-                    value = fullContact?.variable2 || '';
-                  } else if (varNumber === 3) {
-                    // {{3}} → variable3
-                    value = fullContact?.variable3 || '';
-                  } else if (varNumber === 4) {
-                    // {{4}} → variable4
-                    value = fullContact?.variable4 || '';
-                  } else if (varNumber === 5) {
-                    // {{5}} → variable5
-                    value = fullContact?.variable5 || '';
-                  } else if (varNumber === 6) {
-                    // {{6}} → variable6
-                    value = fullContact?.variable6 || '';
-                  } else {
-                    // Fallback for any additional variables
-                    value = contact.name || 'Customer';
-                  }
-
-                  bodyParameters.push({
-                    type: 'text',
-                    text: value || ' ' // Use space if empty to avoid Meta API errors
-                  });
-
-                  this.logger.log(`Variable {{${varNumber}}} mapped to: ${value}`);
-                }
-
-                components.push({
-                  type: 'body',
-                  parameters: bodyParameters
-                });
-              } else {
-                this.logger.log(`Template ${actualTemplateName} has no body parameters`);
-              }
-            }
-          }
-        } catch (error) {
-          this.logger.warn('Could not determine template body parameters:', error.message);
-        }
-
-        // Get the actual template name to use for sending
-        let actualTemplateName = templateName;
-        try {
-          const dbTemplate = await this.prisma.messageTemplate.findFirst({
-            where: {
-              OR: [
-                { name: templateName },
-                { name: { startsWith: templateName + '_v' } }
-              ]
-            },
-            orderBy: { updatedAt: 'desc' }
-          });
-
-          if (dbTemplate) {
-            actualTemplateName = dbTemplate.name;
-            this.logger.log(`Using actual template name for sending: ${actualTemplateName}`);
-          }
-        } catch (error) {
-          this.logger.warn('Could not find template in database, using original name:', templateName);
+          components.push({ type: 'body', parameters: bodyParameters });
         }
 
         const requestBody = {
@@ -2596,73 +2482,45 @@ export class WhatsappService {
     username?: string
   ) {
     const formattedPhone = this.formatPhoneNumber(phone);
-  
+
     const normalizedProfileName =
       profileName &&
       !['null', 'undefined', 'unknown'].includes(profileName.trim().toLowerCase()) &&
       profileName.trim() !== formattedPhone
         ? profileName.trim()
         : '';
-  
+
     const fallbackName = normalizedProfileName || formattedPhone;
-  
-    // First, try to find contact by userId if provided
-    let existingContact;
-    if (userId && phoneNumberId) {
-      existingContact = await prismaClient.contact.findFirst({
-        where: {
-          userId: userId,
-          phoneNumberId: phoneNumberId,
-        },
-      });
-    }
-    
-    // If not found by userId, try by phone and phoneNumberId
-    if (!existingContact) {
-      existingContact = await prismaClient.contact.findFirst({
-        where: {
-          phone: formattedPhone,
-          phoneNumberId: phoneNumberId ?? null,
-        },
-      });
-    }
-  
-    if (existingContact) {
-      const existingName =
-        existingContact.name &&
-        !['null', 'undefined', 'unknown'].includes(existingContact.name.trim().toLowerCase()) &&
-        existingContact.name.trim() !== formattedPhone
-          ? existingContact.name.trim()
-          : '';
-  
-      await prismaClient.contact.update({
-        where: { id: existingContact.id },
-        data: {
-          name: existingName || fallbackName,
+
+    try {
+      await prismaClient.contact.upsert({
+        where: { phone: formattedPhone },
+        update: {
           lastMessageDate: new Date(),
           isActive: true,
-          userId: userId || existingContact.userId,
-          parentUserId: parentUserId || existingContact.parentUserId,
-          username: username || existingContact.username,
+          ...(normalizedProfileName && { name: normalizedProfileName }),
+          ...(userId && { userId }),
+          ...(parentUserId && { parentUserId }),
+          ...(username && { username }),
+        },
+        create: {
+          name: fallbackName,
+          phone: formattedPhone,
+          phoneNumberId: phoneNumberId ?? null,
+          groupId: null,
+          lastMessageDate: new Date(),
+          isActive: true,
+          userId: userId || null,
+          parentUserId: parentUserId || null,
+          username: username || null,
         },
       });
-  
-      return;
+    } catch (err: any) {
+      // P2002 = unique constraint — contact already exists, safe to ignore
+      if (err?.code !== 'P2002') {
+        this.logger.warn(`upsertContact failed for ${formattedPhone}:`, err.message);
+      }
     }
-  
-    await prismaClient.contact.create({
-      data: {
-        name: fallbackName,
-        phone: formattedPhone,
-        phoneNumberId: phoneNumberId ?? null,
-        groupId: null,
-        lastMessageDate: new Date(),
-        isActive: true,
-        userId: userId || null,
-        parentUserId: parentUserId || null,
-        username: username || null,
-      },
-    });
   }
   private getErrorMessage(error: any): string {
     // Log the full error for debugging
@@ -2807,39 +2665,41 @@ export class WhatsappService {
       orderBy: { updatedAt: 'desc' },
     });
 
-    const enriched = await Promise.all(
-      assignments.map(async (a) => {
-        const subUser = await this.centralPrisma.subUser.findUnique({
-          where: { id: a.subUserId },
-          select: {
-            id: true,
-            email: true,
-            designation: true,
-          },
-        });
+    if (assignments.length === 0) return [];
 
-        const contact = await this.prisma.contact.findFirst({
-          where: { phone: a.phone },
-          include: {
-            group: true,
-          },
-        });
+    const subUserIds = assignments.map(a => a.subUserId);
+    const phones = assignments.map(a => a.phone);
 
-        return {
-          id: a.id,
-          phone: a.phone,
-          subUserId: a.subUserId,
-          subUserEmail: subUser?.email || "",
-          subUserName: subUser?.designation || "",
-          contactName: contact?.name || "",
-          groupName: contact?.group?.name || "",
-          createdAt: a.createdAt,
-          updatedAt: a.updatedAt,
-        };
-      })
-    );
+    // 2 queries instead of 2N queries
+    const [subUsers, contacts] = await Promise.all([
+      this.centralPrisma.subUser.findMany({
+        where: { id: { in: subUserIds } },
+        select: { id: true, email: true, designation: true },
+      }),
+      this.prisma.contact.findMany({
+        where: { phone: { in: phones } },
+        include: { group: true },
+      }),
+    ]);
 
-    return enriched;
+    const subUserMap = new Map(subUsers.map(u => [u.id, u]));
+    const contactMap = new Map(contacts.map(c => [c.phone, c]));
+
+    return assignments.map(a => {
+      const subUser = subUserMap.get(a.subUserId);
+      const contact = contactMap.get(a.phone);
+      return {
+        id: a.id,
+        phone: a.phone,
+        subUserId: a.subUserId,
+        subUserEmail: subUser?.email || '',
+        subUserName: subUser?.designation || '',
+        contactName: contact?.name || '',
+        groupName: contact?.group?.name || '',
+        createdAt: a.createdAt,
+        updatedAt: a.updatedAt,
+      };
+    });
   }
   async removeChatAssignment(phone: string) {
     const formattedPhone = this.formatPhoneNumber(phone);

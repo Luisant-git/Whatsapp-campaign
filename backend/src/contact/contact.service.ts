@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { TenantPrismaService } from '../tenant-prisma.service';
 import { LabelsGateway } from '../labels/labels.gateway';
 import { TenantContext } from '../tenant/tenant.decorator';
@@ -67,15 +67,12 @@ export class ContactService {
     const prisma = this.getPrisma(tenantContext);
     const phone = this.formatPhoneNumber(data.phone);
 
-    const existing = await prisma.contact.findFirst({
-      where: {
-        phone,
-        phoneNumberId: data.phoneNumberId || null,
-      },
+    const existing = await prisma.contact.findUnique({
+      where: { phone },
     });
     if (existing) {
-      throw new NotFoundException(
-        'Contact with this phone number already exists for this WhatsApp number',
+      throw new ConflictException(
+        `A contact with phone number ${phone} already exists`,
       );
     }
 
@@ -223,7 +220,18 @@ export class ContactService {
       variable6: data.variable6 !== undefined && data.variable6 !== null ? String(data.variable6) : null,
     };
 
-    if (data.phone) updateData.phone = this.formatPhoneNumber(data.phone);
+    if (data.phone) {
+      const newPhone = this.formatPhoneNumber(data.phone);
+      const duplicate = await prisma.contact.findUnique({
+        where: { phone: newPhone },
+      });
+      if (duplicate && duplicate.id !== id) {
+        throw new ConflictException(
+          `A contact with phone number ${newPhone} already exists`,
+        );
+      }
+      updateData.phone = newPhone;
+    }
 
     if (data.groupId) {
       updateData.group = { connect: { id: Number(data.groupId) } };
@@ -288,11 +296,8 @@ export class ContactService {
   
     const fallbackName = normalizedIncomingName || formattedPhone;
   
-    const existingContact = await prisma.contact.findFirst({
-      where: {
-        phone: formattedPhone,
-        phoneNumberId: phoneNumberId ?? null,
-      },
+    const existingContact = await prisma.contact.findUnique({
+      where: { phone: formattedPhone },
     });
   
     if (existingContact) {

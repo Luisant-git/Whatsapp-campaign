@@ -300,48 +300,34 @@ export class CampaignService {
         });
       }
 
-      // Upsert contacts
-      for (const contactData of contactsToUpsert) {
-        try {
-          const existingContact = await this.prisma.contact.findFirst({
-            where: {
-              phone: contactData.phone,
-              phoneNumberId: contactData.phoneNumberId,
-            },
-          });
+      // Batch fetch existing contacts for this batch
+      const batchPhones = contactsToUpsert.map(c => c.phone);
+      const existingContacts = await this.prisma.contact.findMany({
+        where: { phone: { in: batchPhones } },
+        select: { id: true, phone: true, name: true, groupId: true },
+      });
+      const existingContactMap = new Map(existingContacts.map(c => [c.phone, c]));
 
-          if (existingContact) {
+      await Promise.allSettled(contactsToUpsert.map(async (contactData) => {
+        try {
+          const existing = existingContactMap.get(contactData.phone);
+          if (existing) {
+            const keepName = existing.name &&
+              !['null', 'undefined', 'unknown'].includes(existing.name.trim().toLowerCase())
+                ? existing.name : contactData.name;
             await this.prisma.contact.update({
-              where: { id: existingContact.id },
-              data: {
-                name:
-                  existingContact.name &&
-                  !['null', 'undefined', 'unknown'].includes(
-                    existingContact.name.trim().toLowerCase(),
-                  )
-                    ? existingContact.name
-                    : contactData.name,
-                lastMessageDate: new Date(),
-                groupId: contactData.groupId || existingContact.groupId,
-                isActive: true,
-              },
+              where: { id: existing.id },
+              data: { name: keepName, lastMessageDate: new Date(), groupId: contactData.groupId || existing.groupId, isActive: true },
             });
           } else {
             await this.prisma.contact.create({
-              data: {
-                phone: contactData.phone,
-                name: contactData.name,
-                phoneNumberId: contactData.phoneNumberId,
-                lastMessageDate: new Date(),
-                groupId: contactData.groupId,
-                isActive: true,
-              },
+              data: { phone: contactData.phone, name: contactData.name, phoneNumberId: contactData.phoneNumberId, lastMessageDate: new Date(), groupId: contactData.groupId, isActive: true },
             });
           }
         } catch (contactError) {
           this.logger.warn(`Failed to update contact ${contactData.phone}:`, contactError.message);
         }
-      }
+      }));
 
       this.logger.log(`Batch ${batchIndex + 1} completed. Success: ${successCount}, Failed: ${failedCount}`);
     }
@@ -527,67 +513,61 @@ export class CampaignService {
       throw new NotFoundException('Campaign not found');
     }
 
-    // Get response data for each contact
-    const results = await Promise.all(
-      (campaign.messages || []).map(async (message) => {
-        // Check if customer responded after the campaign message was sent
-        // Try different phone number formats to handle potential mismatches
-        const cleanPhone = message.phone.replace(/[^0-9]/g, '');
-        const phoneVariations = [
-          message.phone, // Original format
-          cleanPhone, // Digits only
-          `+${cleanPhone}`, // With + prefix
-          cleanPhone.length === 10 && /^[6-9]/.test(cleanPhone) ? `91${cleanPhone}` : cleanPhone, // Add India code if 10 digits
-          cleanPhone.startsWith('91') ? cleanPhone.substring(2) : cleanPhone // Remove India code if present
-        ].filter((phone, index, arr) => arr.indexOf(phone) === index); // Remove duplicates
+    const messages = campaign.messages || [];
 
-        this.logger.log(`Checking responses for campaign message to ${message.phone}, variations: ${phoneVariations.join(', ')}`);
+    // Build all phone variations for all messages in one pass
+    const earliestDate = messages.reduce((min, m) => m.createdAt < min ? m.createdAt : min, messages[0]?.createdAt || new Date());
+    const allPhoneVariations = new Set<string>();
+    const phoneVariationMap = new Map<string, string>(); // variation -> original phone
 
-        // Debug: Check all incoming messages
-        const allIncoming = await this.prisma.whatsAppMessage.findMany({
-          where: {
-            direction: 'incoming',
-            createdAt: {
-              gte: message.createdAt
-            }
-          },
-          select: { from: true, message: true, createdAt: true }
-        });
-        this.logger.log(`All incoming messages since campaign: ${JSON.stringify(allIncoming)}`);
+    for (const message of messages) {
+      const cleanPhone = message.phone.replace(/[^0-9]/g, '');
+      const variations = [
+        message.phone,
+        cleanPhone,
+        `+${cleanPhone}`,
+        cleanPhone.length === 10 && /^[6-9]/.test(cleanPhone) ? `91${cleanPhone}` : cleanPhone,
+        cleanPhone.startsWith('91') ? cleanPhone.substring(2) : cleanPhone,
+      ].filter((p, i, arr) => arr.indexOf(p) === i);
 
-        const responses = await this.prisma.whatsAppMessage.findMany({
-          where: {
-            from: { in: phoneVariations },
-            direction: 'incoming',
-            createdAt: {
-              gte: message.createdAt
-            }
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 1
-        });
+      for (const v of variations) {
+        allPhoneVariations.add(v);
+        phoneVariationMap.set(v, message.phone);
+      }
+    }
 
-        this.logger.log(`Found ${responses.length} responses for ${message.phone}`);
-        if (responses.length > 0) {
-          this.logger.log(`Response from: ${responses[0].from}, message: ${responses[0].message}`);
-        }
+    // Single query for all responses
+    const allResponses = await this.prisma.whatsAppMessage.findMany({
+      where: {
+        from: { in: Array.from(allPhoneVariations) },
+        direction: 'incoming',
+        createdAt: { gte: earliestDate },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { from: true, message: true, createdAt: true },
+    });
 
-        const lastResponse = responses[0] || null;
+    // Group responses by original phone
+    const responseByPhone = new Map<string, typeof allResponses[0]>();
+    for (const r of allResponses) {
+      const originalPhone = phoneVariationMap.get(r.from);
+      if (originalPhone && !responseByPhone.has(originalPhone)) {
+        responseByPhone.set(originalPhone, r);
+      }
+    }
 
-        return {
-          name: message.name,
-          phone: message.phone,
-          status: message.status,
-          error: message.error,
-          createdAt: message.createdAt,
-          hasResponse: !!lastResponse,
-          lastResponse: lastResponse ? {
-            message: lastResponse.message,
-            createdAt: lastResponse.createdAt
-          } : null
-        };
-      })
-    );
+    const results = messages.map((message) => {
+      const lastResponse = responseByPhone.get(message.phone) || null;
+      return {
+        name: message.name,
+        phone: message.phone,
+        status: message.status,
+        error: message.error,
+        createdAt: message.createdAt,
+        hasResponse: !!lastResponse,
+        lastResponse: lastResponse ? { message: lastResponse.message, createdAt: lastResponse.createdAt } : null,
+      };
+    });
 
     return {
       campaign: {

@@ -205,9 +205,8 @@ const FlowManager = () => {
             <Zap size={48} />
             <h3>No triggers yet</h3>
             <p>Create your first trigger to automatically send flows when users send specific keywords</p>
-            <button className="add-trigger-btn" onClick={() => setShowModal(true)}>
-              <Plus size={18} />
-              <span>Create First Trigger</span>
+            <button className="add-first-trigger-btn" onClick={() => setShowModal(true)}>
+              <span><span className='plus-icon'>+</span> Create First Trigger</span>
             </button>
           </div>
         )}

@@ -65,13 +65,50 @@ export class MetaLeadsController {
     @Body('since') since?: string,
   ) {
     try {
-      const { tenantId, dbUrl } = req.tenantContext || {};
-      if (!tenantId || !dbUrl) {
-        return {
-          error: true,
-          message: 'Tenant context not found. Please ensure x-tenant-id header is set.'
-        };
+      // Try to get from tenantContext first, fallback to header
+      let tenantId: string;
+      let dbUrl: string;
+
+      if (req.tenantContext) {
+        tenantId = req.tenantContext.tenantId;
+        dbUrl = req.tenantContext.dbUrl;
+      } else {
+        // Fallback: manually resolve tenant from header
+        const tenantHeader = req.headers['x-tenant-id'];
+        if (!tenantHeader) {
+          return {
+            error: true,
+            message: 'x-tenant-id header is required'
+          };
+        }
+
+        // Import CentralPrismaService to look up tenant
+        const { CentralPrismaService } = require('../central-prisma.service');
+        const centralPrisma = new CentralPrismaService();
+        
+        const tenant = await centralPrisma.executeWithRetry((prisma) =>
+          prisma.tenant.findFirst({
+            where: { 
+              OR: [
+                { email: { contains: tenantHeader, mode: 'insensitive' } }, 
+                { dbName: tenantHeader }
+              ], 
+              isActive: true 
+            },
+          })
+        );
+
+        if (!tenant) {
+          return {
+            error: true,
+            message: `Tenant not found for: ${tenantHeader}`
+          };
+        }
+
+        dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        tenantId = String(tenant.id);
       }
+
       const result = await this.metaLeadsService.syncLeadsFromFacebook(pageId, formId, accessToken, phoneNumberId, tenantId, dbUrl, since);
       return result;
     } catch (error) {

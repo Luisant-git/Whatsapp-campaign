@@ -115,6 +115,12 @@ export class MetaLeadsService {
   }
 
   async syncLeadsFromFacebook(pageId: string, formId: string, accessToken: string, phoneNumberId?: string, tenantId?: string, dbUrl?: string, since?: string) {
+    this.logger.log('=== SYNC LEADS FROM FACEBOOK ===');
+    this.logger.log(`Tenant ID: ${tenantId}`);
+    this.logger.log(`DB URL: ${dbUrl ? dbUrl.replace(/:[^:@]+@/, ':****@') : 'NOT PROVIDED'}`);
+    this.logger.log(`Page ID: ${pageId}`);
+    this.logger.log(`Form ID: ${formId}`);
+    
     try {
       let allLeads: any[] = [];
       let formNameMap = new Map<string, string>();
@@ -179,36 +185,50 @@ export class MetaLeadsService {
 
       const savedLeads: any[] = [];
       const url = dbUrl || process.env.TENANT_DATABASE_URL || '';
+      const tid = tenantId || 'default';
+
+      this.logger.log(`Starting to save ${allLeads.length} leads for tenant ${tid}`);
+      this.logger.log(`Database URL: ${url.replace(/:[^:@]+@/, ':****@')}`);
 
       for (const lead of allLeads) {
         const fieldData = this.parseLeadFields(lead.field_data);
         const leadFormId = lead.form_id || formId || 'unknown';
         const campaignName = formNameMap.get(leadFormId) || null;
         
-        const saved = await this.prisma.executeWithRetry(
-          tenantId || 'default',
-          url,
-          async (client) => {
-            return await client.metaLead.upsert({
-              where: { leadId: lead.id },
-              update: { ...fieldData, campaignName },
-              create: {
-                leadId: lead.id,
-                formId: leadFormId,
-                pageId,
-                campaignName,
-                createdTime: new Date(lead.created_time),
-                ...fieldData,
-              },
-            });
+        try {
+          const saved = await this.prisma.executeWithRetry(
+            tid,
+            url,
+            async (client) => {
+              // Ensure client is connected
+              await client.$connect();
+              
+              return await client.metaLead.upsert({
+                where: { leadId: lead.id },
+                update: { ...fieldData, campaignName },
+                create: {
+                  leadId: lead.id,
+                  formId: leadFormId,
+                  pageId,
+                  campaignName,
+                  createdTime: new Date(lead.created_time),
+                  ...fieldData,
+                },
+              });
+            },
+            3 // Increase retries to 3
+          );
+
+          if (fieldData.phone) {
+            await this.syncToContact(fieldData, phoneNumberId, tid, url);
           }
-        );
 
-        if (fieldData.phone) {
-          await this.syncToContact(fieldData, phoneNumberId, tenantId, dbUrl);
+          savedLeads.push(saved);
+          this.logger.log(`Saved lead ${lead.id} (${savedLeads.length}/${allLeads.length})`);
+        } catch (error) {
+          this.logger.error(`Failed to save lead ${lead.id}:`, error.message);
+          // Continue with next lead instead of failing completely
         }
-
-        savedLeads.push(saved);
       }
 
       this.logger.log(`✅ Successfully saved ${savedLeads.length} leads to database`);

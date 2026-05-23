@@ -65,8 +65,14 @@ export class MetaLeadsController {
     @Body('since') since?: string,
   ) {
     try {
-      const tenantId = req.headers['x-tenant-id'] || 'default';
-      const result = await this.metaLeadsService.syncLeadsFromFacebook(pageId, formId, accessToken, phoneNumberId, tenantId, since);
+      const { tenantId, dbUrl } = req.tenantContext || {};
+      if (!tenantId || !dbUrl) {
+        return {
+          error: true,
+          message: 'Tenant context not found. Please ensure x-tenant-id header is set.'
+        };
+      }
+      const result = await this.metaLeadsService.syncLeadsFromFacebook(pageId, formId, accessToken, phoneNumberId, tenantId, dbUrl, since);
       return result;
     } catch (error) {
       return {

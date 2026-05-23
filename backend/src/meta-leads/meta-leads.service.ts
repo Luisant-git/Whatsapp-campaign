@@ -8,9 +8,9 @@ export class MetaLeadsService {
 
   constructor(private prisma: TenantPrismaService) {}
 
-  private getClient(tenantId: string) {
-    const dbUrl = process.env.TENANT_DATABASE_URL || '';
-    return this.prisma.getTenantClient(tenantId, dbUrl) as any;
+  private getClient(tenantId: string, dbUrl?: string) {
+    const url = dbUrl || process.env.TENANT_DATABASE_URL || '';
+    return this.prisma.getTenantClient(tenantId, url) as any;
   }
 
   async getLeads(tenantId: string, page = 1, limit = 10, search = '', status = '', campaignName = '') {
@@ -114,7 +114,7 @@ export class MetaLeadsService {
     }
   }
 
-  async syncLeadsFromFacebook(pageId: string, formId: string, accessToken: string, phoneNumberId?: string, tenantId?: string, since?: string) {
+  async syncLeadsFromFacebook(pageId: string, formId: string, accessToken: string, phoneNumberId?: string, tenantId?: string, dbUrl?: string, since?: string) {
     try {
       let allLeads: any[] = [];
       let formNameMap = new Map<string, string>();
@@ -178,7 +178,7 @@ export class MetaLeadsService {
       }
 
       const savedLeads: any[] = [];
-      const dbUrl = process.env.TENANT_DATABASE_URL || '';
+      const url = dbUrl || process.env.TENANT_DATABASE_URL || '';
 
       for (const lead of allLeads) {
         const fieldData = this.parseLeadFields(lead.field_data);
@@ -187,7 +187,7 @@ export class MetaLeadsService {
         
         const saved = await this.prisma.executeWithRetry(
           tenantId || 'default',
-          dbUrl,
+          url,
           async (client) => {
             return await client.metaLead.upsert({
               where: { leadId: lead.id },
@@ -205,7 +205,7 @@ export class MetaLeadsService {
         );
 
         if (fieldData.phone) {
-          await this.syncToContact(fieldData, phoneNumberId, tenantId);
+          await this.syncToContact(fieldData, phoneNumberId, tenantId, dbUrl);
         }
 
         savedLeads.push(saved);
@@ -250,29 +250,32 @@ export class MetaLeadsService {
     return allLeads;
   }
 
-  private async syncToContact(leadData: any, phoneNumberId?: string, tenantId?: string) {
+  private async syncToContact(leadData: any, phoneNumberId?: string, tenantId?: string, dbUrl?: string) {
     try {
-      const client = this.getClient(tenantId || 'default');
-      await client.contact.upsert({
-        where: {
-          phone_phoneNumberId: {
-            phone: leadData.phone,
-            phoneNumberId: phoneNumberId || 'meta-lead',
-          },
-        },
-        update: {
-          name: leadData.name || 'Meta Lead',
-          email: leadData.email,
-          place: leadData.company,
-        },
-        create: {
-          name: leadData.name || 'Meta Lead',
-          email: leadData.email,
-          phone: leadData.phone,
-          place: leadData.company,
-          phoneNumberId: phoneNumberId || 'meta-lead',
-        },
-      });
+      const url = dbUrl || process.env.TENANT_DATABASE_URL || '';
+      await this.prisma.executeWithRetry(
+        tenantId || 'default',
+        url,
+        async (client) => {
+          return await client.contact.upsert({
+            where: {
+              phone: leadData.phone,
+            },
+            update: {
+              name: leadData.name || 'Meta Lead',
+              email: leadData.email,
+              place: leadData.company,
+            },
+            create: {
+              name: leadData.name || 'Meta Lead',
+              email: leadData.email,
+              phone: leadData.phone,
+              place: leadData.company,
+              phoneNumberId: phoneNumberId || 'meta-lead',
+            },
+          });
+        }
+      );
     } catch (error) {
       this.logger.error('Failed to sync to contact:', error);
     }

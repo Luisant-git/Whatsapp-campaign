@@ -10,7 +10,7 @@ export class MetaLeadsService {
 
   private async getClient(tenantId: string, dbUrl?: string) {
     const url = dbUrl || process.env.TENANT_DATABASE_URL || '';
-    return await this.prisma.getTenantClient(tenantId, url) as any;
+    return await this.prisma.getTenantClientReady(tenantId, url) as any;
   }
 
   async getLeads(tenantId: string, page = 1, limit = 10, search = '', status = '', campaignName = '') {

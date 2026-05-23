@@ -98,12 +98,12 @@ export class TenantPrismaService implements OnModuleDestroy {
   }
 
   /**
-   * Get or create tenant client
+   * Get or create tenant client (synchronous wrapper)
    */
-  async getTenantClient(
+  getTenantClient(
     tenantId: string,
     dbUrl: string,
-  ): Promise<TenantPrismaClient> {
+  ): TenantPrismaClient {
     const id = String(tenantId);
 
     if (!this.clients.has(id)) {
@@ -112,17 +112,32 @@ export class TenantPrismaService implements OnModuleDestroy {
       const client = this.createClient(id, dbUrl);
       this.clients.set(id, client);
 
-      // ✅ WAIT for connection to be ready
-      await this.connectAndVerify(id, client);
-    } else {
-      // ✅ Wait for existing client to be ready
-      const readyPromise = this.readyPromises.get(id);
-      if (readyPromise) {
-        await readyPromise;
-      }
+      // Start connection in background
+      this.connectAndVerify(id, client).catch(err => {
+        this.logger.error(`Failed to connect tenant ${id}:`, err);
+      });
     }
 
     return this.clients.get(id)!;
+  }
+
+  /**
+   * Get tenant client and wait for it to be ready
+   */
+  async getTenantClientReady(
+    tenantId: string,
+    dbUrl: string,
+  ): Promise<TenantPrismaClient> {
+    const id = String(tenantId);
+    const client = this.getTenantClient(id, dbUrl);
+    
+    // Wait for connection to be ready
+    const readyPromise = this.readyPromises.get(id);
+    if (readyPromise) {
+      await readyPromise;
+    }
+    
+    return client;
   }
 
   /**
@@ -183,7 +198,8 @@ export class TenantPrismaService implements OnModuleDestroy {
     const id = String(tenantId);
 
     try {
-      const client = await this.getTenantClient(id, dbUrl);
+      // Get client and wait for it to be ready
+      const client = await this.getTenantClientReady(id, dbUrl);
       return await operation(client);
     } catch (error: any) {
       const isConnectionError =

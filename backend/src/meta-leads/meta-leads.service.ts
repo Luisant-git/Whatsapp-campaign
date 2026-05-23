@@ -13,7 +13,7 @@ export class MetaLeadsService {
     return await this.prisma.getTenantClientReady(tenantId, url) as any;
   }
 
-  async getLeads(tenantId: string, page = 1, limit = 10, search = '', status = '', campaignName = '') {
+  async getLeads(tenantId: string, page = 1, limit = 10, search = '', status = '', campaignName = '', dbUrl?: string) {
     const skip = (page - 1) * limit;
     const where: any = {};
 
@@ -34,7 +34,7 @@ export class MetaLeadsService {
     }
 
     try {
-      const client = await this.getClient(tenantId);
+      const client = await this.getClient(tenantId, dbUrl);
       const [leads, total] = await Promise.all([
         client.metaLead.findMany({
           where,
@@ -71,8 +71,8 @@ export class MetaLeadsService {
     }
   }
 
-  async updateLeadStatus(id: number, status: string, tenantId: string) {
-    const client = await this.getClient(tenantId);
+  async updateLeadStatus(id: number, status: string, tenantId: string, dbUrl?: string) {
+    const client = await this.getClient(tenantId, dbUrl);
     return client.metaLead.update({
       where: { id },
       data: { status },
@@ -395,7 +395,7 @@ export class MetaLeadsService {
     return parsed;
   }
 
-  async handleWebhook(body: any, tenantId?: string) {
+  async handleWebhook(body: any, tenantId?: string, dbUrl?: string) {
     try {
       const entry = body.entry?.[0];
       const changes = entry?.changes?.[0];
@@ -405,7 +405,7 @@ export class MetaLeadsService {
         const pageId = changes.value.page_id;
         const formId = changes.value.form_id;
         
-        const client = await this.getClient(tenantId || 'default');
+        const client = await this.getClient(tenantId || 'default', dbUrl);
         const masterConfig = await client.masterConfig.findFirst({
           where: { isActive: true },
         });
@@ -433,7 +433,7 @@ export class MetaLeadsService {
         });
 
         if (fieldData.phone) {
-          await this.syncToContact(fieldData, masterConfig.phoneNumberId, tenantId);
+          await this.syncToContact(fieldData, masterConfig.phoneNumberId, tenantId, dbUrl);
         }
 
         this.logger.log(`Lead synced: ${leadgenId}`);
@@ -445,16 +445,16 @@ export class MetaLeadsService {
     }
   }
 
-  async getMasterConfig(tenantId?: string) {
-    const client = await this.getClient(tenantId || 'default');
+  async getMasterConfig(tenantId?: string, dbUrl?: string) {
+    const client = await this.getClient(tenantId || 'default', dbUrl);
     return client.masterConfig.findFirst({
       where: { isActive: true },
     });
   }
 
-  async deleteAllLeads(tenantId?: string) {
+  async deleteAllLeads(tenantId?: string, dbUrl?: string) {
     try {
-      const client = await this.getClient(tenantId || 'default');
+      const client = await this.getClient(tenantId || 'default', dbUrl);
       const result = await client.metaLead.deleteMany({});
       this.logger.log(`✅ Deleted ${result.count} leads`);
       return { success: true, count: result.count };
@@ -464,9 +464,9 @@ export class MetaLeadsService {
     }
   }
 
-  async importLeadsFromCSV(csvData: any[], pageId: string, formId: string, phoneNumberId?: string, tenantId?: string) {
+  async importLeadsFromCSV(csvData: any[], pageId: string, formId: string, phoneNumberId?: string, tenantId?: string, dbUrl?: string) {
     try {
-      const client = await this.getClient(tenantId || 'default');
+      const client = await this.getClient(tenantId || 'default', dbUrl);
       const savedLeads: any[] = [];
       let skipped = 0;
 
@@ -554,7 +554,7 @@ export class MetaLeadsService {
 
           // Sync to contacts if phone exists
           if (leadData.phone) {
-            await this.syncToContact(leadData, phoneNumberId, tenantId);
+            await this.syncToContact(leadData, phoneNumberId, tenantId, dbUrl);
           }
 
           savedLeads.push(saved);

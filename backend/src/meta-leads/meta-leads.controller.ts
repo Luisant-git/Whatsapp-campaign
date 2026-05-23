@@ -7,6 +7,20 @@ import csv from 'csv-parser';
 export class MetaLeadsController {
   constructor(private readonly metaLeadsService: MetaLeadsService) {}
 
+  private getTenantContext(req: any): { tenantId: string; dbUrl?: string } {
+    // Try tenantContext from middleware first
+    if (req.tenantContext) {
+      return {
+        tenantId: req.tenantContext.tenantId,
+        dbUrl: req.tenantContext.dbUrl
+      };
+    }
+    
+    // Fallback to header
+    const tenantId = req.headers['x-tenant-id'] || 'default';
+    return { tenantId };
+  }
+
   @Get()
   async getLeads(
     @Req() req: any,
@@ -16,7 +30,7 @@ export class MetaLeadsController {
     @Query('status') status = '',
     @Query('campaignName') campaignName = '',
   ) {
-    const tenantId = req.headers['x-tenant-id'] || 'default';
+    const { tenantId, dbUrl } = this.getTenantContext(req);
     return this.metaLeadsService.getLeads(
       tenantId,
       parseInt(page),
@@ -24,6 +38,7 @@ export class MetaLeadsController {
       search,
       status,
       campaignName,
+      dbUrl,
     );
   }
 
@@ -33,8 +48,8 @@ export class MetaLeadsController {
     @Param('id') id: string,
     @Body('status') status: string,
   ) {
-    const tenantId = req.headers['x-tenant-id'] || 'default';
-    return this.metaLeadsService.updateLeadStatus(parseInt(id), status, tenantId);
+    const { tenantId, dbUrl } = this.getTenantContext(req);
+    return this.metaLeadsService.updateLeadStatus(parseInt(id), status, tenantId, dbUrl);
   }
 
   @Get(':formId/info')
@@ -127,8 +142,8 @@ export class MetaLeadsController {
     @Query('hub.verify_token') token: string,
     @Query('hub.challenge') challenge: string,
   ) {
-    const tenantId = req.headers['x-tenant-id'] || 'default';
-    const masterConfig = await this.metaLeadsService.getMasterConfig(tenantId);
+    const { tenantId, dbUrl } = this.getTenantContext(req);
+    const masterConfig = await this.metaLeadsService.getMasterConfig(tenantId, dbUrl);
     if (mode === 'subscribe' && token === masterConfig?.verifyToken) {
       return challenge;
     }
@@ -137,15 +152,15 @@ export class MetaLeadsController {
 
   @Post('webhook')
   async handleWebhook(@Req() req: any, @Body() body: any) {
-    const tenantId = req.headers['x-tenant-id'] || 'default';
-    return this.metaLeadsService.handleWebhook(body, tenantId);
+    const { tenantId, dbUrl } = this.getTenantContext(req);
+    return this.metaLeadsService.handleWebhook(body, tenantId, dbUrl);
   }
 
   @Delete('all')
   async deleteAllLeads(@Req() req: any) {
     try {
-      const tenantId = req.headers['x-tenant-id'] || 'default';
-      const result = await this.metaLeadsService.deleteAllLeads(tenantId);
+      const { tenantId, dbUrl } = this.getTenantContext(req);
+      const result = await this.metaLeadsService.deleteAllLeads(tenantId, dbUrl);
       return result;
     } catch (error) {
       return {
@@ -165,7 +180,7 @@ export class MetaLeadsController {
     @Body('phoneNumberId') phoneNumberId?: string,
   ) {
     try {
-      const tenantId = req.headers['x-tenant-id'] || 'default';
+      const { tenantId, dbUrl } = this.getTenantContext(req);
       
       if (!file) {
         return { error: true, message: 'No file uploaded' };
@@ -190,7 +205,8 @@ export class MetaLeadsController {
                 pageId || 'csv-import',
                 formId || 'csv-import',
                 phoneNumberId,
-                tenantId
+                tenantId,
+                dbUrl
               );
               resolve(result);
             } catch (error) {

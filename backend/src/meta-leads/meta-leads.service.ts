@@ -229,11 +229,9 @@ export class MetaLeadsService {
         throw new Error(errorMessage);
       }
       
-      throw new Error({
-        error: true,
-        message: error.message || 'Failed to sync leads from Facebook',
-        details: 'Common issues: 1) Invalid Form ID, 2) Missing permissions (leads_retrieval, pages_manage_metadata), 3) Form not linked to Page ID, 4) Expired access token'
-      });
+      const errorMessage = error.message || 'Failed to sync leads from Facebook';
+      const details = 'Common issues: 1) Invalid Form ID, 2) Missing permissions (leads_retrieval, pages_manage_metadata), 3) Form not linked to Page ID, 4) Expired access token';
+      throw new Error(`${errorMessage}\n\n${details}`);
     }
   }
 

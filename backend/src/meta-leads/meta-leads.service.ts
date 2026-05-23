@@ -195,6 +195,8 @@ export class MetaLeadsService {
         const leadFormId = lead.form_id || formId || 'unknown';
         const campaignName = formNameMap.get(leadFormId) || null;
         
+        this.logger.log(`Processing lead ${lead.id}: formId=${leadFormId}, campaignName=${campaignName}`);
+        
         try {
           const saved = await this.prisma.executeWithRetry<any>(
             tid,

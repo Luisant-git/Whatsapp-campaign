@@ -196,10 +196,10 @@ export class MetaLeadsService {
         const campaignName = formNameMap.get(leadFormId) || null;
         
         try {
-          const saved = await this.prisma.executeWithRetry(
+          const saved = await this.prisma.executeWithRetry<any>(
             tid,
             url,
-            async (client) => {
+            async (client: any) => {
               return await client.metaLead.upsert({
                 where: { leadId: lead.id },
                 update: { ...fieldData, campaignName },
@@ -270,10 +270,10 @@ export class MetaLeadsService {
   private async syncToContact(leadData: any, phoneNumberId?: string, tenantId?: string, dbUrl?: string) {
     try {
       const url = dbUrl || process.env.TENANT_DATABASE_URL || '';
-      await this.prisma.executeWithRetry(
+      await this.prisma.executeWithRetry<any>(
         tenantId || 'default',
         url,
-        async (client) => {
+        async (client: any) => {
           return await client.contact.upsert({
             where: {
               phone: leadData.phone,
@@ -429,7 +429,7 @@ export class MetaLeadsService {
 
   async importLeadsFromCSV(csvData: any[], pageId: string, formId: string, phoneNumberId?: string, tenantId?: string) {
     try {
-      const client = this.getClient(tenantId || 'default');
+      const client = await this.getClient(tenantId || 'default');
       const savedLeads: any[] = [];
       let skipped = 0;
 

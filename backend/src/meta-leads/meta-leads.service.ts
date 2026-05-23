@@ -169,6 +169,7 @@ export class MetaLeadsService {
       }
       
       this.logger.log(`✅ Total leads fetched from Meta API: ${allLeads.length}`);
+      this.logger.log(`Form name map has ${formNameMap.size} entries:`, Array.from(formNameMap.entries()));
       
       // Log sample lead for debugging
       if (allLeads.length > 0) {
@@ -184,6 +185,7 @@ export class MetaLeadsService {
       }
 
       const savedLeads: any[] = [];
+      const failedLeads: any[] = [];
       const url = dbUrl || process.env.TENANT_DATABASE_URL || '';
       const tid = tenantId || 'default';
 
@@ -223,15 +225,27 @@ export class MetaLeadsService {
           }
 
           savedLeads.push(saved);
-          this.logger.log(`Saved lead ${lead.id} (${savedLeads.length}/${allLeads.length})`);
+          this.logger.log(`✅ Saved lead ${lead.id} (${savedLeads.length}/${allLeads.length})`);
         } catch (error) {
-          this.logger.error(`Failed to save lead ${lead.id}:`, error.message);
+          this.logger.error(`❌ Failed to save lead ${lead.id}:`, error.message);
+          failedLeads.push({ leadId: lead.id, error: error.message });
           // Continue with next lead instead of failing completely
         }
       }
 
       this.logger.log(`✅ Successfully saved ${savedLeads.length} leads to database`);
-      return { success: true, count: savedLeads.length };
+      if (failedLeads.length > 0) {
+        this.logger.warn(`⚠️ Failed to save ${failedLeads.length} leads:`, failedLeads);
+      }
+      
+      return { 
+        success: true, 
+        count: savedLeads.length,
+        failed: failedLeads.length,
+        message: failedLeads.length > 0 
+          ? `Saved ${savedLeads.length} leads, ${failedLeads.length} failed` 
+          : undefined
+      };
     } catch (error) {
       this.logger.error('Failed to sync leads:', error);
       
@@ -257,13 +271,34 @@ export class MetaLeadsService {
   private async fetchLeadsFromForm(formId: string, accessToken: string): Promise<any[]> {
     let url: string | null = `https://graph.facebook.com/v25.0/${formId}/leads?access_token=${accessToken}&fields=id,created_time,field_data,form_id&limit=500`;
     let allLeads: any[] = [];
+    let pageCount = 0;
+
+    this.logger.log(`Fetching leads from form ${formId}...`);
 
     while (url) {
-      const response = await axios.get(url);
-      const data = response.data;
-      const leads = data.data || [];
-      allLeads.push(...leads);
-      url = data.paging?.next || null;
+      pageCount++;
+      this.logger.log(`Fetching page ${pageCount} from: ${url.substring(0, 100)}...`);
+      
+      try {
+        const response = await axios.get(url);
+        const data = response.data;
+        const leads = data.data || [];
+        
+        this.logger.log(`Page ${pageCount}: Got ${leads.length} leads`);
+        allLeads.push(...leads);
+        
+        // Get next page URL
+        url = data.paging?.next || null;
+        
+        if (url) {
+          this.logger.log(`More pages available, continuing...`);
+        } else {
+          this.logger.log(`No more pages. Total leads fetched: ${allLeads.length}`);
+        }
+      } catch (error) {
+        this.logger.error(`Error fetching page ${pageCount}:`, error.message);
+        throw error;
+      }
     }
 
     return allLeads;

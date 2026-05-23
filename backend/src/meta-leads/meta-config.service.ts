@@ -12,29 +12,29 @@ export class MetaConfigService {
     return await this.prisma.getTenantClientReady(tenantId, url) as any;
   }
 
-  async getAll(tenantId: string) {
-    const client = await this.getClient(tenantId);
+  async getAll(tenantId: string, dbUrl?: string) {
+    const client = await this.getClient(tenantId, dbUrl);
     return client.metaConfig.findMany({
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async getOne(tenantId: string, id: number) {
-    const client = await this.getClient(tenantId);
+  async getOne(tenantId: string, id: number, dbUrl?: string) {
+    const client = await this.getClient(tenantId, dbUrl);
     return client.metaConfig.findUnique({
       where: { id },
     });
   }
 
-  async getActive(tenantId: string) {
-    const client = await this.getClient(tenantId);
+  async getActive(tenantId: string, dbUrl?: string) {
+    const client = await this.getClient(tenantId, dbUrl);
     return client.metaConfig.findFirst({
       where: { isActive: true },
     });
   }
 
-  async create(tenantId: string, data: any) {
-    const client = await this.getClient(tenantId);
+  async create(tenantId: string, data: any, dbUrl?: string) {
+    const client = await this.getClient(tenantId, dbUrl);
     
     // If this is set as active, deactivate others
     if (data.isActive) {
@@ -55,8 +55,8 @@ export class MetaConfigService {
     });
   }
 
-  async update(tenantId: string, id: number, data: any) {
-    const client = await this.getClient(tenantId);
+  async update(tenantId: string, id: number, data: any, dbUrl?: string) {
+    const client = await this.getClient(tenantId, dbUrl);
     
     // If this is set as active, deactivate others
     if (data.isActive) {
@@ -81,8 +81,8 @@ export class MetaConfigService {
     });
   }
 
-  async delete(tenantId: string, id: number) {
-    const client = await this.getClient(tenantId);
+  async delete(tenantId: string, id: number, dbUrl?: string) {
+    const client = await this.getClient(tenantId, dbUrl);
     return client.metaConfig.delete({
       where: { id },
     });

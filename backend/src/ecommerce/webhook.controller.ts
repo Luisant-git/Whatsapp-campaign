@@ -2,6 +2,7 @@ import { Controller, Post, Body, Headers, Param, Req } from '@nestjs/common';
 import { RazorpayService } from './razorpay.service';
 import { EcommerceService } from './ecommerce.service';
 import { MetaCatalogService } from './meta-catalog.service';
+import { Public } from '../auth/public.decorator';
 
 @Controller('webhooks')
 export class WebhookController {
@@ -11,6 +12,7 @@ export class WebhookController {
     private metaCatalogService: MetaCatalogService,
   ) {}
 
+  @Public()
   @Post('whatsapp')
   async handleWebhook(@Req() req: any) {
     const entry = req.body.entry?.[0];
@@ -44,6 +46,7 @@ export class WebhookController {
     return { status: 'ok' };
   }
 
+  @Public()
   @Post('razorpay')
   async handleRazorpayWebhook(@Body() body: any, @Headers() headers: any) {
     console.log('[Razorpay Webhook] Received:', body.event);
@@ -90,6 +93,7 @@ export class WebhookController {
     return { status: 'ok' };
   }
 
+  @Public()
   @Post('payment-success/:orderId')
   async manualPaymentConfirm(@Param('orderId') orderId: string) {
     try {

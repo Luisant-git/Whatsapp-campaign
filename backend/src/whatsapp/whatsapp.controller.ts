@@ -25,6 +25,7 @@ import { SendMessageDto, SendBulkDto, SendMediaDto, MessageResponseDto, BulkMess
 import { SessionGuard } from '../auth/session.guard';
 import { FlowAppointmentService } from '../flow-appointment/flow-appointment.service';
 import { MetaCatalogService } from '../ecommerce/meta-catalog.service';
+import { Public } from '../auth/public.decorator';
  
 @ApiTags('WhatsApp')
 @Controller('whatsapp')
@@ -36,6 +37,7 @@ export class WhatsappController {
     private readonly metaCatalogService: MetaCatalogService
   ) {}
  
+  @Public()
   @Get('webhook/:verifyToken')
   @ApiOperation({ summary: 'Verify WhatsApp webhook' })
   @ApiParam({ name: 'verifyToken', required: true, description: 'Verify token from settings' })
@@ -71,6 +73,7 @@ export class WhatsappController {
     throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);
   }
  
+  @Public()
   @Get('webhook')
   @ApiOperation({ summary: 'Verify WhatsApp webhook without token' })
   async catchAllWebhookGet(@Query() query: any) {
@@ -89,10 +92,11 @@ export class WhatsappController {
         return challenge;
       }
     }
-    console.log('✗ Webhook verification failed');
-    throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);
+    console.log('✗ Webhook verification failed - Missing or invalid parameters');
+    throw new HttpException('Webhook verification failed. Expected query parameters: hub.mode, hub.verify_token, hub.challenge', HttpStatus.FORBIDDEN);
   }
  
+  @Public()
   @Post('webhook/:verifyToken')
   @ApiOperation({ summary: 'Handle incoming WhatsApp webhooks' })
   @ApiParam({ name: 'verifyToken', required: true, description: 'Verify token from settings' })
@@ -240,6 +244,7 @@ export class WhatsappController {
     }
   }
  
+  @Public()
   @Post('webhook')
   @ApiOperation({ summary: 'Handle webhook without token parameter' })
   async catchAllWebhookPost(@Body() body: any) {

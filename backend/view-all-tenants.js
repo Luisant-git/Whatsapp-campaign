@@ -15,7 +15,6 @@ async function viewAllTenants() {
       SELECT 
         id,
         email,
-        "businessName",
         "isActive",
         "dbName",
         "dbHost",
@@ -32,7 +31,6 @@ async function viewAllTenants() {
 
     tenantsResult.rows.forEach((tenant, index) => {
       console.log(`\n${index + 1}. Tenant ID: ${tenant.id}`);
-      console.log(`   Business Name: ${tenant.businessName || 'N/A'}`);
       console.log(`   Email: ${tenant.email}`);
       console.log(`   Status: ${tenant.isActive ? '✅ Active' : '❌ Inactive'}`);
       console.log(`   Domain: ${tenant.domain || 'N/A'}`);
@@ -49,7 +47,7 @@ async function viewAllTenants() {
     const activeTenants = tenantsResult.rows.filter(t => t.isActive);
 
     for (const tenant of activeTenants) {
-      console.log(`\n╔═══ Tenant: ${tenant.businessName || tenant.email} (ID: ${tenant.id}) ═══╗`);
+      console.log(`\n╔═══ Tenant: ${tenant.email} (ID: ${tenant.id}) ═══╗`);
       
       const tenantClient = new Client({
         user: tenant.dbUser,

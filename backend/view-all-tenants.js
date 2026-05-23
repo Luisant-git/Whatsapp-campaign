@@ -1,4 +1,4 @@
-add const { Client } = require('pg');
+const { Client } = require('pg');
 require('dotenv').config();
 
 async function viewAllTenants() {

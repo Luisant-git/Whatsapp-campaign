@@ -7,34 +7,34 @@ export class MetaConfigService {
 
   constructor(private prisma: TenantPrismaService) {}
 
-  private getClient(tenantId: string) {
-    const dbUrl = process.env.TENANT_DATABASE_URL || '';
-    return this.prisma.getTenantClient(tenantId, dbUrl) as any;
+  private async getClient(tenantId: string, dbUrl?: string) {
+    const url = dbUrl || process.env.TENANT_DATABASE_URL || '';
+    return await this.prisma.getTenantClientReady(tenantId, url) as any;
   }
 
   async getAll(tenantId: string) {
-    const client = this.getClient(tenantId);
+    const client = await this.getClient(tenantId);
     return client.metaConfig.findMany({
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async getOne(tenantId: string, id: number) {
-    const client = this.getClient(tenantId);
+    const client = await this.getClient(tenantId);
     return client.metaConfig.findUnique({
       where: { id },
     });
   }
 
   async getActive(tenantId: string) {
-    const client = this.getClient(tenantId);
+    const client = await this.getClient(tenantId);
     return client.metaConfig.findFirst({
       where: { isActive: true },
     });
   }
 
   async create(tenantId: string, data: any) {
-    const client = this.getClient(tenantId);
+    const client = await this.getClient(tenantId);
     
     // If this is set as active, deactivate others
     if (data.isActive) {
@@ -56,7 +56,7 @@ export class MetaConfigService {
   }
 
   async update(tenantId: string, id: number, data: any) {
-    const client = this.getClient(tenantId);
+    const client = await this.getClient(tenantId);
     
     // If this is set as active, deactivate others
     if (data.isActive) {
@@ -82,7 +82,7 @@ export class MetaConfigService {
   }
 
   async delete(tenantId: string, id: number) {
-    const client = this.getClient(tenantId);
+    const client = await this.getClient(tenantId);
     return client.metaConfig.delete({
       where: { id },
     });

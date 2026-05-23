@@ -419,7 +419,6 @@ const MetaLeads = () => {
                 <th>Campaign</th>
                 <th>Status</th>
                 <th>Contact</th>
-                <th>Company</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
@@ -428,14 +427,14 @@ const MetaLeads = () => {
               {loading ? (
                 Array(5).fill(0).map((_, i) => (
                   <tr key={i}>
-                    <td colSpan="7">
+                    <td colSpan="6">
                       <div className="shimmer" style={{ height: '40px', borderRadius: '4px' }}></div>
                     </td>
                   </tr>
                 ))
               ) : leads.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#65676B' }}>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#65676B' }}>
                     No leads found matching your criteria.
                   </td>
                 </tr>
@@ -476,12 +475,6 @@ const MetaLeads = () => {
                         <span style={{ fontSize: '13px', color: '#1C1E21' }}>
                           {typeof lead.phone === 'string' ? lead.phone : (lead.phone ? String(lead.phone) : 'N/A')}
                         </span>
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Building2 size={14} color="#65676B" />
-                        <span style={{ fontSize: '13px', color: '#1C1E21' }}>{lead.company || 'N/A'}</span>
                       </div>
                     </td>
                     <td>

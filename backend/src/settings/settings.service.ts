@@ -465,7 +465,7 @@ export class SettingsService {
     if (!bizRes.ok) throw new Error('Failed to fetch businesses. Ensure you granted business_management permissions.');
     const bizData = await bizRes.json();
     
-    const catalogs = [];
+    const catalogs: any[] = [];
 
     // 3. Fetch Catalogs for each Business
     for (const biz of (bizData.data || [])) {

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SessionGuard } from '../auth/session.guard';
 import { TenantContext } from '../tenant/tenant.decorator';
@@ -17,6 +17,16 @@ export class MasterConfigController {
   @ApiResponse({ status: 201, description: 'Master config created successfully' })
   async create(@TenantContext() tenantContext: TenantContextType, @Body() createDto: CreateMasterConfigDto) {
     return this.masterConfigService.create(createDto, tenantContext);
+  }
+
+  @Post('embedded-signup')
+  @ApiOperation({ summary: 'Exchange embedded signup code for config' })
+  @ApiResponse({ status: 201, description: 'Master config created successfully from Meta' })
+  async handleEmbeddedSignup(@TenantContext() tenantContext: TenantContextType, @Body('code') code: string) {
+    if (!code) {
+      throw new BadRequestException('OAuth code is required');
+    }
+    return this.masterConfigService.handleEmbeddedSignup(code, tenantContext);
   }
 
   @Get()

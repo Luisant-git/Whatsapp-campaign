@@ -67,7 +67,7 @@ export class ContactService {
     const prisma = this.getPrisma(tenantContext);
     const phone = this.formatPhoneNumber(data.phone);
 
-    const existing = await prisma.contact.findUnique({
+    const existing = await prisma.contact.findFirst({
       where: { phone },
     });
     if (existing) {
@@ -222,7 +222,7 @@ export class ContactService {
 
     if (data.phone) {
       const newPhone = this.formatPhoneNumber(data.phone);
-      const duplicate = await prisma.contact.findUnique({
+      const duplicate = await prisma.contact.findFirst({
         where: { phone: newPhone },
       });
       if (duplicate && duplicate.id !== id) {
@@ -296,7 +296,7 @@ export class ContactService {
   
     const fallbackName = normalizedIncomingName || formattedPhone;
   
-    const existingContact = await prisma.contact.findUnique({
+    const existingContact = await prisma.contact.findFirst({
       where: { phone: formattedPhone },
     });
   

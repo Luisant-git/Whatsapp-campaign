@@ -3,7 +3,7 @@ import { getMasterConfigs, createMasterConfig, updateMasterConfig, deleteMasterC
 import { getAllSettings } from "../api/auth";
 import { useToast } from '../contexts/ToastContext';
 import { API_BASE_URL } from "../api/config";
-import { Plus, Trash2, Eye, EyeOff, Wifi } from "lucide-react";
+import { Plus, Trash2, Eye, EyeOff, Wifi, Facebook } from "lucide-react";
 
 const MasterConfig = () => {
   const { showSuccess, showError, showConfirm } = useToast();
@@ -45,7 +45,73 @@ const MasterConfig = () => {
     fetchAllSettings();
     fetchFeatureAssignments();
     fetchMetaCatalogConfig();
+
+    // Load the Facebook SDK asynchronously
+    (function(d, s, id) {
+      var js, fjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) return;
+      js = d.createElement(s); js.id = id;
+      js.src = "https://connect.facebook.net/en_US/sdk.js";
+      fjs.parentNode.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));
+
+    window.fbAsyncInit = function() {
+      // NOTE: Replace YOUR_APP_ID with your actual Meta App ID
+      window.FB.init({
+        appId      : 'YOUR_APP_ID', 
+        cookie     : true,
+        xfbml      : true,
+        version    : 'v20.0'
+      });
+    };
   }, []);
+
+  const handleEmbeddedSignup = () => {
+    if (!window.FB) {
+      showError('Facebook SDK not loaded yet. Please check your internet connection and try again.');
+      return;
+    }
+
+    // Launch Facebook login
+    window.FB.login(async (response) => {
+      if (response.authResponse) {
+        const code = response.authResponse.code;
+        console.log('FB Login response code:', code);
+        
+        try {
+          const res = await fetch(`${API_BASE_URL}/master-config/embedded-signup`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ code }) 
+          });
+
+          if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.message || 'Failed to complete Meta Embedded Signup');
+          }
+
+          showSuccess('Successfully connected to Meta and saved configuration!');
+          fetchMasterConfigs(); // Refresh the list
+        } catch (error) {
+          console.error("Embedded Signup Error:", error);
+          showError(error.message || 'Failed to connect with Meta');
+        }
+        
+      } else {
+        console.log('User cancelled login or did not fully authorize.');
+        showError('Meta connection was cancelled or incomplete.');
+      }
+    }, {
+      config_id: 'YOUR_CONFIG_ID', // TODO: Replace with your WhatsApp Configuration ID
+      response_type: 'code',
+      override_default_response_type: true,
+      extras: {
+        setup: {},
+        feature: 'whatsapp_embedded_signup'
+      }
+    });
+  };
 
   useEffect(() => {
     if (activeTab === 'assignments') {
@@ -259,9 +325,18 @@ const MasterConfig = () => {
           <p>Manage WhatsApp API configurations that can be reused across multiple settings.</p>
         </div>
         {activeTab === 'configurations' && (
-          <button className="btn-primary" onClick={() => setShowForm(true)}>
-            <Plus size={16} /> Add Configuration
-          </button>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button 
+              className="btn-primary" 
+              onClick={handleEmbeddedSignup}
+              style={{ backgroundColor: '#1877F2', borderColor: '#1877F2', display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              <Facebook size={16} /> Connect with Meta
+            </button>
+            <button className="btn-primary" onClick={() => setShowForm(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Plus size={16} /> Add Configuration
+            </button>
+          </div>
         )}
       </div>
 

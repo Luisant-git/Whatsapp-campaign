@@ -46,15 +46,7 @@ const MasterConfig = () => {
     fetchFeatureAssignments();
     fetchMetaCatalogConfig();
 
-    // Load the Facebook SDK asynchronously
-    (function(d, s, id) {
-      var js, fjs = d.getElementsByTagName(s)[0];
-      if (d.getElementById(id)) return;
-      js = d.createElement(s); js.id = id;
-      js.src = "https://connect.facebook.net/en_US/sdk.js";
-      fjs.parentNode.insertBefore(js, fjs);
-    }(document, 'script', 'facebook-jssdk'));
-
+    // Define the initialization function FIRST
     window.fbAsyncInit = function() {
       // NOTE: Replace YOUR_APP_ID with your actual Meta App ID
       window.FB.init({
@@ -64,6 +56,20 @@ const MasterConfig = () => {
         version    : 'v20.0'
       });
     };
+
+    // If FB is already loaded (e.g. from hot-reload), initialize immediately
+    if (window.FB) {
+      window.fbAsyncInit();
+    } else {
+      // Load the Facebook SDK asynchronously
+      (function(d, s, id) {
+        var js, fjs = d.getElementsByTagName(s)[0];
+        if (d.getElementById(id)) return;
+        js = d.createElement(s); js.id = id;
+        js.src = "https://connect.facebook.net/en_US/sdk.js";
+        fjs.parentNode.insertBefore(js, fjs);
+      }(document, 'script', 'facebook-jssdk'));
+    }
   }, []);
 
   const handleEmbeddedSignup = () => {

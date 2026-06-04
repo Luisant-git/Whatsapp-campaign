@@ -443,4 +443,48 @@ export class SettingsService {
       }
     };
   }
+
+  async fetchMetaCatalogs(userAccessToken: string): Promise<any> {
+    const appId = process.env.META_APP_ID;
+    const appSecret = process.env.META_APP_SECRET;
+
+    if (!appId || !appSecret) {
+      throw new Error('META_APP_ID or META_APP_SECRET is not configured in backend');
+    }
+
+    // 1. Exchange for long-lived user token
+    const exchangeUrl = `https://graph.facebook.com/v20.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${userAccessToken}`;
+    const exchangeRes = await fetch(exchangeUrl);
+    if (!exchangeRes.ok) throw new Error('Failed to exchange user token for a permanent one');
+    const exchangeData = await exchangeRes.json();
+    const longLivedUserToken = exchangeData.access_token;
+
+    // 2. Fetch Businesses
+    const bizUrl = `https://graph.facebook.com/v20.0/me/businesses?access_token=${longLivedUserToken}`;
+    const bizRes = await fetch(bizUrl);
+    if (!bizRes.ok) throw new Error('Failed to fetch businesses. Ensure you granted business_management permissions.');
+    const bizData = await bizRes.json();
+    
+    const catalogs = [];
+
+    // 3. Fetch Catalogs for each Business
+    for (const biz of (bizData.data || [])) {
+      const catUrl = `https://graph.facebook.com/v20.0/${biz.id}/owned_product_catalogs?access_token=${longLivedUserToken}`;
+      const catRes = await fetch(catUrl);
+      if (catRes.ok) {
+        const catData = await catRes.json();
+        for (const cat of (catData.data || [])) {
+          catalogs.push({
+            id: cat.id,
+            name: `${cat.name} (${biz.name})`,
+          });
+        }
+      }
+    }
+
+    return {
+      longLivedUserToken,
+      catalogs
+    };
+  }
 }

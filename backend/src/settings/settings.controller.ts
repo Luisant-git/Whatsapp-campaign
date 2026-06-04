@@ -148,6 +148,13 @@ export class SettingsController {
     return this.settingsService.saveFeatureAssignments(session.tenantId, assignments);
   }
 
+  @Post('meta-catalog/fetch-catalogs')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Fetch Meta Catalogs using User Access Token' })
+  async fetchMetaCatalogs(@Body() data: { userAccessToken: string }): Promise<any> {
+    return this.settingsService.fetchMetaCatalogs(data.userAccessToken);
+  }
+
   @Post('meta-catalog')
   @UseGuards(SessionGuard)
   @ApiOperation({ summary: 'Save Meta Catalog configuration' })

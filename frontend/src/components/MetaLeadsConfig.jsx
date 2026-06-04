@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Facebook } from 'lucide-react';
 import '../styles/Settings.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010';
@@ -18,9 +18,93 @@ const MetaLeadsConfig = () => {
     isActive: true,
   });
 
+  const [showPageSelect, setShowPageSelect] = useState(false);
+  const [availablePages, setAvailablePages] = useState([]);
+  const [selectedPageId, setSelectedPageId] = useState('');
+  const [userAccessToken, setUserAccessToken] = useState('');
+
   useEffect(() => {
     fetchConfigs();
+
+    // Initialize Facebook SDK
+    window.fbAsyncInit = function() {
+      if (window.FB) {
+        window.FB.init({
+          appId      : '1983839335719624', 
+          cookie     : true,
+          xfbml      : true,
+          version    : 'v20.0'
+        });
+      }
+    };
+
+    if (window.FB) {
+      window.fbAsyncInit();
+    } else {
+      (function(d, s, id) {
+        var js, fjs = d.getElementsByTagName(s)[0];
+        if (d.getElementById(id)) return;
+        js = d.createElement(s); js.id = id;
+        js.src = "https://connect.facebook.net/en_US/sdk.js";
+        fjs.parentNode.insertBefore(js, fjs);
+      }(document, 'script', 'facebook-jssdk'));
+    }
   }, []);
+
+  const handleFacebookConnect = () => {
+    if (!window.FB) {
+      alert('Facebook SDK not loaded. Please check your internet connection.');
+      return;
+    }
+
+    window.FB.login((response) => {
+      if (response.authResponse) {
+        const accessToken = response.authResponse.accessToken;
+        setUserAccessToken(accessToken);
+        
+        window.FB.api('/me/accounts', { access_token: accessToken }, (res) => {
+          if (res && res.data && res.data.length > 0) {
+            setAvailablePages(res.data);
+            setSelectedPageId(res.data[0].id); // Select first by default
+            setShowPageSelect(true);
+          } else {
+            alert('No Facebook Pages found. Make sure you selected a page during login and have admin access.');
+          }
+        });
+      } else {
+        console.log('Login cancelled');
+      }
+    }, {
+      scope: 'leads_retrieval,pages_show_list,pages_manage_metadata,pages_read_engagement'
+    });
+  };
+
+  const submitAutoConnect = async () => {
+    if (!selectedPageId) return;
+    const selectedPage = availablePages.find(p => p.id === selectedPageId);
+
+    try {
+      setLoading(true);
+      const tenantId = localStorage.getItem('tenantId');
+      await axios.post(`${API_BASE_URL}/meta-config/auto-connect`, {
+        userAccessToken,
+        pageId: selectedPage.id,
+        name: selectedPage.name
+      }, {
+        headers: { 'x-tenant-id': tenantId },
+        withCredentials: true,
+      });
+      
+      alert('Facebook Page successfully connected! (Long-lived token generated automatically)');
+      setShowPageSelect(false);
+      fetchConfigs();
+    } catch (error) {
+      console.error('Auto-connect error:', error);
+      alert('Failed to connect: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchConfigs = async () => {
     try {
@@ -114,9 +198,18 @@ const MetaLeadsConfig = () => {
           <h1>Meta Leads Configuration</h1>
           <p>Manage Facebook Page credentials for Meta Lead Forms integration.</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowForm(true)}>
-          <Plus size={16} /> Add Configuration
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button 
+            className="btn-primary" 
+            onClick={handleFacebookConnect}
+            style={{ backgroundColor: '#1877F2', borderColor: '#1877F2', display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <Facebook size={16} /> Connect Facebook Page
+          </button>
+          <button className="btn-primary" onClick={() => setShowForm(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Plus size={16} /> Manual Configuration
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -196,6 +289,47 @@ const MetaLeadsConfig = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showPageSelect && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Select Facebook Page</h2>
+              <button onClick={() => setShowPageSelect(false)} className="close-btn">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ padding: '20px 0' }}>
+              <p style={{ marginBottom: '16px', color: '#666' }}>
+                Select the Facebook Page you want to sync leads from. We will automatically generate and securely save a permanent Page Access Token.
+              </p>
+              <div className="form-group">
+                <label>Available Pages *</label>
+                <select 
+                  value={selectedPageId} 
+                  onChange={(e) => setSelectedPageId(e.target.value)}
+                  style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px' }}
+                >
+                  {availablePages.map(page => (
+                    <option key={page.id} value={page.id}>
+                      {page.name} (ID: {page.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-actions" style={{ marginTop: '24px' }}>
+                <button type="button" onClick={() => setShowPageSelect(false)} className="btn-secondary">
+                  Cancel
+                </button>
+                <button type="button" onClick={submitAutoConnect} className="btn-primary" disabled={loading}>
+                  {loading ? 'Connecting...' : 'Connect Page'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

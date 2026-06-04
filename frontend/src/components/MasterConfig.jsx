@@ -3,7 +3,7 @@ import { getMasterConfigs, createMasterConfig, updateMasterConfig, deleteMasterC
 import { getAllSettings } from "../api/auth";
 import { useToast } from '../contexts/ToastContext';
 import { API_BASE_URL } from "../api/config";
-import { Plus, Trash2, Eye, EyeOff, Wifi, Facebook } from "lucide-react";
+import { Plus, Trash2, Eye, EyeOff, Wifi, Facebook, X } from "lucide-react";
 
 const MasterConfig = () => {
   const { showSuccess, showError, showConfirm } = useToast();
@@ -39,6 +39,10 @@ const MasterConfig = () => {
   });
   const [savingMetaCatalog, setSavingMetaCatalog] = useState(false);
   const [showMetaToken, setShowMetaToken] = useState(false);
+  const [showCatalogSelect, setShowCatalogSelect] = useState(false);
+  const [availableCatalogs, setAvailableCatalogs] = useState([]);
+  const [selectedCatalogId, setSelectedCatalogId] = useState('');
+  const [catalogUserAccessToken, setCatalogUserAccessToken] = useState('');
 
   useEffect(() => {
     fetchMasterConfigs();
@@ -249,6 +253,82 @@ const MasterConfig = () => {
     }
   };
 
+  const handleConnectMetaCatalog = () => {
+    if (!window.FB) {
+      showError('Facebook SDK not loaded. Please try again.');
+      return;
+    }
+
+    window.FB.login((response) => {
+      if (response.authResponse) {
+        const accessToken = response.authResponse.accessToken;
+        
+        // Call backend to fetch catalogs
+        setSavingMetaCatalog(true);
+        fetch(`${API_BASE_URL}/settings/meta-catalog/fetch-catalogs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ userAccessToken: accessToken })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.catalogs && data.catalogs.length > 0) {
+            setCatalogUserAccessToken(data.longLivedUserToken);
+            setAvailableCatalogs(data.catalogs);
+            setSelectedCatalogId(data.catalogs[0].id);
+            setShowCatalogSelect(true);
+          } else {
+            showError('No Meta Catalogs found in your Business accounts. Make sure you have created a product catalog.');
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          showError('Failed to fetch Meta Catalogs.');
+        })
+        .finally(() => {
+          setSavingMetaCatalog(false);
+        });
+      } else {
+        console.log('Login cancelled');
+      }
+    }, {
+      scope: 'catalog_management,business_management'
+    });
+  };
+
+  const submitAutoConnectCatalog = async () => {
+    if (!selectedCatalogId) return;
+
+    setSavingMetaCatalog(true);
+    try {
+      const config = {
+        catalogId: selectedCatalogId,
+        accessToken: catalogUserAccessToken
+      };
+      
+      const response = await fetch(`${API_BASE_URL}/settings/meta-catalog`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(config)
+      });
+      
+      if (response.ok) {
+        showSuccess('Meta Catalog successfully auto-connected and saved!');
+        setShowCatalogSelect(false);
+        await fetchMetaCatalogConfig();
+      } else {
+        throw new Error('Failed to save');
+      }
+    } catch (error) {
+      console.error(error);
+      showError('Failed to auto-connect Meta Catalog');
+    } finally {
+      setSavingMetaCatalog(false);
+    }
+  };
+
   const resetForm = () => {
     setCurrentConfig({ name: "", phoneNumberId: "", wabaId: "", accessToken: "", verifyToken: "" });
     setEditingId(null);
@@ -442,14 +522,24 @@ const MasterConfig = () => {
                 </div>
               </div>
 
-              <button 
-                onClick={handleSaveMetaCatalog}
-                disabled={savingMetaCatalog || !metaCatalogConfig.catalogId || !metaCatalogConfig.accessToken}
-                className="btn-primary"
-                style={{alignSelf: 'flex-start', padding: '12px 24px'}}
-              >
-                {savingMetaCatalog ? 'Saving...' : 'Save Configuration'}
-              </button>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button 
+                  onClick={handleConnectMetaCatalog}
+                  className="btn-primary"
+                  style={{ backgroundColor: '#1877F2', borderColor: '#1877F2', display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px' }}
+                  disabled={savingMetaCatalog}
+                >
+                  <Facebook size={16} /> Auto-Connect Meta Catalog
+                </button>
+                <button 
+                  onClick={handleSaveMetaCatalog}
+                  disabled={savingMetaCatalog || !metaCatalogConfig.catalogId || !metaCatalogConfig.accessToken}
+                  className="btn-secondary"
+                  style={{alignSelf: 'flex-start', padding: '12px 24px'}}
+                >
+                  {savingMetaCatalog ? 'Saving...' : 'Save Manual Configuration'}
+                </button>
+              </div>
             </div>
 
             <div className="preference-info" style={{marginTop: '20px'}}>
@@ -779,6 +869,47 @@ const MasterConfig = () => {
               </div>
               <div className="form-actions">
                 <button className="btn-secondary" onClick={() => setSelectedConfig(null)}>Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCatalogSelect && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Select Meta Catalog</h2>
+              <button onClick={() => setShowCatalogSelect(false)} className="close-btn">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ padding: '20px 0' }}>
+              <p style={{ marginBottom: '16px', color: '#666' }}>
+                Select the Product Catalog you want to connect for WhatsApp E-Commerce.
+              </p>
+              <div className="form-group">
+                <label>Available Catalogs *</label>
+                <select 
+                  value={selectedCatalogId} 
+                  onChange={(e) => setSelectedCatalogId(e.target.value)}
+                  style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px' }}
+                >
+                  {availableCatalogs.map(cat => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-actions" style={{ marginTop: '24px' }}>
+                <button type="button" onClick={() => setShowCatalogSelect(false)} className="btn-secondary">
+                  Cancel
+                </button>
+                <button type="button" onClick={submitAutoConnectCatalog} className="btn-primary" disabled={savingMetaCatalog}>
+                  {savingMetaCatalog ? 'Connecting...' : 'Connect Catalog'}
+                </button>
               </div>
             </div>
           </div>

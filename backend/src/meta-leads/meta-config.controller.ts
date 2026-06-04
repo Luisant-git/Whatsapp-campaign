@@ -31,6 +31,12 @@ export class MetaConfigController {
     return this.metaConfigService.getOne(tenantId, parseInt(id), dbUrl);
   }
 
+  @Post('auto-connect')
+  async autoConnect(@Req() req: any, @Session() session: any, @Body() data: any) {
+    const { tenantId, dbUrl } = this.getTenantContext(req, session);
+    return this.metaConfigService.autoConnect(tenantId, data, dbUrl);
+  }
+
   @Post()
   async create(@Req() req: any, @Session() session: any, @Body() data: any) {
     const { tenantId, dbUrl } = this.getTenantContext(req, session);

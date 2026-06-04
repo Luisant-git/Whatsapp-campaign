@@ -73,37 +73,40 @@ const MasterConfig = () => {
     }
 
     // Launch Facebook login
-    window.FB.login(async (response) => {
+    window.FB.login((response) => {
       if (response.authResponse) {
         const code = response.authResponse.code;
         console.log('FB Login response code:', code);
         
-        try {
-          const res = await fetch(`${API_BASE_URL}/master-config/embedded-signup`, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ code }) 
-          });
+        // Use an async IIFE to prevent FB.login from throwing "Expression is of type asyncfunction, not function"
+        (async () => {
+          try {
+            const res = await fetch(`${API_BASE_URL}/master-config/embedded-signup`, { 
+              method: 'POST', 
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ code }) 
+            });
 
-          if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.message || 'Failed to complete Meta Embedded Signup');
+            if (!res.ok) {
+              const error = await res.json();
+              throw new Error(error.message || 'Failed to complete Meta Embedded Signup');
+            }
+
+            showSuccess('Successfully connected to Meta and saved configuration!');
+            fetchMasterConfigs(); // Refresh the list
+          } catch (error) {
+            console.error("Embedded Signup Error:", error);
+            showError(error.message || 'Failed to connect with Meta');
           }
-
-          showSuccess('Successfully connected to Meta and saved configuration!');
-          fetchMasterConfigs(); // Refresh the list
-        } catch (error) {
-          console.error("Embedded Signup Error:", error);
-          showError(error.message || 'Failed to connect with Meta');
-        }
+        })();
         
       } else {
         console.log('User cancelled login or did not fully authorize.');
         showError('Meta connection was cancelled or incomplete.');
       }
     }, {
-      config_id: 'YOUR_CONFIG_ID', // TODO: Replace with your WhatsApp Configuration ID
+      config_id: '2240746266666915', // WhatsApp Configuration ID
       response_type: 'code',
       override_default_response_type: true,
       extras: {

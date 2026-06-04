@@ -48,9 +48,8 @@ const MasterConfig = () => {
 
     // Define the initialization function FIRST
     window.fbAsyncInit = function() {
-      // NOTE: Replace YOUR_APP_ID with your actual Meta App ID
       window.FB.init({
-        appId      : 'YOUR_APP_ID', 
+        appId      : '1983839335719624', 
         cookie     : true,
         xfbml      : true,
         version    : 'v20.0'

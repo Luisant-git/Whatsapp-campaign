@@ -405,6 +405,27 @@ export default function Contact() {
     }
   };
 
+  const handleMultiAllocateGroup = async (groupId) => {
+    if (selectedIds.length === 0) return showError("Select contacts first");
+    if (!groupId) return;
+
+    const groupName = groups.find(g => String(g.id) === String(groupId))?.name || "Ungrouped";
+    if (!window.confirm(`Allocate ${selectedIds.length} contacts to group "${groupName}"?`)) return;
+
+    setLoading(true);
+    try {
+      await Promise.all(selectedIds.map((id) => contactAPI.update(id, { groupId })));
+      showSuccess(`Allocated ${selectedIds.length} contacts to group`);
+      clearSelection();
+      await fetchContacts(page, limit, searchQuery, selectedGroupFilterId);
+    } catch (err) {
+      console.error(err);
+      showError("Failed to allocate some contacts");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Bulk import
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -793,14 +814,31 @@ export default function Contact() {
           </button>
           {/* Delete / Restore selected */}
           {tab === "active" ? (
-            <button
-              className="btn-secondary btn-red"
-              onClick={handleMultiDelete}
-              disabled={selectedIds.length === 0 || loading}
-            >
-              <Trash2 size={18} />
-              <span style={{ marginLeft: 6 }}>Delete</span>
-            </button>
+            <>
+              {selectedIds.length > 0 && (
+                <select
+                  style={{ ...controlStyle, maxWidth: 160 }}
+                  onChange={(e) => {
+                    handleMultiAllocateGroup(e.target.value);
+                    e.target.value = "";
+                  }}
+                  defaultValue=""
+                >
+                  <option value="" disabled>Allocate Group...</option>
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>{g.name}</option>
+                  ))}
+                </select>
+              )}
+              <button
+                className="btn-secondary btn-red"
+                onClick={handleMultiDelete}
+                disabled={selectedIds.length === 0 || loading}
+              >
+                <Trash2 size={18} />
+                <span style={{ marginLeft: 6 }}>Delete</span>
+              </button>
+            </>
           ) : (
             <button
               className="btn-secondary btn-green"
@@ -813,6 +851,31 @@ export default function Contact() {
           )}
         </div>
       </div>
+
+      {/* Top Pagination */}
+      {tab === "active" && totalPages > 1 && (
+        <div className="pagination" style={{ justifyContent: "flex-end", marginBottom: "12px", marginTop: "0" }}>
+          <button
+            disabled={page === 1 || loading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="pagination-btn"
+          >
+            <ChevronLeft size={18} /> Prev
+          </button>
+
+          <span className="pagination-info">
+            Page {page} of {totalPages}
+          </span>
+
+          <button
+            disabled={page === totalPages || loading}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            className="pagination-btn"
+          >
+            Next <ChevronRight size={18} />
+          </button>
+        </div>
+      )}
 
       {/* Error */}
       {error && (

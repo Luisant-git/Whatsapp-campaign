@@ -222,6 +222,22 @@
   color: #111827;
 }
 
+.contacts-table input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #25d366;
+  transition: all 0.2s ease;
+  margin: 0;
+}
+
+.contacts-table input[type="checkbox"]:checked {
+  transform: scale(1.2);
+  outline: 2px solid #25d366;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .loading {
   text-align: center;
   padding: 40px;

@@ -284,6 +284,99 @@
   font-weight: 500;
 }
 
+.pagination-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pagination-rows {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.pagination-rows select {
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f8fafc;
+  outline: none;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pagination-btn-small {
+  background-color: transparent;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s;
+}
+
+.pagination-btn-small:hover:not(:disabled) {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+.pagination-btn-small:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info-small {
+  font-size: 13px;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pagination-info-small input {
+  width: 50px;
+  padding: 4px 6px;
+  text-align: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+}
+
+.pagination-info-small input:focus {
+  border-color: #25d366;
+}
+
+.pagination-info-small input::-webkit-outer-spin-button,
+.pagination-info-small input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.pagination-info-small input[type=number] {
+  -moz-appearance: textfield;
+}
+
 .contacts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));

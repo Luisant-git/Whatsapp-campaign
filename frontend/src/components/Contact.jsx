@@ -67,6 +67,8 @@ export default function Contact() {
   const [newGroupName, setNewGroupName] = useState(""); // used for add + edit
   const [editingGroupId, setEditingGroupId] = useState(null); // which group is being edited
 
+  const [allocateModal, setAllocateModal] = useState(null); // { groupId, groupName, count }
+
   // bulk import
   const [uploadedData, setUploadedData] = useState([]);
   const [fileName, setFileName] = useState("");
@@ -410,8 +412,12 @@ export default function Contact() {
     if (!groupId) return;
 
     const groupName = groups.find(g => String(g.id) === String(groupId))?.name || "Ungrouped";
-    if (!window.confirm(`Allocate ${selectedIds.length} contacts to group "${groupName}"?`)) return;
+    setAllocateModal({ groupId, groupName, count: selectedIds.length });
+  };
 
+  const confirmAllocation = async () => {
+    if (!allocateModal) return;
+    const { groupId } = allocateModal;
     setLoading(true);
     try {
       await Promise.all(selectedIds.map((id) => contactAPI.update(id, { groupId })));
@@ -423,6 +429,7 @@ export default function Contact() {
       showError("Failed to allocate some contacts");
     } finally {
       setLoading(false);
+      setAllocateModal(null);
     }
   };
 
@@ -628,6 +635,73 @@ export default function Contact() {
   const selectedGroupFilterOption =
     groupFilterOptions.find((opt) => opt.value === selectedGroupFilterId) || groupFilterOptions[0];
 
+  const renderPagination = (isTop = false) => {
+    if (tab !== "active" || totalPages <= 1) return null;
+    return (
+      <div className="pagination-compact" style={isTop ? { marginBottom: "12px" } : { marginTop: "24px" }}>
+        <div className="pagination-rows">
+          <span>Rows per page:</span>
+          <select
+            value={entries}
+            onChange={(e) => {
+              setEntries(Number(e.target.value));
+              setPage(1);
+            }}
+            disabled={loading}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+        </div>
+        <div className="pagination-controls">
+          <button
+            disabled={page === 1 || loading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="pagination-btn-small"
+          >
+            <ChevronLeft size={16} /> Prev
+          </button>
+
+          <span className="pagination-info-small">
+            Page
+            <input
+              type="number"
+              min={1}
+              max={totalPages}
+              defaultValue={page}
+              key={`page-input-${page}`}
+              onBlur={(e) => {
+                let p = parseInt(e.target.value);
+                if (!isNaN(p)) {
+                  p = Math.max(1, Math.min(p, totalPages));
+                  setPage(p);
+                  e.target.value = p;
+                } else {
+                  e.target.value = page;
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.target.blur();
+              }}
+              disabled={loading}
+            />
+            of {totalPages}
+          </span>
+
+          <button
+            disabled={page === totalPages || loading}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            className="pagination-btn-small"
+          >
+            Next <ChevronRight size={16} />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="contact-container">
       {/* Header */}
@@ -681,26 +755,6 @@ export default function Contact() {
         <div
           style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}
         >
-          {/* Show entries */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span>Show</span>
-            <select
-              value={entries}
-              onChange={(e) => {
-                setEntries(Number(e.target.value));
-                setPage(1);
-              }}
-              disabled={tab === "trash"}
-              style={controlStyle}
-            >
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-            <span>entries</span>
-          </div>
-
           {/* Group filter */}
           <div style={{ minWidth: 220 }}>
             <Select
@@ -816,19 +870,63 @@ export default function Contact() {
           {tab === "active" ? (
             <>
               {selectedIds.length > 0 && (
-                <select
-                  style={{ ...controlStyle, maxWidth: 160 }}
-                  onChange={(e) => {
-                    handleMultiAllocateGroup(e.target.value);
-                    e.target.value = "";
-                  }}
-                  defaultValue=""
-                >
-                  <option value="" disabled>Allocate Group...</option>
-                  {groups.map((g) => (
-                    <option key={g.id} value={g.id}>{g.name}</option>
-                  ))}
-                </select>
+                <div style={{ minWidth: 180 }}>
+                  <Select
+                    options={groups.map((g) => ({ value: String(g.id), label: g.name }))}
+                    value={null}
+                    onChange={(selected) => {
+                      if (selected) {
+                        handleMultiAllocateGroup(selected.value);
+                      }
+                    }}
+                    placeholder="Allocate Group..."
+                    isSearchable
+                    styles={{
+                      control: (base, state) => ({
+                        ...base,
+                        minHeight: 40,
+                        borderRadius: 8,
+                        borderColor: state.isFocused ? "#25d366" : "#e5e7eb",
+                        boxShadow: state.isFocused ? "0 0 0 3px rgba(37, 211, 102, 0.15)" : "none",
+                        "&:hover": {
+                          borderColor: "#25d366",
+                        },
+                      }),
+                      option: (base, state) => ({
+                        ...base,
+                        backgroundColor: state.isSelected
+                          ? "#25d366"
+                          : state.isFocused
+                            ? "#f0fdf4"
+                            : "#fff",
+                        color: state.isSelected ? "#fff" : "#111827",
+                        cursor: "pointer",
+                      }),
+                      singleValue: (base) => ({
+                        ...base,
+                        color: "#111827",
+                      }),
+                      placeholder: (base) => ({
+                        ...base,
+                        color: "#6b7280",
+                      }),
+                      dropdownIndicator: (base, state) => ({
+                        ...base,
+                        color: state.isFocused ? "#25d366" : "#6b7280",
+                        "&:hover": {
+                          color: "#25d366",
+                        },
+                      }),
+                      indicatorSeparator: () => ({
+                        display: "none",
+                      }),
+                      menu: (base) => ({
+                        ...base,
+                        zIndex: 9999,
+                      }),
+                    }}
+                  />
+                </div>
               )}
               <button
                 className="btn-secondary btn-red"
@@ -853,29 +951,7 @@ export default function Contact() {
       </div>
 
       {/* Top Pagination */}
-      {tab === "active" && totalPages > 1 && (
-        <div className="pagination" style={{ justifyContent: "flex-end", marginBottom: "12px", marginTop: "0" }}>
-          <button
-            disabled={page === 1 || loading}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="pagination-btn"
-          >
-            <ChevronLeft size={18} /> Prev
-          </button>
-
-          <span className="pagination-info">
-            Page {page} of {totalPages}
-          </span>
-
-          <button
-            disabled={page === totalPages || loading}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            className="pagination-btn"
-          >
-            Next <ChevronRight size={18} />
-          </button>
-        </div>
-      )}
+      {renderPagination(true)}
 
       {/* Error */}
       {error && (
@@ -1059,29 +1135,7 @@ export default function Contact() {
       )}
 
       {/* Pagination */}
-      {tab === "active" && totalPages > 1 && (
-        <div className="pagination">
-          <button
-            disabled={page === 1 || loading}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="pagination-btn"
-          >
-            <ChevronLeft size={18} /> Prev
-          </button>
-
-          <span className="pagination-info">
-            Page {page} of {totalPages}
-          </span>
-
-          <button
-            disabled={page === totalPages || loading}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            className="pagination-btn"
-          >
-            Next <ChevronRight size={18} />
-          </button>
-        </div>
-      )}
+      {renderPagination(false)}
 
       {/* -------------------- MODALS -------------------- */}
 
@@ -1704,6 +1758,31 @@ export default function Contact() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Allocate Modal */}
+      {allocateModal && (
+        <div className="modal-overlay" onClick={() => setAllocateModal(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
+            <div className="modal-header">
+              <h3>Confirm Allocation</h3>
+              <button className="close-btn" onClick={() => setAllocateModal(null)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ padding: "24px", fontSize: "16px", color: "#374151", textAlign: "center" }}>
+              <p>Allocate <strong>{allocateModal.count}</strong> contacts to group "<strong>{allocateModal.groupName}</strong>"?</p>
+            </div>
+            <div className="modal-actions" style={{ padding: "16px 24px", marginTop: 0 }}>
+              <button className="btn-secondary" onClick={() => setAllocateModal(null)}>
+                Cancel
+              </button>
+              <button className="btn-primary" onClick={confirmAllocation} disabled={loading}>
+                {loading ? "Allocating..." : "Yes, Allocate"}
+              </button>
+            </div>
           </div>
         </div>
       )}

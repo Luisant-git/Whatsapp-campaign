@@ -229,6 +229,9 @@ export class MasterConfigService {
       throw new BadRequestException('Meta App ID and App Secret must be configured (either in the config or .env)');
     }
 
+    console.log(`[Webhook Debug] Using App ID: "${appId}"`);
+    console.log(`[Webhook Debug] Using App Secret (first 4 chars): "${appSecret.substring(0, 4)}..." (length: ${appSecret.length})`);
+
     // Set Webhook for App
     const subscribeUrl = `https://graph.facebook.com/v20.0/${appId}/subscriptions`;
     

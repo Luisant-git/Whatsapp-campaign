@@ -191,7 +191,11 @@ export class WhatsappController {
                  
                   if (userId) {
                     console.log(`\n✅ PROCESSING MESSAGE for user ID: ${userId}`);
-                    await this.whatsappService.handleIncomingMessage(message, userId, profileName);
+                    await this.whatsappService.handleIncomingMessageWithoutContext(
+                      message, 
+                      phoneNumberId, 
+                      profileName
+                    );
                   } else {
                     console.log(`\n❌ NO USER FOUND - Message ignored`);
                     console.log('Phone Number ID:', phoneNumberId);
@@ -229,7 +233,13 @@ export class WhatsappController {
                       }
                     }
                     
-                    await this.whatsappService.updateMessageStatus(status.id, status.status);
+                    // Pass error details if status is failed
+                    await this.whatsappService.updateMessageStatusWithoutContext(
+                      status.id, 
+                      status.status, 
+                      change.value.metadata?.phone_number_id,
+                      status.errors // Pass the errors array from webhook
+                    );
                   } catch (statusError) {
                     console.error('Error updating status:', statusError);
                   }

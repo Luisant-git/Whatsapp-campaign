@@ -1156,7 +1156,6 @@ export class WhatsappService {
       }
 
       let tenantId: number | null = null;
-      let settingsId: number | null = null;
 
       // Cache miss - lookup from central database mapping
       const mapping = await this.centralPrisma.phoneNumberMapping.findUnique({

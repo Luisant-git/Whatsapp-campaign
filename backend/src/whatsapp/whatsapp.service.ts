@@ -1155,17 +1155,30 @@ export class WhatsappService {
         return;
       }
 
+      let tenantId: number | null = null;
+      let settingsId: number | null = null;
+
       // Cache miss - lookup from central database mapping
       const mapping = await this.centralPrisma.phoneNumberMapping.findUnique({
         where: { phoneNumberId }
       });
 
-      if (!mapping) {
-        this.logger.warn(`No tenant mapping found for phoneNumberId: ${phoneNumberId}`);
+      if (mapping) {
+        tenantId = mapping.tenantId;
+      } else {
+        this.logger.warn(`No central mapping found for ${phoneNumberId}. Searching tenant databases...`);
+        // Fallback: search all tenants manually
+        const userIds = await this.findAllUsersByPhoneNumberId(phoneNumberId);
+        if (userIds.length > 0) {
+          tenantId = userIds[0];
+        }
+      }
+
+      if (!tenantId) {
+        this.logger.warn(`Could not find any tenant for phoneNumberId: ${phoneNumberId}`);
         return;
       }
 
-      const tenantId = mapping.tenantId;
       const dbUrl = await this.getTenantDbUrl(tenantId);
       const tenantClient = this.tenantPrisma.getTenantClient(tenantId.toString(), dbUrl);
 

@@ -74,3 +74,21 @@ export const subscribeToWABA = async (id) => {
 
   return await response.json();
 };
+
+export const setAppWebhook = async (id, callbackUrl) => {
+  const response = await fetch(`${API_BASE_URL}/master-config/${id}/set-webhook`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({ callbackUrl }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to set app webhook');
+  }
+
+  return await response.json();
+};

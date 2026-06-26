@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getMasterConfigs, createMasterConfig, updateMasterConfig, deleteMasterConfig, subscribeToWABA } from "../api/masterConfig";
+import { getMasterConfigs, createMasterConfig, updateMasterConfig, deleteMasterConfig, subscribeToWABA, setAppWebhook } from "../api/masterConfig";
 import { getAllSettings } from "../api/auth";
 import { useToast } from '../contexts/ToastContext';
 import { API_BASE_URL } from "../api/config";
@@ -43,6 +43,10 @@ const MasterConfig = () => {
   const [availableCatalogs, setAvailableCatalogs] = useState([]);
   const [selectedCatalogId, setSelectedCatalogId] = useState('');
   const [catalogUserAccessToken, setCatalogUserAccessToken] = useState('');
+  const [showWebhookModal, setShowWebhookModal] = useState(false);
+  const [webhookConfigId, setWebhookConfigId] = useState(null);
+  const [callbackUrl, setCallbackUrl] = useState('https://enquiry.api.luisant.cloud/api/webhook');
+  const [settingWebhook, setSettingWebhook] = useState(false);
 
   useEffect(() => {
     fetchMasterConfigs();
@@ -397,6 +401,29 @@ const MasterConfig = () => {
     }
   };
 
+  const handleSetWebhookClick = (config) => {
+    setWebhookConfigId(config.id);
+    setShowWebhookModal(true);
+  };
+
+  const submitSetWebhook = async () => {
+    if (!callbackUrl) {
+      showError('Please enter a callback URL');
+      return;
+    }
+    setSettingWebhook(true);
+    try {
+      await setAppWebhook(webhookConfigId, callbackUrl);
+      showSuccess('Successfully configured App Webhook URL in Meta!');
+      setShowWebhookModal(false);
+    } catch (error) {
+      console.error(error);
+      showError(error.message || 'Failed to set app webhook');
+    } finally {
+      setSettingWebhook(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="settings-container">
@@ -701,6 +728,25 @@ const MasterConfig = () => {
                   >
                     <Wifi size={14} /> Subscribe
                   </button>
+                  <button 
+                    onClick={() => handleSetWebhookClick(config)} 
+                    className="btn-outline"
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      background: '#1877f2',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                    title="Set Meta App Webhook Callback URL"
+                  >
+                    <Wifi size={14} /> Set Webhook
+                  </button>
                 </div>
                 <div className="config-details">
                   <p><strong>Phone ID:</strong> {config.phoneNumberId}</p>
@@ -909,6 +955,43 @@ const MasterConfig = () => {
                 </button>
                 <button type="button" onClick={submitAutoConnectCatalog} className="btn-primary" disabled={savingMetaCatalog}>
                   {savingMetaCatalog ? 'Connecting...' : 'Connect Catalog'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showWebhookModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Set Meta Webhook Callback URL</h2>
+              <button onClick={() => setShowWebhookModal(false)} className="close-btn">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ padding: '20px 0' }}>
+              <p style={{ marginBottom: '16px', color: '#666' }}>
+                This will update your Meta App's webhook callback URL. Ensure your endpoint is ready to receive webhook verification.
+              </p>
+              <div className="form-group">
+                <label>Callback URL *</label>
+                <input
+                  type="text"
+                  placeholder="https://your-api.com/webhook"
+                  value={callbackUrl}
+                  onChange={(e) => setCallbackUrl(e.target.value)}
+                  style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px' }}
+                />
+              </div>
+              <div className="form-actions" style={{ marginTop: '24px' }}>
+                <button type="button" onClick={() => setShowWebhookModal(false)} className="btn-secondary">
+                  Cancel
+                </button>
+                <button type="button" onClick={submitSetWebhook} className="btn-primary" disabled={settingWebhook}>
+                  {settingWebhook ? 'Saving...' : 'Set Webhook URL'}
                 </button>
               </div>
             </div>

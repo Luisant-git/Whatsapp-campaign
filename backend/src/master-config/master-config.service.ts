@@ -205,4 +205,71 @@ export class MasterConfigService {
       );
     }
   }
+
+  async setAppWebhook(id: number, callbackUrl: string, tenantContext: TenantContext) {
+    const prisma = this.getPrisma(tenantContext);
+    
+    // Get the master config
+    const config = await prisma.masterConfig.findUnique({
+      where: { id },
+    });
+
+    if (!config) {
+      throw new BadRequestException('Master config not found');
+    }
+
+    if (!config.verifyToken) {
+      throw new BadRequestException('Verify Token is required in the configuration');
+    }
+
+    const appId = config.appId || process.env.META_APP_ID;
+    const appSecret = process.env.META_APP_SECRET;
+
+    if (!appId || !appSecret) {
+      throw new BadRequestException('Meta App ID and App Secret must be configured');
+    }
+
+    // Set Webhook for App
+    const subscribeUrl = `https://graph.facebook.com/v20.0/${appId}/subscriptions`;
+    
+    // Prepare url parameters
+    const params = new URLSearchParams({
+      object: 'whatsapp_business_account',
+      callback_url: callbackUrl,
+      verify_token: config.verifyToken,
+      fields: 'messages',
+      access_token: `${appId}|${appSecret}`
+    });
+    
+    try {
+      const response = await fetch(subscribeUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params.toString()
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new BadRequestException(
+          error.error?.message || 'Failed to set app webhook'
+        );
+      }
+
+      const data = await response.json();
+      return {
+        success: true,
+        message: 'Successfully configured App Webhook URL in Meta.',
+        data,
+      };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Failed to set app webhook: ${error.message}`
+      );
+    }
+  }
 }

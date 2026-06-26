@@ -240,14 +240,14 @@ export class MasterConfigService {
       object: 'whatsapp_business_account',
       callback_url: callbackUrl,
       verify_token: config.verifyToken,
-      fields: 'messages',
-      access_token: `${appId}|${appSecret}`
+      fields: 'messages'
     });
     
     try {
       const response = await fetch(subscribeUrl, {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${appId}|${appSecret}`,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: params.toString()

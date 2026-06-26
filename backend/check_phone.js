@@ -1,5 +1,5 @@
 const { PrismaClient } = require('@prisma/client-central');
-const { PrismaClient: TenantPrisma } = require('@prisma/client');
+const { PrismaClient: TenantPrisma } = require('@prisma/client-tenant');
 require('dotenv').config();
 
 async function main() {

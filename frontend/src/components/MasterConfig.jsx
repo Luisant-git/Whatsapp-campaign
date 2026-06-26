@@ -18,10 +18,12 @@ const MasterConfig = () => {
     phoneNumberId: "",
     wabaId: "",
     appId: "",
+    appSecret: "",
     accessToken: "",
     verifyToken: "",
   });
   const [showAccessToken, setShowAccessToken] = useState(false);
+  const [showAppSecret, setShowAppSecret] = useState(false);
   const [showVerifyToken, setShowVerifyToken] = useState(false);
   const [selectedConfig, setSelectedConfig] = useState(null);
   const [verifyTokenError, setVerifyTokenError] = useState('');
@@ -334,7 +336,7 @@ const MasterConfig = () => {
   };
 
   const resetForm = () => {
-    setCurrentConfig({ name: "", phoneNumberId: "", wabaId: "", accessToken: "", verifyToken: "" });
+    setCurrentConfig({ name: "", phoneNumberId: "", wabaId: "", appId: "", appSecret: "", accessToken: "", verifyToken: "" });
     setEditingId(null);
     setShowForm(false);
   };
@@ -370,6 +372,7 @@ const MasterConfig = () => {
       phoneNumberId: config.phoneNumberId,
       wabaId: config.wabaId || "",
       appId: config.appId || "",
+      appSecret: config.appSecret || "",
       accessToken: config.accessToken,
       verifyToken: config.verifyToken,
     });
@@ -820,6 +823,24 @@ const MasterConfig = () => {
                 </small>
               </div>
               <div className="form-group">
+                <label>App Secret *</label>
+                <div className="input-with-icon">
+                  <input
+                    type={showAppSecret ? "text" : "password"}
+                    placeholder="Enter Meta App Secret"
+                    value={currentConfig.appSecret}
+                    onChange={(e) => setCurrentConfig({...currentConfig, appSecret: e.target.value})}
+                  />
+                  <button
+                    type="button"
+                    className="toggle-visibility"
+                    onClick={() => setShowAppSecret(!showAppSecret)}
+                  >
+                    {showAppSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+              <div className="form-group">
                 <label>Access Token *</label>
                 <div className="input-with-icon">
                   <input
@@ -899,6 +920,12 @@ const MasterConfig = () => {
                 <label>App ID</label>
                 <p style={{padding: '12px', background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '4px', margin: '8px 0'}}>
                   {selectedConfig.appId || 'Not configured'}
+                </p>
+              </div>
+              <div className="form-group">
+                <label>App Secret</label>
+                <p style={{padding: '12px', background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: '4px', margin: '8px 0'}}>
+                  {selectedConfig.appSecret ? '••••••••••••••••' : 'Not configured'}
                 </p>
               </div>
               <div className="form-group">

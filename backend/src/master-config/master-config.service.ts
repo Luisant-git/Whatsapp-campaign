@@ -223,10 +223,10 @@ export class MasterConfigService {
     }
 
     const appId = config.appId || process.env.META_APP_ID;
-    const appSecret = process.env.META_APP_SECRET;
+    const appSecret = config.appSecret || process.env.META_APP_SECRET;
 
     if (!appId || !appSecret) {
-      throw new BadRequestException('Meta App ID and App Secret must be configured');
+      throw new BadRequestException('Meta App ID and App Secret must be configured (either in the config or .env)');
     }
 
     // Set Webhook for App

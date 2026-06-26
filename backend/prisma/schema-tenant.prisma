@@ -24,6 +24,7 @@ model MasterConfig {
   phoneNumberId String
   wabaId        String?
   appId         String?
+  appSecret     String?
   accessToken   String
   verifyToken   String
   isActive      Boolean            @default(true)

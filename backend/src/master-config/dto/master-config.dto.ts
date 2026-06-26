@@ -22,6 +22,11 @@ export class CreateMasterConfigDto {
   @IsOptional()
   appId?: string;
 
+  @ApiProperty({ description: 'Meta App Secret' })
+  @IsString()
+  @IsOptional()
+  appSecret?: string;
+
   @ApiProperty({ description: 'WhatsApp Access Token' })
   @IsString()
   @IsNotEmpty()
@@ -58,6 +63,11 @@ export class UpdateMasterConfigDto {
   @IsOptional()
   @IsString()
   appId?: string;
+
+  @ApiProperty({ description: 'Meta App Secret', required: false })
+  @IsOptional()
+  @IsString()
+  appSecret?: string;
 
   @ApiProperty({ description: 'WhatsApp Access Token', required: false })
   @IsOptional()

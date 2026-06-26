@@ -233,7 +233,7 @@ export class MasterConfigService {
     console.log(`[Webhook Debug] Using App Secret (first 4 chars): "${appSecret.substring(0, 4)}..." (length: ${appSecret.length})`);
 
     // Set Webhook for App
-    const subscribeUrl = `https://graph.facebook.com/v20.0/${appId}/subscriptions`;
+    const subscribeUrl = `https://graph.facebook.com/v20.0/${appId}/subscriptions?access_token=${appId}|${appSecret}`;
     
     // Prepare url parameters
     const params = new URLSearchParams({
@@ -247,7 +247,6 @@ export class MasterConfigService {
       const response = await fetch(subscribeUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${appId}|${appSecret}`,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: params.toString()

@@ -1277,6 +1277,9 @@ const WhatsAppChat = () => {
               };
               setReadMessages(newReadMessages);
               localStorage.setItem('readMessages', JSON.stringify(newReadMessages));
+              
+              setChats(prev => prev.map(c => c.phone === chat.phone ? { ...c, unreadCount: 0 } : c));
+              setAllChats(prev => prev.map(c => c.phone === chat.phone ? { ...c, unreadCount: 0 } : c));
             }
 
             setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 100);

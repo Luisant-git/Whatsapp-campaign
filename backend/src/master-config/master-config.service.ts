@@ -222,8 +222,8 @@ export class MasterConfigService {
       throw new BadRequestException('Verify Token is required in the configuration');
     }
 
-    const appId = config.appId || process.env.META_APP_ID;
-    const appSecret = config.appSecret || process.env.META_APP_SECRET;
+    const appId = (config.appId || process.env.META_APP_ID || '').trim();
+    const appSecret = (config.appSecret || process.env.META_APP_SECRET || '').trim();
 
     if (!appId || !appSecret) {
       throw new BadRequestException('Meta App ID and App Secret must be configured (either in the config or .env)');

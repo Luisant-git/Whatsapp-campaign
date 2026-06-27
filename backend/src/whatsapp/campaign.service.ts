@@ -229,6 +229,8 @@ export class CampaignService {
               const apiError = error.response.data.error;
               if (apiError.code === 131026) {
                 errorMessage = 'Number not registered on WhatsApp';
+              } else if (apiError.code === 131049) {
+                errorMessage = 'Message blocked to maintain healthy engagement (possible spam detection)';
               } else if (apiError.code === 131047) {
                 errorMessage = 'Message failed to send - Invalid number';
               } else {

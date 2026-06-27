@@ -133,6 +133,49 @@ const CampaignResults = ({ campaignId, onBack }) => {
     }
   };
 
+  // Health check error detection based on WhatsApp API error code 131049
+  const isHealthCheckError = (errorStr) => {
+    if (!errorStr) return false;
+    const lower = errorStr.toLowerCase();
+    return lower.includes('blocked to maintain healthy engagement')
+        || lower.includes('131049')
+        || lower.includes('spam detection');
+  };
+
+  const handleDownloadHealthCheckFailed = () => {
+    try {
+      const healthCheckContacts = results.filter(
+        r => r.status === 'failed' && isHealthCheckError(r.error)
+      );
+
+      if (healthCheckContacts.length === 0) {
+        showError('No Health Check failed contacts found');
+        return;
+      }
+
+      const data = [
+        ['Contact Name', 'Phone Number', 'Failure Reason'],
+        ...healthCheckContacts.map(r => [
+          r.name || 'N/A',
+          r.phone,
+          'Health Check'
+        ])
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Health Check Failed');
+      XLSX.writeFile(wb, `campaign-${campaign?.name}-health-check-failed-contacts.xlsx`);
+
+      showSuccess(`Downloaded ${healthCheckContacts.length} Health Check failed contacts`);
+    } catch (error) {
+      console.error('Error downloading health check failed contacts:', error);
+      showError('Failed to download health check failed contacts');
+    }
+  };
+
+
+
   const handleResendToFailed = () => {
     const failedContacts = results.filter(r => r.status === 'failed');
     
@@ -254,6 +297,9 @@ const CampaignResults = ({ campaignId, onBack }) => {
           </button>
           <button onClick={handleDownloadFailedContacts} className="download-btn" style={{ background: '#ef4444' }}>
             Download Failed Contacts
+          </button>
+          <button onClick={handleDownloadHealthCheckFailed} className="download-btn" style={{ background: '#2563eb' }}>
+            Download Health Check Failed 
           </button>
         </div>
       </div>

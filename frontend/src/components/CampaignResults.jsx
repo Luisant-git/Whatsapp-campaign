@@ -133,6 +133,32 @@ const CampaignResults = ({ campaignId, onBack }) => {
     }
   };
 
+  const handleDownloadHealthCheckFailed = () => {
+    try {
+      const failedContacts = getRetriableFailedContacts();
+      
+      if (failedContacts.length === 0) {
+        showError('No health check failed contacts to download');
+        return;
+      }
+
+      const data = [
+        ['Contact', 'Phone'],
+        ...failedContacts.map(r => [r.name || 'N/A', r.phone])
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Spam Blocked Contacts');
+      XLSX.writeFile(wb, `campaign-${campaign?.name}-health-check-failed.xlsx`);
+      
+      showSuccess(`Downloaded ${failedContacts.length} health check failed contacts`);
+    } catch (error) {
+      console.error('Error downloading health check failed contacts:', error);
+      showError('Failed to download contacts');
+    }
+  };
+
   const getRetriableFailedContacts = () => {
     return results.filter(r => 
       r.status === 'failed' && 

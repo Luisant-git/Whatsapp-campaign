@@ -263,6 +263,9 @@ const CampaignResults = ({ campaignId, onBack }) => {
           <button onClick={handleDownloadFailedContacts} className="download-btn" style={{ background: '#ef4444' }}>
             Download Failed Contacts
           </button>
+          <button onClick={handleDownloadHealthCheckFailed} className="download-btn" style={{ background: '#2563eb' }}>
+            Download Health Check Failed 
+          </button>
         </div>
       </div>
 

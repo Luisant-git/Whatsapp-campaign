@@ -287,7 +287,7 @@ export class CampaignService {
       });
       const existingContactMap = new Map(existingContacts.map(c => [c.phone, c]));
 
-      await Promise.allSettled(contactsToUpsert.map(async (contactData) => {
+      for (const contactData of contactsToUpsert) {
         try {
           const existing = existingContactMap.get(contactData.phone);
           if (existing) {
@@ -306,7 +306,8 @@ export class CampaignService {
         } catch (contactError) {
           this.logger.warn(`Failed to update contact ${contactData.phone}:`, contactError.message);
         }
-      }));
+      }
+
 
       this.logger.log(`Batch ${batchIndex + 1} completed. Success: ${successCount}, Failed: ${failedCount}`);
     }

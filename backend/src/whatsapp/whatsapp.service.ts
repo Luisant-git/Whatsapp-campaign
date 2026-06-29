@@ -1036,7 +1036,9 @@ export class WhatsappService {
 
     const [uniqueChats, countResult] = await Promise.all([
       this.prisma.$queryRawUnsafe<any[]>(
-        `SELECT DISTINCT ON ("from", "phoneNumberId") id, "from", "phoneNumberId", message, "mediaType", "mediaUrl", direction, status, "profileName", "createdAt", "updatedAt"
+        `SELECT DISTINCT ON ("from", "phoneNumberId") 
+            id, "from", "phoneNumberId", message, "mediaType", "mediaUrl", direction, status, "profileName", "createdAt", "updatedAt",
+            (SELECT MAX("createdAt") FROM "WhatsAppMessage" i WHERE i."from" = "WhatsAppMessage"."from" AND i."phoneNumberId" = "WhatsAppMessage"."phoneNumberId" AND i.direction = 'incoming') as "lastIncomingDate"
          FROM "WhatsAppMessage"
          ${allowedPhones ? 'WHERE "from" = ANY($3)' : ''}
          ORDER BY "from", "phoneNumberId", "createdAt" DESC
@@ -1132,6 +1134,7 @@ export class WhatsappService {
         profileName: msg.profileName || null,
         createdAt: msg.createdAt,
         updatedAt: msg.updatedAt,
+        lastIncomingDate: msg.lastIncomingDate || null,
         displayPhoneNumber,
         businessPhoneNumberId: msg.phoneNumberId,
         contactName,

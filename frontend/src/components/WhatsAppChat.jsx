@@ -170,12 +170,17 @@ const WhatsAppChat = () => {
             msg.customerName || msg.contactName || msg.profileName || uniqueChats[chatKey].phone;
         }
   
+        const lastIncoming = msg.lastIncomingDate ? new Date(msg.lastIncomingDate) : null;
         if (
-          msg.direction === 'incoming' &&
-          (!readMessages[msg.from] ||
-            new Date(msg.createdAt) > new Date(readMessages[msg.from]))
+          lastIncoming &&
+          (!readMessages[msg.from] || lastIncoming > new Date(readMessages[msg.from]))
         ) {
-          uniqueChats[chatKey].unreadCount++;
+          uniqueChats[chatKey].unreadCount = 1;
+        } else if (
+          msg.direction === 'incoming' &&
+          (!readMessages[msg.from] || new Date(msg.createdAt) > new Date(readMessages[msg.from]))
+        ) {
+          uniqueChats[chatKey].unreadCount = 1;
         }
       });
   
@@ -542,12 +547,17 @@ const WhatsAppChat = () => {
           uniqueChats[chatKey].name =
             msg.customerName || msg.contactName || msg.profileName || uniqueChats[chatKey].phone;
         }
+        const lastIncoming = msg.lastIncomingDate ? new Date(msg.lastIncomingDate) : null;
         if (
-          msg.direction === 'incoming' &&
-          (!readMessages[msg.from] ||
-            new Date(msg.createdAt) > new Date(readMessages[msg.from]))
+          lastIncoming &&
+          (!readMessages[msg.from] || lastIncoming > new Date(readMessages[msg.from]))
         ) {
-          uniqueChats[chatKey].unreadCount++;
+          uniqueChats[chatKey].unreadCount = 1;
+        } else if (
+          msg.direction === 'incoming' &&
+          (!readMessages[msg.from] || new Date(msg.createdAt) > new Date(readMessages[msg.from]))
+        ) {
+          uniqueChats[chatKey].unreadCount = 1;
         }
       });
   

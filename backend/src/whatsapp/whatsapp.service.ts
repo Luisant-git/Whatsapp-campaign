@@ -2368,11 +2368,11 @@ export class WhatsappService {
     const results: Array<{ phoneNumber: string; success: boolean; messageId?: string; error?: string }> = [];
     const messagesToCreate: any[] = [];
 
-    await Promise.allSettled(contacts.map(async (contact) => {
+    for (const contact of contacts) {
       const validationError = this.validatePhoneNumber(contact.phone);
       if (validationError) {
         results.push({ phoneNumber: contact.phone, success: false, error: validationError });
-        return;
+        continue;
       }
 
       const formattedPhone = this.formatPhoneNumber(contact.phone);
@@ -2466,7 +2466,7 @@ export class WhatsappService {
         
         results.push({ phoneNumber: formattedPhone, success: false, error: errorMsg });
       }
-    }));
+    }
 
     if (messagesToCreate.length > 0) {
       try {

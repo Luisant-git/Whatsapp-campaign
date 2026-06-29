@@ -133,8 +133,16 @@ const CampaignResults = ({ campaignId, onBack }) => {
     }
   };
 
+  const getRetriableFailedContacts = () => {
+    return results.filter(r => 
+      r.status === 'failed' && 
+      r.error && 
+      r.error.includes('Message blocked to maintain healthy engagement')
+    );
+  };
+
   const handleResendToFailed = () => {
-    const failedContacts = results.filter(r => r.status === 'failed');
+    const failedContacts = getRetriableFailedContacts();
     
     if (failedContacts.length === 0) {
       showError('No failed contacts to resend');
@@ -150,7 +158,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
   };
 
   const handleConfirmResend = async () => {
-    const failedContacts = results.filter(r => r.status === 'failed');
+    const failedContacts = getRetriableFailedContacts();
     
     if (!resendCampaignName.trim()) {
       showError('Please enter a campaign name');
@@ -354,15 +362,15 @@ const CampaignResults = ({ campaignId, onBack }) => {
             </div>
             <button 
               onClick={handleResendToFailed}
-              disabled={results.filter(r => r.status === 'failed').length === 0}
+              disabled={getRetriableFailedContacts().length === 0}
               style={{
                 marginLeft: 'auto',
                 padding: '8px 16px',
-                background: results.filter(r => r.status === 'failed').length === 0 ? '#d1d5db' : '#25d366',
+                background: getRetriableFailedContacts().length === 0 ? '#d1d5db' : '#25d366',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
-                cursor: results.filter(r => r.status === 'failed').length === 0 ? 'not-allowed' : 'pointer',
+                cursor: getRetriableFailedContacts().length === 0 ? 'not-allowed' : 'pointer',
                 fontSize: '14px',
                 fontWeight: '500',
                 display: 'flex',
@@ -371,18 +379,18 @@ const CampaignResults = ({ campaignId, onBack }) => {
                 transition: 'all 0.2s'
               }}
               onMouseEnter={(e) => {
-                if (results.filter(r => r.status === 'failed').length > 0) {
+                if (getRetriableFailedContacts().length > 0) {
                   e.target.style.background = '#22c55e';
                 }
               }}
               onMouseLeave={(e) => {
-                if (results.filter(r => r.status === 'failed').length > 0) {
+                if (getRetriableFailedContacts().length > 0) {
                   e.target.style.background = '#25d366';
                 }
               }}
             >
               <Send size={16} />
-              Resend Failed ({results.filter(r => r.status === 'failed').length})
+              Resend Failed ({getRetriableFailedContacts().length})
             </button>
           </div>
 
@@ -530,7 +538,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
               <div style={{ marginBottom: '12px' }}>
                 <strong style={{ color: '#374151' }}>Failed Contacts:</strong>
                 <span style={{ marginLeft: '8px', color: '#ef4444', fontWeight: '600' }}>
-                  {results.filter(r => r.status === 'failed').length}
+                  {getRetriableFailedContacts().length}
                 </span>
               </div>
             </div>

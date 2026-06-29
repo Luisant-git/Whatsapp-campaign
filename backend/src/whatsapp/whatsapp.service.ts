@@ -175,6 +175,19 @@ export class WhatsappService {
       this.logger.log(`List item selected: ${listTitle} (ID: ${listId})`);
     }
 
+    // Handle reactions, stickers, and other non-text interactions
+    if (message.type === 'reaction' && message.reaction?.emoji) {
+      text = `Reaction: ${message.reaction.emoji}`;
+    } else if (message.type === 'sticker') {
+      text = `[Sticker sent]`;
+    } else if (message.type === 'location') {
+      text = `[Location shared: ${message.location?.latitude || ''}, ${message.location?.longitude || ''}]`;
+    } else if (message.type === 'contacts') {
+      text = `[Contact shared: ${message.contacts?.[0]?.name?.formatted_name || 'unknown'}]`;
+    } else if (message.type === 'unsupported' || message.type === 'unknown') {
+      text = `[Unsupported message type sent by user]`;
+    }
+
     // Check if message is "stop" or "yes" and handle labels
     if (text) {
       const lowerText = text.toLowerCase().trim();
@@ -1413,6 +1426,19 @@ export class WhatsappService {
       text = listTitle || message.interactive.list_reply.id;
       buttonClicked = `📋 List: ${text}`;
       this.logger.log(`📋 List item selected: ${text}`);
+    }
+
+    // Handle reactions, stickers, and other non-text interactions
+    if (message.type === 'reaction' && message.reaction?.emoji) {
+      text = `Reaction: ${message.reaction.emoji}`;
+    } else if (message.type === 'sticker') {
+      text = `[Sticker sent]`;
+    } else if (message.type === 'location') {
+      text = `[Location shared: ${message.location?.latitude || ''}, ${message.location?.longitude || ''}]`;
+    } else if (message.type === 'contacts') {
+      text = `[Contact shared: ${message.contacts?.[0]?.name?.formatted_name || 'unknown'}]`;
+    } else if (message.type === 'unsupported' || message.type === 'unknown') {
+      text = `[Unsupported message type sent by user]`;
     }
 
     const image = message.image;

@@ -2341,18 +2341,17 @@ export class WhatsappService {
 
     const results: Array<{ phoneNumber: string; success: boolean; messageId?: string; error?: string }> = [];
 
-    for (const contact of contacts) {
+    await Promise.allSettled(contacts.map(async (contact) => {
       const validationError = this.validatePhoneNumber(contact.phone);
       if (validationError) {
         results.push({ phoneNumber: contact.phone, success: false, error: validationError });
-        continue;
+        return;
       }
 
       const formattedPhone = this.formatPhoneNumber(contact.phone);
 
       try {
         this.logger.log(`Sending campaign message to ${formattedPhone} with template ${templateName}`);
-        this.logger.log(`Using phone number: ${phoneNumberId}`);
 
         const components: any[] = [];
 
@@ -2442,7 +2441,7 @@ export class WhatsappService {
         
         results.push({ phoneNumber: formattedPhone, success: false, error: errorMsg });
       }
-    }
+    }));
 
     return results;
   }

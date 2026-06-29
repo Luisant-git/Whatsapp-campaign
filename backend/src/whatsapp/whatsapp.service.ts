@@ -2340,6 +2340,7 @@ export class WhatsappService {
     const contactDataMap = new Map(allContactData.map(c => [c.phone, c]));
 
     const results: Array<{ phoneNumber: string; success: boolean; messageId?: string; error?: string }> = [];
+    const messagesToCreate: any[] = [];
 
     await Promise.allSettled(contacts.map(async (contact) => {
       const validationError = this.validatePhoneNumber(contact.phone);
@@ -2404,16 +2405,14 @@ export class WhatsappService {
           }
         );
 
-        await this.prisma.whatsAppMessage.create({
-          data: {
-            messageId: response.data.messages[0].id,
-            to: formattedPhone,
-            from: formattedPhone,
-            message: `Template ${templateName} sent to ${contact.name}`,
-            direction: 'outgoing',
-            status: 'sent',
-            phoneNumberId,
-          }
+        messagesToCreate.push({
+          messageId: response.data.messages[0].id,
+          to: formattedPhone,
+          from: formattedPhone,
+          message: `Template ${templateName} sent to ${contact.name}`,
+          direction: 'outgoing',
+          status: 'sent',
+          phoneNumberId,
         });
 
         results.push({ phoneNumber: formattedPhone, success: true, messageId: response.data.messages[0].id });
@@ -2442,6 +2441,17 @@ export class WhatsappService {
         results.push({ phoneNumber: formattedPhone, success: false, error: errorMsg });
       }
     }));
+
+    if (messagesToCreate.length > 0) {
+      try {
+        await this.prisma.whatsAppMessage.createMany({
+          data: messagesToCreate,
+          skipDuplicates: true
+        });
+      } catch (err) {
+        this.logger.error('Failed to batch create WhatsApp messages', err);
+      }
+    }
 
     return results;
   }

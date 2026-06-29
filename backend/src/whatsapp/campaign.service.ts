@@ -190,63 +190,42 @@ export class CampaignService {
       const batch = batches[batchIndex];
       this.logger.log(`Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} contacts)`);
 
-      // Process batch contacts in parallel
-      const batchResults = await Promise.allSettled(
-        batch.map(async (contact) => {
-          try {
-            this.logger.log(`Sending campaign message to ${contact.phone}`);
+      // Process batch contacts sequentially via whatsappService to avoid DB pool exhaustion and rate limits
+      const batchContacts = batch.map(contact => ({ name: contact.name || '', phone: contact.phone }));
+      
+      let results: Array<{ phoneNumber: string; success: boolean; messageId?: string; error?: string }> = [];
+      try {
+        results = await this.whatsappService.sendBulkTemplateMessageWithNames(
+          batchContacts,
+          campaign.templateName,
+          userId,
+          campaign.settingsId,
+          settings?.headerImageUrl && settings.headerImageUrl.trim() !== '' ? settings.headerImageUrl : undefined
+        );
+      } catch (error) {
+        this.logger.error(`Failed to process batch ${batchIndex + 1}:`, error);
+        results = batchContacts.map(contact => ({
+          phoneNumber: this.formatPhoneNumber(contact.phone),
+          success: false,
+          error: error.message || 'Batch processing failed'
+        }));
+      }
 
-            const result = await this.whatsappService.sendBulkTemplateMessageWithNames(
-              [{ name: contact.name || '', phone: contact.phone }],
-              campaign.templateName,
-              userId,
-              campaign.settingsId,
-              settings?.headerImageUrl && settings.headerImageUrl.trim() !== '' ? settings.headerImageUrl : undefined
-            );
-
-            const messageResult = result[0];
-            const status = messageResult.success ? 'sent' : 'failed';
-            const formattedPhone = this.formatPhoneNumber(
-              messageResult.phoneNumber || contact.phone,
-            );
-            
-            let errorMessage = messageResult.error || null;
-            
-            return {
-              success: messageResult.success,
-              messageId: messageResult.messageId || null,
-              phone: formattedPhone,
-              name: contact.name,
-              status,
-              error: errorMessage
-            };
-          } catch (error) {
-            this.logger.error(`Failed to send to ${contact.phone}:`, error);
-            const formattedPhone = this.formatPhoneNumber(contact.phone);
-            
-            let errorMessage = error.message;
-            if (error.response?.data?.error) {
-              const apiError = error.response.data.error;
-              if (apiError.code === 131026) {
-                errorMessage = 'Number not registered on WhatsApp';
-              } else if (apiError.code === 131047) {
-                errorMessage = 'Message failed to send - Invalid number';
-              } else {
-                errorMessage = apiError.error_user_msg || apiError.message || error.message;
-              }
-            }
-            
-            return {
-              success: false,
-              messageId: null,
-              phone: formattedPhone,
-              name: contact.name,
-              status: 'failed',
-              error: errorMessage
-            };
+      // Format results to match the expected batchResults structure
+      const batchResults = results.map(result => {
+        const contact = batch.find(c => this.formatPhoneNumber(c.phone) === result.phoneNumber || c.phone === result.phoneNumber) || { name: '', phone: result.phoneNumber };
+        return {
+          status: 'fulfilled' as const,
+          value: {
+            success: result.success,
+            messageId: result.messageId || null,
+            phone: result.phoneNumber,
+            name: contact.name,
+            status: result.success ? 'sent' : 'failed',
+            error: result.error || null
           }
-        })
-      );
+        };
+      });
 
       // Process batch results and save to database
       const messagesToCreate: Array<{

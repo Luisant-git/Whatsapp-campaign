@@ -137,9 +137,15 @@ const BulkWhatsApp = () => {
     }
 
     // Show confirmation popup after all validations
-    const confirmed = await showConfirm(
-      `Campaign will run in the background and send to ${dataToSend.length} contact${dataToSend.length > 1 ? 's' : ''}. You can check progress in the Campaigns Reports. Continue?`
-    );
+    let confirmMsg = `Campaign will run in the background and send to ${dataToSend.length} contact${dataToSend.length > 1 ? 's' : ''}. You can check progress in the Campaigns Reports. Continue?`;
+    
+    if (dataToSend.length > 2000) {
+      confirmMsg = `⚠️ WARNING: You are sending to ${dataToSend.length} contacts. It is highly recommended to keep campaigns below 2000 contacts at a time to prevent delivery issues. Are you sure you want to continue?`;
+    } else if (dataToSend.length > 200) {
+      confirmMsg = `You are about to send to ${dataToSend.length} contacts. (Note: keeping batches below 200-2000 at a time is recommended for best results). Campaign will run in the background. Continue?`;
+    }
+
+    const confirmed = await showConfirm(confirmMsg);
     if (!confirmed) return;
 
     // 5️⃣ Compose campaign payload

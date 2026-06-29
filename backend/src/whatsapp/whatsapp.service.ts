@@ -2400,7 +2400,8 @@ export class WhatsappService {
             headers: {
               'Authorization': `Bearer ${accessToken}`,
               'Content-Type': 'application/json'
-            }
+            },
+            timeout: 15000 // 15 seconds timeout to prevent hanging
           }
         );
 

@@ -168,18 +168,22 @@ export class CampaignService {
     let successCount = 0;
     let failedCount = 0;
 
-    // Get settings to access headerImageUrl
-    const settings = await this.prisma.whatsAppSettings.findUnique({
-      where: { id: campaign.settingsId }
-    });
+    let totalContactsCount = 0;
 
-    const contactsToSend = campaign.contacts || [];
+    try {
+      // Get settings to access headerImageUrl
+      const settings = await this.prisma.whatsAppSettings.findUnique({
+        where: { id: campaign.settingsId }
+      });
 
-    this.logger.log(
-      `Campaign ${id}: Processing ${contactsToSend.length} contacts in batches`
-    );
+      const contactsToSend = campaign.contacts || [];
+      totalContactsCount = contactsToSend.length;
 
-    // Process in batches of 50 to avoid overwhelming the system
+      this.logger.log(
+        `Campaign ${id}: Processing ${contactsToSend.length} contacts in batches`
+      );
+
+      // Process in batches of 50 to avoid overwhelming the system
     const BATCH_SIZE = 50;
     const batches: typeof contactsToSend[] = [];
     for (let i = 0; i < contactsToSend.length; i += BATCH_SIZE) {
@@ -190,8 +194,9 @@ export class CampaignService {
       const batch = batches[batchIndex];
       this.logger.log(`Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} contacts)`);
 
-      // Process batch contacts sequentially via whatsappService to avoid DB pool exhaustion and rate limits
-      const batchContacts = batch.map(contact => ({ name: contact.name || '', phone: contact.phone }));
+      try {
+        // Process batch contacts sequentially via whatsappService to avoid DB pool exhaustion and rate limits
+        const batchContacts = batch.map(contact => ({ name: contact.name || '', phone: contact.phone }));
       
       let results: Array<{ phoneNumber: string; success: boolean; messageId?: string; error?: string }> = [];
       try {
@@ -274,18 +279,27 @@ export class CampaignService {
 
       // Bulk insert campaign messages
       if (messagesToCreate.length > 0) {
-        await this.prisma.campaignMessage.createMany({
-          data: messagesToCreate
-        });
+        try {
+          await this.prisma.campaignMessage.createMany({
+            data: messagesToCreate
+          });
+        } catch (dbError) {
+          this.logger.error('Failed to bulk insert campaign messages:', dbError.message);
+        }
       }
 
       // Batch fetch existing contacts for this batch
       const batchPhones = contactsToUpsert.map(c => c.phone);
-      const existingContacts = await this.prisma.contact.findMany({
-        where: { phone: { in: batchPhones } },
-        select: { id: true, phone: true, name: true, groupId: true },
-      });
-      const existingContactMap = new Map(existingContacts.map(c => [c.phone, c]));
+      let existingContactMap = new Map();
+      try {
+        const existingContacts = await this.prisma.contact.findMany({
+          where: { phone: { in: batchPhones } },
+          select: { id: true, phone: true, name: true, groupId: true },
+        });
+        existingContactMap = new Map(existingContacts.map(c => [c.phone, c]));
+      } catch (dbError) {
+        this.logger.error('Failed to fetch existing contacts:', dbError.message);
+      }
 
       for (const contactData of contactsToUpsert) {
         try {
@@ -310,23 +324,33 @@ export class CampaignService {
 
 
       this.logger.log(`Batch ${batchIndex + 1} completed. Success: ${successCount}, Failed: ${failedCount}`);
-    }
-
-    // Update final campaign status and counts
-    await this.prisma.campaign.update({
-      where: { id },
-      data: {
-        status: 'completed',
-        successCount,
-        failedCount
+      } catch (batchError) {
+        this.logger.error(`Critical error processing batch ${batchIndex + 1}:`, batchError.message);
       }
-    });
+    }
+    } catch (globalError) {
+      this.logger.error(`Critical error during campaign ${id} execution:`, globalError.message);
+    } finally {
+      // Update final campaign status and counts GUARANTEED
+      try {
+        await this.prisma.campaign.update({
+          where: { id },
+          data: {
+            status: 'completed',
+            successCount,
+            failedCount
+          }
+        });
+      } catch (finalDbError) {
+        this.logger.error('Failed to update final campaign status in database:', finalDbError.message);
+      }
 
-    this.logger.log(`Campaign ${id} completed. Total Success: ${successCount}, Total Failed: ${failedCount}`);
+      this.logger.log(`Campaign ${id} finished. Total Success: ${successCount}, Total Failed: ${failedCount}`);
+    }
 
     return {
       campaignId: id,
-      totalContacts: contactsToSend.length,
+      totalContacts: totalContactsCount,
       successCount,
       failedCount
     };

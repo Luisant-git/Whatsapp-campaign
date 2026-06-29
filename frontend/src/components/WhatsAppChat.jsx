@@ -180,9 +180,11 @@ const WhatsAppChat = () => {
       });
   
       setAllChats(
-        Object.values(uniqueChats).sort(
-          (a, b) => new Date(b.lastTime) - new Date(a.lastTime)
-        )
+        Object.values(uniqueChats).sort((a, b) => {
+          if (a.unreadCount > 0 && b.unreadCount === 0) return -1;
+          if (b.unreadCount > 0 && a.unreadCount === 0) return 1;
+          return new Date(b.lastTime) - new Date(a.lastTime);
+        })
       );
     } catch (error) {
       console.error('Error fetching all chats for search:', error);
@@ -550,9 +552,11 @@ const WhatsAppChat = () => {
       });
   
       setChats(
-        Object.values(uniqueChats).sort(
-          (a, b) => new Date(b.lastTime) - new Date(a.lastTime),
-        ),
+        Object.values(uniqueChats).sort((a, b) => {
+          if (a.unreadCount > 0 && b.unreadCount === 0) return -1;
+          if (b.unreadCount > 0 && a.unreadCount === 0) return 1;
+          return new Date(b.lastTime) - new Date(a.lastTime);
+        })
       );
     } catch (error) {
       console.error('Error fetching chats:', error);

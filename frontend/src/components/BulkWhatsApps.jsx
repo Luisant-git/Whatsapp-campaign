@@ -88,12 +88,28 @@ const BulkWhatsApp = () => {
     return [...new Set(settings.map((item) => item.templateName).filter(Boolean))];
   }, [settings]);
 
-  const handleDayToggle = (day) =>
+  const handleDayToggle = (day) => {
     setScheduledDays((prev) =>
       prev.includes(day)
         ? prev.filter((d) => d !== day)
         : [...prev, day]
     );
+  };
+
+  const parseScheduledTime = (timeStr) => {
+    if (!timeStr) return { h: 9, m: 0, ampm: 'AM' };
+    let [h, m] = timeStr.split(':').map(Number);
+    return { h: h % 12 || 12, m, ampm: h >= 12 ? 'PM' : 'AM' };
+  };
+
+  const handleTimeChange = (type, val) => {
+    let { h, m, ampm } = parseScheduledTime(scheduledTime);
+    if (type === 'h') h = val;
+    if (type === 'm') m = val;
+    if (type === 'ampm') ampm = val;
+    let h24 = (h % 12) + (ampm === 'PM' ? 12 : 0);
+    setScheduledTime(`${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+  };
 
   const handleSendBulkMessages = async () => {
     setResults(null);
@@ -288,29 +304,109 @@ const BulkWhatsApp = () => {
             <>
               <div className="form-group">
                 <label className="form-label">Select Days</label>
-                <div className="days-selector">
-                  {daysOfWeek.map((day) => (
-                    <label key={day.value} className="day-option">
-                      <input
-                        type="checkbox"
-                        checked={scheduledDays.includes(day.value)}
-                        onChange={() => handleDayToggle(day.value)}
-                      />
-                      <span>{day.label}</span>
-                    </label>
-                  ))}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {daysOfWeek.map((day) => {
+                    const isSelected = scheduledDays.includes(day.value);
+                    return (
+                      <label 
+                        key={day.value} 
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px', 
+                          cursor: 'pointer', 
+                          fontSize: '13px',
+                          padding: '8px 14px',
+                          border: `1px solid ${isSelected ? '#1877f2' : '#ced0d4'}`,
+                          borderRadius: '8px',
+                          backgroundColor: isSelected ? '#e7f3ff' : 'white',
+                          color: isSelected ? '#1877f2' : '#1c1e21',
+                          fontWeight: isSelected ? '600' : '500',
+                          transition: 'all 0.2s ease',
+                          userSelect: 'none'
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleDayToggle(day.value)}
+                          style={{ accentColor: '#1877f2', margin: 0, width: '16px', height: '16px', cursor: 'pointer' }}
+                        />
+                        {day.label}
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
 
               <div className="form-group">
                 <label className="form-label">Time (IST)</label>
-                <input
-                  type="time"
-                  className="form-input time-input"
-                  value={scheduledTime}
-                  onChange={(e) => setScheduledTime(e.target.value)}
-                />
-                <small className="form-hint">
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {(() => {
+                    const { h, m, ampm } = parseScheduledTime(scheduledTime);
+                    return (
+                      <>
+                        <select 
+                          value={h} 
+                          onChange={(e) => handleTimeChange('h', Number(e.target.value))}
+                          style={{ width: 'auto', padding: '8px 12px', border: '1px solid #ced0d4', borderRadius: '6px', outline: 'none', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px' }}
+                        >
+                          {Array.from({length: 12}, (_, i) => i + 1).map(hour => (
+                            <option key={hour} value={hour}>{String(hour).padStart(2, '0')}</option>
+                          ))}
+                        </select>
+                        <span style={{ fontWeight: '600', color: '#1c1e21' }}>:</span>
+                        <select 
+                          value={m} 
+                          onChange={(e) => handleTimeChange('m', Number(e.target.value))}
+                          style={{ width: 'auto', padding: '8px 12px', border: '1px solid #ced0d4', borderRadius: '6px', outline: 'none', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px' }}
+                        >
+                          {Array.from({length: 60}, (_, i) => i).map(minute => (
+                            <option key={minute} value={minute}>{String(minute).padStart(2, '0')}</option>
+                          ))}
+                        </select>
+                        
+                        <div style={{ display: 'flex', gap: '4px', marginLeft: '8px', background: '#f0f2f5', padding: '4px', borderRadius: '8px' }}>
+                          <button 
+                            onClick={(e) => { e.preventDefault(); handleTimeChange('ampm', 'AM'); }}
+                            style={{ 
+                              padding: '6px 12px', 
+                              border: 'none', 
+                              borderRadius: '6px', 
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              backgroundColor: ampm === 'AM' ? 'white' : 'transparent',
+                              color: ampm === 'AM' ? '#1877f2' : '#65676b',
+                              boxShadow: ampm === 'AM' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            AM
+                          </button>
+                          <button 
+                            onClick={(e) => { e.preventDefault(); handleTimeChange('ampm', 'PM'); }}
+                            style={{ 
+                              padding: '6px 12px', 
+                              border: 'none', 
+                              borderRadius: '6px', 
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              backgroundColor: ampm === 'PM' ? 'white' : 'transparent',
+                              color: ampm === 'PM' ? '#1877f2' : '#65676b',
+                              boxShadow: ampm === 'PM' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            PM
+                          </button>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+                <small className="form-hint" style={{ marginTop: '8px', display: 'block' }}>
                   Time will be in Indian Standard Time (IST)
                 </small>
               </div>

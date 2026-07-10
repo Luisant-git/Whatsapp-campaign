@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { 
   Phone, 
@@ -14,11 +14,15 @@ import {
   Trash2,
   MessageSquare
 } from 'lucide-react';
+import { sendBulkMessages } from "../api/whatsapp";
+import { getAllSettings } from "../api/auth";
+import { useToast } from "../contexts/ToastContext";
 import '../styles/MetaLeads.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010';
 
 const MetaLeads = ({ onNavigate }) => {
+  const { showSuccess, showError, showConfirm } = useToast();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -34,9 +38,30 @@ const MetaLeads = ({ onNavigate }) => {
   const [selectedLead, setSelectedLead] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [showComposeModal, setShowComposeModal] = useState(false);
+  const [composeCampaignFilter, setComposeCampaignFilter] = useState('');
+  const [composeCampaignName, setComposeCampaignName] = useState('');
   const [syncType, setSyncType] = useState('all');
   const [specificFormId, setSpecificFormId] = useState('');
   const fileInputRef = useRef(null);
+
+  // Bulk Message states
+  const [settings, setSettings] = useState([]);
+  const [templateName, setTemplateName] = useState("");
+  const [scheduleType, setScheduleType] = useState("one-time");
+  const [scheduledDays, setScheduledDays] = useState([]);
+  const [scheduledTime, setScheduledTime] = useState("09:00");
+  const [sendingCampaign, setSendingCampaign] = useState(false);
+
+  const daysOfWeek = [
+    { value: "sunday", label: "Sunday" },
+    { value: "monday", label: "Monday" },
+    { value: "tuesday", label: "Tuesday" },
+    { value: "wednesday", label: "Wednesday" },
+    { value: "thursday", label: "Thursday" },
+    { value: "friday", label: "Friday" },
+    { value: "saturday", label: "Saturday" },
+  ];
 
   const statuses = ['Intake', 'Qualified', 'Converted'];
   const tabs = ['All', 'Intake', 'Qualified', 'Converted'];
@@ -47,7 +72,21 @@ const MetaLeads = ({ onNavigate }) => {
 
   useEffect(() => {
     fetchCampaigns();
+    const fetchSettings = async () => {
+      try {
+        const data = await getAllSettings();
+        const settingsList = Array.isArray(data) ? data : [];
+        setSettings(settingsList);
+      } catch (error) {
+        console.error("Failed to fetch settings", error);
+      }
+    };
+    fetchSettings();
   }, []);
+
+  const uniqueTemplateNames = useMemo(() => {
+    return [...new Set(settings.map((item) => item.templateName).filter(Boolean))];
+  }, [settings]);
 
   const fetchLeads = async () => {
     try {
@@ -343,42 +382,121 @@ const MetaLeads = ({ onNavigate }) => {
     }
   };
 
-  const handleComposeCampaign = async () => {
+  const handleComposeClick = () => {
+    const selected = campaignFilter || (campaigns.length > 0 ? campaigns[0] : '');
+    setComposeCampaignFilter(selected);
+    setComposeCampaignName(selected);
+    setTemplateName("");
+    setScheduleType("one-time");
+    setScheduledDays([]);
+    setScheduledTime("09:00");
+    setShowComposeModal(true);
+  };
+
+  const handleDayToggle = (day) => {
+    setScheduledDays((prev) =>
+      prev.includes(day)
+        ? prev.filter((d) => d !== day)
+        : [...prev, day]
+    );
+  };
+
+  const parseScheduledTime = (timeStr) => {
+    if (!timeStr) return { h: 9, m: 0, ampm: 'AM' };
+    let [h, m] = timeStr.split(':').map(Number);
+    return { h: h % 12 || 12, m, ampm: h >= 12 ? 'PM' : 'AM' };
+  };
+
+  const handleTimeChange = (type, val) => {
+    let { h, m, ampm } = parseScheduledTime(scheduledTime);
+    if (type === 'h') h = val;
+    if (type === 'm') m = val;
+    if (type === 'ampm') ampm = val;
+    let h24 = (h % 12) + (ampm === 'PM' ? 12 : 0);
+    setScheduledTime(`${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+  };
+
+  const proceedToCompose = async () => {
+    if (!composeCampaignFilter) {
+      showError('Please select a Form Campaign.');
+      return;
+    }
+    if (!composeCampaignName.trim()) {
+      showError('Please enter a Campaign Name.');
+      return;
+    }
+    if (!templateName) {
+      showError('Please select a template.');
+      return;
+    }
+    if (scheduleType === "time-based" && scheduledDays.length === 0) {
+      showError("Please select at least one day for time-based scheduling.");
+      return;
+    }
+    
     try {
+      setSendingCampaign(true);
       const tenantId = localStorage.getItem('tenantId');
       const { data } = await axios.get(`${API_BASE_URL}/meta-leads`, {
-        params: { page: 1, limit: 10000, search, status: statusFilter, campaignName: campaignFilter },
+        params: { page: 1, limit: 10000, search: '', status: '', campaignName: composeCampaignFilter },
         headers: { 'x-tenant-id': tenantId },
         withCredentials: true,
       });
 
       const leadsToCompose = data.data || [];
       if (leadsToCompose.length === 0) {
-        alert('No leads to compose campaign for.');
+        showError('No leads found for this campaign.');
+        setSendingCampaign(false);
         return;
       }
 
-      const formattedContacts = leadsToCompose
+      const dataToSend = leadsToCompose
         .filter(lead => lead.phone)
-        .map(lead => `${lead.phone},${lead.name || ''}`)
-        .join('\n');
+        .map(lead => ({ phone: lead.phone, name: lead.name || '' }));
 
-      if (!formattedContacts) {
-        alert('No valid phone numbers found in the current selection.');
+      if (dataToSend.length === 0) {
+        showError('No valid phone numbers found for this campaign.');
+        setSendingCampaign(false);
         return;
       }
 
-      window.composeCampaignData = {
-        contacts: formattedContacts,
-        campaignName: campaignFilter || 'Lead Center Campaign'
+      let confirmMsg = `Campaign will run in the background and send to ${dataToSend.length} contact${dataToSend.length > 1 ? 's' : ''}. You can check progress in the Campaigns Reports. Continue?`;
+      if (dataToSend.length > 2000) {
+        confirmMsg = `⚠️ WARNING: You are sending to ${dataToSend.length} contacts. It is highly recommended to keep campaigns below 2000 contacts at a time to prevent delivery issues. Are you sure you want to continue?`;
+      } else if (dataToSend.length > 200) {
+        confirmMsg = `You are about to send to ${dataToSend.length} contacts. (Note: keeping batches below 200-2000 at a time is recommended for best results). Campaign will run in the background. Continue?`;
+      }
+
+      const confirmed = await showConfirm(confirmMsg);
+      if (!confirmed) {
+        setSendingCampaign(false);
+        return;
+      }
+
+      const campaignData = {
+        name: composeCampaignName,
+        contacts: dataToSend,
+        templateName,
+        scheduleType,
+        ...(scheduleType === "time-based" && {
+          scheduledDays,
+          scheduledTime,
+        }),
       };
 
-      if (onNavigate) {
-        onNavigate('bulk');
+      const response = await sendBulkMessages(campaignData);
+      
+      if (response.success) {
+        showSuccess(`Campaign started! Sending to ${dataToSend.length} contacts in the background.`);
+        setShowComposeModal(false);
+      } else {
+        throw new Error(response.message || "Failed to start campaign");
       }
     } catch (error) {
       console.error('Compose campaign error:', error);
-      alert('❌ Failed to prepare campaign');
+      showError(error.message || 'Failed to send campaign messages');
+    } finally {
+      setSendingCampaign(false);
     }
   };
 
@@ -412,7 +530,7 @@ const MetaLeads = ({ onNavigate }) => {
               <Download size={16} />
               Export
             </button>
-            <button className="sync-btn" onClick={handleComposeCampaign} style={{ background: '#25D366' }}>
+            <button className="sync-btn" onClick={handleComposeClick} style={{ background: '#25D366' }}>
               <MessageSquare size={16} />
               Compose
             </button>
@@ -732,6 +850,218 @@ const MetaLeads = ({ onNavigate }) => {
             <div className="modal-footer" style={{ borderTop: 'none', paddingTop: '0' }}>
               <button className="sync-btn secondary" onClick={() => setShowSyncModal(false)}>Cancel</button>
               <button className="sync-btn" onClick={performSync}>Start Sync</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Compose Campaign Modal */}
+      {showComposeModal && (
+        <div className="modal-overlay" onClick={() => setShowComposeModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '550px' }}>
+            <div className="modal-header">
+              <h2>Compose Message for Meta Leads</h2>
+              <button className="modal-close" onClick={() => setShowComposeModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              <p style={{ color: '#65676B', marginBottom: '20px', fontSize: '14px' }}>
+                Quickly send a WhatsApp campaign to all valid leads in a selected Form Campaign.
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21', textTransform: 'uppercase' }}>Target Form Campaign <span style={{ color: 'red' }}>*</span></label>
+                  <select 
+                    value={composeCampaignFilter} 
+                    onChange={(e) => {
+                      setComposeCampaignFilter(e.target.value);
+                      if (e.target.value && !composeCampaignName) {
+                        setComposeCampaignName(e.target.value);
+                      }
+                    }}
+                    style={{ 
+                      width: '100%', padding: '10px 12px', border: '1px solid #ced0d4', borderRadius: '6px',
+                      outline: 'none', fontSize: '14px', backgroundColor: 'white', cursor: 'pointer'
+                    }}
+                  >
+                    <option value="">Select a Campaign</option>
+                    {campaigns.map(campaign => (
+                      <option key={campaign} value={campaign}>{campaign}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21', textTransform: 'uppercase' }}>Campaign Name <span style={{ color: 'red' }}>*</span></label>
+                  <input 
+                    type="text" 
+                    value={composeCampaignName}
+                    onChange={(e) => setComposeCampaignName(e.target.value)}
+                    placeholder="Enter a name for this run..."
+                    style={{ 
+                      width: '100%', padding: '10px 12px', border: '1px solid #ced0d4', borderRadius: '6px',
+                      outline: 'none', fontSize: '14px', backgroundColor: 'white'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21', textTransform: 'uppercase' }}>Template Name <span style={{ color: 'red' }}>*</span></label>
+                  <select 
+                    value={templateName} 
+                    onChange={(e) => setTemplateName(e.target.value)}
+                    style={{ 
+                      width: '100%', padding: '10px 12px', border: '1px solid #ced0d4', borderRadius: '6px',
+                      outline: 'none', fontSize: '14px', backgroundColor: 'white', cursor: 'pointer'
+                    }}
+                  >
+                    <option value="">Select a Template</option>
+                    {uniqueTemplateNames.map((name, index) => (
+                      <option key={`template-${index}`} value={name}>{name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21', textTransform: 'uppercase' }}>Scheduling Type</label>
+                  <div style={{ display: 'flex', gap: '16px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                      <input type="radio" value="one-time" checked={scheduleType === "one-time"} onChange={(e) => setScheduleType(e.target.value)} style={{ width: '16px', height: '16px', accentColor: '#1877f2' }} />
+                      <span style={{ fontSize: '14px' }}>Send Now</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                      <input type="radio" value="time-based" checked={scheduleType === "time-based"} onChange={(e) => setScheduleType(e.target.value)} style={{ width: '16px', height: '16px', accentColor: '#1877f2' }} />
+                      <span style={{ fontSize: '14px' }}>Time-based</span>
+                    </label>
+                  </div>
+                </div>
+
+                {scheduleType === "time-based" && (
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', background: '#f5f6f7', padding: '12px', borderRadius: '6px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21', textTransform: 'uppercase' }}>Select Days</label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {daysOfWeek.map((day) => {
+                          const isSelected = scheduledDays.includes(day.value);
+                          return (
+                            <label 
+                              key={day.value} 
+                              style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '6px', 
+                                cursor: 'pointer', 
+                                fontSize: '12px',
+                                padding: '6px 10px',
+                                border: `1px solid ${isSelected ? '#1877f2' : '#ced0d4'}`,
+                                borderRadius: '6px',
+                                backgroundColor: isSelected ? '#e7f3ff' : 'white',
+                                color: isSelected ? '#1877f2' : '#1c1e21',
+                                fontWeight: isSelected ? '600' : '500',
+                                transition: 'all 0.2s ease',
+                                userSelect: 'none'
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleDayToggle(day.value)}
+                                style={{ accentColor: '#1877f2', margin: 0, width: '14px', height: '14px', cursor: 'pointer' }}
+                              />
+                              {day.label}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21', textTransform: 'uppercase' }}>Time (IST)</label>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {(() => {
+                          const { h, m, ampm } = parseScheduledTime(scheduledTime);
+                          return (
+                            <>
+                              <select 
+                                value={h} 
+                                onChange={(e) => handleTimeChange('h', Number(e.target.value))}
+                                style={{ padding: '8px 12px', border: '1px solid #ced0d4', borderRadius: '6px', outline: 'none', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px' }}
+                              >
+                                {Array.from({length: 12}, (_, i) => i + 1).map(hour => (
+                                  <option key={hour} value={hour}>{String(hour).padStart(2, '0')}</option>
+                                ))}
+                              </select>
+                              <span style={{ fontWeight: '600', color: '#1c1e21' }}>:</span>
+                              <select 
+                                value={m} 
+                                onChange={(e) => handleTimeChange('m', Number(e.target.value))}
+                                style={{ padding: '8px 12px', border: '1px solid #ced0d4', borderRadius: '6px', outline: 'none', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px' }}
+                              >
+                                {Array.from({length: 60}, (_, i) => i).map(minute => (
+                                  <option key={minute} value={minute}>{String(minute).padStart(2, '0')}</option>
+                                ))}
+                              </select>
+                              
+                              <div style={{ display: 'flex', gap: '4px', marginLeft: '8px', background: '#f0f2f5', padding: '4px', borderRadius: '8px' }}>
+                                <button 
+                                  onClick={() => handleTimeChange('ampm', 'AM')}
+                                  style={{ 
+                                    padding: '6px 12px', 
+                                    border: 'none', 
+                                    borderRadius: '6px', 
+                                    cursor: 'pointer',
+                                    fontSize: '13px',
+                                    fontWeight: '600',
+                                    backgroundColor: ampm === 'AM' ? 'white' : 'transparent',
+                                    color: ampm === 'AM' ? '#1877f2' : '#65676b',
+                                    boxShadow: ampm === 'AM' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                                    transition: 'all 0.2s'
+                                  }}
+                                >
+                                  AM
+                                </button>
+                                <button 
+                                  onClick={() => handleTimeChange('ampm', 'PM')}
+                                  style={{ 
+                                    padding: '6px 12px', 
+                                    border: 'none', 
+                                    borderRadius: '6px', 
+                                    cursor: 'pointer',
+                                    fontSize: '13px',
+                                    fontWeight: '600',
+                                    backgroundColor: ampm === 'PM' ? 'white' : 'transparent',
+                                    color: ampm === 'PM' ? '#1877f2' : '#65676b',
+                                    boxShadow: ampm === 'PM' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                                    transition: 'all 0.2s'
+                                  }}
+                                >
+                                  PM
+                                </button>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="sync-btn secondary" onClick={() => setShowComposeModal(false)} disabled={sendingCampaign}>Cancel</button>
+              <button className="sync-btn" onClick={proceedToCompose} disabled={sendingCampaign} style={{ background: sendingCampaign ? '#90ee90' : '#25D366' }}>
+                {sendingCampaign ? (
+                  <>
+                    <RefreshCw size={16} className="animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <MessageSquare size={16} />
+                    Send Campaign Messages
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

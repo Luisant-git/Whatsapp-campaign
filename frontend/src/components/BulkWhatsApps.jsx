@@ -64,6 +64,26 @@ const BulkWhatsApp = () => {
     };
     fetchGroups();
   }, []);
+
+  useEffect(() => {
+    if (window.composeCampaignData) {
+      setPhoneNumbers(window.composeCampaignData.contacts || "");
+      if (window.composeCampaignData.campaignName) {
+        setCampaignName(window.composeCampaignData.campaignName);
+      }
+      delete window.composeCampaignData;
+    }
+    if (window.resendFailedData) {
+      if (Array.isArray(window.resendFailedData)) {
+        const failedContacts = window.resendFailedData
+          .filter(c => c.phone)
+          .map(c => `${c.phone},${c.name || ''}`)
+          .join('\n');
+        setPhoneNumbers(failedContacts);
+      }
+      delete window.resendFailedData;
+    }
+  }, []);
   const uniqueTemplateNames = useMemo(() => {
     return [...new Set(settings.map((item) => item.templateName).filter(Boolean))];
   }, [settings]);

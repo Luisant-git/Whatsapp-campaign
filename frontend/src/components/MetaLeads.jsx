@@ -11,13 +11,14 @@ import {
   Filter,
   ExternalLink,
   Upload,
-  Trash2
+  Trash2,
+  MessageSquare
 } from 'lucide-react';
 import '../styles/MetaLeads.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010';
 
-const MetaLeads = () => {
+const MetaLeads = ({ onNavigate }) => {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -32,6 +33,9 @@ const MetaLeads = () => {
   const [tabCounts, setTabCounts] = useState({ All: 0, Intake: 0, Qualified: 0, Converted: 0 });
   const [selectedLead, setSelectedLead] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showSyncModal, setShowSyncModal] = useState(false);
+  const [syncType, setSyncType] = useState('all');
+  const [specificFormId, setSpecificFormId] = useState('');
   const fileInputRef = useRef(null);
 
   const statuses = ['Intake', 'Qualified', 'Converted'];
@@ -113,14 +117,23 @@ const MetaLeads = () => {
     }
   };
 
-  const syncLeads = async () => {
-    const choice = confirm('Sync ALL forms or specific form?\n\nOK = Sync ALL forms (recommended)\nCancel = Enter specific Form ID');
-    
+  const handleSyncClick = () => {
+    setSyncType('all');
+    setSpecificFormId('');
+    setShowSyncModal(true);
+  };
+
+  const performSync = async () => {
     let formId = 'all';
-    if (!choice) {
-      formId = prompt('Enter Form ID from Meta Leads:');
-      if (!formId) return;
+    if (syncType === 'specific') {
+      if (!specificFormId.trim()) {
+        alert('Please enter a specific Form ID');
+        return;
+      }
+      formId = specificFormId.trim();
     }
+    
+    setShowSyncModal(false);
     
     try {
       setSyncing(true);
@@ -330,6 +343,45 @@ const MetaLeads = () => {
     }
   };
 
+  const handleComposeCampaign = async () => {
+    try {
+      const tenantId = localStorage.getItem('tenantId');
+      const { data } = await axios.get(`${API_BASE_URL}/meta-leads`, {
+        params: { page: 1, limit: 10000, search, status: statusFilter, campaignName: campaignFilter },
+        headers: { 'x-tenant-id': tenantId },
+        withCredentials: true,
+      });
+
+      const leadsToCompose = data.data || [];
+      if (leadsToCompose.length === 0) {
+        alert('No leads to compose campaign for.');
+        return;
+      }
+
+      const formattedContacts = leadsToCompose
+        .filter(lead => lead.phone)
+        .map(lead => `${lead.phone},${lead.name || ''}`)
+        .join('\n');
+
+      if (!formattedContacts) {
+        alert('No valid phone numbers found in the current selection.');
+        return;
+      }
+
+      window.composeCampaignData = {
+        contacts: formattedContacts,
+        campaignName: campaignFilter || 'Lead Center Campaign'
+      };
+
+      if (onNavigate) {
+        onNavigate('bulk');
+      }
+    } catch (error) {
+      console.error('Compose campaign error:', error);
+      alert('❌ Failed to prepare campaign');
+    }
+  };
+
   return (
     <div className="meta-leads-wrapper">
       <div className="meta-leads-container">
@@ -360,7 +412,11 @@ const MetaLeads = () => {
               <Download size={16} />
               Export
             </button>
-            <button onClick={syncLeads} disabled={syncing} className="sync-btn">
+            <button className="sync-btn" onClick={handleComposeCampaign} style={{ background: '#25D366' }}>
+              <MessageSquare size={16} />
+              Compose
+            </button>
+            <button onClick={handleSyncClick} disabled={syncing} className="sync-btn">
               <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
               {syncing ? 'Syncing...' : 'Sync Leads'}
             </button>
@@ -610,6 +666,72 @@ const MetaLeads = () => {
             </div>
             <div className="modal-footer">
               <button className="sync-btn secondary" onClick={closeDetailsModal}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sync Leads Modal */}
+      {showSyncModal && (
+        <div className="modal-overlay" onClick={() => setShowSyncModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '450px' }}>
+            <div className="modal-header">
+              <h2>Sync Meta Leads</h2>
+              <button className="modal-close" onClick={() => setShowSyncModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ color: '#65676B', marginBottom: '20px', fontSize: '14px' }}>
+                Choose whether you want to sync all active forms or specify a single Form ID.
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input 
+                    type="radio" 
+                    name="syncType" 
+                    value="all" 
+                    checked={syncType === 'all'} 
+                    onChange={() => setSyncType('all')} 
+                    style={{ width: '18px', height: '18px', accentColor: '#1877f2' }}
+                  />
+                  <span style={{ fontSize: '15px', color: '#1c1e21', fontWeight: '500' }}>Sync ALL forms (Recommended)</span>
+                </label>
+                
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input 
+                    type="radio" 
+                    name="syncType" 
+                    value="specific" 
+                    checked={syncType === 'specific'} 
+                    onChange={() => setSyncType('specific')} 
+                    style={{ width: '18px', height: '18px', accentColor: '#1877f2' }}
+                  />
+                  <span style={{ fontSize: '15px', color: '#1c1e21', fontWeight: '500' }}>Sync a specific Form ID</span>
+                </label>
+
+                {syncType === 'specific' && (
+                  <div style={{ marginLeft: '26px', marginTop: '4px' }}>
+                    <input 
+                      type="text" 
+                      placeholder="Enter Form ID..." 
+                      value={specificFormId}
+                      onChange={(e) => setSpecificFormId(e.target.value)}
+                      style={{ 
+                        width: '100%', 
+                        padding: '10px 12px', 
+                        border: '1px solid #ced0d4', 
+                        borderRadius: '6px',
+                        outline: 'none',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="modal-footer" style={{ borderTop: 'none', paddingTop: '0' }}>
+              <button className="sync-btn secondary" onClick={() => setShowSyncModal(false)}>Cancel</button>
+              <button className="sync-btn" onClick={performSync}>Start Sync</button>
             </div>
           </div>
         </div>

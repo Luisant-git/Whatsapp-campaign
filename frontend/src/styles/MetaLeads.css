@@ -13,8 +13,10 @@
 .leads-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: flex-start;
   margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .header-title-section h1 {
@@ -32,6 +34,8 @@
 .leads-actions {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .sync-btn {

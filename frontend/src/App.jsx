@@ -580,7 +580,7 @@ function App() {
             {activeView === "chatbot" && <Chatbot />}
             {activeView === "flow-manager" && <FlowManager />}
             {activeView === "flow-appointments" && <FlowAppointments />}
-            {activeView === "meta-leads" && <MetaLeads />}
+            {activeView === "meta-leads" && <MetaLeads onNavigate={handleMenuClick} />}
             {activeView === "meta-leads-config" && <MetaLeadsConfig />}
             {activeView === "templates" && <TemplateManager />}
             {activeView === "analytics" && <Analytics />}

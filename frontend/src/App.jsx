@@ -510,6 +510,11 @@ function App() {
                   <span>Powered by</span>
                   <img src={luisantLogo} alt="Luisant" style={{ height: '24px' }} />
                 </div>
+                {user?.companyName && (
+                  <div style={{ fontSize: '15px', fontWeight: '600', color: '#333' }}>
+                    {user.companyName}
+                  </div>
+                )}
                 <div className="profile-dropdown">
                 <button
                   className="profile-btn"

@@ -28,6 +28,39 @@ import {
 import '../styles/TemplateManager.css';
 import { API_BASE_URL } from '../api/config';
 
+const formatDateTime = (dateString) => {
+  if (!dateString) return 'Recently';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return dateString;
+
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false
+  });
+  
+  const parts = formatter.formatToParts(d);
+  const getPart = (type) => parts.find(p => p.type === type).value;
+  
+  const yyyy = getPart('year');
+  const mm = getPart('month');
+  const dd = getPart('day');
+  
+  // hour could be 24-based from en-US with hour12: false
+  let hour = parseInt(getPart('hour'), 10);
+  if (hour === 24) hour = 0; // handle 24:00:00 as 00:00:00 just in case
+  
+  const ampm = hour >= 12 ? 'pm' : 'am';
+  hour = hour % 12;
+  hour = hour ? hour : 12;
+  const hh = hour.toString().padStart(2, '0');
+  const min = getPart('minute');
+  const sec = getPart('second');
+  
+  return `${yyyy}-${mm}-${dd} ${hh}:${min}:${sec} ${ampm}`;
+};
+
 const TemplateManager = () => {
   const [templates, setTemplates] = useState([]);
   const [templateLibrary, setTemplateLibrary] = useState(null);
@@ -1262,7 +1295,7 @@ const TemplateManager = () => {
                       {getLanguageLabel(template.language)}
                     </div>
                   </td>
-                  <td>{template.lastUpdated || template.updatedAt || 'Recently'}</td>
+                  <td>{formatDateTime(template.updatedAt || template.createdAt)}</td>
                   <td>
                     <div className="action-btns" style={{display: 'flex', gap: 8}}>
                       <button 

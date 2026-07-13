@@ -383,9 +383,8 @@ const MetaLeads = ({ onNavigate }) => {
   };
 
   const handleComposeClick = () => {
-    const selected = campaignFilter || (campaigns.length > 0 ? campaigns[0] : '');
-    setComposeCampaignFilter(selected);
-    setComposeCampaignName(selected);
+    setComposeCampaignFilter('');
+    setComposeCampaignName('');
     setTemplateName("");
     setScheduleType("one-time");
     setScheduledDays([]);
@@ -875,7 +874,7 @@ const MetaLeads = ({ onNavigate }) => {
                     value={composeCampaignFilter} 
                     onChange={(e) => {
                       setComposeCampaignFilter(e.target.value);
-                      if (e.target.value && !composeCampaignName) {
+                      if (e.target.value) {
                         setComposeCampaignName(e.target.value);
                       }
                     }}

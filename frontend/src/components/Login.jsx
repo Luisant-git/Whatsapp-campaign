@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { loginUser, getProfile } from "../api/auth";
 import { useToast } from "../contexts/ToastContext";
 import "../styles/Login.css";
+import logo from "../assets/main.png";
 
 function Login({ onLogin }) {
   
@@ -83,7 +84,9 @@ function Login({ onLogin }) {
   return (
     <div className="login-container">
       <div className="login-box">
-        <h1>WhatsApp Dashboard</h1>
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <img src={logo} alt="Logo" style={{ maxWidth: '85%', maxHeight: '90px', objectFit: 'contain' }} />
+        </div>
 
         <form onSubmit={handleSubmit}>
           <input

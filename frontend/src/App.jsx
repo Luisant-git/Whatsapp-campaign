@@ -503,37 +503,55 @@ function App() {
                 >
                   {sidebarOpen ? <X size={20} /> : <MenuIcon size={20} />}
                 </button>
-                <h1 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#075e54' }}>WhatsApp Business Manager</h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <h1 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#075e54' }}>WhatsApp Business Manager</h1>
+                  {user?.companyName && (
+                    <span style={{ 
+                      backgroundColor: '#e7f3ef', 
+                      color: '#075e54', 
+                      padding: '4px 12px', 
+                      borderRadius: '16px', 
+                      fontSize: '13px', 
+                      fontWeight: '600',
+                      border: '1px solid #c2e2d8'
+                    }}>
+                      {user.companyName}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#666' }}>
                   <span>Powered by</span>
                   <img src={luisantLogo} alt="Luisant" style={{ height: '24px' }} />
                 </div>
-                {user?.companyName && (
-                  <div style={{ fontSize: '15px', fontWeight: '600', color: '#333' }}>
-                    {user.companyName}
-                  </div>
-                )}
-                <div className="profile-dropdown">
-                <button
-                  className="profile-btn"
-                  onClick={() => setShowProfileMenu(!showProfileMenu)}
-                >
-                  <svg
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="white"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                <div className="profile-dropdown" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    className="profile-btn"
+                    onClick={() => setShowProfileMenu(!showProfileMenu)}
                   >
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                  </svg>
-                </button>
+                    <svg
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="white"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                  </button>
+                  {user?.name && (
+                    <span 
+                      style={{ fontSize: '14px', fontWeight: '600', color: '#333', cursor: 'pointer' }}
+                      onClick={() => setShowProfileMenu(!showProfileMenu)}
+                    >
+                      {user.name}
+                    </span>
+                  )}
                 {showProfileMenu && (
                   <div className="profile-menu">
                     <button

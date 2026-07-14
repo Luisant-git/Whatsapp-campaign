@@ -1635,9 +1635,11 @@ export class WhatsappService {
             session.description = text;
             session.step = 'awaiting_photos';
             session.timestamp = Date.now();
-            await this.sendMessageDirect(
+            await this.sendButtonsMessageDirect(
               from,
-              `*புகைப்படம் சேர்க்கவும் (0/3)*\nகுறை தொடர்பான புகைப்படங்களை சேர்க்கலாம்.\n\nபதிவு தேதி தானாகவே சேர்க்கப்படும். நீங்கள் தேதி உள்ளிட தேவையில்லை.\n\n(முடிந்தவுடன் *சமர்ப்பிக்கவும்* என்று தட்டச்சு செய்யவும்)`,
+              '',
+              `*புகைப்படம் சேர்க்கவும் (0/3)*\nகுறை தொடர்பான புகைப்படங்களை சேர்க்கலாம்.\n\nபதிவு தேதி தானாகவே சேர்க்கப்படும். நீங்கள் தேதி உள்ளிட தேவையில்லை.\n\n(படங்களை அனுப்பிய பின் கீழே உள்ள பொத்தானை அழுத்தவும்)`,
+              ['சமர்ப்பிக்கவும்'],
               accessToken,
               phoneId,
               tenantClient
@@ -1671,9 +1673,11 @@ export class WhatsappService {
               );
               return;
             } else {
-              await this.sendMessageDirect(
+              await this.sendButtonsMessageDirect(
                 from,
-                `புகைப்படம் சேர்க்கப்பட்டது (${session.photos.length}/3). மேலும் படங்களை அனுப்பலாம் அல்லது *சமர்ப்பிக்கவும்* என்று தட்டச்சு செய்யவும்.`,
+                '',
+                `புகைப்படம் சேர்க்கப்பட்டது (${session.photos.length}/3). மேலும் படங்களை அனுப்பலாம் அல்லது கீழே உள்ள பொத்தானை அழுத்தவும்.`,
+                ['சமர்ப்பிக்கவும்'],
                 accessToken,
                 phoneId,
                 tenantClient
@@ -1705,9 +1709,11 @@ export class WhatsappService {
           }
 
           if (!handled) {
-            await this.sendMessageDirect(
+            await this.sendButtonsMessageDirect(
               from,
-              `தயவுசெய்து புகைப்படத்தை அனுப்பவும் அல்லது *சமர்ப்பிக்கவும்* என்று தட்டச்சு செய்யவும்.`,
+              '',
+              `தயவுசெய்து புகைப்படத்தை அனுப்பவும் அல்லது கீழே உள்ள பொத்தானை அழுத்தவும்.`,
+              ['சமர்ப்பிக்கவும்'],
               accessToken,
               phoneId,
               tenantClient

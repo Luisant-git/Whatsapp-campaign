@@ -620,3 +620,19 @@ enum AutomationEventType {
   DOB
   ANNIVERSARY
 }
+
+model Grievance {
+  id          Int      @id @default(autoincrement())
+  phoneNumber String
+  type        String
+  location    String?
+  description String?
+  photos      Json     @default("[]")
+  status      String   @default("Pending")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([phoneNumber])
+  @@index([status])
+  @@index([type])
+}

@@ -1651,6 +1651,16 @@ export class WhatsappService {
             session.timestamp = Date.now();
             handled = true;
             if (session.photos.length >= 3) {
+              await tenantClient.grievance.create({
+                data: {
+                  phoneNumber: from,
+                  type: session.type,
+                  location: session.location || '',
+                  description: session.description || '',
+                  photos: session.photos,
+                  status: 'Pending'
+                }
+              });
               globalGrievanceSessions.delete(from);
               await this.sendMessageDirect(
                 from,
@@ -1673,6 +1683,16 @@ export class WhatsappService {
           }
           
           if (text && (text.includes('சமர்ப்பி') || text.toLowerCase().includes('submit') || text.toLowerCase().includes('skip'))) {
+            await tenantClient.grievance.create({
+              data: {
+                phoneNumber: from,
+                type: session.type,
+                location: session.location || '',
+                description: session.description || '',
+                photos: session.photos,
+                status: 'Pending'
+              }
+            });
             globalGrievanceSessions.delete(from);
             await this.sendMessageDirect(
               from,

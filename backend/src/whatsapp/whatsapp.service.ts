@@ -1654,7 +1654,7 @@ export class WhatsappService {
             handled = true;
             if (session.photos.length >= 3) {
               try {
-                await axios.post('https://complaintsapp.api.luisant.cloud/complaints', {
+                await axios.post('https://complaintsapp.api.luisant.cloud/webhook/whatsapp', {
                   type: session.type,
                   location: session.location || '',
                   description: session.description || '',
@@ -1689,7 +1689,7 @@ export class WhatsappService {
           
           if (text && (text.includes('சமர்ப்பி') || text.toLowerCase().includes('submit') || text.toLowerCase().includes('skip'))) {
             try {
-              await axios.post('https://complaintsapp.api.luisant.cloud/complaints', {
+              await axios.post('https://complaintsapp.api.luisant.cloud/webhook/whatsapp', {
                 type: session.type,
                 location: session.location || '',
                 description: session.description || '',

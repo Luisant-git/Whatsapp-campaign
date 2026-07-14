@@ -1654,12 +1654,11 @@ export class WhatsappService {
             handled = true;
             if (session.photos.length >= 3) {
               try {
-                await axios.post('http://localhost:3000/complaint', {
-                  phoneNumber: from,
+                await axios.post('https://complaintsapp.api.luisant.cloud/complaints', {
                   type: session.type,
                   location: session.location || '',
                   description: session.description || '',
-                  photos: session.photos
+                  images: session.photos
                 });
                 this.logger.log(`[Grievance] Pushed to Public-Complaint--app API`);
               } catch (err) {
@@ -1690,12 +1689,11 @@ export class WhatsappService {
           
           if (text && (text.includes('சமர்ப்பி') || text.toLowerCase().includes('submit') || text.toLowerCase().includes('skip'))) {
             try {
-              await axios.post('http://localhost:3000/complaint', {
-                phoneNumber: from,
+              await axios.post('https://complaintsapp.api.luisant.cloud/complaints', {
                 type: session.type,
                 location: session.location || '',
                 description: session.description || '',
-                photos: session.photos
+                images: session.photos
               });
               this.logger.log(`[Grievance] Pushed to Public-Complaint--app API`);
             } catch (err) {

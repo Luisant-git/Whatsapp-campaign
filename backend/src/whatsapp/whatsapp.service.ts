@@ -10,6 +10,8 @@ import { WhatsappEcommerceService } from '../ecommerce/whatsapp-ecommerce.servic
 import { PhoneRouterService } from './phone-router.service';
 import { FlowTriggerService } from '../flow-message/flow-trigger.service';
 
+const globalGrievanceSessions = new Map<string, { step: string; type: string; location?: string; description?: string; photos: string[]; timestamp: number }>();
+
 @Injectable()
 export class WhatsappService {
   private readonly logger = new Logger(WhatsappService.name);
@@ -17,9 +19,6 @@ export class WhatsappService {
   private readonly CACHE_TTL = 3600000; // 1 hour
   private phoneCredentialsCache = new Map<string, { phoneNumberId: string; accessToken: string; apiUrl: string; expiresAt: number }>();
   private readonly CREDENTIALS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-  private grievanceSessions = new Map<string, { step: string; type: string; location?: string; description?: string; photos: string[]; timestamp: number }>();
-
-
   constructor(
     private prisma: PrismaService,
     private centralPrisma: CentralPrismaService,
@@ -1594,11 +1593,11 @@ export class WhatsappService {
       '📋 மற்றவை'
     ];
 
-    this.logger.log(`[Grievance Debug] Processing text: "${text?.trim()}" from ${from}. Current active sessions: ${this.grievanceSessions.size}`);
+    this.logger.log(`[Grievance Debug] Processing text: "${text?.trim()}" from ${from}. Current active sessions: ${globalGrievanceSessions.size}`);
 
     if (text && grievanceTypes.includes(text.trim())) {
       this.logger.log(`[Grievance Debug] Exact match found! Starting session for ${from}`);
-      this.grievanceSessions.set(from, { step: 'awaiting_location', type: text.trim(), photos: [], timestamp: Date.now() });
+      globalGrievanceSessions.set(from, { step: 'awaiting_location', type: text.trim(), photos: [], timestamp: Date.now() });
       await this.sendMessageDirect(
         from,
         `தேர்ந்தெடுத்த குறை வகை:\n*${text.trim()}*\n\n*இடம்*\nஉங்கள் குறை பதிவு செய்யும் இடம்`,
@@ -1609,13 +1608,13 @@ export class WhatsappService {
       return;
     }
 
-    if (this.grievanceSessions.has(from)) {
+    if (globalGrievanceSessions.has(from)) {
       this.logger.log(`[Grievance Debug] Found active session for ${from}`);
-      const session = this.grievanceSessions.get(from)!;
+      const session = globalGrievanceSessions.get(from)!;
       
       // Expire session if older than 1 hour
       if (Date.now() - session.timestamp > 3600000) {
-        this.grievanceSessions.delete(from);
+        globalGrievanceSessions.delete(from);
       } else {
         if (session.step === 'awaiting_location') {
           if (text) {
@@ -1652,7 +1651,7 @@ export class WhatsappService {
             session.timestamp = Date.now();
             handled = true;
             if (session.photos.length >= 3) {
-              this.grievanceSessions.delete(from);
+              globalGrievanceSessions.delete(from);
               await this.sendMessageDirect(
                 from,
                 `✅ உங்கள் குறை வெற்றிகரமாக பதிவு செய்யப்பட்டது! நன்றி.`,
@@ -1674,7 +1673,7 @@ export class WhatsappService {
           }
           
           if (text && (text.includes('சமர்ப்பி') || text.toLowerCase().includes('submit') || text.toLowerCase().includes('skip'))) {
-            this.grievanceSessions.delete(from);
+            globalGrievanceSessions.delete(from);
             await this.sendMessageDirect(
               from,
               `✅ உங்கள் குறை வெற்றிகரமாக பதிவு செய்யப்பட்டது! நன்றி.`,

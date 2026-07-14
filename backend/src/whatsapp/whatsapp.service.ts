@@ -1585,12 +1585,12 @@ export class WhatsappService {
 
     // ---------------- GRIEVANCE CHATBOT LOGIC ----------------
     const grievanceTypes = [
-      '💧 குடிநீர் தொடர்பான குறை',
-      '🚧 மின்சாரம் / தெருவிளக்கு குறை',
+      '💧 குடிநீர் குறை',
+      '🚧 மின்சாரம் குறை',
       '🛣️ சாலை குறை',
       '❤️ சுகாதார குறை',
       '🏛️ கட்டிட வசதி குறை',
-      '🗑️ பொது போக்குவரத்து குறை',
+      '🗑️ போக்குவரத்து குறை',
       '📋 மற்றவை'
     ];
 
@@ -2341,24 +2341,10 @@ export class WhatsappService {
 
   async sendListMessageDirect(to: string, title: string, text: string, buttonText: string, menuItems: string[], accessToken: string, phoneNumberId: string, tenantClient: any) {
     try {
-      const rows = menuItems.slice(0, 10).map((item, index) => {
-        let displayTitle = item;
-        let description = undefined;
-        if (item.length > 24) {
-          let cutoff = item.substring(0, 22).lastIndexOf(' ');
-          if (cutoff > 5) {
-            displayTitle = item.substring(0, cutoff) + '...';
-          } else {
-            displayTitle = item.substring(0, 21) + '...';
-          }
-          description = item;
-        }
-        return {
-          id: item,
-          title: displayTitle,
-          ...(description && { description: description.length > 72 ? description.substring(0, 72) : description })
-        };
-      });
+      const rows = menuItems.slice(0, 10).map((item, index) => ({
+        id: item,
+        title: item.length > 24 ? item.substring(0, 24) : item
+      }));
 
       const interactive: any = {
         type: 'list',

@@ -17,6 +17,8 @@ export class WhatsappService {
   private readonly CACHE_TTL = 3600000; // 1 hour
   private phoneCredentialsCache = new Map<string, { phoneNumberId: string; accessToken: string; apiUrl: string; expiresAt: number }>();
   private readonly CREDENTIALS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  private grievanceSessions = new Map<string, { step: string; type: string; location?: string; description?: string; photos: string[]; timestamp: number }>();
+
 
   constructor(
     private prisma: PrismaService,
@@ -1579,6 +1581,119 @@ export class WhatsappService {
       username
     );
     this.logger.log(`✓ Message stored successfully`);
+
+    // ---------------- GRIEVANCE CHATBOT LOGIC ----------------
+    const grievanceTypes = [
+      '💧 குடிநீர் தொடர்பான குறை',
+      '🚧 மின்சாரம் / தெருவிளக்கு குறை',
+      '🛣️ சாலை குறை',
+      '❤️ சுகாதார குறை',
+      '🏛️ கட்டிட வசதி குறை',
+      '🗑️ பொது போக்குவரத்து குறை',
+      '📋 மற்றவை'
+    ];
+
+    if (text && grievanceTypes.includes(text.trim())) {
+      this.grievanceSessions.set(from, { step: 'awaiting_location', type: text.trim(), photos: [], timestamp: Date.now() });
+      await this.sendMessageDirect(
+        from,
+        `தேர்ந்தெடுத்த குறை வகை:\n*${text.trim()}*\n\n*இடம்*\nஉங்கள் குறை பதிவு செய்யும் இடம்`,
+        accessToken,
+        phoneId,
+        tenantClient
+      );
+      return;
+    }
+
+    if (this.grievanceSessions.has(from)) {
+      const session = this.grievanceSessions.get(from)!;
+      
+      // Expire session if older than 1 hour
+      if (Date.now() - session.timestamp > 3600000) {
+        this.grievanceSessions.delete(from);
+      } else {
+        if (session.step === 'awaiting_location') {
+          if (text) {
+            session.location = text;
+            session.step = 'awaiting_description';
+            session.timestamp = Date.now();
+            await this.sendMessageDirect(
+              from,
+              `*குறை விவரம்*\nஉங்கள் குறையை சுருக்கமாக விவரிக்கவும்`,
+              accessToken,
+              phoneId,
+              tenantClient
+            );
+            return;
+          }
+        } else if (session.step === 'awaiting_description') {
+          if (text) {
+            session.description = text;
+            session.step = 'awaiting_photos';
+            session.timestamp = Date.now();
+            await this.sendMessageDirect(
+              from,
+              `*புகைப்படம் சேர்க்கவும் (0/3)*\nகுறை தொடர்பான புகைப்படங்களை சேர்க்கலாம்.\n\nபதிவு தேதி தானாகவே சேர்க்கப்படும். நீங்கள் தேதி உள்ளிட தேவையில்லை.\n\n(முடிந்தவுடன் *சமர்ப்பிக்கவும்* என்று தட்டச்சு செய்யவும்)`,
+              accessToken,
+              phoneId,
+              tenantClient
+            );
+            return;
+          }
+        } else if (session.step === 'awaiting_photos') {
+          let handled = false;
+          if (mediaType === 'image' && mediaUrl) {
+            session.photos.push(mediaUrl);
+            session.timestamp = Date.now();
+            handled = true;
+            if (session.photos.length >= 3) {
+              this.grievanceSessions.delete(from);
+              await this.sendMessageDirect(
+                from,
+                `✅ உங்கள் குறை வெற்றிகரமாக பதிவு செய்யப்பட்டது! நன்றி.`,
+                accessToken,
+                phoneId,
+                tenantClient
+              );
+              return;
+            } else {
+              await this.sendMessageDirect(
+                from,
+                `புகைப்படம் சேர்க்கப்பட்டது (${session.photos.length}/3). மேலும் படங்களை அனுப்பலாம் அல்லது *சமர்ப்பிக்கவும்* என்று தட்டச்சு செய்யவும்.`,
+                accessToken,
+                phoneId,
+                tenantClient
+              );
+              return;
+            }
+          }
+          
+          if (text && (text.includes('சமர்ப்பி') || text.toLowerCase().includes('submit') || text.toLowerCase().includes('skip'))) {
+            this.grievanceSessions.delete(from);
+            await this.sendMessageDirect(
+              from,
+              `✅ உங்கள் குறை வெற்றிகரமாக பதிவு செய்யப்பட்டது! நன்றி.`,
+              accessToken,
+              phoneId,
+              tenantClient
+            );
+            return;
+          }
+
+          if (!handled) {
+            await this.sendMessageDirect(
+              from,
+              `தயவுசெய்து புகைப்படத்தை அனுப்பவும் அல்லது *சமர்ப்பிக்கவும்* என்று தட்டச்சு செய்யவும்.`,
+              accessToken,
+              phoneId,
+              tenantClient
+            );
+            return;
+          }
+        }
+      }
+    }
+    // ---------------- END GRIEVANCE CHATBOT LOGIC ----------------
 
     if (text) {
       const lowerText = text.toLowerCase().trim();

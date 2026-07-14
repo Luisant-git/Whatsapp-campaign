@@ -1653,6 +1653,18 @@ export class WhatsappService {
             session.timestamp = Date.now();
             handled = true;
             if (session.photos.length >= 3) {
+              try {
+                await axios.post('http://localhost:3000/complaint', {
+                  phoneNumber: from,
+                  type: session.type,
+                  location: session.location || '',
+                  description: session.description || '',
+                  photos: session.photos
+                });
+                this.logger.log(`[Grievance] Pushed to Public-Complaint--app API`);
+              } catch (err) {
+                this.logger.error(`[Grievance] API Push failed: ${err.message}`);
+              }
               globalGrievanceSessions.delete(from);
               await this.sendMessageDirect(
                 from,
@@ -1677,6 +1689,18 @@ export class WhatsappService {
           }
           
           if (text && (text.includes('சமர்ப்பி') || text.toLowerCase().includes('submit') || text.toLowerCase().includes('skip'))) {
+            try {
+              await axios.post('http://localhost:3000/complaint', {
+                phoneNumber: from,
+                type: session.type,
+                location: session.location || '',
+                description: session.description || '',
+                photos: session.photos
+              });
+              this.logger.log(`[Grievance] Pushed to Public-Complaint--app API`);
+            } catch (err) {
+              this.logger.error(`[Grievance] API Push failed: ${err.message}`);
+            }
             globalGrievanceSessions.delete(from);
             await this.sendMessageDirect(
               from,

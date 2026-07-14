@@ -1597,7 +1597,8 @@ export class WhatsappService {
 
     if (text && grievanceTypes.includes(text.trim())) {
       this.logger.log(`[Grievance Debug] Exact match found! Starting session for ${from}`);
-      globalGrievanceSessions.set(from, { step: 'awaiting_location', type: text.trim(), photos: [], timestamp: Date.now() });
+      const strippedType = text.trim().split(' ').slice(1).join(' ') || text.trim();
+      globalGrievanceSessions.set(from, { step: 'awaiting_location', type: strippedType, photos: [], timestamp: Date.now() });
       await this.sendMessageDirect(
         from,
         `தேர்ந்தெடுத்த குறை வகை:\n*${text.trim()}*\n\n*இடம்*\nஉங்கள் குறை பதிவு செய்யும் இடம்`,

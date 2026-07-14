@@ -1594,7 +1594,10 @@ export class WhatsappService {
       '📋 மற்றவை'
     ];
 
+    this.logger.log(`[Grievance Debug] Processing text: "${text?.trim()}" from ${from}. Current active sessions: ${this.grievanceSessions.size}`);
+
     if (text && grievanceTypes.includes(text.trim())) {
+      this.logger.log(`[Grievance Debug] Exact match found! Starting session for ${from}`);
       this.grievanceSessions.set(from, { step: 'awaiting_location', type: text.trim(), photos: [], timestamp: Date.now() });
       await this.sendMessageDirect(
         from,
@@ -1607,6 +1610,7 @@ export class WhatsappService {
     }
 
     if (this.grievanceSessions.has(from)) {
+      this.logger.log(`[Grievance Debug] Found active session for ${from}`);
       const session = this.grievanceSessions.get(from)!;
       
       // Expire session if older than 1 hour

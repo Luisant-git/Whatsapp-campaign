@@ -1427,8 +1427,9 @@ export class WhatsappService {
 
     // Handle interactive list replies
     if (message.type === 'interactive' && message.interactive?.type === 'list_reply') {
+      const listId = message.interactive.list_reply.id;
       const listTitle = message.interactive.list_reply.title;
-      text = listTitle || message.interactive.list_reply.id;
+      text = listId || listTitle; // prioritize ID over title since title is truncated
       buttonClicked = `📋 List: ${text}`;
       this.logger.log(`📋 List item selected: ${text}`);
     }
@@ -2340,10 +2341,15 @@ export class WhatsappService {
 
   async sendListMessageDirect(to: string, title: string, text: string, buttonText: string, menuItems: string[], accessToken: string, phoneNumberId: string, tenantClient: any) {
     try {
-      const rows = menuItems.slice(0, 10).map((item, index) => ({
-        id: item,
-        title: item.length > 24 ? item.substring(0, 24) : item
-      }));
+      const rows = menuItems.slice(0, 10).map((item, index) => {
+        const title = item.length > 24 ? item.substring(0, 24) : item;
+        const description = item.length > 24 ? item : undefined;
+        return {
+          id: item,
+          title,
+          ...(description && { description: description.length > 72 ? description.substring(0, 72) : description })
+        };
+      });
 
       const interactive: any = {
         type: 'list',

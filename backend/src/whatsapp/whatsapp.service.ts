@@ -1599,9 +1599,11 @@ export class WhatsappService {
       this.logger.log(`[Grievance Debug] Exact match found! Starting session for ${from}`);
       const strippedType = text.trim().split(' ').slice(1).join(' ') || text.trim();
       globalGrievanceSessions.set(from, { step: 'awaiting_location', type: strippedType, photos: [], timestamp: Date.now() });
-      await this.sendMessageDirect(
+      await this.sendButtonsMessageDirect(
         from,
-        `தேர்ந்தெடுத்த குறை வகை:\n*${text.trim()}*\n\n*இடம்*\nஉங்கள் குறை பதிவு செய்யும் இடம்`,
+        '',
+        `தேர்ந்தெடுத்த குறை வகை:\n*${text.trim()}*\n\n*இடம்*\nஉங்கள் குறை பதிவு செய்யும் ஊர் அல்லது தெரு பெயரை டைப் செய்யவும். (அல்லது கீழே உள்ள பட்டனை அழுத்தவும்)`,
+        ['ரத்து செய்'],
         accessToken,
         phoneId,
         tenantClient
@@ -1617,14 +1619,27 @@ export class WhatsappService {
       if (Date.now() - session.timestamp > 3600000) {
         globalGrievanceSessions.delete(from);
       } else {
+        if (text && (text === 'ரத்து செய்' || text.toLowerCase() === 'cancel')) {
+          globalGrievanceSessions.delete(from);
+          await this.sendMessageDirect(
+            from,
+            `❌ உங்கள் பதிவு ரத்து செய்யப்பட்டது. புதிதாக பதிவு செய்ய மீண்டும் குறையை தேர்ந்தெடுக்கவும்.`,
+            accessToken,
+            phoneId,
+            tenantClient
+          );
+          return;
+        }
         if (session.step === 'awaiting_location') {
           if (text) {
             session.location = text;
             session.step = 'awaiting_description';
             session.timestamp = Date.now();
-            await this.sendMessageDirect(
+            await this.sendButtonsMessageDirect(
               from,
-              `*குறை விவரம்*\nஉங்கள் குறையை சுருக்கமாக விவரிக்கவும்`,
+              '',
+              `*குறை விவரம்*\nஉங்கள் குறையை பற்றி சுருக்கமாக டைப் செய்யவும். (அல்லது கீழே உள்ள பட்டனை அழுத்தவும்)`,
+              ['ரத்து செய்'],
               accessToken,
               phoneId,
               tenantClient
@@ -1639,8 +1654,8 @@ export class WhatsappService {
             await this.sendButtonsMessageDirect(
               from,
               '',
-              `*புகைப்படம் சேர்க்கவும் (0/3)*\nகுறை தொடர்பான புகைப்படங்களை சேர்க்கலாம்.\n\n(படங்களை அனுப்பிய பின் கீழே உள்ள பொத்தானை அழுத்தவும்)`,
-              ['சமர்ப்பிக்கவும்'],
+              `*புகைப்படம் சேர்க்கவும் (0/3)*\nகுறை தொடர்பான புகைப்படங்களை சேர்க்கலாம்.\n\n(படங்களை அனுப்பிய பின் 'சமர்ப்பிக்கவும்' பட்டனை அழுத்தவும்)`,
+              ['சமர்ப்பிக்கவும்', 'ரத்து செய்'],
               accessToken,
               phoneId,
               tenantClient
@@ -1659,7 +1674,9 @@ export class WhatsappService {
                   type: session.type,
                   location: session.location || '',
                   description: session.description || '',
-                  images: session.photos
+                  images: session.photos,
+                  name: profileName || 'Unknown User',
+                  phone: from
                 });
                 this.logger.log(`[Grievance] Pushed to Public-Complaint--app API`);
               } catch (err) {
@@ -1678,8 +1695,8 @@ export class WhatsappService {
               await this.sendButtonsMessageDirect(
                 from,
                 '',
-                `புகைப்படம் சேர்க்கப்பட்டது (${session.photos.length}/3). மேலும் படங்களை அனுப்பலாம் அல்லது கீழே உள்ள பொத்தானை அழுத்தவும்.`,
-                ['சமர்ப்பிக்கவும்'],
+                `புகைப்படம் சேர்க்கப்பட்டது (${session.photos.length}/3). மேலும் படங்களை அனுப்பலாம் அல்லது கீழே உள்ள பட்டனை அழுத்தவும்.`,
+                ['சமர்ப்பிக்கவும்', 'ரத்து செய்'],
                 accessToken,
                 phoneId,
                 tenantClient
@@ -1694,7 +1711,9 @@ export class WhatsappService {
                 type: session.type,
                 location: session.location || '',
                 description: session.description || '',
-                images: session.photos
+                images: session.photos,
+                name: profileName || 'Unknown User',
+                phone: from
               });
               this.logger.log(`[Grievance] Pushed to Public-Complaint--app API`);
             } catch (err) {
@@ -1715,8 +1734,8 @@ export class WhatsappService {
             await this.sendButtonsMessageDirect(
               from,
               '',
-              `தயவுசெய்து புகைப்படத்தை அனுப்பவும் அல்லது கீழே உள்ள பொத்தானை அழுத்தவும்.`,
-              ['சமர்ப்பிக்கவும்'],
+              `தயவுசெய்து புகைப்படத்தை அனுப்பவும் அல்லது கீழே உள்ள பட்டனை அழுத்தவும்.`,
+              ['சமர்ப்பிக்கவும்', 'ரத்து செய்'],
               accessToken,
               phoneId,
               tenantClient

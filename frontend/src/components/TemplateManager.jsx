@@ -1256,8 +1256,9 @@ const TemplateManager = () => {
                 <th>Template Name</th>
                 <th>Category</th>
                 <th>Status</th>
+                <th>Reject Reason</th>
                 <th>Language</th>
-                <th>Last Updated</th>
+                <th>Date Submitted</th>
                 <th></th>
               </tr>
             </thead>
@@ -1290,12 +1291,21 @@ const TemplateManager = () => {
                     </span>
                   </td>
                   <td>
+                    {(template.status || '').toUpperCase() === 'REJECTED' && template.rejectionReason ? (
+                      <span style={{ color: '#fa3e3e', fontSize: 13, maxWidth: '200px', display: 'inline-block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={template.rejectionReason}>
+                        {template.rejectionReason}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#8d949e' }}>-</span>
+                    )}
+                  </td>
+                  <td>
                     <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
                       <Globe size={14} color="#8d949e" />
                       {getLanguageLabel(template.language)}
                     </div>
                   </td>
-                  <td>{formatDateTime(template.updatedAt || template.createdAt)}</td>
+                  <td>{formatDateTime(template.createdAt)}</td>
                   <td>
                     <div className="action-btns" style={{display: 'flex', gap: 8}}>
                       <button 

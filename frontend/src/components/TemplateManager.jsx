@@ -1291,13 +1291,11 @@ const TemplateManager = () => {
                     </span>
                   </td>
                   <td>
-                    {(template.status || '').toUpperCase() === 'REJECTED' && template.rejectionReason ? (
-                      <span style={{ color: '#fa3e3e', fontSize: 13, maxWidth: '200px', display: 'inline-block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={template.rejectionReason}>
-                        {template.rejectionReason}
+                    {(template.status || '').toUpperCase() === 'REJECTED' ? (
+                      <span style={{ color: '#fa3e3e', fontSize: 13, maxWidth: '200px', display: 'inline-block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={template.rejectionReason || 'No reason provided'}>
+                        {template.rejectionReason || 'No reason provided'}
                       </span>
-                    ) : (
-                      <span style={{ color: '#8d949e' }}>-</span>
-                    )}
+                    ) : null}
                   </td>
                   <td>
                     <div style={{display: 'flex', alignItems: 'center', gap: 6}}>

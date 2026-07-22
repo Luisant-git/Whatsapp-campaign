@@ -75,6 +75,7 @@ const TemplateManager = () => {
   const [uploading, setUploading] = useState(false);
   const [validationError, setValidationError] = useState(null);
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ open: false, template: null, loading: false });
+  const [rejectReasonModal, setRejectReasonModal] = useState({ open: false, reason: '' });
   const [showValidationErrors, setShowValidationErrors] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -1256,9 +1257,9 @@ const TemplateManager = () => {
                 <th>Template Name</th>
                 <th>Category</th>
                 <th>Status</th>
-                <th>Reject Reason</th>
                 <th>Language</th>
                 <th>Date Submitted</th>
+                <th>Reject Reason</th>
                 <th></th>
               </tr>
             </thead>
@@ -1291,19 +1292,27 @@ const TemplateManager = () => {
                     </span>
                   </td>
                   <td>
-                    {(template.status || '').toUpperCase() === 'REJECTED' ? (
-                      <span style={{ color: '#fa3e3e', fontSize: 13, maxWidth: '200px', display: 'inline-block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={template.rejectionReason || 'No reason provided'}>
-                        {template.rejectionReason || 'No reason provided'}
-                      </span>
-                    ) : null}
-                  </td>
-                  <td>
                     <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
                       <Globe size={14} color="#8d949e" />
                       {getLanguageLabel(template.language)}
                     </div>
                   </td>
                   <td>{formatDateTime(template.createdAt)}</td>
+                  <td>
+                    {(template.status || '').toUpperCase() === 'REJECTED' ? (
+                      <button 
+                        className="icon-btn" 
+                        title="View Reject Reason"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRejectReasonModal({ open: true, reason: template.rejectionReason || 'No reason provided' });
+                        }}
+                        style={{background: 'none', border: 'none', color: '#fa3e3e', cursor: 'pointer', padding: 4}}
+                      >
+                        <AlertCircle size={18} />
+                      </button>
+                    ) : null}
+                  </td>
                   <td>
                     <div className="action-btns" style={{display: 'flex', gap: 8}}>
                       <button 
@@ -1594,6 +1603,81 @@ const TemplateManager = () => {
                   }} />
                 )}
                 {deleteConfirmModal.loading ? 'Deleting' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Reason Modal */}
+      {rejectReasonModal.open && (
+        <div 
+          className="modal-overlay"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999
+          }}
+          onClick={() => setRejectReasonModal({ open: false, reason: '' })}
+        >
+          <div 
+            className="modal-content"
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 8,
+              padding: '24px',
+              maxWidth: 400,
+              width: '100%',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16}}>
+              <h3 style={{margin: 0, fontSize: 18, color: '#1c1e21', display: 'flex', alignItems: 'center', gap: 8}}>
+                <AlertCircle size={20} color="#fa3e3e" />
+                Reject Reason
+              </h3>
+              <button 
+                onClick={() => setRejectReasonModal({ open: false, reason: '' })}
+                style={{background: 'none', border: 'none', cursor: 'pointer', padding: 4}}
+              >
+                <X size={20} color="#606770" />
+              </button>
+            </div>
+            
+            <div style={{
+              padding: '16px',
+              backgroundColor: '#fbe9e9',
+              borderRadius: 6,
+              color: '#fa3e3e',
+              fontSize: 14,
+              lineHeight: 1.5,
+              wordBreak: 'break-word'
+            }}>
+              {rejectReasonModal.reason}
+            </div>
+            
+            <div style={{display: 'flex', justifyContent: 'flex-end', marginTop: 24}}>
+              <button 
+                onClick={() => setRejectReasonModal({ open: false, reason: '' })}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#008069',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 20,
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                Close
               </button>
             </div>
           </div>

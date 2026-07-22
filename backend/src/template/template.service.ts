@@ -249,12 +249,16 @@ export class TemplateService {
 
       console.log('Final processed components:', JSON.stringify(sortedComponents, null, 2));
 
-      const metaPayload = {
+      const metaPayload: any = {
         name: validName,
         category: createTemplateDto.category.toUpperCase(), // Meta expects uppercase
         language: createTemplateDto.language, // Use language code as-is from frontend
         components: sortedComponents
       };
+
+      if (createTemplateDto.category === TemplateCategory.AUTHENTICATION && createTemplateDto.customValidityPeriod && createTemplateDto.validityPeriod) {
+        metaPayload.message_send_ttl_seconds = createTemplateDto.validityPeriod * 60;
+      }
 
       // Authentication templates don't need root-level code_expiration_minutes
       // It should be in the FOOTER component instead
@@ -284,7 +288,7 @@ export class TemplateService {
           category: createTemplateDto.category,
           language: createTemplateDto.language,
           status: TemplateStatus.IN_REVIEW,
-          components: JSON.stringify(createTemplateDto.components),
+          components: JSON.stringify(sortedComponents),
           sampleValues: createTemplateDto.sampleValues ? JSON.stringify(createTemplateDto.sampleValues) : null,
           createdAt: new Date(),
         },
@@ -608,12 +612,16 @@ export class TemplateService {
         }
 
         try {
-          const metaPayload = {
+          const metaPayload: any = {
             name: newTemplateName,
             category: createTemplateData.category.toUpperCase(),
             language: createTemplateData.language,
             components: sortedComponents
           };
+
+          if (createTemplateData.category === TemplateCategory.AUTHENTICATION && updateTemplateDto.customValidityPeriod && updateTemplateDto.validityPeriod) {
+            metaPayload.message_send_ttl_seconds = updateTemplateDto.validityPeriod * 60;
+          }
 
           // Authentication templates don't need root-level code_expiration_minutes
           // It should be in the FOOTER component instead
@@ -661,7 +669,7 @@ export class TemplateService {
             name: newTemplateName,
             category: createTemplateData.category,
             language: createTemplateData.language,
-            components: JSON.stringify(createTemplateData.components),
+            components: JSON.stringify(sortedComponents),
             sampleValues: updateTemplateDto.sampleValues ? JSON.stringify(updateTemplateDto.sampleValues) : null,
             status: TemplateStatus.IN_REVIEW, // New template needs approval
             createdAt: new Date(),

@@ -949,6 +949,18 @@ export class TemplateService {
         }
 
         // Update in tenant database (not central)
+        const updateData: any = {
+          status,
+          templateId: metaTemplate.id,
+          category: metaTemplate.category?.toUpperCase(),
+          updatedAt: new Date(),
+        };
+
+        const reason = metaTemplate.rejected_reason || metaTemplate.reason;
+        if (reason) {
+          updateData.rejectionReason = reason;
+        }
+
         await tenantClient.messageTemplate.updateMany({
           where: {
             OR: [
@@ -956,12 +968,7 @@ export class TemplateService {
               { name: metaTemplate.name, language: metaTemplate.language }
             ]
           },
-          data: {
-            status,
-            templateId: metaTemplate.id,
-            category: metaTemplate.category?.toUpperCase(),
-            updatedAt: new Date(),
-          },
+          data: updateData,
         });
       }
 

@@ -1305,7 +1305,7 @@ const TemplateManager = () => {
                         title="View Reject Reason"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setRejectReasonModal({ open: true, reason: template.rejectionReason || 'No reason provided' });
+                          setRejectReasonModal({ open: true, reason: template.rejectionReason || 'Rejected due to Meta Policy Violation' });
                         }}
                         style={{background: 'none', border: 'none', color: '#fa3e3e', cursor: 'pointer', padding: 4}}
                       >

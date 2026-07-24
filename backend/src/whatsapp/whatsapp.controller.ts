@@ -103,9 +103,9 @@ export class WhatsappController {
   @ApiResponse({ status: 200, description: 'Webhook processed successfully' })
   @ApiResponse({ status: 404, description: 'Not Found' })
   async handleWebhook(@Param('verifyToken') verifyToken: string, @Body() body: any) {
-    // Forward to Ananda Honda CRM
-    require('axios').post('https://anandahonda.api.luisant.cloud/whatsapp/webhook', body)
-      .catch((e: any) => console.log('CRM Webhook Forwarding failed:', e.message));
+    // Forward to Ananda Honda
+    require('axios').post('https://api.anandahonda.cloud/whatsapp/webhook', body)
+      .catch((e: any) => console.log('Webhook Forwarding failed:', e.message));
 
     // Respond immediately to WhatsApp
     setImmediate(() => {
@@ -262,9 +262,9 @@ export class WhatsappController {
   @Post('webhook')
   @ApiOperation({ summary: 'Handle webhook without token parameter' })
   async catchAllWebhookPost(@Body() body: any) {
-    // Forward to Ananda Honda CRM
-    require('axios').post('https://anandahonda.api.luisant.cloud/whatsapp/webhook', body)
-      .catch((e: any) => console.log('CRM Webhook Forwarding failed:', e.message));
+    // Forward to Ananda Honda
+    require('axios').post('https://api.anandahonda.cloud/whatsapp/webhook', body)
+      .catch((e: any) => console.log('Webhook Forwarding failed:', e.message));
 
     // Respond immediately to WhatsApp
     setImmediate(() => {

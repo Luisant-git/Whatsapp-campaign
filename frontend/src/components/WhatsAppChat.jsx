@@ -1300,9 +1300,11 @@ const WhatsAppChat = () => {
           }}
         >
           <div className="chat-avatar">{chat.phone.slice(-4)}</div>
-          <div className="chat-info">
+          <div className="chat-info" style={{ paddingRight: '100px' }}>
             <div className="chat-phone">
-              {chat.name || chat.phone}
+              <span className="chat-name-text">
+                {chat.name || chat.phone}
+              </span>
               {chat.unreadCount > 0 && <span className="unread-badge">{chat.unreadCount}</span>}
             </div>
             <div style={{ fontSize: '12px', color: '#667781', marginTop: '2px' }}>

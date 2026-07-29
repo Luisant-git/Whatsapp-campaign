@@ -343,6 +343,14 @@
           display: flex;
           align-items: center;
           gap: 8px;
+
+          .chat-name-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+            min-width: 0;
+          }
         }
 
         .unread-badge {

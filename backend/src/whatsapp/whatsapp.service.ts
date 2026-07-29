@@ -1040,15 +1040,19 @@ export class WhatsappService {
         `SELECT m.id, m."from", m."phoneNumberId", m.message, m."mediaType", m."mediaUrl", m.direction, m.status, m."profileName", m."createdAt", m."updatedAt",
             (SELECT MAX("createdAt") FROM "WhatsAppMessage" i WHERE i."from" = m."from" AND i."phoneNumberId" = m."phoneNumberId" AND i.direction = 'incoming') as "lastIncomingDate"
          FROM (
-             SELECT MAX(id) as max_id
-             FROM "WhatsAppMessage"
-             ${allowedPhones ? 'WHERE "from" = ANY($3)' : ''}
-             GROUP BY "from", "phoneNumberId"
-             ORDER BY MAX("createdAt") DESC
+             SELECT latest_group.max_id
+             FROM (
+                 SELECT MAX(id) as max_id
+                 FROM "WhatsAppMessage"
+                 ${allowedPhones ? 'WHERE "from" = ANY($3)' : ''}
+                 GROUP BY "from", "phoneNumberId"
+             ) as latest_group
+             JOIN "WhatsAppMessage" wm ON wm.id = latest_group.max_id
+             ORDER BY CASE WHEN wm.direction = 'incoming' THEN 1 ELSE 2 END ASC, wm."createdAt" DESC
              LIMIT $2 OFFSET $1
          ) as latest
          JOIN "WhatsAppMessage" m ON m.id = latest.max_id
-         ORDER BY m."createdAt" DESC`,
+         ORDER BY CASE WHEN m.direction = 'incoming' THEN 1 ELSE 2 END ASC, m."createdAt" DESC`,
         ...params
       ),
       this.prisma.$queryRawUnsafe<[{ count: bigint }]>(

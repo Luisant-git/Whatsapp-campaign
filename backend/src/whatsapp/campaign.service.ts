@@ -147,7 +147,7 @@ export class CampaignService {
     return this.getCampaign(id, userId);
   }
 
-  async runCampaign(id: number, userId: number) {
+  async runCampaign(id: number, userId: number, isResume: boolean = false) {
     const campaign = await this.getCampaign(id, userId);
 
     // Update campaign status to running
@@ -155,18 +155,19 @@ export class CampaignService {
       where: { id },
       data: {
         status: 'running',
-        successCount: 0,
-        failedCount: 0
+        ...(isResume ? {} : { successCount: 0, failedCount: 0 })
       }
     });
 
-    // Clear previous campaign messages for rerun
-    await this.prisma.campaignMessage.deleteMany({
-      where: { campaignId: id }
-    });
+    if (!isResume) {
+      // Clear previous campaign messages for rerun
+      await this.prisma.campaignMessage.deleteMany({
+        where: { campaignId: id }
+      });
+    }
 
-    let successCount = 0;
-    let failedCount = 0;
+    let successCount = isResume ? campaign.successCount : 0;
+    let failedCount = isResume ? campaign.failedCount : 0;
 
     let totalContactsCount = 0;
 
@@ -176,7 +177,23 @@ export class CampaignService {
         where: { id: campaign.settingsId }
       });
 
-      const contactsToSend = campaign.contacts || [];
+      let contactsToSend = campaign.contacts || [];
+
+      if (isResume) {
+        // Find all phones that already have a message for this campaign
+        const existingMessages = await this.prisma.campaignMessage.findMany({
+          where: { campaignId: id },
+          select: { phone: true }
+        });
+        const processedPhones = new Set(existingMessages.map(m => m.phone));
+
+        contactsToSend = contactsToSend.filter(c => {
+          const p1 = c.phone;
+          const p2 = this.formatPhoneNumber(c.phone);
+          return !processedPhones.has(p1) && !processedPhones.has(p2);
+        });
+      }
+
       totalContactsCount = contactsToSend.length;
 
       this.logger.log(
@@ -191,6 +208,22 @@ export class CampaignService {
     }
 
     for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+      // Check current status before processing batch
+      const currentCampaign = await this.prisma.campaign.findUnique({
+        where: { id },
+        select: { status: true }
+      });
+
+      if (currentCampaign?.status === 'stopped') {
+        this.logger.log(`Campaign ${id} was stopped.`);
+        break; // Stop processing
+      }
+
+      if (currentCampaign?.status === 'paused') {
+        this.logger.log(`Campaign ${id} was paused.`);
+        break; // Pause processing
+      }
+
       const batch = batches[batchIndex];
       this.logger.log(`Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} contacts)`);
 
@@ -333,14 +366,27 @@ export class CampaignService {
     } finally {
       // Update final campaign status and counts GUARANTEED
       try {
-        await this.prisma.campaign.update({
-          where: { id },
-          data: {
-            status: 'completed',
-            successCount,
-            failedCount
-          }
-        });
+        const currentCampaign = await this.prisma.campaign.findUnique({ where: { id }, select: { status: true } });
+        // Only mark as completed if it wasn't explicitly stopped or paused
+        if (currentCampaign?.status !== 'stopped' && currentCampaign?.status !== 'paused') {
+          await this.prisma.campaign.update({
+            where: { id },
+            data: {
+              status: 'completed',
+              successCount,
+              failedCount
+            }
+          });
+        } else {
+          // If paused or stopped, just update counts
+          await this.prisma.campaign.update({
+            where: { id },
+            data: {
+              successCount,
+              failedCount
+            }
+          });
+        }
       } catch (finalDbError) {
         this.logger.error('Failed to update final campaign status in database:', finalDbError.message);
       }
@@ -356,136 +402,27 @@ export class CampaignService {
     };
   }
 
-  // async runCampaign(id: number, userId: number) {
-  //   const campaign = await this.getCampaign(id, userId);
+  async stopCampaign(id: number, userId: number) {
+    const campaign = await this.prisma.campaign.findFirst({ where: { id } });
+    if (!campaign) throw new NotFoundException('Campaign not found');
 
-  //   // Mark campaign running
-  //   await this.prisma.campaign.update({
-  //     where: { id },
-  //     data: { status: 'running', successCount: 0, failedCount: 0 },
-  //   });
+    await this.prisma.campaign.update({
+      where: { id },
+      data: { status: 'stopped' }
+    });
+    return { message: 'Campaign stopped successfully' };
+  }
 
-  //   // Clear previous results (if re‑run)
-  //   await this.prisma.campaignMessage.deleteMany({ where: { campaignId: id } });
+  async pauseCampaign(id: number, userId: number) {
+    const campaign = await this.prisma.campaign.findFirst({ where: { id } });
+    if (!campaign) throw new NotFoundException('Campaign not found');
 
-  //   const results: Array<{ phone: string; name: string | null; success: boolean; messageId?: string; error?: string }> = [];
-  //   let successCount = 0;
-  //   let failedCount = 0;
-
-  //   const settings = await this.prisma.whatsAppSettings.findUnique({
-  //     where: { id: campaign.settingsId },
-  //   });
-
-  //   for (const contact of campaign.contacts) {
-  //     try {
-  //       this.logger.log(`Sending campaign message to ${contact.phone}`);
-
-  //       // 👇 Footer text that will appear for every recipient
-  //       const footerText =
-  //         '\n\nIf you’re interested, reply YES.\nTo stop receiving messages, reply STOP.';
-
-  //       // Skip contacts already in blocklist label (optional safeguard)
-  //       const label = await this.prisma.chatLabel.findUnique({
-  //         where: { phone_userId: { phone: contact.phone, userId } },
-  //         select: { labels: true },
-  //       });
-  //       if (label?.labels?.includes('blocklist')) {
-  //         this.logger.log(`Skipping ${contact.phone} - currently in blocklist`);
-  //         continue;
-  //       }
-
-  //       // ✅ Use correct template name + pass footerText separately
-  //       const result = await this.whatsappService.sendBulkTemplateMessageWithNames(
-  //         [{ name: contact.name || '', phone: contact.phone }],
-  //         campaign.templateName,     // official template name registered in Meta
-  //         userId,
-  //         campaign.settingsId,
-  //         settings?.headerImageUrl?.trim() || undefined,
-  //         footerText                 // 👈 this is rendered in the message body
-  //       );
-
-  //       const messageResult = result[0];
-  //       const status = messageResult.success ? 'sent' : 'failed';
-  //       if (messageResult.success) successCount++;
-  //       else failedCount++;
-
-  //       const formattedPhone = messageResult.phoneNumber || contact.phone;
-
-  //       // Record each message outcome
-  //       await this.prisma.campaignMessage.create({
-  //         data: {
-  //           messageId: messageResult.messageId || null,
-  //           phone: formattedPhone,
-  //           name: contact.name,
-  //           status,
-  //           error: messageResult.error || null,
-  //           campaignId: id,
-  //         },
-  //       });
-
-  //       // Upsert contact so it remains tracked
-  //       await this.prisma.contact.upsert({
-  //         where: { phone_userId: { phone: formattedPhone, userId } },
-  //         update: {
-  //           name: contact.name || 'Unknown',
-  //           lastMessageDate: new Date(),
-  //           groupId: campaign.groupId,
-  //         },
-  //         create: {
-  //           phone: formattedPhone,
-  //           name: contact.name || 'Unknown',
-  //           lastMessageDate: new Date(),
-  //           groupId: campaign.groupId,
-  //           userId,
-  //         },
-  //       });
-
-  //       // Store success/failed in response list
-  //       results.push({
-  //         phone: formattedPhone,
-  //         name: contact.name,
-  //         success: messageResult.success,
-  //         messageId: messageResult.messageId,
-  //         error: messageResult.error,
-  //       });
-  //     } catch (error) {
-  //       failedCount++;
-  //       this.logger.error(`Failed to send to ${contact.phone}:`, error);
-
-  //       const formattedPhone = this.formatPhoneNumber(contact.phone);
-  //       await this.prisma.campaignMessage.create({
-  //         data: {
-  //           phone: formattedPhone,
-  //           name: contact.name,
-  //           status: 'failed',
-  //           error: error.message,
-  //           campaignId: id,
-  //         },
-  //       });
-
-  //       results.push({
-  //         phone: formattedPhone,
-  //         name: contact.name,
-  //         success: false,
-  //         error: error.message,
-  //       });
-  //     }
-  //   }
-
-  //   // Mark campaign complete
-  //   await this.prisma.campaign.update({
-  //     where: { id },
-  //     data: { status: 'completed', successCount, failedCount },
-  //   });
-
-  //   return {
-  //     campaignId: id,
-  //     totalSent: results.length,
-  //     successCount,
-  //     failedCount,
-  //     results,
-  //   };
-  // }
+    await this.prisma.campaign.update({
+      where: { id },
+      data: { status: 'paused' }
+    });
+    return { message: 'Campaign paused successfully' };
+  }
 
   async deleteCampaign(id: number, userId: number) {
     const campaign = await this.prisma.campaign.findFirst({

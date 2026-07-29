@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { getAllCampaigns, rerunCampaign, deleteCampaign, getCampaignResults } from '../api/campaign';
+import { getAllCampaigns, rerunCampaign, deleteCampaign, getCampaignResults, stopCampaign, pauseCampaign, resumeCampaign } from '../api/campaign';
 import { getAllSettings } from '../api/auth';
 import { useToast } from '../contexts/ToastContext';
 import EditCampaign from './EditCampaign';
 import CampaignResults from './CampaignResults';
-import { RotateCw, BarChart3, Edit2, RefreshCw, Download } from 'lucide-react';
+import { RotateCw, BarChart3, Edit2, RefreshCw, Download, Play, Pause, Square } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import '../styles/Campaign.scss';
 
 const Campaigns = ({ onResendFailed }) => {
-  const { showSuccess, showError, showConfirm } = useToast();
+  const { showSuccess, showError, showConfirm, showStrongConfirm } = useToast();
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState(null);
@@ -49,6 +49,12 @@ const Campaigns = ({ onResendFailed }) => {
   };
 
   const handleRerunCampaign = async (campaignId) => {
+    const confirmed = await showStrongConfirm(
+      'Are you sure you want to rerun this campaign? This will send messages again to all contacts.',
+      'RERUN'
+    );
+    if (!confirmed) return;
+
     setLoading(true);
     try {
       await rerunCampaign(campaignId);
@@ -61,6 +67,59 @@ const Campaigns = ({ onResendFailed }) => {
     } catch (error) {
       console.error('Error rerunning campaign:', error);
       showError('Failed to start campaign');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePauseCampaign = async (campaignId) => {
+    const confirmed = await showConfirm('Are you sure you want to pause this campaign?');
+    if (!confirmed) return;
+    
+    setLoading(true);
+    try {
+      await pauseCampaign(campaignId);
+      showSuccess('Campaign paused successfully.');
+      fetchCampaigns();
+    } catch (error) {
+      console.error('Error pausing campaign:', error);
+      showError('Failed to pause campaign');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResumeCampaign = async (campaignId) => {
+    const confirmed = await showConfirm('Are you sure you want to resume this campaign?');
+    if (!confirmed) return;
+    
+    setLoading(true);
+    try {
+      await resumeCampaign(campaignId);
+      showSuccess('Campaign resumed successfully.');
+      setTimeout(() => {
+        fetchCampaigns();
+      }, 2000);
+    } catch (error) {
+      console.error('Error resuming campaign:', error);
+      showError('Failed to resume campaign');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStopCampaign = async (campaignId) => {
+    const confirmed = await showStrongConfirm('Are you sure you want to stop this campaign? This action cannot be undone.', 'STOP');
+    if (!confirmed) return;
+    
+    setLoading(true);
+    try {
+      await stopCampaign(campaignId);
+      showSuccess('Campaign stopped successfully.');
+      fetchCampaigns();
+    } catch (error) {
+      console.error('Error stopping campaign:', error);
+      showError('Failed to stop campaign');
     } finally {
       setLoading(false);
     }
@@ -246,9 +305,39 @@ const Campaigns = ({ onResendFailed }) => {
                   {new Date(campaign.createdAt).toLocaleDateString()}
                 </td>
                 <td className="actions">
+                  {campaign.status === 'running' && (
+                    <>
+                      <button
+                        onClick={() => handlePauseCampaign(campaign.id)}
+                        disabled={loading}
+                        className="pause-btn"
+                        title="Pause Campaign"
+                      >
+                        <Pause size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleStopCampaign(campaign.id)}
+                        disabled={loading}
+                        className="stop-btn"
+                        title="Stop Campaign"
+                      >
+                        <Square size={16} />
+                      </button>
+                    </>
+                  )}
+                  {campaign.status === 'paused' && (
+                    <button
+                      onClick={() => handleResumeCampaign(campaign.id)}
+                      disabled={loading}
+                      className="resume-btn"
+                      title="Resume Campaign"
+                    >
+                      <Play size={16} />
+                    </button>
+                  )}
                   <button
                     onClick={() => handleRerunCampaign(campaign.id)}
-                    disabled={loading || campaign.status === 'running'}
+                    disabled={loading || campaign.status === 'running' || campaign.status === 'paused'}
                     className="rerun-btn"
                     title="Rerun Campaign"
                   >

@@ -725,6 +725,47 @@ async getMessages(
       campaignId
     };
   }
+
+  @Post('campaigns/:id/resume')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Resume a paused campaign' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiResponse({ status: 200, description: 'Campaign execution resumed' })
+  async resumeCampaign(@Session() session: any, @Param('id') id: string) {
+    const campaignId = parseInt(id);
+    const userId = session.user.id;
+
+    // Start campaign in background with isResume = true
+    setImmediate(() => {
+      this.campaignService.runCampaign(campaignId, userId, true).catch(error => {
+        console.error('Campaign resume error:', error);
+      });
+    });
+
+    return {
+      success: true,
+      message: 'Campaign resumed successfully',
+      campaignId
+    };
+  }
+
+  @Post('campaigns/:id/stop')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Stop campaign' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiResponse({ status: 200, description: 'Campaign stopped' })
+  async stopCampaign(@Session() session: any, @Param('id') id: string) {
+    return this.campaignService.stopCampaign(parseInt(id), session.user.id);
+  }
+
+  @Post('campaigns/:id/pause')
+  @UseGuards(SessionGuard)
+  @ApiOperation({ summary: 'Pause campaign' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiResponse({ status: 200, description: 'Campaign paused' })
+  async pauseCampaign(@Session() session: any, @Param('id') id: string) {
+    return this.campaignService.pauseCampaign(parseInt(id), session.user.id);
+  }
  
   @Delete('campaigns/:id')
   @UseGuards(SessionGuard)

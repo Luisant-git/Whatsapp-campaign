@@ -71,6 +71,45 @@ export const rerunCampaign = async (id) => {
   return await response.json();
 };
 
+export const resumeCampaign = async (id) => {
+  const response = await fetch(`${API_BASE_URL}/whatsapp/campaigns/${id}/resume`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to resume campaign');
+  }
+
+  return await response.json();
+};
+
+export const stopCampaign = async (id) => {
+  const response = await fetch(`${API_BASE_URL}/whatsapp/campaigns/${id}/stop`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to stop campaign');
+  }
+
+  return await response.json();
+};
+
+export const pauseCampaign = async (id) => {
+  const response = await fetch(`${API_BASE_URL}/whatsapp/campaigns/${id}/pause`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to pause campaign');
+  }
+
+  return await response.json();
+};
+
 export const getCampaignResults = async (id) => {
   const response = await fetch(`${API_BASE_URL}/whatsapp/campaigns/${id}/results`, {
     credentials: 'include',

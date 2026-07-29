@@ -15,6 +15,7 @@ export const ToastProvider = ({ children }) => {
   const [queue, setQueue] = useState([]);        // all pending toasts
   const [current, setCurrent] = useState(null);  // toast being shown
   const [confirmModal, setConfirmModal] = useState(null);
+  const [strongInput, setStrongInput] = useState("");
 
   // Add toast to queue
   const showToast = (message, type = "success") => {
@@ -53,9 +54,31 @@ export const ToastProvider = ({ children }) => {
   }, [current]);
 
   const showConfirm = (message, onConfirm) => {
+    setStrongInput("");
     return new Promise((resolve) => {
       setConfirmModal({
         message,
+        isStrong: false,
+        onConfirm: () => {
+          setConfirmModal(null);
+          if (onConfirm) onConfirm();
+          resolve(true);
+        },
+        onCancel: () => {
+          setConfirmModal(null);
+          resolve(false);
+        },
+      });
+    });
+  };
+
+  const showStrongConfirm = (message, expectedText, onConfirm) => {
+    setStrongInput("");
+    return new Promise((resolve) => {
+      setConfirmModal({
+        message,
+        isStrong: true,
+        expectedText,
         onConfirm: () => {
           setConfirmModal(null);
           if (onConfirm) onConfirm();
@@ -71,7 +94,7 @@ export const ToastProvider = ({ children }) => {
 
   return (
     <ToastContext.Provider
-      value={{ showToast, showSuccess, showError, showInfo, showConfirm, clearToasts }}
+      value={{ showToast, showSuccess, showError, showInfo, showConfirm, showStrongConfirm, clearToasts }}
     >
       {children}
 
@@ -90,13 +113,43 @@ export const ToastProvider = ({ children }) => {
           <div className="confirm-modal">
             <div className="confirm-content">
               <AlertCircle size={24} className="confirm-icon" />
-              <p>{confirmModal.message}</p>
+              <div className="confirm-text-container" style={{ flex: 1 }}>
+                <p>{confirmModal.message}</p>
+                {confirmModal.isStrong && (
+                  <div className="strong-confirm-container" style={{ marginTop: '12px' }}>
+                    <p style={{ fontSize: '14px', marginBottom: '8px', color: '#555' }}>
+                      Type <strong>{confirmModal.expectedText}</strong> to confirm:
+                    </p>
+                    <input 
+                      type="text" 
+                      value={strongInput}
+                      onChange={(e) => setStrongInput(e.target.value)}
+                      placeholder={confirmModal.expectedText}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: '1px solid #e0e0e0',
+                        borderRadius: '6px',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
             <div className="confirm-actions">
               <button onClick={confirmModal.onCancel} className="btn-secondary">
                 Cancel
               </button>
-              <button onClick={confirmModal.onConfirm} className="btn-danger">
+              <button 
+                onClick={confirmModal.onConfirm} 
+                className="btn-danger"
+                disabled={confirmModal.isStrong && strongInput !== confirmModal.expectedText}
+                style={{ 
+                  opacity: (confirmModal.isStrong && strongInput !== confirmModal.expectedText) ? 0.5 : 1, 
+                  cursor: (confirmModal.isStrong && strongInput !== confirmModal.expectedText) ? 'not-allowed' : 'pointer' 
+                }}
+              >
                 Confirm
               </button>
             </div>

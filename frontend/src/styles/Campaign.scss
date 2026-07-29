@@ -303,6 +303,16 @@
               background-color: #fef3c7;
               color: #d97706;
             }
+
+            &.paused {
+              background-color: #fef08a;
+              color: #854d0e;
+            }
+
+            &.stopped {
+              background-color: #e5e7eb;
+              color: #374151;
+            }
           }
 
           .results {
@@ -380,6 +390,33 @@
   }
 
   .delete-btn {
+    color: #ef4444;
+
+    &:hover:not(:disabled) {
+      background: #fef2f2 !important;
+      color: #dc2626;
+    }
+  }
+
+  .pause-btn {
+    color: #eab308;
+
+    &:hover:not(:disabled) {
+      background: #fefce8 !important;
+      color: #ca8a04;
+    }
+  }
+
+  .resume-btn {
+    color: #10b981;
+
+    &:hover:not(:disabled) {
+      background: #ecfdf5 !important;
+      color: #059669;
+    }
+  }
+
+  .stop-btn {
     color: #ef4444;
 
     &:hover:not(:disabled) {

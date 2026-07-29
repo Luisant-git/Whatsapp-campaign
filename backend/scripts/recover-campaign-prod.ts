@@ -9,25 +9,15 @@ const centralPrisma = new CentralPrismaClient({
 });
 
 async function main() {
-  console.log('Fetching active tenants...');
   const tenants = await centralPrisma.tenant.findMany({
     where: { isActive: true },
   });
-  console.log(`Found ${tenants.length} active tenants.`);
 
   for (const tenant of tenants) {
-    console.log(`\n======================================================`);
-    console.log(`Checking Tenant ${tenant.id} (${tenant.companyName || tenant.email})`);
+    if (tenant.id !== 6) continue; // Only process SNPNBC CONSULTANT AND MANPOWER SERVICES
     
-    // Replace localhost with remote host if necessary, or just use the DB URL dynamically
-    // BUT since we might be running this by changing .env locally, let's just use the TENANT_DATABASE_URL from .env
-    // or construct it if it's dynamic. Usually tenants are separated by schema or DB. 
-    // In this system, they are separated by DB names.
-    let dbHost = tenant.dbHost;
-    if (dbHost === 'localhost' && process.env.CENTRAL_DATABASE_URL?.includes('localhost') === false) {
-       // Just in case they are connecting to a remote DB but tenant still says localhost
-       // We'll trust the tenant row for now.
-    }
+    console.log(`\n======================================================`);
+    console.log(`Fixing counts for Tenant ${tenant.id} (${tenant.companyName || tenant.email})`);
     
     const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}?schema=public`;
     
@@ -43,15 +33,13 @@ async function main() {
       });
       
       if (campaigns.length === 0) {
-        console.log(`  No 'job_offer_snp' campaign found in this tenant.`);
+        console.log(`  No 'job_offer_snp' campaign found.`);
         await tenantPrisma.$disconnect();
         continue;
       }
       
       for (const campaign of campaigns) {
-        console.log(`  Found Campaign ID: ${campaign.id}, Status: ${campaign.status}, Success: ${campaign.successCount}, Failed: ${campaign.failedCount}`);
-        
-        // Find all outgoing WhatsAppMessages for this template
+        // Fetch all outgoing messages in chronological order
         const sentMessages = await tenantPrisma.whatsAppMessage.findMany({
           where: {
             direction: 'outgoing',
@@ -60,54 +48,57 @@ async function main() {
           orderBy: { createdAt: 'asc' }
         });
         
-        console.log(`  Found ${sentMessages.length} total outgoing messages for template ${campaign.templateName} in WhatsAppMessage.`);
+        console.log(`  Found ${sentMessages.length} total messages for template in history.`);
         
-        if (sentMessages.length > 0) {
-            // Re-insert these into CampaignMessage to restore the results table
-            let restoredCount = 0;
-            let successCount = 0;
-            let failedCount = 0;
-            
-            for (const msg of sentMessages) {
-               // Check if it already exists
-               const existing = await tenantPrisma.campaignMessage.findFirst({
-                 where: { campaignId: campaign.id, phone: msg.to, messageId: msg.messageId }
-               });
-               
-               if (!existing) {
-                 await tenantPrisma.campaignMessage.create({
-                   data: {
-                     messageId: msg.messageId,
-                     phone: msg.to,
-                     name: msg.profileName || 'Unknown',
-                     status: msg.status === 'sent' ? 'sent' : msg.status,
-                     campaignId: campaign.id,
-                     createdAt: msg.createdAt,
-                     updatedAt: msg.updatedAt
-                   }
-                 });
-                 restoredCount++;
-               }
-               
-               if (msg.status === 'sent' || msg.status === 'delivered' || msg.status === 'read') {
-                  successCount++;
-               } else if (msg.status === 'failed') {
-                  failedCount++;
-               }
-            }
-            
-            console.log(`  Restored ${restoredCount} campaign messages from the logs.`);
-            
-            // Update the campaign counts to reflect the true numbers
-            await tenantPrisma.campaign.update({
-              where: { id: campaign.id },
-              data: {
-                successCount: successCount,
-                failedCount: failedCount,
-                status: 'completed' // Mark as completed to stop it from showing as RUNNING if it's stuck
-              }
-            });
-            console.log(`  Campaign marked as COMPLETED. True Success: ${successCount}, True Failed: ${failedCount}`);
+        // The user wants exactly the ORIGINAL count of 965
+        const targetOldCount = 965;
+        
+        if (sentMessages.length >= targetOldCount) {
+           // Get only the first 965 messages from the original run
+           const originalRunMessages = sentMessages.slice(0, targetOldCount);
+           const originalMessageIds = originalRunMessages.map(m => m.messageId);
+           
+           console.log(`  Keeping exactly ${targetOldCount} original messages.`);
+           
+           // Delete any campaign messages that are NOT in the first 965
+           const deleteResult = await tenantPrisma.campaignMessage.deleteMany({
+             where: {
+               campaignId: campaign.id,
+               messageId: { notIn: originalMessageIds }
+             }
+           });
+           
+           console.log(`  Deleted ${deleteResult.count} accidental re-run messages from CampaignMessage.`);
+           
+           // Recalculate true counts for ONLY those 965 messages
+           let successCount = 0;
+           let failedCount = 0;
+           
+           for (const msg of originalRunMessages) {
+             if (msg.status === 'sent' || msg.status === 'delivered' || msg.status === 'read') {
+               successCount++;
+             } else if (msg.status === 'failed') {
+               failedCount++;
+             }
+           }
+           
+           // Force update the Campaign to show exactly 965 total count, and correct success/failed
+           await tenantPrisma.campaign.update({
+             where: { id: campaign.id },
+             data: {
+               totalCount: targetOldCount,
+               successCount: successCount,
+               failedCount: failedCount,
+               status: 'completed'
+             }
+           });
+           
+           console.log(`  Fixed Campaign counts!`);
+           console.log(`  New Total Contacts: ${targetOldCount}`);
+           console.log(`  New Success: ${successCount}`);
+           console.log(`  New Failed: ${failedCount}`);
+        } else {
+           console.log(`  Expected at least ${targetOldCount} messages but found ${sentMessages.length}.`);
         }
       }
 
@@ -118,7 +109,7 @@ async function main() {
     }
   }
   console.log(`\n======================================================`);
-  console.log('Recovery finished.');
+  console.log('Fix finished.');
 }
 
 main()

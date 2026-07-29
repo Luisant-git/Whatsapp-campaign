@@ -1037,13 +1037,18 @@ export class WhatsappService {
 
     const [uniqueChats, countResult] = await Promise.all([
       this.prisma.$queryRawUnsafe<any[]>(
-        `SELECT DISTINCT ON ("from", "phoneNumberId") 
-            id, "from", "phoneNumberId", message, "mediaType", "mediaUrl", direction, status, "profileName", "createdAt", "updatedAt",
-            (SELECT MAX("createdAt") FROM "WhatsAppMessage" i WHERE i."from" = "WhatsAppMessage"."from" AND i."phoneNumberId" = "WhatsAppMessage"."phoneNumberId" AND i.direction = 'incoming') as "lastIncomingDate"
-         FROM "WhatsAppMessage"
-         ${allowedPhones ? 'WHERE "from" = ANY($3)' : ''}
-         ORDER BY "from", "phoneNumberId", "createdAt" DESC
-         LIMIT $2 OFFSET $1`,
+        `SELECT m.id, m."from", m."phoneNumberId", m.message, m."mediaType", m."mediaUrl", m.direction, m.status, m."profileName", m."createdAt", m."updatedAt",
+            (SELECT MAX("createdAt") FROM "WhatsAppMessage" i WHERE i."from" = m."from" AND i."phoneNumberId" = m."phoneNumberId" AND i.direction = 'incoming') as "lastIncomingDate"
+         FROM (
+             SELECT MAX(id) as max_id
+             FROM "WhatsAppMessage"
+             ${allowedPhones ? 'WHERE "from" = ANY($3)' : ''}
+             GROUP BY "from", "phoneNumberId"
+             ORDER BY MAX("createdAt") DESC
+             LIMIT $2 OFFSET $1
+         ) as latest
+         JOIN "WhatsAppMessage" m ON m.id = latest.max_id
+         ORDER BY m."createdAt" DESC`,
         ...params
       ),
       this.prisma.$queryRawUnsafe<[{ count: bigint }]>(

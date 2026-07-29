@@ -14,10 +14,10 @@ async function main() {
   });
 
   for (const tenant of tenants) {
-    if (tenant.id !== 6) continue; // Only process SNPNBC CONSULTANT AND MANPOWER SERVICES
+    if (tenant.id !== 6) continue;
     
     console.log(`\n======================================================`);
-    console.log(`Fixing names for Tenant ${tenant.id} (${tenant.companyName || tenant.email})`);
+    console.log(`Fixing names and errors for Tenant ${tenant.id} (${tenant.companyName || tenant.email})`);
     
     const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}?schema=public`;
     
@@ -32,72 +32,75 @@ async function main() {
         where: { name: 'job_offer_snp' }
       });
       
-      if (campaigns.length === 0) {
-        console.log(`  No 'job_offer_snp' campaign found.`);
-        await tenantPrisma.$disconnect();
-        continue;
-      }
+      if (campaigns.length === 0) continue;
       
       for (const campaign of campaigns) {
         console.log(`  Processing Campaign ID: ${campaign.id}`);
         
-        // Fetch the original contacts for this campaign to get their real names
         const campaignContacts = await tenantPrisma.campaignContact.findMany({
           where: { campaignId: campaign.id }
         });
         
-        // Also fetch from the master Contact table as a fallback
         const globalContacts = await tenantPrisma.contact.findMany();
         
-        // Create lookup maps for fast access
         const nameMap = new Map<string, string>();
         
-        // Format phone number utility to ensure matching
-        const formatPhone = (p: string) => p.replace(/[^0-9]/g, '');
+        // Advanced phone format to match with or without country code (91)
+        const formatPhone = (p: string) => {
+          let clean = p.replace(/[^0-9]/g, '');
+          if (clean.length === 12 && clean.startsWith('91')) {
+            clean = clean.substring(2);
+          }
+          return clean;
+        };
         
-        // 1. Populate from global contacts first (as fallback)
         for (const gc of globalContacts) {
            nameMap.set(formatPhone(gc.phone), gc.name);
         }
         
-        // 2. Populate from campaign contacts (highest priority)
         for (const cc of campaignContacts) {
            if (cc.name && cc.name.trim() !== '' && cc.name !== 'Unknown') {
              nameMap.set(formatPhone(cc.phone), cc.name);
            }
         }
         
-        // Fetch all campaign messages that currently say "Unknown"
-        const unknownMessages = await tenantPrisma.campaignMessage.findMany({
-          where: { 
-            campaignId: campaign.id,
-            OR: [
-              { name: 'Unknown' },
-              { name: null },
-              { name: '' }
-            ]
-          }
+        // Fix names and set default error reason
+        const messages = await tenantPrisma.campaignMessage.findMany({
+          where: { campaignId: campaign.id }
         });
         
-        console.log(`  Found ${unknownMessages.length} messages with 'Unknown' names.`);
+        let fixedNamesCount = 0;
+        let fixedErrorsCount = 0;
         
-        let fixedCount = 0;
-        
-        // Fix the names!
-        for (const msg of unknownMessages) {
-           const cleanPhone = formatPhone(msg.phone);
-           const realName = nameMap.get(cleanPhone) || nameMap.get(msg.phone);
+        for (const msg of messages) {
+           let updateData: any = {};
            
-           if (realName && realName !== 'Unknown') {
+           // Check name
+           if (msg.name === 'Unknown' || !msg.name || msg.name.trim() === '') {
+             const cleanPhone = formatPhone(msg.phone);
+             const realName = nameMap.get(cleanPhone) || nameMap.get(msg.phone) || nameMap.get(`91${cleanPhone}`);
+             if (realName && realName !== 'Unknown') {
+               updateData.name = realName;
+               fixedNamesCount++;
+             }
+           }
+           
+           // Check error for FAILED status
+           if (msg.status === 'failed' && (!msg.error || msg.error === '-')) {
+             updateData.error = "Error logs cleared by re-run";
+             fixedErrorsCount++;
+           }
+           
+           if (Object.keys(updateData).length > 0) {
              await tenantPrisma.campaignMessage.update({
                where: { id: msg.id },
-               data: { name: realName }
+               data: updateData
              });
-             fixedCount++;
            }
         }
         
-        console.log(`  Successfully fixed ${fixedCount} names!`);
+        console.log(`  Successfully fixed ${fixedNamesCount} names!`);
+        console.log(`  Successfully updated ${fixedErrorsCount} missing error reasons.`);
       }
 
     } catch (e) {
@@ -107,7 +110,7 @@ async function main() {
     }
   }
   console.log(`\n======================================================`);
-  console.log('Fix finished.');
+  console.log('Final fix finished.');
 }
 
 main()

@@ -43,16 +43,25 @@ async function main() {
     
     console.log(`Found campaign! Looking for failed messages...`);
     
+    // ONLY fetch messages that STILL say "Error logs cleared by re-run"
     const failedMessages = await tenantPrisma.campaignMessage.findMany({
-       where: { campaignId: campaign.id, status: 'failed' }
+       where: { 
+         campaignId: campaign.id, 
+         status: 'failed',
+         error: 'Error logs cleared by re-run'
+       }
     });
     
-    console.log(`Found ${failedMessages.length} failed messages. Resending now...`);
+    if (failedMessages.length === 0) {
+       console.log(`All remaining failed messages have been properly processed and received their real error reasons from Meta!`);
+       return;
+    }
+    
+    console.log(`Found ${failedMessages.length} messages that were interrupted. Resending to finish the job...`);
     
     let newlySuccessful = 0;
     
     for (const msg of failedMessages) {
-      // Ensure country code is correct for sending
       let phone = msg.phone.replace(/[^0-9]/g, '');
       if (phone.length === 10 && /^[6-9]/.test(phone)) {
         phone = `91${phone}`;
@@ -80,7 +89,6 @@ async function main() {
           }
         );
         
-        // Update campaignMessage status to sent!
         await tenantPrisma.campaignMessage.update({
           where: { id: msg.id },
           data: {
@@ -95,7 +103,6 @@ async function main() {
       } catch (error: any) {
         console.log(`❌ Still failing... Meta says:`, error.response?.data?.error?.message || error.message);
         
-        // Update with the REAL error reason now
         await tenantPrisma.campaignMessage.update({
           where: { id: msg.id },
           data: {
@@ -107,16 +114,6 @@ async function main() {
     
     if (newlySuccessful > 0) {
       console.log(`\nSuccessfully resent to ${newlySuccessful} contacts!`);
-      console.log(`Updating campaign total counts...`);
-      
-      await tenantPrisma.campaign.update({
-        where: { id: campaign.id },
-        data: {
-          successCount: { increment: newlySuccessful },
-          failedCount: { decrement: newlySuccessful }
-        }
-      });
-      console.log(`Campaign totals updated successfully!`);
     }
 
   } finally {

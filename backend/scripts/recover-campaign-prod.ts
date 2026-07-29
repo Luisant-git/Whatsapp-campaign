@@ -17,7 +17,7 @@ async function main() {
     if (tenant.id !== 6) continue; // Only process SNPNBC CONSULTANT AND MANPOWER SERVICES
     
     console.log(`\n======================================================`);
-    console.log(`Fixing counts for Tenant ${tenant.id} (${tenant.companyName || tenant.email})`);
+    console.log(`Fixing names for Tenant ${tenant.id} (${tenant.companyName || tenant.email})`);
     
     const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}?schema=public`;
     
@@ -39,67 +39,65 @@ async function main() {
       }
       
       for (const campaign of campaigns) {
-        // Fetch all outgoing messages in chronological order
-        const sentMessages = await tenantPrisma.whatsAppMessage.findMany({
-          where: {
-            direction: 'outgoing',
-            message: { contains: `Template ${campaign.templateName}` }
-          },
-          orderBy: { createdAt: 'asc' }
+        console.log(`  Processing Campaign ID: ${campaign.id}`);
+        
+        // Fetch the original contacts for this campaign to get their real names
+        const campaignContacts = await tenantPrisma.campaignContact.findMany({
+          where: { campaignId: campaign.id }
         });
         
-        console.log(`  Found ${sentMessages.length} total messages for template in history.`);
+        // Also fetch from the master Contact table as a fallback
+        const globalContacts = await tenantPrisma.contact.findMany();
         
-        // The user wants exactly the ORIGINAL count of 965
-        const targetOldCount = 965;
+        // Create lookup maps for fast access
+        const nameMap = new Map<string, string>();
         
-        if (sentMessages.length >= targetOldCount) {
-           // Get only the first 965 messages from the original run
-           const originalRunMessages = sentMessages.slice(0, targetOldCount);
-           const originalMessageIds = originalRunMessages.map(m => m.messageId);
-           
-           console.log(`  Keeping exactly ${targetOldCount} original messages.`);
-           
-           // Delete any campaign messages that are NOT in the first 965
-           const deleteResult = await tenantPrisma.campaignMessage.deleteMany({
-             where: {
-               campaignId: campaign.id,
-               messageId: { notIn: originalMessageIds }
-             }
-           });
-           
-           console.log(`  Deleted ${deleteResult.count} accidental re-run messages from CampaignMessage.`);
-           
-           // Recalculate true counts for ONLY those 965 messages
-           let successCount = 0;
-           let failedCount = 0;
-           
-           for (const msg of originalRunMessages) {
-             if (msg.status === 'sent' || msg.status === 'delivered' || msg.status === 'read') {
-               successCount++;
-             } else if (msg.status === 'failed') {
-               failedCount++;
-             }
-           }
-           
-           // Force update the Campaign to show exactly 965 total count, and correct success/failed
-           await tenantPrisma.campaign.update({
-             where: { id: campaign.id },
-             data: {
-               totalCount: targetOldCount,
-               successCount: successCount,
-               failedCount: failedCount,
-               status: 'completed'
-             }
-           });
-           
-           console.log(`  Fixed Campaign counts!`);
-           console.log(`  New Total Contacts: ${targetOldCount}`);
-           console.log(`  New Success: ${successCount}`);
-           console.log(`  New Failed: ${failedCount}`);
-        } else {
-           console.log(`  Expected at least ${targetOldCount} messages but found ${sentMessages.length}.`);
+        // Format phone number utility to ensure matching
+        const formatPhone = (p: string) => p.replace(/[^0-9]/g, '');
+        
+        // 1. Populate from global contacts first (as fallback)
+        for (const gc of globalContacts) {
+           nameMap.set(formatPhone(gc.phone), gc.name);
         }
+        
+        // 2. Populate from campaign contacts (highest priority)
+        for (const cc of campaignContacts) {
+           if (cc.name && cc.name.trim() !== '' && cc.name !== 'Unknown') {
+             nameMap.set(formatPhone(cc.phone), cc.name);
+           }
+        }
+        
+        // Fetch all campaign messages that currently say "Unknown"
+        const unknownMessages = await tenantPrisma.campaignMessage.findMany({
+          where: { 
+            campaignId: campaign.id,
+            OR: [
+              { name: 'Unknown' },
+              { name: null },
+              { name: '' }
+            ]
+          }
+        });
+        
+        console.log(`  Found ${unknownMessages.length} messages with 'Unknown' names.`);
+        
+        let fixedCount = 0;
+        
+        // Fix the names!
+        for (const msg of unknownMessages) {
+           const cleanPhone = formatPhone(msg.phone);
+           const realName = nameMap.get(cleanPhone) || nameMap.get(msg.phone);
+           
+           if (realName && realName !== 'Unknown') {
+             await tenantPrisma.campaignMessage.update({
+               where: { id: msg.id },
+               data: { name: realName }
+             });
+             fixedCount++;
+           }
+        }
+        
+        console.log(`  Successfully fixed ${fixedCount} names!`);
       }
 
     } catch (e) {

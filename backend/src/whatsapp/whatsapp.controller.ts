@@ -103,6 +103,18 @@ export class WhatsappController {
   @ApiResponse({ status: 200, description: 'Webhook processed successfully' })
   @ApiResponse({ status: 404, description: 'Not Found' })
   async handleWebhook(@Param('verifyToken') verifyToken: string, @Body() body: any) {
+    // Check if the webhook is meant for the Daily-Kurtis Phone Number
+    const phoneNumberId = body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
+    if (phoneNumberId === '1239751119221958') {
+      try {
+        await require('axios').post('https://dailykurtis.api.luisant.cloud/whatsapp/webhook', body);
+        console.log('✅ Forwarded Daily-Kurtis webhook to dailykurtis.api.luisant.cloud');
+        return 'EVENT_RECEIVED';
+      } catch (err) {
+        console.error('❌ Failed to forward to Daily-Kurtis:', err.message);
+      }
+    }
+
     // Forward to Ananda Honda
     require('axios').post('https://api.anandahonda.cloud/whatsapp/webhook', body)
       .catch((e: any) => console.log('Webhook Forwarding failed:', e.message));
@@ -262,6 +274,18 @@ export class WhatsappController {
   @Post('webhook')
   @ApiOperation({ summary: 'Handle webhook without token parameter' })
   async catchAllWebhookPost(@Body() body: any) {
+    // Check if the webhook is meant for the Daily-Kurtis Phone Number
+    const phoneNumberId = body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
+    if (phoneNumberId === '1239751119221958') {
+      try {
+        await require('axios').post('https://dailykurtis.api.luisant.cloud/whatsapp/webhook', body);
+        console.log('✅ Forwarded Daily-Kurtis webhook to dailykurtis.api.luisant.cloud');
+        return 'EVENT_RECEIVED';
+      } catch (err) {
+        console.error('❌ Failed to forward to Daily-Kurtis:', err.message);
+      }
+    }
+
     // Forward to Ananda Honda
     require('axios').post('https://api.anandahonda.cloud/whatsapp/webhook', body)
       .catch((e: any) => console.log('Webhook Forwarding failed:', e.message));

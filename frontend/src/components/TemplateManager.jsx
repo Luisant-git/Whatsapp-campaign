@@ -21,9 +21,9 @@ import {
   MousePointer2,
   ShieldCheck,
   Settings as SettingsIcon,
-  Megaphone,
   CheckCircle2,
-  Copy
+  Copy,
+  MapPin
 } from 'lucide-react';
 import '../styles/TemplateManager.css';
 import { API_BASE_URL } from '../api/config';
@@ -609,7 +609,12 @@ const TemplateManager = () => {
     }
     
     // Validate header
-    if (headerComponent?.text) {
+    if (headerComponent) {
+      if (headerComponent.format === 'LOCATION') {
+        if (formData.category !== 'MARKETING' && formData.category !== 'UTILITY') {
+          return 'Location headers can only be used in MARKETING or UTILITY templates.';
+        }
+      } else if (headerComponent.text) {
       const text = headerComponent.text.trim();
       
       if (text.match(/^\{\{\d+\}\}/) || text.match(/\{\{\d+\}\}$/)) {
@@ -618,6 +623,48 @@ const TemplateManager = () => {
       
       if (text.match(/\{\{\d+\}\}\s*\{\{\d+\}\}/)) {
         return 'Header variables cannot be consecutive. Add text between variables.';
+      }
+    }
+    
+    // Validate buttons
+    const buttonsComponent = components.find(c => c.type === 'BUTTONS');
+    if (buttonsComponent && buttonsComponent.buttons && buttonsComponent.buttons.length > 0) {
+      const btns = buttonsComponent.buttons;
+      
+      if (btns.length > 10) {
+        return 'Templates can have a maximum of 10 buttons in total.';
+      }
+      
+      const copyCodeBtns = btns.filter(b => b.type === 'COPY_CODE');
+      if (copyCodeBtns.length > 1) {
+        return 'Templates are limited to one Copy Code button.';
+      }
+      if (copyCodeBtns.length === 1 && (!copyCodeBtns[0].example || copyCodeBtns[0].example.trim() === '')) {
+        return 'Copy Code buttons must have an example string (e.g. 25OFF).';
+      }
+      
+      const phoneBtns = btns.filter(b => b.type === 'PHONE_NUMBER');
+      if (phoneBtns.length > 1) {
+        return 'Templates are limited to one Phone Number button.';
+      }
+      
+      const urlBtns = btns.filter(b => b.type === 'URL');
+      if (urlBtns.length > 2) {
+        return 'Templates are limited to two URL buttons.';
+      }
+      for (const btn of urlBtns) {
+        if (!btn.url || (!btn.url.startsWith('http://') && !btn.url.startsWith('https://'))) {
+          return 'URL buttons must have a valid URL starting with http:// or https://.';
+        }
+      }
+      
+      // Quick reply grouping: they must be grouped together (consecutive)
+      const qrIndexes = btns.map((b, i) => b.type === 'QUICK_REPLY' ? i : -1).filter(i => i !== -1);
+      if (qrIndexes.length > 1) {
+        const isConsecutive = qrIndexes[qrIndexes.length - 1] - qrIndexes[0] === qrIndexes.length - 1;
+        if (!isConsecutive) {
+          return 'Quick Reply buttons must be grouped together. You cannot place other button types (like URL or Phone) between Quick Reply buttons.';
+        }
       }
     }
     
@@ -1112,6 +1159,12 @@ const TemplateManager = () => {
               </div>
             )
           )}
+          {formData.headerType === 'LOCATION' && (
+            <div className="wa-media-placeholder" style={{background: '#e0e0e0', height: 120, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: '6px 6px 0 0', marginBottom: 8}}>
+              <MapPin size={32} color="#00a884" />
+              <div style={{marginTop: 8, fontSize: 12, color: '#606770', fontWeight: 600}}>Map Location</div>
+            </div>
+          )}
 
           {/* Body - Always show for authentication templates or when body text exists */}
           {(body?.text || formData.category === 'AUTHENTICATION') && (
@@ -1159,7 +1212,8 @@ const TemplateManager = () => {
                 {buttons.buttons.map((btn, i) => (
                   <div key={i} className="wa-button">
                     {btn.type === 'URL' && <ExternalLink size={16} style={{marginRight: 8}} />}
-                    {btn.text || 'Button Text'}
+                    {btn.type === 'COPY_CODE' && <Copy size={16} style={{marginRight: 8}} />}
+                    {btn.type === 'COPY_CODE' ? 'Copy code' : (btn.text || 'Button Text')}
                   </div>
                 ))}
               </div>
@@ -2374,8 +2428,8 @@ const TemplateManager = () => {
                     <div className="component-box">
                       <div style={{marginBottom: 16}}>
                         <label style={{fontWeight: 700, display: 'block', marginBottom: 8}}>Header type</label>
-                        <div className="header-type-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8}}>
-                          {['NONE', 'TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT'].map(type => (
+                        <div className="header-type-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8}}>
+                          {['NONE', 'TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT', 'LOCATION'].map(type => (
                             <button 
                               key={type}
                               className={`header-type-btn ${formData.headerType === type ? 'active' : ''}`}
@@ -2912,23 +2966,44 @@ const TemplateManager = () => {
                             <option value="QUICK_REPLY">Quick Reply</option>
                             <option value="URL">Call to Action (Link)</option>
                             <option value="PHONE_NUMBER">Call to Action (Phone)</option>
+                            <option value="COPY_CODE">Copy Offer Code</option>
                           </select>
-                          <input 
-                            type="text" 
-                            className="input-field" 
-                            style={{flex: 1, padding: 8}}
-                            placeholder="Button text..." 
-                            value={btn.text}
-                            onChange={(e) => {
-                              const components = Array.isArray(formData.components) ? formData.components : [];
-                              const btnIdx = components.findIndex(c => c.type === 'BUTTONS');
-                              if (btnIdx !== -1) {
-                                const newButtons = [...components[btnIdx].buttons];
-                                newButtons[i].text = e.target.value;
-                                updateComponent(btnIdx, 'buttons', newButtons);
-                              }
-                            }}
-                          />
+                          {btn.type !== 'COPY_CODE' ? (
+                            <input 
+                              type="text" 
+                              className="input-field" 
+                              style={{flex: 1, padding: 8}}
+                              placeholder="Button text..." 
+                              value={btn.text || ''}
+                              onChange={(e) => {
+                                const components = Array.isArray(formData.components) ? formData.components : [];
+                                const btnIdx = components.findIndex(c => c.type === 'BUTTONS');
+                                if (btnIdx !== -1) {
+                                  const newButtons = [...components[btnIdx].buttons];
+                                  newButtons[i].text = e.target.value;
+                                  updateComponent(btnIdx, 'buttons', newButtons);
+                                }
+                              }}
+                            />
+                          ) : (
+                            <input 
+                              type="text" 
+                              className="input-field" 
+                              style={{flex: 1, padding: 8}}
+                              placeholder="Example code (e.g. 25OFF)" 
+                              maxLength={20}
+                              value={btn.example || ''}
+                              onChange={(e) => {
+                                const components = Array.isArray(formData.components) ? formData.components : [];
+                                const btnIdx = components.findIndex(c => c.type === 'BUTTONS');
+                                if (btnIdx !== -1) {
+                                  const newButtons = [...components[btnIdx].buttons];
+                                  newButtons[i].example = e.target.value;
+                                  updateComponent(btnIdx, 'buttons', newButtons);
+                                }
+                              }}
+                            />
+                          )}
                           {btn.type === 'URL' && (
                             <input 
                               type="url" 

@@ -77,6 +77,9 @@ const TemplateManager = () => {
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ open: false, template: null, loading: false });
   const [rejectReasonModal, setRejectReasonModal] = useState({ open: false, reason: '' });
   const [showValidationErrors, setShowValidationErrors] = useState(false);
+  const [categoryMismatchModal, setCategoryMismatchModal] = useState({ open: false, selectedCategory: 'MARKETING' });
+  const [activePopoverId, setActivePopoverId] = useState(null);
+
   
   const [formData, setFormData] = useState({
     name: '',
@@ -533,6 +536,17 @@ const TemplateManager = () => {
   };
 
   const validateRegularTemplate = (bodyComponent, headerComponent, components) => {
+    // Utility Category Validation: Prevent promotional content
+    if (formData.category === 'UTILITY') {
+      const promotionalKeywords = ['offer', 'discount', 'promo', 'sale', 'free', 'buy', 'win', 'chance', 'prize', 'giveaway', '% off'];
+      const textToCheck = ((bodyComponent?.text || '') + ' ' + (headerComponent?.text || '') + ' ' + ((components.find(c => c.type === 'FOOTER'))?.text || '')).toLowerCase();
+      
+      const foundKeyword = promotionalKeywords.find(k => textToCheck.includes(k));
+      if (foundKeyword) {
+        return 'CATEGORY_MISMATCH';
+      }
+    }
+
     // Check if all variables have sample values
     const allVariables = getAllVariables();
     if (allVariables.length > 0) {
@@ -610,13 +624,21 @@ const TemplateManager = () => {
     return null;
   };
 
-  const handleSubmitTemplate = async () => {
+  const handleSubmitTemplate = async (categoryOverride = null) => {
     setShowValidationErrors(true);
     
-    const validationError = validateTemplate();
-    if (validationError) {
-      setValidationError(validationError);
-      return;
+    let payloadToSubmit = formData;
+    if (categoryOverride) {
+      payloadToSubmit = { ...formData, category: categoryOverride };
+    } else {
+      const validationError = validateTemplate();
+      if (validationError === 'CATEGORY_MISMATCH') {
+        setCategoryMismatchModal({ open: true, selectedCategory: 'MARKETING' });
+        return;
+      } else if (validationError) {
+        setValidationError(validationError);
+        return;
+      }
     }
     
     setValidationError(null);
@@ -624,7 +646,7 @@ const TemplateManager = () => {
     try {
       const url = dialogType === 'create' 
         ? `${API_BASE_URL}/templates` 
-        : `${API_BASE_URL}/templates/${currentTemplate.id || currentTemplate.templateId}`;
+        : `${API_BASE_URL}/templates/${currentTemplate?.id || currentTemplate?.templateId || ''}`;
       
       const method = dialogType === 'create' ? 'POST' : 'PUT';
       
@@ -632,7 +654,7 @@ const TemplateManager = () => {
         method,
         headers: { 'Content-Type': 'application/json' },
         credentials: "include",
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payloadToSubmit)
       });
 
       if (response.ok) {
@@ -1275,15 +1297,77 @@ const TemplateManager = () => {
                     </div>
                   </td>
                   <td>
-                    <span className="category-tag" style={{
-                      padding: '4px 8px', 
-                      borderRadius: 4, 
-                      fontSize: 12, 
-                      fontWeight: 600,
-                      background: categories.find(c => c.value === template.category)?.color || '#f0f2f5'
-                    }}>
-                      {template.category}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className="category-tag" style={{
+                        padding: '4px 8px', 
+                        borderRadius: 4, 
+                        fontSize: 12, 
+                        fontWeight: 600,
+                        background: categories.find(c => c.value === template.category)?.color || '#f0f2f5'
+                      }}>
+                        {template.category}
+                      </span>
+                      {template.previousCategory && template.previousCategory !== template.category && (
+                        <div 
+                          style={{ cursor: 'pointer', position: 'relative' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActivePopoverId(activePopoverId === (template.id || template.templateId) ? null : (template.id || template.templateId));
+                          }}
+                        >
+                          <AlertCircle size={16} color="#d97706" />
+                          
+                          {activePopoverId === (template.id || template.templateId) && (
+                            <div 
+                              style={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '100%',
+                                transform: 'translateY(-50%)',
+                                marginLeft: 12,
+                                background: '#fff',
+                                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                                borderRadius: 8,
+                                width: 340,
+                                zIndex: 1000,
+                                padding: 16,
+                                border: '1px solid #e2e8f0',
+                                cursor: 'default'
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <AlertCircle size={18} color="#d97706" />
+                                  <strong style={{ fontSize: 14, color: '#1c2b33' }}>Template category updated</strong>
+                                </div>
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); setActivePopoverId(null); }}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                              
+                              <div style={{ background: '#ffedd5', padding: 12, borderRadius: 6, marginBottom: 12, fontSize: 13, color: '#1c2b33', lineHeight: 1.5 }}>
+                                <div style={{ marginBottom: 8 }}>
+                                  This template did not meet our utility guidelines and was updated to <strong>{template.category.toLowerCase()}</strong>.
+                                </div>
+                                <div style={{ marginBottom: 8 }}>
+                                  If you believe that this is a mistake, you can view more details or request a review in Business Support Home
+                                </div>
+                                <strong>Review available until: {new Date(new Date(template.createdAt).getTime() + 60*24*60*60*1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</strong>
+                              </div>
+                              
+                              <button style={{ width: '100%', background: '#0066ff', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+                                <ExternalLink size={14} />
+                                Review in Business Support Home
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td>
                     <span className={`status-badge ${getStatusClass(template.status)}`}>
@@ -1451,6 +1535,141 @@ const TemplateManager = () => {
               <p>Fetching from Meta's global library...</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Category Mismatch Modal */}
+      {categoryMismatchModal.open && (
+        <div className="delete-modal-overlay" style={{ zIndex: 1100 }}>
+          <div className="delete-modal" style={{ maxWidth: 500 }}>
+            {/* Header */}
+            <div style={{
+              padding: '16px 24px',
+              borderBottom: '1px solid #f0f0f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ fontSize: 18, fontWeight: 600, color: '#1c2b33', margin: 0 }}>
+                Category does not match
+              </div>
+              <button
+                onClick={() => setCategoryMismatchModal({ open: false, selectedCategory: 'MARKETING' })}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'rgba(0, 0, 0, 0.45)'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '24px' }}>
+              <p style={{ margin: '0 0 16px 0', fontSize: 14, color: '#1c2b33', lineHeight: 1.5 }}>
+                To make sure that your message template gets approved, please choose a category that matches the content in this template.
+              </p>
+
+              <div style={{ 
+                border: categoryMismatchModal.selectedCategory === 'UTILITY' ? '1px solid #008069' : '1px solid #e9edef', 
+                borderRadius: 8, 
+                padding: '12px 16px', 
+                marginBottom: 12,
+                cursor: 'pointer',
+                background: categoryMismatchModal.selectedCategory === 'UTILITY' ? '#f0f2f5' : '#fff'
+              }}
+              onClick={() => setCategoryMismatchModal(prev => ({ ...prev, selectedCategory: 'UTILITY' }))}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <input 
+                      type="radio" 
+                      checked={categoryMismatchModal.selectedCategory === 'UTILITY'}
+                      onChange={() => setCategoryMismatchModal(prev => ({ ...prev, selectedCategory: 'UTILITY' }))}
+                      style={{ margin: 0, width: 16, height: 16, accentColor: '#008069' }} 
+                    />
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: '#1c2b33', marginBottom: 2 }}>Utility</div>
+                      <div style={{ fontSize: 13, color: '#54656f' }}>Send messages about an existing order or account.</div>
+                    </div>
+                  </div>
+                  {categoryMismatchModal.selectedCategory === 'UTILITY' && (
+                    <div style={{ background: '#ffedd5', color: '#c2410c', padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600 }}>Selected</div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ 
+                border: categoryMismatchModal.selectedCategory === 'MARKETING' ? '1px solid #008069' : '1px solid #e9edef', 
+                borderRadius: 8, 
+                padding: '12px 16px', 
+                marginBottom: 16,
+                cursor: 'pointer',
+                background: categoryMismatchModal.selectedCategory === 'MARKETING' ? '#f0f2f5' : '#fff'
+              }}
+              onClick={() => setCategoryMismatchModal(prev => ({ ...prev, selectedCategory: 'MARKETING' }))}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <input 
+                      type="radio" 
+                      checked={categoryMismatchModal.selectedCategory === 'MARKETING'}
+                      onChange={() => setCategoryMismatchModal(prev => ({ ...prev, selectedCategory: 'MARKETING' }))}
+                      style={{ margin: 0, width: 16, height: 16, accentColor: '#008069' }} 
+                    />
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: '#1c2b33', marginBottom: 2 }}>Marketing</div>
+                      <div style={{ fontSize: 13, color: '#54656f' }}>Send promotions or information about your products, services or business.</div>
+                    </div>
+                  </div>
+                  <div style={{ background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600 }}>Recommended</div>
+                </div>
+              </div>
+
+              {categoryMismatchModal.selectedCategory === 'UTILITY' && (
+                <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 8, padding: 12, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <AlertCircle size={20} color="#dc2626" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <div style={{ fontSize: 13, color: '#991b1b', lineHeight: 1.5 }}>
+                    This message template will be rejected. You can request a review in Business Support Home.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{
+              padding: '16px 24px',
+              borderTop: '1px solid #f0f0f0',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 12,
+              background: '#f9f9f9',
+              borderBottomLeftRadius: 8,
+              borderBottomRightRadius: 8
+            }}>
+              <button
+                className="btn-cancel"
+                onClick={() => setCategoryMismatchModal({ open: false, selectedCategory: 'MARKETING' })}
+                style={{ padding: '8px 16px', borderRadius: 24 }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  setCategoryMismatchModal(prev => ({ ...prev, open: false }));
+                  handleSubmitTemplate(categoryMismatchModal.selectedCategory);
+                }}
+                style={{ padding: '8px 16px', borderRadius: 24, background: '#0066ff', color: '#fff', border: 'none' }}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1700,6 +1919,27 @@ const TemplateManager = () => {
                 </button>
                 <h2>{dialogType === 'create' ? 'Create a message template' : 'Edit message template'}</h2>
               </div>
+              
+              {/* Category Update Warning Display */}
+              {currentTemplate && currentTemplate.previousCategory && currentTemplate.previousCategory !== currentTemplate.category && (
+                <div style={{
+                  background: '#fff3cd',
+                  border: '1px solid #ffeeba',
+                  borderRadius: 8,
+                  padding: 12,
+                  margin: '12px 0 0 0',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 8
+                }}>
+                  <AlertCircle size={20} color="#856404" style={{marginTop: 2, flexShrink: 0}} />
+                  <div style={{fontSize: 13, color: '#856404', lineHeight: 1.5}}>
+                    <strong style={{display: 'block', marginBottom: 4}}>Template category updated</strong>
+                    This template did not meet our {currentTemplate.previousCategory.toLowerCase()} guidelines and was updated to {currentTemplate.category.toLowerCase()}. 
+                    If you believe that this is a mistake, you can view more details or request a review in Business Support Home.
+                  </div>
+                </div>
+              )}
               
               {/* Validation Error Display */}
               {validationError && (

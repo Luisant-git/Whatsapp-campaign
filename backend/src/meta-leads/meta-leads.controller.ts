@@ -142,9 +142,8 @@ export class MetaLeadsController {
     @Query('hub.challenge') challenge: string,
   ) {
     try {
-      const { tenantId, dbUrl } = await this.getTenantContext(req);
-      const masterConfig = await this.metaLeadsService.getMasterConfig(tenantId, dbUrl);
-      if (mode === 'subscribe' && token === masterConfig?.verifyToken) {
+      const isValid = await this.metaLeadsService.verifyWebhookToken(token);
+      if (mode === 'subscribe' && isValid) {
         return challenge;
       }
       return 'Verification failed';
@@ -155,12 +154,13 @@ export class MetaLeadsController {
 
   @Post('webhook')
   async handleWebhook(@Req() req: any, @Body() body: any) {
-    try {
-      const { tenantId, dbUrl } = await this.getTenantContext(req);
-      return this.metaLeadsService.handleWebhook(body, tenantId, dbUrl);
-    } catch (error) {
-      return { error: true, message: error.message };
-    }
+    // Process async so we can return immediately
+    setImmediate(() => {
+      this.metaLeadsService.handleWebhook(body).catch(error => {
+        console.error('Async Meta Webhook processing error:', error);
+      });
+    });
+    return 'EVENT_RECEIVED';
   }
 
   @Delete('all')

@@ -258,26 +258,7 @@ const MetaLeadsConfig = () => {
                 <small>Must have leads_retrieval permission</small>
               </div>
 
-              <div className="form-group">
-                <label>Verify Token (Optional)</label>
-                <input
-                  type="text"
-                  value={formData.verifyToken}
-                  onChange={(e) => setFormData({ ...formData, verifyToken: e.target.value })}
-                  placeholder="For webhook verification"
-                />
-              </div>
 
-              <div className="form-group-checkbox">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={formData.isActive}
-                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                  />
-                  Active
-                </label>
-              </div>
 
               <div className="form-actions">
                 <button type="button" onClick={resetForm} className="btn-secondary">

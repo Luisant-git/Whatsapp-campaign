@@ -1,10 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { TenantPrismaService } from '../tenant-prisma.service';
 import axios from 'axios';
+import { PrismaClient as CentralPrismaClient } from '@prisma/client-central';
 
 @Injectable()
 export class MetaLeadsService {
   private readonly logger = new Logger(MetaLeadsService.name);
+  private centralPrisma = new CentralPrismaClient();
 
   constructor(private prisma: TenantPrismaService) {}
 
@@ -395,53 +397,145 @@ export class MetaLeadsService {
     return parsed;
   }
 
-  async handleWebhook(body: any, tenantId?: string, dbUrl?: string) {
+  async verifyWebhookToken(token: string): Promise<boolean> {
     try {
-      const entry = body.entry?.[0];
-      const changes = entry?.changes?.[0];
-      
-      if (changes?.field === 'leadgen') {
-        const leadgenId = changes.value.leadgen_id;
-        const pageId = changes.value.page_id;
-        const formId = changes.value.form_id;
-        
-        const client = await this.getClient(tenantId || 'default', dbUrl);
-        const masterConfig = await client.masterConfig.findFirst({
-          where: { isActive: true },
-        });
+      const tenants = await this.centralPrisma.tenant.findMany({
+        where: { isActive: true },
+      });
 
-        if (!masterConfig) {
-          this.logger.error('No active MasterConfig found');
-          return { success: false, error: 'No active config' };
+      for (const tenant of tenants) {
+        try {
+          const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+          const client = await this.getClient(tenant.id.toString(), dbUrl);
+          
+          const metaConfig = await client.metaConfig.findFirst({
+            where: { isActive: true },
+          });
+
+          if (metaConfig?.verifyToken === token) return true;
+
+          const masterConfig = await client.masterConfig.findFirst({
+            where: { isActive: true },
+          });
+
+          if (masterConfig?.verifyToken === token) return true;
+        } catch (e) {
+          // ignore tenant connection errors during verification iteration
         }
+      }
+      return false;
+    } catch (e) {
+      this.logger.error('Error during webhook token verification:', e);
+      return false;
+    }
+  }
 
-        const { data } = await axios.get(
-          `https://graph.facebook.com/v25.0/${leadgenId}`,
-          { params: { access_token: masterConfig.accessToken } }
-        );
+  async handleWebhook(body: any) {
+    try {
+      if (body.object !== 'page') return;
 
-        const fieldData = this.parseLeadFields(data.field_data);
-        
-        await client.metaLead.create({
-          data: {
-            leadId: leadgenId,
-            formId,
-            pageId,
-            createdTime: new Date(data.created_time),
-            ...fieldData,
-          },
-        });
+      const entries = body.entry || [];
+      for (const entry of entries) {
+        const changes = entry?.changes || [];
+        for (const change of changes) {
+          if (change.field === 'leadgen') {
+            const leadgenId = change.value.leadgen_id;
+            const formId = change.value.form_id;
+            const pageId = change.value.page_id;
 
-        if (fieldData.phone) {
-          await this.syncToContact(fieldData, masterConfig.phoneNumberId, tenantId, dbUrl);
+            this.logger.log(`Received Meta Lead: ${leadgenId}`);
+
+            const tenants = await this.centralPrisma.tenant.findMany({
+              where: { isActive: true },
+            });
+
+            let leadData: any = null;
+            let matchedTenant: any = null;
+            let matchedDbUrl = '';
+            let matchedMetaConfig: any = null;
+
+            // Try to fetch lead using tokens of all active tenants until one works
+            for (const tenant of tenants) {
+              try {
+                const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+                const client = await this.getClient(tenant.id.toString(), dbUrl);
+                
+                const metaConfig = await client.metaConfig.findFirst({
+                  where: { isActive: true },
+                });
+
+                if (metaConfig && metaConfig.accessToken) {
+                  const response = await axios.get(
+                    `https://graph.facebook.com/v25.0/${leadgenId}`,
+                    { params: { access_token: metaConfig.accessToken } }
+                  );
+                  
+                  if (response.data) {
+                    leadData = response.data;
+                    matchedTenant = tenant;
+                    matchedDbUrl = dbUrl;
+                    matchedMetaConfig = metaConfig;
+                    break;
+                  }
+                }
+              } catch (e) {
+                // Ignore API fetch errors for other tenants' tokens
+              }
+            }
+
+            if (!leadData) {
+              this.logger.error(`Failed to fetch lead ${leadgenId} from Meta with any provided access token`);
+              continue;
+            }
+
+            this.logger.log(`Lead ${leadgenId} belongs to tenant ${matchedTenant.id} (${matchedTenant.name})`);
+
+            // 1. Parse Field Data
+            const fieldData = this.parseLeadFields(leadData.field_data);
+            
+            // 2. Fetch Form Name
+            let campaignName = matchedMetaConfig.name || null;
+            try {
+              const formResponse = await axios.get(
+                `https://graph.facebook.com/v25.0/${formId}`,
+                { params: { access_token: matchedMetaConfig.accessToken, fields: 'id,name' } }
+              );
+              if (formResponse.data?.name) {
+                campaignName = formResponse.data.name;
+              }
+            } catch (e) {
+              this.logger.warn(`Could not fetch form name for form ${formId}`);
+            }
+
+            // 3. Create lead in matched tenant's database
+            const client = await this.getClient(matchedTenant.id.toString(), matchedDbUrl);
+            await client.metaLead.upsert({
+              where: { leadId: leadgenId },
+              update: { ...fieldData, campaignName },
+              create: {
+                leadId: leadgenId,
+                formId,
+                pageId,
+                campaignName,
+                createdTime: new Date(leadData.created_time),
+                ...fieldData,
+              },
+            });
+
+            // 4. Sync to contact if phone exists
+            if (fieldData.phone) {
+              const masterConfig = await client.masterConfig.findFirst({
+                where: { isActive: true },
+              });
+              await this.syncToContact(fieldData, masterConfig?.phoneNumberId, matchedTenant.id.toString(), matchedDbUrl);
+            }
+
+            this.logger.log(`Successfully synced Meta lead ${leadgenId} for tenant ${matchedTenant.id}`);
+          }
         }
-
-        this.logger.log(`Lead synced: ${leadgenId}`);
-        return { success: true };
       }
     } catch (error) {
       this.logger.error('Webhook processing failed:', error);
-      throw error;
     }
   }
 

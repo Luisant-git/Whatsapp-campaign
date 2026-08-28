@@ -237,4 +237,43 @@ export class MetaLeadsController {
       };
     }
   }
+
+  @Get('automation-rules')
+  async getAutomationRules(@Req() req: any) {
+    try {
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
+      return this.metaLeadsService.getAutomationRules(tenantId, dbUrl);
+    } catch (error) {
+      return {
+        error: true,
+        message: error.message || 'Failed to fetch automation rules'
+      };
+    }
+  }
+
+  @Post('automation-rules')
+  async saveAutomationRule(@Req() req: any, @Body() body: any) {
+    try {
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
+      return this.metaLeadsService.saveAutomationRule(body, tenantId, dbUrl);
+    } catch (error) {
+      return {
+        error: true,
+        message: error.message || 'Failed to save automation rule'
+      };
+    }
+  }
+
+  @Delete('automation-rules/:id')
+  async deleteAutomationRule(@Req() req: any, @Param('id') id: string) {
+    try {
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
+      return this.metaLeadsService.deleteAutomationRule(parseInt(id), tenantId, dbUrl);
+    } catch (error) {
+      return {
+        error: true,
+        message: error.message || 'Failed to delete automation rule'
+      };
+    }
+  }
 }

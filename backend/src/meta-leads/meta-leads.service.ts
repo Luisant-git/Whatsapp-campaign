@@ -670,4 +670,40 @@ export class MetaLeadsService {
       throw new Error(error.message || 'Failed to import CSV');
     }
   }
+
+  async getAutomationRules(tenantId: string, dbUrl?: string) {
+    const client = await this.getClient(tenantId, dbUrl);
+    return client.metaLeadAutomation.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  async saveAutomationRule(data: { templateName: string, delayMinutes: number, isActive: boolean, id?: number }, tenantId: string, dbUrl?: string) {
+    const client = await this.getClient(tenantId, dbUrl);
+    if (data.id) {
+      return client.metaLeadAutomation.update({
+        where: { id: data.id },
+        data: {
+          templateName: data.templateName,
+          delayMinutes: data.delayMinutes,
+          isActive: data.isActive
+        }
+      });
+    } else {
+      return client.metaLeadAutomation.create({
+        data: {
+          templateName: data.templateName,
+          delayMinutes: data.delayMinutes,
+          isActive: data.isActive
+        }
+      });
+    }
+  }
+
+  async deleteAutomationRule(id: number, tenantId: string, dbUrl?: string) {
+    const client = await this.getClient(tenantId, dbUrl);
+    return client.metaLeadAutomation.delete({
+      where: { id }
+    });
+  }
 }

@@ -83,6 +83,7 @@ export const MENU_CONFIG = [
       children: [
         { key: "settings.master-config", label: "WhatsApp Setup", icon: "sliders" },
         { key: "settings.meta-leads-config", label: "Meta Leads Setup", icon: "clipboardList" },
+        { key: "settings.meta-leads-automation", label: "Meta Leads Automation", icon: "zap" },
         { key: "automation.templates", label: "Automation Templates", icon: "layoutTemplate" },
         { key: "settings.templates", label: "Templates", icon: "layoutTemplate" },
         { key: "settings.labels", label: "Labels", icon: "tag" },

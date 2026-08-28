@@ -63,6 +63,7 @@ import "./styles/Settings.css";
 import "./styles/Profile.css";
 import MetaLeads from "./components/MetaLeads";
 import MetaLeadsConfig from "./components/MetaLeadsConfig";
+import MetaLeadsAutomation from "./components/MetaLeadsAutomation";
 import { getCurrentPlan } from "./api/subscription";
 import { logoutUser, getProfile } from "./api/auth";
 import AutomationTemplatesSettings from "./components/AutomationTemplatesSettings.jsx";
@@ -125,6 +126,7 @@ const MENU_TO_VIEW = {
   "settings.createuser": "createuser",
   "settings.assignedcontact":"assignedcontact",
   "settings.meta-leads-config": "meta-leads-config",
+  "settings.meta-leads-automation": "meta-leads-automation",
   
 
   subscription: "subscription",
@@ -605,6 +607,7 @@ function App() {
             {activeView === "flow-appointments" && <FlowAppointments />}
             {activeView === "meta-leads" && <MetaLeads onNavigate={handleMenuClick} />}
             {activeView === "meta-leads-config" && <MetaLeadsConfig />}
+            {activeView === "meta-leads-automation" && <MetaLeadsAutomation />}
             {activeView === "templates" && <TemplateManager />}
             {activeView === "analytics" && <Analytics />}
             {activeView === "settings" && (

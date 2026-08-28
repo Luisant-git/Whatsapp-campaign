@@ -604,11 +604,13 @@ model MetaLead {
   company      String?
   city         String?
   businessType String?
-  customFields Json?    @default("{}")
-  status       String   @default("Intake")
-  createdTime  DateTime
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  customFields     Json?    @default("{}")
+  status           String   @default("Intake")
+  isAutomationSent Boolean  @default(false)
+  automationSentAt DateTime?
+  createdTime      DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([formId])
   @@index([pageId])
@@ -635,4 +637,13 @@ model Grievance {
   @@index([phoneNumber])
   @@index([status])
   @@index([type])
+}
+
+model MetaLeadAutomation {
+  id             Int      @id @default(autoincrement())
+  templateName   String
+  delayMinutes   Int      @default(5)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }

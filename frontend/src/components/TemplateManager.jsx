@@ -1978,7 +1978,7 @@ const TemplateManager = () => {
                   setOpenDialog(false);
                   setValidationError(null);
                 }}>Cancel</button>
-                <button className="btn-submit" onClick={handleSubmitTemplate} disabled={loading}>
+                <button className="btn-submit" onClick={() => handleSubmitTemplate()} disabled={loading}>
                   {loading ? 'Processing...' : (dialogType === 'create' ? 'Finish' : 'Save Changes')}
                 </button>
               </div>

@@ -127,167 +127,172 @@ const MetaLeadsAutomation = () => {
 
   if (loading) {
     return (
-      <div className="settings-panel">
-        <div className="loading-spinner"></div>
+      <div className="settings-container">
+        <div className="loading">
+          <div className="loading-spinner"></div>
+          <span style={{ marginLeft: '12px' }}>Loading automation rules...</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="settings-panel meta-leads-config">
+    <div className="settings-container">
       <div className="settings-header">
-        <div>
-          <h2>Meta Leads Automation</h2>
-          <p>Automatically send WhatsApp messages to new Meta Leads after a set delay.</p>
+        <div className="settings-title-section">
+          <Zap size={32} />
+          <div>
+            <h1>Meta Leads Automation</h1>
+            <p>Automatically send WhatsApp messages to new Meta Leads after a set delay.</p>
+          </div>
         </div>
         {!showForm && (
-          <button className="add-config-btn" onClick={() => setShowForm(true)}>
+          <button className="btn-primary" onClick={() => setShowForm(true)}>
             <Plus size={20} />
             Add Rule
           </button>
         )}
       </div>
 
-      {showForm ? (
-        <div className="config-form-container">
-          <div className="config-form-header">
-            <h3>{editingId ? 'Edit Automation Rule' : 'New Automation Rule'}</h3>
-            <button 
-              className="close-btn"
-              onClick={() => {
-                setShowForm(false);
-                setEditingId(null);
-                setFormData({ templateName: '', delayMinutes: 5, isActive: true });
-              }}
-            >
-              <X size={20} />
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="config-form">
-            <div className="form-group">
-              <label>WhatsApp Template *</label>
-              <select
-                value={formData.templateName}
-                onChange={(e) => setFormData({ ...formData, templateName: e.target.value })}
-                required
-                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '16px' }}
-              >
-                <option value="">Select a template...</option>
-                {templates.map((t) => (
-                  <option key={t.id || t.templateId} value={t.name}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-              <small style={{ color: '#64748b' }}>Only approved templates can be selected.</small>
-            </div>
-
-            <div className="form-group" style={{ marginTop: '16px' }}>
-              <label>Delay in Minutes *</label>
-              <input
-                type="number"
-                min="0"
-                value={formData.delayMinutes}
-                onChange={(e) => setFormData({ ...formData, delayMinutes: e.target.value })}
-                placeholder="e.g., 5"
-                required
-              />
-              <small style={{ color: '#64748b', display: 'block', marginTop: '4px' }}>
-                How long to wait after the lead is received before sending the message. Enter 0 to send immediately.
-              </small>
-            </div>
-
-            <div className="form-group checkbox-group" style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input
-                type="checkbox"
-                id="isActive"
-                checked={formData.isActive}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                style={{ width: 'auto' }}
-              />
-              <label htmlFor="isActive" style={{ margin: 0, fontWeight: 'normal' }}>Enable this automation</label>
-            </div>
-
-            <div className="form-actions">
+      <div className="settings-content">
+        {showForm ? (
+          <div className="config-form-container">
+            <div className="modal-header" style={{ padding: '0 0 20px 0', marginBottom: '20px' }}>
+              <h2>{editingId ? 'Edit Automation Rule' : 'New Automation Rule'}</h2>
               <button 
-                type="button" 
-                className="cancel-btn"
+                className="close-btn"
                 onClick={() => {
                   setShowForm(false);
                   setEditingId(null);
+                  setFormData({ templateName: '', delayMinutes: 5, isActive: true });
                 }}
               >
-                Cancel
-              </button>
-              <button type="submit" className="save-btn">
-                <Save size={18} />
-                Save Rule
+                <X size={24} />
               </button>
             </div>
-          </form>
-        </div>
-      ) : (
-        <div className="configs-grid">
-          {rules.length === 0 ? (
-            <div className="no-configs">
-              <Zap size={48} color="#94a3b8" />
-              <p>No automation rules configured.</p>
-              <button className="add-config-btn" onClick={() => setShowForm(true)} style={{ marginTop: '16px' }}>
-                Create your first rule
-              </button>
-            </div>
-          ) : (
-            rules.map((rule) => (
-              <div key={rule.id} className="config-card">
-                <div className="config-header">
-                  <h3>Template: {rule.templateName}</h3>
-                  <div className="config-status">
-                    <span className={`status-badge ${rule.isActive ? 'active' : 'inactive'}`}>
-                      {rule.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="config-details">
-                  <div className="detail-item">
-                    <span className="label">Delay:</span>
-                    <span className="value">{rule.delayMinutes} {rule.delayMinutes === 1 ? 'minute' : 'minutes'}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Created:</span>
-                    <span className="value">{new Date(rule.createdAt).toLocaleDateString()}</span>
-                  </div>
-                </div>
 
-                <div className="config-actions">
-                  <button 
-                    className={`toggle-btn ${rule.isActive ? 'active' : ''}`}
-                    onClick={() => toggleStatus(rule)}
-                    title={rule.isActive ? "Disable" : "Enable"}
-                  >
-                    {rule.isActive ? 'Disable' : 'Enable'}
-                  </button>
-                  <button 
-                    className="edit-btn"
-                    onClick={() => handleEdit(rule)}
-                    title="Edit Rule"
-                  >
-                    <Edit2 size={18} />
-                  </button>
-                  <button 
-                    className="delete-btn"
-                    onClick={() => handleDelete(rule.id)}
-                    title="Delete Rule"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
+            <form onSubmit={handleSubmit} className="settings-form" style={{ padding: 0 }}>
+              <div className="form-group">
+                <label className="form-label">WhatsApp Template *</label>
+                <select
+                  className="form-input"
+                  value={formData.templateName}
+                  onChange={(e) => setFormData({ ...formData, templateName: e.target.value })}
+                  required
+                >
+                  <option value="">Select a template...</option>
+                  {templates.map((t) => (
+                    <option key={t.id || t.templateId} value={t.name}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+                <small>Only approved templates can be selected.</small>
               </div>
-            ))
-          )}
-        </div>
-      )}
+
+              <div className="form-group">
+                <label className="form-label">Delay in Minutes *</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  min="0"
+                  value={formData.delayMinutes}
+                  onChange={(e) => setFormData({ ...formData, delayMinutes: e.target.value })}
+                  placeholder="e.g., 5"
+                  required
+                />
+                <small>
+                  How long to wait after the lead is received before sending the message. Enter 0 to send immediately.
+                </small>
+              </div>
+
+              <div className="form-group" style={{ marginTop: '8px' }}>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={formData.isActive}
+                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                  />
+                  <span style={{ fontWeight: 600 }}>Enable this automation</span>
+                </label>
+              </div>
+
+              <div className="form-actions" style={{ padding: '20px 0 0 0' }}>
+                <button 
+                  type="button" 
+                  className="btn-secondary"
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditingId(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="save-btn">
+                  <Save size={18} />
+                  Save Rule
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : (
+          <>
+            {rules.length === 0 ? (
+              <div className="no-configs" style={{ textAlign: 'center', padding: '60px 20px' }}>
+                <Zap size={64} color="#cbd5e1" style={{ marginBottom: '16px' }} />
+                <h2 style={{ fontSize: '20px', color: '#1e293b', margin: '0 0 8px 0' }}>No automation rules configured.</h2>
+                <p style={{ color: '#64748b', marginBottom: '24px' }}>Create your first rule to automatically engage with your Meta leads.</p>
+                <button className="btn-primary" onClick={() => setShowForm(true)} style={{ margin: '0 auto' }}>
+                  <Plus size={20} />
+                  Create your first rule
+                </button>
+              </div>
+            ) : (
+              <div className="configurations-grid">
+                {rules.map((rule) => (
+                  <div key={rule.id} className={`config-card ${rule.isActive ? 'default' : ''}`}>
+                    <div className="config-header">
+                      <h3>{rule.templateName}</h3>
+                      <label className="toggle-switch" title={rule.isActive ? "Disable" : "Enable"}>
+                        <input
+                          type="checkbox"
+                          checked={rule.isActive}
+                          onChange={() => toggleStatus(rule)}
+                        />
+                        <span className="toggle-slider"></span>
+                      </label>
+                    </div>
+                    
+                    <div className="config-details">
+                      <p><strong>Delay:</strong> {rule.delayMinutes} {rule.delayMinutes === 1 ? 'minute' : 'minutes'}</p>
+                      <p><strong>Status:</strong> <span style={{ color: rule.isActive ? '#16a34a' : '#64748b', fontWeight: 600 }}>{rule.isActive ? 'Active' : 'Inactive'}</span></p>
+                      <p><strong>Created:</strong> {new Date(rule.createdAt).toLocaleDateString()}</p>
+                    </div>
+
+                    <div className="config-actions" style={{ marginTop: '16px', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
+                      <button 
+                        className="btn-secondary"
+                        onClick={() => handleEdit(rule)}
+                        title="Edit Rule"
+                        style={{ flex: 1, display: 'flex', justifyContent: 'center' }}
+                      >
+                        <Edit2 size={16} /> Edit
+                      </button>
+                      <button 
+                        className="btn-danger"
+                        onClick={() => handleDelete(rule.id)}
+                        title="Delete Rule"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 };

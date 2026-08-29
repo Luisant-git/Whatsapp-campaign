@@ -774,11 +774,15 @@ const MetaLeads = ({ onNavigate }) => {
               {selectedLead.customFields && Object.keys(selectedLead.customFields).length > 0 && (
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#65676b', textTransform: 'uppercase', marginBottom: 8 }}>Additional Fields</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {Object.entries(selectedLead.customFields).map(([key, value]) => (
-                      <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '7px 0', borderBottom: '1px solid #f0f2f5' }}>
-                        <span style={{ fontSize: 13, color: '#65676b', minWidth: 110, wordBreak: 'break-word' }}>{key}</span>
-                        <span style={{ fontSize: 14, color: '#1c1e21', fontWeight: 500, textAlign: 'right', maxWidth: 200, wordBreak: 'break-word' }}>{value || 'N/A'}</span>
+                      <div key={key} style={{ padding: '8px 10px', background: '#f7f8fa', borderRadius: 6, borderLeft: '3px solid #1877f2' }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#65676b', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: 3 }}>
+                          {key.replace(/_/g, ' ')}
+                        </div>
+                        <div style={{ fontSize: 14, color: '#1c1e21', fontWeight: 600, wordBreak: 'break-word' }}>
+                          {String(value || 'N/A').replace(/_/g, ' ')}
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -712,44 +712,46 @@ const MasterConfig = () => {
               <div key={config.id} className="config-card">
                 <div className="config-header">
                   <h3>{config.name}</h3>
-                  <button 
-                    onClick={() => handleSubscribeWABA(config)} 
-                    className="btn-outline"
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: '12px',
-                      background: '#25d366',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                    title="Subscribe app to WABA to receive webhooks"
-                  >
-                    <Wifi size={14} /> Subscribe
-                  </button>
-                  <button 
-                    onClick={() => handleSetWebhookClick(config)} 
-                    className="btn-outline"
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: '12px',
-                      background: '#1877f2',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                    title="Set Meta App Webhook Callback URL"
-                  >
-                    <Wifi size={14} /> Set Webhook
-                  </button>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <button 
+                      onClick={() => handleSubscribeWABA(config)} 
+                      className="btn-outline"
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        background: '#25d366',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                      title="Subscribe app to WABA to receive webhooks"
+                    >
+                      <Wifi size={14} /> Subscribe
+                    </button>
+                    <button 
+                      onClick={() => handleSetWebhookClick(config)} 
+                      className="btn-outline"
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        background: '#1877f2',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                      title="Set Meta App Webhook Callback URL"
+                    >
+                      <Wifi size={14} /> Set Webhook
+                    </button>
+                  </div>
                 </div>
                 <div className="config-details">
                   <p><strong>Phone ID:</strong> {config.phoneNumberId}</p>

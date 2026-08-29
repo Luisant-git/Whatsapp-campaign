@@ -207,39 +207,84 @@ const MetaLeadsAutomation = () => {
       {rules.length > 0 && (
         <div className="settings-content">
           <div className="preference-header" style={{ marginBottom: '24px' }}>
-            <h2>Active Automations</h2>
+            <h2>Automation Sequence (Pipeline)</h2>
+            <p>Your templates will be sent in this order based on the wait time.</p>
           </div>
-          <div className="configurations-grid">
-            {rules.map((rule) => (
-              <div key={rule.id} className={`config-card ${rule.isActive ? 'default' : ''}`}>
-                <div className="config-header">
-                  <h3>{rule.templateName}</h3>
-                  <label className="toggle-switch" title={rule.isActive ? "Pause Automation" : "Resume Automation"}>
-                    <input
-                      type="checkbox"
-                      checked={rule.isActive}
-                      onChange={() => toggleStatus(rule)}
-                    />
-                    <span className="toggle-slider"></span>
-                  </label>
+          
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {[...rules].sort((a, b) => a.delayMinutes - b.delayMinutes).map((rule, index, arr) => (
+              <React.Fragment key={rule.id}>
+                <div 
+                  className="preference-card" 
+                  style={{ 
+                    padding: '24px', 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    border: rule.isActive ? '2px solid #25d366' : '1px solid #e2e8f0',
+                    background: rule.isActive ? '#f0fdf4' : 'white',
+                    opacity: rule.isActive ? 1 : 0.6
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                    <div style={{ 
+                      width: '48px', 
+                      height: '48px', 
+                      borderRadius: '50%', 
+                      background: rule.isActive ? '#dcfce7' : '#f1f5f9',
+                      color: rule.isActive ? '#16a34a' : '#64748b',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '20px',
+                      fontWeight: 'bold'
+                    }}>
+                      {index + 1}
+                    </div>
+                    
+                    <div>
+                      <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#1e293b' }}>
+                        {rule.templateName}
+                      </h3>
+                      <p style={{ margin: 0, color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Clock size={16} />
+                        Wait {rule.delayMinutes} {rule.delayMinutes === 1 ? 'minute' : 'minutes'}
+                        {!rule.isActive && <span style={{ marginLeft: '8px', color: '#ef4444' }}>(Paused)</span>}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <label className="toggle-switch" title={rule.isActive ? "Pause Automation" : "Resume Automation"}>
+                      <input
+                        type="checkbox"
+                        checked={rule.isActive}
+                        onChange={() => toggleStatus(rule)}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+
+                    <button 
+                      className="btn-danger"
+                      onClick={() => handleDelete(rule.id)}
+                      title="Delete Step"
+                      style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </div>
                 
-                <div className="config-details">
-                  <p><strong>Delay:</strong> {rule.delayMinutes} {rule.delayMinutes === 1 ? 'minute' : 'minutes'}</p>
-                  <p><strong>Status:</strong> <span style={{ color: rule.isActive ? '#16a34a' : '#64748b', fontWeight: 600 }}>{rule.isActive ? 'Active' : 'Inactive'}</span></p>
-                  <p><strong>Created:</strong> {new Date(rule.createdAt).toLocaleDateString()}</p>
-                </div>
-
-                <div className="config-actions" style={{ marginTop: '16px', borderTop: '1px solid #e2e8f0', paddingTop: '16px', justifyContent: 'flex-end' }}>
-                  <button 
-                    className="btn-danger"
-                    onClick={() => handleDelete(rule.id)}
-                    title="Delete Automation"
-                  >
-                    <Trash2 size={16} /> Delete
-                  </button>
-                </div>
-              </div>
+                {index < arr.length - 1 && (
+                  <div style={{ 
+                    height: '32px', 
+                    width: '3px', 
+                    background: '#cbd5e1', 
+                    margin: '0 0 0 48px',
+                    borderRadius: '2px'
+                  }}></div>
+                )}
+              </React.Fragment>
             ))}
           </div>
         </div>

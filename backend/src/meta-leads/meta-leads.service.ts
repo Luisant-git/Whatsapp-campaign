@@ -192,43 +192,52 @@ export class MetaLeadsService {
       const tid = tenantId || 'default';
 
       this.logger.log(`Starting to save ${allLeads.length} leads for tenant ${tid}`);
-      this.logger.log(`Database URL: ${url.replace(/:[^:@]+@/, ':****@')}`);
 
-      for (const lead of allLeads) {
-        const fieldData = this.parseLeadFields(lead.field_data);
-        const leadFormId = lead.form_id || formId || 'unknown';
-        const campaignName = formNameMap.get(leadFormId) || null;
-        
-        this.logger.log(`Processing lead ${lead.id}: formId=${leadFormId}, campaignName=${campaignName}`);
-        
-        try {
-          const client = await this.getClient(tid, url);
-          const saved = await client.metaLead.upsert({
-            where: { leadId: lead.id },
-            update: { ...fieldData, campaignName },
-            create: {
-              leadId: lead.id,
-              formId: leadFormId,
-              pageId,
-              campaignName,
-              createdTime: new Date(lead.created_time),
-              ...fieldData,
-            },
-          });
+      // Get a single client once and reuse it for all leads
+      const client = await this.getClient(tid, url);
 
-          if (fieldData.phone) {
-            await this.syncToContact(fieldData, phoneNumberId, tid, url);
+      // Process in batches of 50 to avoid connection timeouts
+      const BATCH_SIZE = 50;
+      for (let i = 0; i < allLeads.length; i += BATCH_SIZE) {
+        const batch = allLeads.slice(i, i + BATCH_SIZE);
+        this.logger.log(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(allLeads.length / BATCH_SIZE)} (leads ${i + 1}-${Math.min(i + BATCH_SIZE, allLeads.length)})`);
+
+        for (const lead of batch) {
+          const fieldData = this.parseLeadFields(lead.field_data);
+          const leadFormId = lead.form_id || formId || 'unknown';
+          const campaignName = formNameMap.get(leadFormId) || null;
+
+          try {
+            await client.metaLead.upsert({
+              where: { leadId: lead.id },
+              update: { ...fieldData, campaignName },
+              create: {
+                leadId: lead.id,
+                formId: leadFormId,
+                pageId,
+                campaignName,
+                createdTime: new Date(lead.created_time),
+                ...fieldData,
+              },
+            });
+
+            if (fieldData.phone) {
+              await this.syncToContact(fieldData, phoneNumberId, tid, url);
+            }
+
+            savedLeads.push(lead.id);
+          } catch (error) {
+            this.logger.error(`❌ Failed to save lead ${lead.id}: [${error.code}] ${error.message}`);
+            if (failedLeads.length === 0) {
+              this.logger.error('First failure full error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+            }
+            failedLeads.push({ leadId: lead.id, error: error.message });
           }
+        }
 
-          savedLeads.push(saved);
-          this.logger.log(`✅ Saved lead ${lead.id} (${savedLeads.length}/${allLeads.length})`);
-        } catch (error) {
-          this.logger.error(`❌ Failed to save lead ${lead.id}: [${error.code}] ${error.message}`);
-          if (savedLeads.length === 0 && failedLeads.length === 0) {
-            // Log full error on first failure to diagnose
-            this.logger.error('First failure full error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
-          }
-          failedLeads.push({ leadId: lead.id, error: error.message });
+        // Small pause between batches to avoid overwhelming the DB
+        if (i + BATCH_SIZE < allLeads.length) {
+          await new Promise(res => setTimeout(res, 200));
         }
       }
 

@@ -50,9 +50,7 @@ const MetaLeadsAutomation = () => {
         headers: getHeaders(),
         withCredentials: true,
       });
-      const allTemplates = response.data.templates || response.data || [];
-      const approvedTemplates = allTemplates.filter((t) => t.status === 'APPROVED');
-      setTemplates(approvedTemplates);
+      setTemplates(response.data.templates || response.data || []);
     } catch (error) {
       console.error('Failed to fetch templates:', error);
     }

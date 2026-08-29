@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Edit2, Trash2, Save, X, Zap, Clock, MessageSquare, ArrowRight, Play, Check } from 'lucide-react';
-import '../styles/MetaLeadsAutomation.css';
+import { Trash2, Zap, Clock, Play, ArrowRight } from 'lucide-react';
+import '../styles/Settings.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010';
 
@@ -11,7 +11,6 @@ const MetaLeadsAutomation = () => {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Single Unified Form State for the "Quick Setup"
   const [formData, setFormData] = useState({
     templateName: '',
     delayMinutes: 5,
@@ -116,39 +115,43 @@ const MetaLeadsAutomation = () => {
 
   if (loading) {
     return (
-      <div className="mla-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-          <Zap size={48} color="#25D366" style={{ animation: 'pulse 2s infinite' }} />
-          <h2 style={{ color: '#1E293B' }}>Loading Automations...</h2>
+      <div className="settings-container">
+        <div className="loading">
+          <div className="loading-spinner"></div>
+          <span style={{ marginLeft: '12px' }}>Loading automations...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="mla-container">
-      <div className="mla-header">
-        <h1>Meta Leads Auto-Responder</h1>
-        <p>Instantly engage your Facebook & Instagram leads. Set your delay, pick a template, and let the automation do the rest.</p>
+    <div className="settings-container">
+      <div className="settings-header">
+        <div className="settings-title-section">
+          <Zap size={32} />
+          <div>
+            <h1>Meta Leads Automation</h1>
+            <p>Automatically send WhatsApp messages to new Meta Leads after a set delay.</p>
+          </div>
+        </div>
       </div>
 
-      <div className="mla-quick-setup">
-        <div className="mla-setup-title">
-          <div className="mla-setup-icon">
-            <Zap size={24} />
-          </div>
-          Create New Automation
+      <div className="preference-card" style={{ marginBottom: '32px' }}>
+        <div className="preference-header">
+          <h2>Create New Automation</h2>
+          <p>Set a delay and pick a template to automatically engage new leads.</p>
         </div>
         
-        <form onSubmit={handleSubmit}>
-          <div className="mla-setup-flow">
-            <div className="mla-flow-step">
-              <label className="mla-flow-label">
-                <Clock size={16} /> Wait Time (Minutes)
+        <form onSubmit={handleSubmit} className="settings-form" style={{ padding: 0 }}>
+          <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div className="form-group" style={{ flex: 1, minWidth: '200px' }}>
+              <label className="form-label">
+                <Clock size={16} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '6px' }} />
+                Wait Time (Minutes)
               </label>
               <input
                 type="number"
-                className="mla-input"
+                className="form-input"
                 min="0"
                 value={formData.delayMinutes}
                 onChange={(e) => setFormData({ ...formData, delayMinutes: e.target.value })}
@@ -157,19 +160,18 @@ const MetaLeadsAutomation = () => {
               />
             </div>
 
-            <div className="mla-flow-arrow">
+            <div style={{ color: '#94a3b8', paddingBottom: '14px', display: 'flex', alignItems: 'center' }}>
               <ArrowRight size={24} />
             </div>
 
-            <div className="mla-flow-step" style={{ flex: 2 }}>
-              <label className="mla-flow-label">
-                <MessageSquare size={16} /> Then Send Template
-              </label>
+            <div className="form-group" style={{ flex: 2, minWidth: '250px' }}>
+              <label className="form-label">Then Send Template</label>
               <select
-                className="mla-select"
+                className="form-input"
                 value={formData.templateName}
                 onChange={(e) => setFormData({ ...formData, templateName: e.target.value })}
                 required
+                style={{ cursor: 'pointer' }}
               >
                 <option value="" disabled>Select a WhatsApp Template...</option>
                 {templates.map((t) => (
@@ -180,15 +182,16 @@ const MetaLeadsAutomation = () => {
               </select>
             </div>
 
-            <div className="mla-flow-step">
+            <div className="form-group" style={{ minWidth: '180px' }}>
               <button 
                 type="submit" 
-                className="mla-btn-primary" 
+                className="btn-primary" 
                 disabled={isSubmitting || !formData.templateName}
+                style={{ width: '100%', height: '48px', justifyContent: 'center' }}
               >
                 {isSubmitting ? 'Saving...' : (
                   <>
-                    <Play size={20} />
+                    <Play size={18} />
                     Start Automating
                   </>
                 )}
@@ -199,42 +202,38 @@ const MetaLeadsAutomation = () => {
       </div>
 
       {rules.length > 0 && (
-        <div className="mla-rules-section">
-          <div className="mla-rules-header">
-            <h2><Check size={28} color="#25D366" /> Active Automations ({rules.filter(r => r.isActive).length})</h2>
+        <div className="settings-content">
+          <div className="preference-header" style={{ marginBottom: '24px' }}>
+            <h2>Active Automations</h2>
           </div>
-          
-          <div className="mla-rule-list">
+          <div className="configurations-grid">
             {rules.map((rule) => (
-              <div key={rule.id} className={`mla-rule-item ${!rule.isActive ? 'inactive' : ''}`}>
-                <div className="mla-rule-info">
-                  <div className="mla-rule-time">
-                    <Clock size={18} />
-                    Wait {rule.delayMinutes} min
-                  </div>
-                  <ArrowRight size={20} color="#94A3B8" />
-                  <div className="mla-rule-template">
-                    <MessageSquare size={20} color={rule.isActive ? "#25D366" : "#94A3B8"} />
-                    {rule.templateName}
-                  </div>
-                </div>
-
-                <div className="mla-rule-actions">
-                  <label className="mla-switch" title={rule.isActive ? "Pause Automation" : "Resume Automation"}>
+              <div key={rule.id} className={`config-card ${rule.isActive ? 'default' : ''}`}>
+                <div className="config-header">
+                  <h3>{rule.templateName}</h3>
+                  <label className="toggle-switch" title={rule.isActive ? "Pause Automation" : "Resume Automation"}>
                     <input
                       type="checkbox"
                       checked={rule.isActive}
                       onChange={() => toggleStatus(rule)}
                     />
-                    <span className="mla-slider"></span>
+                    <span className="toggle-slider"></span>
                   </label>
-                  
+                </div>
+                
+                <div className="config-details">
+                  <p><strong>Delay:</strong> {rule.delayMinutes} {rule.delayMinutes === 1 ? 'minute' : 'minutes'}</p>
+                  <p><strong>Status:</strong> <span style={{ color: rule.isActive ? '#16a34a' : '#64748b', fontWeight: 600 }}>{rule.isActive ? 'Active' : 'Inactive'}</span></p>
+                  <p><strong>Created:</strong> {new Date(rule.createdAt).toLocaleDateString()}</p>
+                </div>
+
+                <div className="config-actions" style={{ marginTop: '16px', borderTop: '1px solid #e2e8f0', paddingTop: '16px', justifyContent: 'flex-end' }}>
                   <button 
-                    className="mla-btn-icon" 
+                    className="btn-danger"
                     onClick={() => handleDelete(rule.id)}
                     title="Delete Automation"
                   >
-                    <Trash2 size={20} />
+                    <Trash2 size={16} /> Delete
                   </button>
                 </div>
               </div>

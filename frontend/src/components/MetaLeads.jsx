@@ -736,22 +736,22 @@ const MetaLeads = ({ onNavigate }) => {
             {/* Drawer Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #e4e6eb' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#e7f3ff', color: '#1877f2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 16 }}>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#e7f3ff', color: '#1877f2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18 }}>
                   {selectedLead.name?.charAt(0) || 'L'}
                 </div>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: '#1c1e21' }}>{selectedLead.name || 'Anonymous Lead'}</div>
-                  <div style={{ fontSize: 12, color: '#65676b' }}>{selectedLead.campaignName || 'N/A'}</div>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: '#1c1e21' }}>{selectedLead.name || 'Anonymous Lead'}</div>
+                  <div style={{ fontSize: 13, color: '#65676b' }}>{selectedLead.campaignName || 'N/A'}</div>
                 </div>
               </div>
-              <button onClick={closeDetailsModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#65676b', fontSize: 22, lineHeight: 1 }}>×</button>
+              <button onClick={closeDetailsModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#65676b', fontSize: 24, lineHeight: 1 }}>×</button>
             </div>
 
             {/* Drawer Body */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Basic Info */}
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#65676b', textTransform: 'uppercase', marginBottom: 8 }}>Basic Information</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#65676b', textTransform: 'uppercase', marginBottom: 8 }}>Basic Information</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {[
                     ['Status', <span className={`status-pill ${selectedLead.status?.toLowerCase()}`}>{selectedLead.status}</span>],
@@ -762,9 +762,9 @@ const MetaLeads = ({ onNavigate }) => {
                     ['Business Type', selectedLead.businessType || 'N/A'],
                     ['Created', new Date(selectedLead.createdTime).toLocaleString()],
                   ].map(([label, val]) => (
-                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #f0f2f5' }}>
-                      <span style={{ fontSize: 13, color: '#65676b', minWidth: 100 }}>{label}</span>
-                      <span style={{ fontSize: 13, color: '#1c1e21', fontWeight: 500, textAlign: 'right' }}>{val}</span>
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #f0f2f5' }}>
+                      <span style={{ fontSize: 14, color: '#65676b', minWidth: 110 }}>{label}</span>
+                      <span style={{ fontSize: 14, color: '#1c1e21', fontWeight: 500, textAlign: 'right' }}>{val}</span>
                     </div>
                   ))}
                 </div>
@@ -773,12 +773,12 @@ const MetaLeads = ({ onNavigate }) => {
               {/* Custom Fields */}
               {selectedLead.customFields && Object.keys(selectedLead.customFields).length > 0 && (
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#65676b', textTransform: 'uppercase', marginBottom: 8 }}>Additional Fields</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#65676b', textTransform: 'uppercase', marginBottom: 8 }}>Additional Fields</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {Object.entries(selectedLead.customFields).map(([key, value]) => (
-                      <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '6px 0', borderBottom: '1px solid #f0f2f5' }}>
-                        <span style={{ fontSize: 12, color: '#65676b', minWidth: 100, wordBreak: 'break-word' }}>{key}</span>
-                        <span style={{ fontSize: 13, color: '#1c1e21', fontWeight: 500, textAlign: 'right', maxWidth: 200, wordBreak: 'break-word' }}>{value || 'N/A'}</span>
+                      <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '7px 0', borderBottom: '1px solid #f0f2f5' }}>
+                        <span style={{ fontSize: 13, color: '#65676b', minWidth: 110, wordBreak: 'break-word' }}>{key}</span>
+                        <span style={{ fontSize: 14, color: '#1c1e21', fontWeight: 500, textAlign: 'right', maxWidth: 200, wordBreak: 'break-word' }}>{value || 'N/A'}</span>
                       </div>
                     ))}
                   </div>
@@ -787,16 +787,16 @@ const MetaLeads = ({ onNavigate }) => {
 
               {/* Meta Info */}
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#65676b', textTransform: 'uppercase', marginBottom: 8 }}>Meta Information</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#65676b', textTransform: 'uppercase', marginBottom: 8 }}>Meta Information</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {[
                     ['Lead ID', selectedLead.leadId],
                     ['Form ID', selectedLead.formId],
                     ['Page ID', selectedLead.pageId],
                   ].map(([label, val]) => (
-                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #f0f2f5' }}>
-                      <span style={{ fontSize: 13, color: '#65676b', minWidth: 100 }}>{label}</span>
-                      <span style={{ fontSize: 11, color: '#1c1e21', fontFamily: 'monospace', textAlign: 'right', wordBreak: 'break-all', maxWidth: 200 }}>{val}</span>
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #f0f2f5' }}>
+                      <span style={{ fontSize: 14, color: '#65676b', minWidth: 110 }}>{label}</span>
+                      <span style={{ fontSize: 12, color: '#1c1e21', fontFamily: 'monospace', textAlign: 'right', wordBreak: 'break-all', maxWidth: 200 }}>{val}</span>
                     </div>
                   ))}
                 </div>

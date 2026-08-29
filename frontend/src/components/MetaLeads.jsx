@@ -649,20 +649,15 @@ const MetaLeads = ({ onNavigate }) => {
                     <td>
                       <div className="lead-name-cell">
                         <div className="lead-initials">
-                          {lead.name?.charAt(0) || 'L'}
+                          {(lead.name?.charAt(0) || 'L').toUpperCase()}
                         </div>
-                        <div className="lead-name-info">
-                          <span className="lead-name">{lead.name || 'Anonymous Lead'}</span>
-                          <span className="lead-source">Meta Lead Forms</span>
-                        </div>
+                        <span className="lead-name">{lead.name || 'Anonymous Lead'}</span>
                       </div>
                     </td>
                     <td>
-                      <span style={{ fontSize: '13px', color: '#1C1E21', fontWeight: '500' }}>
-                        {lead.campaignName || 'N/A'}
-                      </span>
+                      <span className="campaign-tag">{lead.campaignName || '—'}</span>
                     </td>
-                    <td>
+                    <td onClick={(e) => e.stopPropagation()}>
                       <select
                         value={lead.status}
                         onChange={(e) => updateStatus(lead.id, e.target.value)}
@@ -675,30 +670,19 @@ const MetaLeads = ({ onNavigate }) => {
                       </select>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Phone size={14} color="#65676B" />
-                        <span style={{ fontSize: '13px', color: '#1C1E21' }}>
-                          {typeof lead.phone === 'string' ? lead.phone : (lead.phone ? String(lead.phone) : 'N/A')}
-                        </span>
-                      </div>
+                      <span className="phone-text">
+                        {typeof lead.phone === 'string' ? lead.phone : (lead.phone ? String(lead.phone) : '—')}
+                      </span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontSize: '13px', color: '#1C1E21' }}>
-                          {new Date(lead.createdTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </span>
-                        <span style={{ fontSize: '12px', color: '#65676B' }}>
-                          {new Date(lead.createdTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
+                      <div className="date-cell">
+                        <span className="date-main">{new Date(lead.createdTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                        <span className="date-time">{new Date(lead.createdTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
-                      <button 
-                        className="action-dots" 
-                        title="View details"
-                        onClick={() => viewLeadDetails(lead)}
-                      >
-                        <ExternalLink size={16} />
+                      <button className="action-dots" title="View details" onClick={() => viewLeadDetails(lead)}>
+                        <ExternalLink size={15} />
                       </button>
                     </td>
                   </tr>

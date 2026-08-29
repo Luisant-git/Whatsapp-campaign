@@ -645,7 +645,7 @@ const MetaLeads = ({ onNavigate }) => {
                 </tr>
               ) : (
                 leads.map((lead) => (
-                  <tr key={lead.id}>
+                  <tr key={lead.id} onClick={() => viewLeadDetails(lead)} style={{ cursor: 'pointer' }}>
                     <td>
                       <div className="lead-name-cell">
                         <div className="lead-initials">
@@ -692,7 +692,7 @@ const MetaLeads = ({ onNavigate }) => {
                         </span>
                       </div>
                     </td>
-                    <td>
+                    <td onClick={(e) => e.stopPropagation()}>
                       <button 
                         className="action-dots" 
                         title="View details"
@@ -734,90 +734,98 @@ const MetaLeads = ({ onNavigate }) => {
         </div>
       </div>
 
-      {/* Lead Details Modal */}
+      {/* Lead Details Drawer */}
       {showDetailsModal && selectedLead && (
-        <div className="modal-overlay" onClick={closeDetailsModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Lead Details</h2>
-              <button className="modal-close" onClick={closeDetailsModal}>&times;</button>
+        <>
+          <div
+            onClick={closeDetailsModal}
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 999
+            }}
+          />
+          <div style={{
+            position: 'fixed', top: 0, right: 0, height: '100vh', width: '380px',
+            background: 'white', zIndex: 1000, boxShadow: '-4px 0 24px rgba(0,0,0,0.15)',
+            display: 'flex', flexDirection: 'column',
+            animation: 'slideInRight 0.25s ease'
+          }}>
+            {/* Drawer Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #e4e6eb' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#e7f3ff', color: '#1877f2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 16 }}>
+                  {selectedLead.name?.charAt(0) || 'L'}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: '#1c1e21' }}>{selectedLead.name || 'Anonymous Lead'}</div>
+                  <div style={{ fontSize: 12, color: '#65676b' }}>{selectedLead.campaignName || 'N/A'}</div>
+                </div>
+              </div>
+              <button onClick={closeDetailsModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#65676b', fontSize: 22, lineHeight: 1 }}>×</button>
             </div>
-            <div className="modal-body">
-              <div className="detail-section">
-                <h3>Basic Information</h3>
-                <div className="detail-grid">
-                  <div className="detail-item">
-                    <label>Name</label>
-                    <p>{selectedLead.name || 'N/A'}</p>
-                  </div>
-                  <div className="detail-item">
-                    <label>Campaign</label>
-                    <p>{selectedLead.campaignName || 'N/A'}</p>
-                  </div>
-                  <div className="detail-item">
-                    <label>Status</label>
-                    <p><span className={`status-pill ${selectedLead.status?.toLowerCase()}`}>{selectedLead.status}</span></p>
-                  </div>
-                  <div className="detail-item">
-                    <label><Phone size={14} /> Phone</label>
-                    <p>{typeof selectedLead.phone === 'string' ? selectedLead.phone : (selectedLead.phone ? String(selectedLead.phone) : 'N/A')}</p>
-                  </div>
-                  <div className="detail-item">
-                    <label><Building2 size={14} /> Company</label>
-                    <p>{selectedLead.company || 'N/A'}</p>
-                  </div>
-                  <div className="detail-item">
-                    <label>City</label>
-                    <p>{selectedLead.city || 'N/A'}</p>
-                  </div>
-                  <div className="detail-item">
-                    <label>Business Type</label>
-                    <p>{selectedLead.businessType || 'N/A'}</p>
-                  </div>
-                  <div className="detail-item">
-                    <label><Calendar size={14} /> Created</label>
-                    <p>{new Date(selectedLead.createdTime).toLocaleString()}</p>
-                  </div>
+
+            {/* Drawer Body */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Basic Info */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#65676b', textTransform: 'uppercase', marginBottom: 8 }}>Basic Information</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {[
+                    ['Status', <span className={`status-pill ${selectedLead.status?.toLowerCase()}`}>{selectedLead.status}</span>],
+                    ['Phone', selectedLead.phone || 'N/A'],
+                    ['Email', selectedLead.email || 'N/A'],
+                    ['Company', selectedLead.company || 'N/A'],
+                    ['City', selectedLead.city || 'N/A'],
+                    ['Business Type', selectedLead.businessType || 'N/A'],
+                    ['Created', new Date(selectedLead.createdTime).toLocaleString()],
+                  ].map(([label, val]) => (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #f0f2f5' }}>
+                      <span style={{ fontSize: 13, color: '#65676b', minWidth: 100 }}>{label}</span>
+                      <span style={{ fontSize: 13, color: '#1c1e21', fontWeight: 500, textAlign: 'right' }}>{val}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
+              {/* Custom Fields */}
               {selectedLead.customFields && Object.keys(selectedLead.customFields).length > 0 && (
-                <div className="detail-section">
-                  <h3>Additional Fields</h3>
-                  <div className="detail-grid">
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#65676b', textTransform: 'uppercase', marginBottom: 8 }}>Additional Fields</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {Object.entries(selectedLead.customFields).map(([key, value]) => (
-                      <div className="detail-item" key={key}>
-                        <label>{key}</label>
-                        <p>{value || 'N/A'}</p>
+                      <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '6px 0', borderBottom: '1px solid #f0f2f5' }}>
+                        <span style={{ fontSize: 12, color: '#65676b', minWidth: 100, wordBreak: 'break-word' }}>{key}</span>
+                        <span style={{ fontSize: 13, color: '#1c1e21', fontWeight: 500, textAlign: 'right', maxWidth: 200, wordBreak: 'break-word' }}>{value || 'N/A'}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              <div className="detail-section">
-                <h3>Meta Information</h3>
-                <div className="detail-grid">
-                  <div className="detail-item">
-                    <label>Lead ID</label>
-                    <p style={{ fontSize: '12px', wordBreak: 'break-all' }}>{selectedLead.leadId}</p>
-                  </div>
-                  <div className="detail-item">
-                    <label>Form ID</label>
-                    <p style={{ fontSize: '12px', wordBreak: 'break-all' }}>{selectedLead.formId}</p>
-                  </div>
-                  <div className="detail-item">
-                    <label>Page ID</label>
-                    <p style={{ fontSize: '12px', wordBreak: 'break-all' }}>{selectedLead.pageId}</p>
-                  </div>
+              {/* Meta Info */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#65676b', textTransform: 'uppercase', marginBottom: 8 }}>Meta Information</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {[
+                    ['Lead ID', selectedLead.leadId],
+                    ['Form ID', selectedLead.formId],
+                    ['Page ID', selectedLead.pageId],
+                  ].map(([label, val]) => (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #f0f2f5' }}>
+                      <span style={{ fontSize: 13, color: '#65676b', minWidth: 100 }}>{label}</span>
+                      <span style={{ fontSize: 11, color: '#1c1e21', fontFamily: 'monospace', textAlign: 'right', wordBreak: 'break-all', maxWidth: 200 }}>{val}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-            <div className="modal-footer">
-              <button className="sync-btn secondary" onClick={closeDetailsModal}>Close</button>
+
+            {/* Drawer Footer */}
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #e4e6eb' }}>
+              <button className="sync-btn secondary" onClick={closeDetailsModal} style={{ width: '100%', justifyContent: 'center' }}>Close</button>
             </div>
           </div>
-        </div>
+          <style>{`@keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }`}</style>
+        </>
       )}
 
       {/* Sync Leads Modal */}

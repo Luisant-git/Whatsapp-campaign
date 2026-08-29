@@ -202,25 +202,19 @@ export class MetaLeadsService {
         this.logger.log(`Processing lead ${lead.id}: formId=${leadFormId}, campaignName=${campaignName}`);
         
         try {
-          const saved = await this.prisma.executeWithRetry<any>(
-            tid,
-            url,
-            async (client: any) => {
-              return await client.metaLead.upsert({
-                where: { leadId: lead.id },
-                update: { ...fieldData, campaignName },
-                create: {
-                  leadId: lead.id,
-                  formId: leadFormId,
-                  pageId,
-                  campaignName,
-                  createdTime: new Date(lead.created_time),
-                  ...fieldData,
-                },
-              });
+          const client = await this.getClient(tid, url);
+          const saved = await client.metaLead.upsert({
+            where: { leadId: lead.id },
+            update: { ...fieldData, campaignName },
+            create: {
+              leadId: lead.id,
+              formId: leadFormId,
+              pageId,
+              campaignName,
+              createdTime: new Date(lead.created_time),
+              ...fieldData,
             },
-            3 // Increase retries to 3
-          );
+          });
 
           if (fieldData.phone) {
             await this.syncToContact(fieldData, phoneNumberId, tid, url);
@@ -229,9 +223,12 @@ export class MetaLeadsService {
           savedLeads.push(saved);
           this.logger.log(`✅ Saved lead ${lead.id} (${savedLeads.length}/${allLeads.length})`);
         } catch (error) {
-          this.logger.error(`❌ Failed to save lead ${lead.id}:`, error.message);
+          this.logger.error(`❌ Failed to save lead ${lead.id}: [${error.code}] ${error.message}`);
+          if (savedLeads.length === 0 && failedLeads.length === 0) {
+            // Log full error on first failure to diagnose
+            this.logger.error('First failure full error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+          }
           failedLeads.push({ leadId: lead.id, error: error.message });
-          // Continue with next lead instead of failing completely
         }
       }
 
@@ -246,7 +243,8 @@ export class MetaLeadsService {
         failed: failedLeads.length,
         message: failedLeads.length > 0 
           ? `Saved ${savedLeads.length} leads, ${failedLeads.length} failed` 
-          : undefined
+          : undefined,
+        firstError: failedLeads.length > 0 ? failedLeads[0].error : undefined
       };
     } catch (error) {
       this.logger.error('Failed to sync leads:', error);

@@ -205,7 +205,7 @@ const MetaLeadsAutomation = () => {
       </div>
 
       {rules.length > 0 && (
-        <div className="settings-content">
+        <div className="settings-content" style={{ maxWidth: '480px', margin: 0 }}>
           <div className="preference-header" style={{ marginBottom: '12px', textAlign: 'left' }}>
             <h2 style={{ fontSize: '15px', margin: 0 }}>Automation Sequence</h2>
           </div>

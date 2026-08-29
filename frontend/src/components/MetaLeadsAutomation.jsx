@@ -34,6 +34,7 @@ const MetaLeadsAutomation = () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/meta-leads/automation-rules`, {
         headers: getHeaders(),
+        withCredentials: true,
       });
       setRules(response.data || []);
     } catch (error) {
@@ -47,8 +48,9 @@ const MetaLeadsAutomation = () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/templates`, {
         headers: getHeaders(),
+        withCredentials: true,
       });
-      const allTemplates = response.data.templates || [];
+      const allTemplates = response.data.templates || response.data || [];
       const approvedTemplates = allTemplates.filter((t) => t.status === 'APPROVED');
       setTemplates(approvedTemplates);
     } catch (error) {
@@ -72,6 +74,7 @@ const MetaLeadsAutomation = () => {
 
       await axios.post(`${API_BASE_URL}/meta-leads/automation-rules`, payload, {
         headers: getHeaders(),
+        withCredentials: true,
       });
 
       setFormData({ templateName: '', delayMinutes: 5, isActive: true });
@@ -89,6 +92,7 @@ const MetaLeadsAutomation = () => {
     try {
       await axios.delete(`${API_BASE_URL}/meta-leads/automation-rules/${id}`, {
         headers: getHeaders(),
+        withCredentials: true,
       });
       fetchRules();
     } catch (error) {
@@ -105,6 +109,7 @@ const MetaLeadsAutomation = () => {
       };
       await axios.post(`${API_BASE_URL}/meta-leads/automation-rules`, payload, {
         headers: getHeaders(),
+        withCredentials: true,
       });
       fetchRules();
     } catch (error) {

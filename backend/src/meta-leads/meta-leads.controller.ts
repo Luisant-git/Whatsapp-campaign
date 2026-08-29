@@ -161,18 +161,24 @@ export class MetaLeadsController {
     try {
       const { tenantId, dbUrl } = await this.getTenantContext(req);
       const client = await (this.metaLeadsService as any).getClient(tenantId, dbUrl);
+
+      // Get verifyToken from MasterConfig (primary) or MetaConfig (fallback)
+      const masterConfig = await client.masterConfig.findFirst({ where: { isActive: true } });
       const metaConfig = await client.metaConfig.findFirst({ where: { isActive: true } });
+      const verifyToken = masterConfig?.verifyToken || metaConfig?.verifyToken || process.env.META_VERIFY_TOKEN || 'not_configured';
+
       const host = req.headers['x-forwarded-host'] || req.headers.host || 'whatsapp.api.luisant.cloud';
       const protocol = req.headers['x-forwarded-proto'] || 'https';
+      const webhookUrl = `${protocol}://${host}/meta-leads/webhook`;
       return {
-        webhookUrl: `${protocol}://${host}/meta-leads/webhook`,
-        verifyToken: metaConfig?.verifyToken || process.env.META_VERIFY_TOKEN || 'not_configured',
-        isConfigured: !!metaConfig?.verifyToken,
+        webhookUrl,
+        verifyToken,
+        isConfigured: verifyToken !== 'not_configured',
         steps: [
           'Go to Meta for Developers → Your App → Webhooks',
           'Click "Add Subscriptions" under the Page object',
-          `Set Callback URL to: ${protocol}://${host}/meta-leads/webhook`,
-          `Set Verify Token to: ${metaConfig?.verifyToken || process.env.META_VERIFY_TOKEN || 'not_configured'}`,
+          `Set Callback URL to: ${webhookUrl}`,
+          `Set Verify Token to: ${verifyToken}`,
           'Subscribe to the "leadgen" field',
           'Click Verify and Save'
         ]

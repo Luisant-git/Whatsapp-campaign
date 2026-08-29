@@ -206,83 +206,53 @@ const MetaLeadsAutomation = () => {
 
       {rules.length > 0 && (
         <div className="settings-content">
-          <div className="preference-header" style={{ marginBottom: '24px' }}>
-            <h2>Automation Sequence (Pipeline)</h2>
-            <p>Your templates will be sent in this order based on the wait time.</p>
+          <div className="preference-header" style={{ marginBottom: '12px' }}>
+            <h2 style={{ fontSize: '15px', margin: 0 }}>Automation Sequence</h2>
           </div>
-          
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
             {[...rules].sort((a, b) => a.delayMinutes - b.delayMinutes).map((rule, index, arr) => (
               <React.Fragment key={rule.id}>
-                <div 
-                  className="preference-card" 
-                  style={{ 
-                    padding: '24px', 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    border: rule.isActive ? '2px solid #25d366' : '1px solid #e2e8f0',
-                    background: rule.isActive ? '#f0fdf4' : 'white',
-                    opacity: rule.isActive ? 1 : 0.6
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-                    <div style={{ 
-                      width: '48px', 
-                      height: '48px', 
-                      borderRadius: '50%', 
-                      background: rule.isActive ? '#dcfce7' : '#f1f5f9',
-                      color: rule.isActive ? '#16a34a' : '#64748b',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '20px',
-                      fontWeight: 'bold'
-                    }}>
-                      {index + 1}
-                    </div>
-                    
-                    <div>
-                      <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#1e293b' }}>
-                        {rule.templateName}
-                      </h3>
-                      <p style={{ margin: 0, color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Clock size={16} />
-                        Wait {rule.delayMinutes} {rule.delayMinutes === 1 ? 'minute' : 'minutes'}
-                        {!rule.isActive && <span style={{ marginLeft: '8px', color: '#ef4444' }}>(Paused)</span>}
-                      </p>
-                    </div>
+                <div style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: rule.isActive ? '1.5px solid #25d366' : '1px solid #e2e8f0',
+                  background: rule.isActive ? '#f0fdf4' : '#fafafa',
+                  opacity: rule.isActive ? 1 : 0.6,
+                  boxSizing: 'border-box',
+                }}>
+                  <div style={{
+                    width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0,
+                    background: rule.isActive ? '#dcfce7' : '#f1f5f9',
+                    color: rule.isActive ? '#16a34a' : '#64748b',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '13px', fontWeight: 'bold'
+                  }}>{index + 1}</div>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ fontWeight: 600, fontSize: '13px', color: '#1e293b' }}>{rule.templateName}</span>
+                    <span style={{ marginLeft: '10px', fontSize: '12px', color: '#64748b' }}>
+                      <Clock size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '3px' }} />
+                      {rule.delayMinutes}m{!rule.isActive && <span style={{ color: '#ef4444', marginLeft: '6px' }}>Paused</span>}
+                    </span>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                    <label className="toggle-switch" title={rule.isActive ? "Pause Automation" : "Resume Automation"}>
-                      <input
-                        type="checkbox"
-                        checked={rule.isActive}
-                        onChange={() => toggleStatus(rule)}
-                      />
-                      <span className="toggle-slider"></span>
-                    </label>
+                  <label className="toggle-switch" style={{ flexShrink: 0 }} title={rule.isActive ? 'Pause' : 'Resume'}>
+                    <input type="checkbox" checked={rule.isActive} onChange={() => toggleStatus(rule)} />
+                    <span className="toggle-slider"></span>
+                  </label>
 
-                    <button 
-                      className="btn-danger"
-                      onClick={() => handleDelete(rule.id)}
-                      title="Delete Step"
-                      style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
+                  <button className="btn-danger" onClick={() => handleDelete(rule.id)}
+                    style={{ padding: '5px 8px', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                    <Trash2 size={14} />
+                  </button>
                 </div>
-                
+
                 {index < arr.length - 1 && (
-                  <div style={{ 
-                    height: '32px', 
-                    width: '3px', 
-                    background: '#cbd5e1', 
-                    margin: '0 0 0 48px',
-                    borderRadius: '2px'
-                  }}></div>
+                  <div style={{ height: '16px', width: '2px', background: '#cbd5e1', margin: '0 0 0 22px' }} />
                 )}
               </React.Fragment>
             ))}

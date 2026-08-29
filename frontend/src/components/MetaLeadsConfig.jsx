@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Edit2, Trash2, Save, X, Facebook } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Facebook, Webhook, Copy, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import '../styles/Settings.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010';
@@ -22,9 +22,13 @@ const MetaLeadsConfig = () => {
   const [availablePages, setAvailablePages] = useState([]);
   const [selectedPageId, setSelectedPageId] = useState('');
   const [userAccessToken, setUserAccessToken] = useState('');
+  const [webhookInfo, setWebhookInfo] = useState(null);
+  const [showWebhookPanel, setShowWebhookPanel] = useState(false);
+  const [copied, setCopied] = useState('');
 
   useEffect(() => {
     fetchConfigs();
+    fetchWebhookInfo();
 
     // Initialize Facebook SDK
     window.fbAsyncInit = function() {
@@ -104,6 +108,25 @@ const MetaLeadsConfig = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchWebhookInfo = async () => {
+    try {
+      const tenantId = localStorage.getItem('tenantId');
+      const { data } = await axios.get(`${API_BASE_URL}/meta-leads/webhook-info`, {
+        headers: { 'x-tenant-id': tenantId },
+        withCredentials: true,
+      });
+      setWebhookInfo(data);
+    } catch (error) {
+      console.error('Error fetching webhook info:', error);
+    }
+  };
+
+  const copyToClipboard = (text, key) => {
+    navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(''), 2000);
   };
 
   const fetchConfigs = async () => {
@@ -199,6 +222,13 @@ const MetaLeadsConfig = () => {
           <p>Manage Facebook Page credentials for Meta Lead Forms integration.</p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
+          <button
+            className="btn-secondary"
+            onClick={() => setShowWebhookPanel(v => !v)}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <Webhook size={16} /> Webhook Setup {showWebhookPanel ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
           <button 
             className="btn-primary" 
             onClick={handleFacebookConnect}
@@ -211,6 +241,71 @@ const MetaLeadsConfig = () => {
           </button>
         </div>
       </div>
+
+      {/* Webhook Setup Panel */}
+      {showWebhookPanel && webhookInfo && (
+        <div style={{ background: '#f0f7ff', border: '1px solid #1877F2', borderRadius: '8px', padding: '20px', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+            <Webhook size={20} color="#1877F2" />
+            <h3 style={{ margin: 0, color: '#1877F2', fontSize: '16px' }}>Real-time Webhook Setup</h3>
+            <span style={{ marginLeft: 'auto', fontSize: '12px', padding: '2px 10px', borderRadius: '12px', background: webhookInfo.isConfigured ? '#d4edda' : '#fff3cd', color: webhookInfo.isConfigured ? '#155724' : '#856404', fontWeight: 600 }}>
+              {webhookInfo.isConfigured ? '✓ Configured' : '⚠ Not Configured'}
+            </span>
+          </div>
+
+          <p style={{ fontSize: '13px', color: '#444', marginBottom: '16px' }}>
+            Set up this webhook in Meta for Developers to receive leads in real-time — no more manual syncing!
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: '#555', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Callback URL</label>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <code style={{ flex: 1, background: '#fff', border: '1px solid #ddd', borderRadius: '4px', padding: '8px 12px', fontSize: '13px', wordBreak: 'break-all' }}>
+                  {webhookInfo.webhookUrl}
+                </code>
+                <button onClick={() => copyToClipboard(webhookInfo.webhookUrl, 'url')} style={{ background: 'none', border: '1px solid #1877F2', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer', color: '#1877F2', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                  {copied === 'url' ? <CheckCircle size={14} /> : <Copy size={14} />}
+                  {copied === 'url' ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: '#555', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Verify Token</label>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <code style={{ flex: 1, background: '#fff', border: '1px solid #ddd', borderRadius: '4px', padding: '8px 12px', fontSize: '13px' }}>
+                  {webhookInfo.verifyToken}
+                </code>
+                <button onClick={() => copyToClipboard(webhookInfo.verifyToken, 'token')} style={{ background: 'none', border: '1px solid #1877F2', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer', color: '#1877F2', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                  {copied === 'token' ? <CheckCircle size={14} /> : <Copy size={14} />}
+                  {copied === 'token' ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: '6px', padding: '12px' }}>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: '#333', marginBottom: '8px', textTransform: 'uppercase' }}>Setup Steps</p>
+            <ol style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {webhookInfo.steps.map((step, i) => (
+                <li key={i} style={{ fontSize: '13px', color: '#444' }}>{step}</li>
+              ))}
+            </ol>
+          </div>
+
+          <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+            <a
+              href="https://developers.facebook.com/apps"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: '13px', color: '#1877F2', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              Open Meta for Developers →
+            </a>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div className="modal-overlay">

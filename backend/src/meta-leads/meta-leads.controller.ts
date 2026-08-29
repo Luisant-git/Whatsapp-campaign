@@ -134,6 +134,28 @@ export class MetaLeadsController {
     }
   }
 
+  @Get('forms')
+  async getForms(@Req() req: any) {
+    try {
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
+      const client = await (this.metaLeadsService as any).getClient(tenantId, dbUrl);
+      const metaConfig = await client.metaConfig.findFirst({ where: { isActive: true } });
+      if (!metaConfig) return { error: true, message: 'No active Meta config found' };
+
+      const axios = require('axios');
+      let forms: any[] = [];
+      let url: string | null = `https://graph.facebook.com/v25.0/${metaConfig.pageId}/leadgen_forms?access_token=${metaConfig.accessToken}&limit=100&fields=id,name,leads_count,status`;
+      while (url) {
+        const { data } = await axios.get(url);
+        forms.push(...(data.data || []));
+        url = data.paging?.next || null;
+      }
+      return { forms };
+    } catch (error) {
+      return { error: true, message: error.message };
+    }
+  }
+
   @Get('webhook-info')
   async getWebhookInfo(@Req() req: any) {
     try {

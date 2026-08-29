@@ -33,6 +33,8 @@ const MetaLeads = ({ onNavigate }) => {
   const [statusFilter, setStatusFilter] = useState('');
   const [campaignFilter, setCampaignFilter] = useState('');
   const [campaigns, setCampaigns] = useState([]);
+  const [metaForms, setMetaForms] = useState([]);
+  const [formFilter, setFormFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('All');
   const [tabCounts, setTabCounts] = useState({ All: 0, Intake: 0, Qualified: 0, Converted: 0 });
   const [selectedLead, setSelectedLead] = useState(null);
@@ -68,10 +70,11 @@ const MetaLeads = ({ onNavigate }) => {
 
   useEffect(() => {
     fetchLeads();
-  }, [page, search, statusFilter, campaignFilter]);
+  }, [page, search, statusFilter, campaignFilter, formFilter]);
 
   useEffect(() => {
     fetchCampaigns();
+    fetchMetaForms();
     const fetchSettings = async () => {
       try {
         const data = await getAllSettings();
@@ -93,7 +96,7 @@ const MetaLeads = ({ onNavigate }) => {
       setLoading(true);
       const tenantId = localStorage.getItem('tenantId');
       const { data } = await axios.get(`${API_BASE_URL}/meta-leads`, {
-        params: { page, limit: 50, search, status: statusFilter, campaignName: campaignFilter },
+        params: { page, limit: 50, search, status: statusFilter, campaignName: formFilter !== 'all' ? (metaForms.find(f => f.id === formFilter)?.name || campaignFilter) : campaignFilter },
         headers: { 'x-tenant-id': tenantId },
         withCredentials: true,
       });
@@ -108,6 +111,19 @@ const MetaLeads = ({ onNavigate }) => {
       setTotalPages(1);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMetaForms = async () => {
+    try {
+      const tenantId = localStorage.getItem('tenantId');
+      const { data } = await axios.get(`${API_BASE_URL}/meta-leads/forms`, {
+        headers: { 'x-tenant-id': tenantId },
+        withCredentials: true,
+      });
+      if (data.forms) setMetaForms(data.forms);
+    } catch (error) {
+      console.error('Error fetching Meta forms:', error);
     }
   };
 
@@ -566,6 +582,22 @@ const MetaLeads = ({ onNavigate }) => {
                 onChange={(e) => setSearch(e.target.value)}
                 className="search-input"
               />
+            </div>
+        {/* Form Filter Dropdown - like Meta's UI */}
+            <div style={{ position: 'relative' }}>
+              <select
+                value={formFilter}
+                onChange={(e) => { setFormFilter(e.target.value); setPage(1); }}
+                className="sync-btn secondary"
+                style={{ padding: '6px 12px', cursor: 'pointer', minWidth: 180 }}
+              >
+                <option value="all">All forms</option>
+                {metaForms.map(form => (
+                  <option key={form.id} value={form.id}>
+                    {form.name} {form.leads_count ? `(${form.leads_count})` : ''}
+                  </option>
+                ))}
+              </select>
             </div>
             <select 
               value={campaignFilter} 

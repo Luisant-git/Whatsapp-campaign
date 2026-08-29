@@ -626,6 +626,8 @@ const TemplateManager = () => {
       }
     }
     
+    }
+    
     // Validate buttons
     const buttonsComponent = components.find(c => c.type === 'BUTTONS');
     if (buttonsComponent && buttonsComponent.buttons && buttonsComponent.buttons.length > 0) {

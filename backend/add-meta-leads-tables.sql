@@ -1,0 +1,48 @@
+-- Create MetaLead table if it doesn't exist
+CREATE TABLE IF NOT EXISTS "MetaLead" (
+  "id"              SERIAL PRIMARY KEY,
+  "leadId"          TEXT NOT NULL UNIQUE,
+  "formId"          TEXT NOT NULL,
+  "pageId"          TEXT NOT NULL,
+  "campaignName"    TEXT,
+  "name"            TEXT,
+  "email"           TEXT,
+  "phone"           TEXT,
+  "company"         TEXT,
+  "city"            TEXT,
+  "businessType"    TEXT,
+  "customFields"    JSONB DEFAULT '{}',
+  "status"          TEXT NOT NULL DEFAULT 'Intake',
+  "isAutomationSent" BOOLEAN NOT NULL DEFAULT false,
+  "automationSentAt" TIMESTAMP(3),
+  "createdTime"     TIMESTAMP(3) NOT NULL,
+  "createdAt"       TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt"       TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS "MetaLead_formId_idx"       ON "MetaLead"("formId");
+CREATE INDEX IF NOT EXISTS "MetaLead_pageId_idx"       ON "MetaLead"("pageId");
+CREATE INDEX IF NOT EXISTS "MetaLead_status_idx"       ON "MetaLead"("status");
+CREATE INDEX IF NOT EXISTS "MetaLead_campaignName_idx" ON "MetaLead"("campaignName");
+
+-- Create MetaConfig table if it doesn't exist
+CREATE TABLE IF NOT EXISTS "MetaConfig" (
+  "id"          SERIAL PRIMARY KEY,
+  "name"        TEXT NOT NULL UNIQUE,
+  "pageId"      TEXT NOT NULL,
+  "accessToken" TEXT NOT NULL,
+  "verifyToken" TEXT,
+  "isActive"    BOOLEAN NOT NULL DEFAULT true,
+  "createdAt"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create MetaLeadAutomation table if it doesn't exist
+CREATE TABLE IF NOT EXISTS "MetaLeadAutomation" (
+  "id"            SERIAL PRIMARY KEY,
+  "templateName"  TEXT NOT NULL,
+  "delayMinutes"  INTEGER NOT NULL DEFAULT 5,
+  "isActive"      BOOLEAN NOT NULL DEFAULT true,
+  "createdAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

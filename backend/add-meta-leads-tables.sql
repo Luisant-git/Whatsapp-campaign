@@ -20,6 +20,18 @@ CREATE TABLE IF NOT EXISTS "MetaLead" (
   "updatedAt"       TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Add missing columns if table already exists (safe to run multiple times)
+ALTER TABLE "MetaLead" ADD COLUMN IF NOT EXISTS "isAutomationSent" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "MetaLead" ADD COLUMN IF NOT EXISTS "automationSentAt" TIMESTAMP(3);
+ALTER TABLE "MetaLead" ADD COLUMN IF NOT EXISTS "customFields" JSONB DEFAULT '{}';
+ALTER TABLE "MetaLead" ADD COLUMN IF NOT EXISTS "campaignName" TEXT;
+ALTER TABLE "MetaLead" ADD COLUMN IF NOT EXISTS "name" TEXT;
+ALTER TABLE "MetaLead" ADD COLUMN IF NOT EXISTS "email" TEXT;
+ALTER TABLE "MetaLead" ADD COLUMN IF NOT EXISTS "phone" TEXT;
+ALTER TABLE "MetaLead" ADD COLUMN IF NOT EXISTS "company" TEXT;
+ALTER TABLE "MetaLead" ADD COLUMN IF NOT EXISTS "city" TEXT;
+ALTER TABLE "MetaLead" ADD COLUMN IF NOT EXISTS "businessType" TEXT;
+
 CREATE INDEX IF NOT EXISTS "MetaLead_formId_idx"       ON "MetaLead"("formId");
 CREATE INDEX IF NOT EXISTS "MetaLead_pageId_idx"       ON "MetaLead"("pageId");
 CREATE INDEX IF NOT EXISTS "MetaLead_status_idx"       ON "MetaLead"("status");

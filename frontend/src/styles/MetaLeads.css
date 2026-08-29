@@ -152,7 +152,7 @@
 
 .meta-table th {
   padding: 10px 16px;
-  font-size: 11px;
+ion my  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -163,10 +163,10 @@
 }
 
 .meta-table td {
-  padding: 11px 16px;
+  padding: 12px 16px;
   border-bottom: 1px solid #f0f2f5;
   vertical-align: middle;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-primary);
 }
 
@@ -188,7 +188,7 @@
 
 .lead-name {
   font-weight: 600;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -201,7 +201,7 @@
   display: inline-block;
   background: #f0f2f5;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   padding: 3px 8px;
   border-radius: 4px;
@@ -216,7 +216,7 @@
   display: inline-flex;
   padding: 3px 10px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   font-family: var(--font);
 }
@@ -225,12 +225,12 @@
 .status-pill.converted { background: #e2f5ea; color: #1a7f37; }
 
 /* Phone */
-.phone-text { font-size: 13px; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.phone-text { font-size: 14px; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
 /* Date */
 .date-cell { display: flex; flex-direction: column; gap: 1px; }
-.date-main { font-size: 13px; color: var(--text-primary); font-weight: 500; }
-.date-time  { font-size: 11px; color: var(--text-secondary); }
+.date-main { font-size: 14px; color: var(--text-primary); font-weight: 500; }
+.date-time  { font-size: 12px; color: var(--text-secondary); }
 
 /* Action button */
 .action-dots {

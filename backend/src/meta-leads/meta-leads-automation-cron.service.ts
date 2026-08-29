@@ -37,18 +37,19 @@ export class MetaLeadsAutomationCronService {
     try {
       const client = await this.tenantPrisma.getTenantClientReady(tenantId, dbUrl) as any;
 
-      // Fetch active automation rules
+      // Fetch active automation rules sorted by delay to form a sequence
       const activeRules = await client.metaLeadAutomation.findMany({
         where: { isActive: true },
+        orderBy: { delayMinutes: 'asc' },
       });
 
       if (!activeRules.length) return;
 
-      // Find leads that haven't received automation yet
+      // Find leads that haven't finished the automation sequence yet
       const pendingLeads = await client.metaLead.findMany({
         where: {
-          isAutomationSent: false,
           phone: { not: null },
+          lastAutomationStep: { lt: activeRules.length },
         },
       });
 
@@ -56,19 +57,21 @@ export class MetaLeadsAutomationCronService {
 
       const now = new Date();
 
-      for (const rule of activeRules) {
+      for (let i = 0; i < activeRules.length; i++) {
+        const rule = activeRules[i];
         const templateName = rule.templateName;
         const delayMs = rule.delayMinutes * 60 * 1000;
 
-        // Filter leads for this rule
+        // Filter leads that are on this exact step in the sequence
         const eligibleLeads = pendingLeads.filter(lead => {
+          if (lead.lastAutomationStep !== i) return false;
           const createdTime = lead.createdAt.getTime();
-          // If the time passed since creation is greater than or equal to delay
+          // Check if time passed since creation satisfies the delay
           return (now.getTime() - createdTime) >= delayMs;
         });
 
         if (eligibleLeads.length > 0) {
-          this.logger.log(`Tenant ${tenantId}: Found ${eligibleLeads.length} leads for automation rule (template: ${templateName})`);
+          this.logger.log(`Tenant ${tenantId}: Found ${eligibleLeads.length} leads for sequence step ${i + 1} (template: ${templateName})`);
 
           // We need settingsId to send. Let's find default WhatsApp settings
           const defaultSettings = await client.whatsAppSettings.findFirst({
@@ -95,23 +98,18 @@ export class MetaLeadsAutomationCronService {
                 defaultSettings.id
              );
              
-             this.logger.log(`Tenant ${tenantId}: Automation sent successfully. Result: ${JSON.stringify(result)}`);
+             this.logger.log(`Tenant ${tenantId}: Sequence step ${i + 1} sent successfully. Result: ${JSON.stringify(result)}`);
 
-             // Mark leads as sent
+             // Increment lastAutomationStep for processed leads
              const leadIds = eligibleLeads.map(l => l.id);
              await client.metaLead.updateMany({
                where: { id: { in: leadIds } },
                data: {
                  isAutomationSent: true,
                  automationSentAt: new Date(),
+                 lastAutomationStep: i + 1,
                },
              });
-
-             // We remove processed leads from pending array so other rules don't process them again
-             for(const lId of leadIds) {
-               const idx = pendingLeads.findIndex(p => p.id === lId);
-               if(idx > -1) pendingLeads.splice(idx, 1);
-             }
 
           } catch (err) {
              this.logger.error(`Tenant ${tenantId}: Failed to send template ${templateName}`, err);

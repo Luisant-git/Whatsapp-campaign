@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS "MetaLead" (
   "status"          TEXT NOT NULL DEFAULT 'Intake',
   "isAutomationSent" BOOLEAN NOT NULL DEFAULT false,
   "automationSentAt" TIMESTAMP(3),
+  "lastAutomationStep" INTEGER NOT NULL DEFAULT 0,
   "createdTime"     TIMESTAMP(3) NOT NULL,
   "createdAt"       TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt"       TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -23,6 +24,7 @@ CREATE TABLE IF NOT EXISTS "MetaLead" (
 -- Add missing columns if table already exists (safe to run multiple times)
 ALTER TABLE "MetaLead" ADD COLUMN IF NOT EXISTS "isAutomationSent" BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "MetaLead" ADD COLUMN IF NOT EXISTS "automationSentAt" TIMESTAMP(3);
+ALTER TABLE "MetaLead" ADD COLUMN IF NOT EXISTS "lastAutomationStep" INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE "MetaLead" ADD COLUMN IF NOT EXISTS "customFields" JSONB DEFAULT '{}';
 ALTER TABLE "MetaLead" ADD COLUMN IF NOT EXISTS "campaignName" TEXT;
 ALTER TABLE "MetaLead" ADD COLUMN IF NOT EXISTS "name" TEXT;

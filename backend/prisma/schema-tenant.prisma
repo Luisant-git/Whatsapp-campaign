@@ -608,6 +608,7 @@ model MetaLead {
   status           String   @default("Intake")
   isAutomationSent Boolean  @default(false)
   automationSentAt DateTime?
+  lastAutomationStep Int    @default(0)
   createdTime      DateTime
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

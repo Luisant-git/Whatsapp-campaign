@@ -1226,14 +1226,14 @@ const WhatsAppChat = () => {
         const buttons = components.find(c => c.type === 'BUTTONS');
 
         return (
-          <div className="template-message-preview">
+          <div className="template-message-preview" style={{ maxWidth: '330px' }}>
             {header?.text && <div className="wa-header" style={{ fontWeight: 'bold', marginBottom: '4px' }}>{header.text}</div>}
             {header?.format === 'IMAGE' && (
               header.example?.header_handle?.[0] ? (
                 <img 
                   src={resolveMediaUrl(header.example.header_handle[0])} 
                   alt="Template Header" 
-                  style={{ width: '100%', height: 'auto', borderRadius: '8px 8px 0 0', marginBottom: '8px', cursor: 'pointer', display: 'block' }}
+                  style={{ width: 'calc(100% + 30px)', height: 'auto', margin: '-10px -15px 10px -15px', borderRadius: '8px 8px 0 0', cursor: 'pointer', display: 'block', objectFit: 'cover' }}
                   onClick={(e) => {
                     e.stopPropagation();
                     setLightboxMedia({ type: 'image', url: resolveMediaUrl(header.example.header_handle[0]) });
@@ -1241,17 +1241,17 @@ const WhatsAppChat = () => {
                   onError={(e) => { e.target.style.display = 'none'; }}
                 />
               ) : (
-                <div className="wa-media-placeholder" style={{ background: '#f0f2f5', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px', borderRadius: '8px' }}>
+                <div className="wa-media-placeholder" style={{ background: '#f0f2f5', height: '120px', width: 'calc(100% + 30px)', margin: '-10px -15px 10px -15px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px 8px 0 0' }}>
                   <span style={{color: '#8d949e'}}>🖼️ Image Header</span>
                 </div>
               )
             )}
             {header?.format === 'VIDEO' && (
               header.example?.header_handle?.[0] ? (
-                <div style={{ position: 'relative', marginBottom: '8px' }}>
+                <div style={{ position: 'relative', marginBottom: '10px', margin: '-10px -15px 10px -15px', width: 'calc(100% + 30px)' }}>
                   <video 
                     src={resolveMediaUrl(header.example.header_handle[0])} 
-                    style={{ width: '100%', height: 'auto', borderRadius: '8px 8px 0 0', cursor: 'pointer', display: 'block' }}
+                    style={{ width: '100%', height: 'auto', borderRadius: '8px 8px 0 0', cursor: 'pointer', display: 'block', objectFit: 'cover' }}
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();

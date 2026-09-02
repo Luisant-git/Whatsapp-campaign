@@ -860,7 +860,7 @@ const WhatsAppChat = () => {
       const msgId = resultsArray[index];
       const element = messageRefs.current[msgId];
       if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.scrollIntoView({ behavior: 'auto', block: 'center' });
       }
     }
   };
@@ -2600,7 +2600,7 @@ const WhatsAppChat = () => {
                               {(msg.status === 'delivered' || msg.status === 'read') && (
                                 <svg viewBox="0 0 22 15" width="20" height="15" fill={msg.status === 'read' ? '#53bdeb' : 'currentColor'} style={{ marginLeft: '2px' }}>
                                   <path d="M15.01 3.316l-8.316 8.316L2.651 7.59l1.06-1.06l3.082 3.083L14.056 2.15l.954 1.166z"></path>
-                                  <g transform="translate(6, 0)">
+                                  <g transform="translate(4.5, 1)">
                                     <path d="M15.01 3.316l-8.316 8.316L2.651 7.59l1.06-1.06l3.082 3.083L14.056 2.15l.954 1.166z"></path>
                                   </g>
                                 </svg>

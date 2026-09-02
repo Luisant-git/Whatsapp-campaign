@@ -5,7 +5,7 @@ import { getMessages, sendMessage, sendMediaMessage, getLabels, updateLabels, ge
 import '../styles/WhatsAppChat.scss';
 import { contactAPI } from '../api/contact';
 import { groupAPI } from '../api/group';
-import { Users, UserCheck, MoreVertical, Loader2, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Users, UserCheck, MoreVertical, Loader2, ChevronRight, ChevronLeft, Check, CheckCheck } from 'lucide-react';
 import { getTenantSubUsers } from "../api/subuser";
 
 // Simple play/pause icons
@@ -2402,9 +2402,8 @@ const WhatsAppChat = () => {
                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           {msg.direction === 'outgoing' && (
                             <span className={`tick-mark ${msg.status}`}>
-                              {msg.status === 'sent' && '✓'}
-                              {msg.status === 'delivered' && '✓✓'}
-                              {msg.status === 'read' && '✓✓'}
+                              {msg.status === 'sent' && <Check size={16} />}
+                              {(msg.status === 'delivered' || msg.status === 'read') && <CheckCheck size={16} color={msg.status === 'read' ? '#53bdeb' : 'currentColor'} />}
                             </span>
                           )}
                         </span>

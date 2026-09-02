@@ -8,6 +8,9 @@ async function fixMenuPermissions() {
   for (const plan of plans) {
     const perms = plan.menuPermissions || [];
     const missing = [
+      'automation',
+      'automation.templates',
+      'automation.logs',
       'settings.meta-leads-automation',
       'settings.meta-leads-config',
       'campaigns.meta-leads',

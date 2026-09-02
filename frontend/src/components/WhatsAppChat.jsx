@@ -123,7 +123,6 @@ const WhatsAppChat = () => {
   });
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [loadingChats, setLoadingChats] = useState(true);
-  const [allChats, setAllChats] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [lightboxMedia, setLightboxMedia] = useState(null);
 
@@ -146,77 +145,11 @@ const WhatsAppChat = () => {
 
   const UNREAD_TAB = "__unread__";
 
-  const fetchAllChatsForSearch = async () => {
-    if (!API_BASE_URL) return;
-  
-    try {
-      let page = 1;
-      let totalPages = 1;
-      let allMessages = [];
-  
-      do {
-        const response = await getMessages('', page, 100); // bigger limit for fewer requests
-        const pageMessages = response?.data || [];
-        const meta = response?.meta || {};
-  
-        allMessages = [...allMessages, ...pageMessages];
-        totalPages = meta.totalPages || 1;
-        page++;
-      } while (page <= totalPages);
-  
-      const uniqueChats = {};
-      allMessages.forEach((msg) => {
-        const chatKey = `${msg.from}_${msg.displayPhoneNumber || 'unknown'}`;
-  
-        if (!uniqueChats[chatKey]) {
-          uniqueChats[chatKey] = {
-            phone: msg.from,
-            name: msg.customerName || msg.contactName || msg.profileName || msg.from,
-            businessNumber: msg.displayPhoneNumber,
-            lastMessage: msg.message || 'Media',
-            lastTime: msg.createdAt,
-            unreadCount: 0,
-          };
-        }
-  
-        if (new Date(msg.createdAt) > new Date(uniqueChats[chatKey].lastTime)) {
-          uniqueChats[chatKey].lastMessage = msg.message || 'Media';
-          uniqueChats[chatKey].lastTime = msg.createdAt;
-          uniqueChats[chatKey].name =
-            msg.customerName || msg.contactName || msg.profileName || uniqueChats[chatKey].phone;
-        }
-  
-        const lastIncoming = msg.lastIncomingDate ? new Date(msg.lastIncomingDate) : null;
-        if (
-          lastIncoming &&
-          (!readMessages[msg.from] || lastIncoming > new Date(readMessages[msg.from]))
-        ) {
-          uniqueChats[chatKey].unreadCount = 1;
-        } else if (
-          msg.direction === 'incoming' &&
-          (!readMessages[msg.from] || new Date(msg.createdAt) > new Date(readMessages[msg.from]))
-        ) {
-          uniqueChats[chatKey].unreadCount = 1;
-        }
-      });
-  
-      setAllChats(
-        Object.values(uniqueChats).sort((a, b) => {
-          if (a.unreadCount > 0 && b.unreadCount === 0) return -1;
-          if (b.unreadCount > 0 && a.unreadCount === 0) return 1;
-          return new Date(b.lastTime) - new Date(a.lastTime);
-        })
-      );
-    } catch (error) {
-      console.error('Error fetching all chats for search:', error);
-    }
-  };
-
   useEffect(() => {
-    if (searchQuery.trim()) {
-      fetchAllChatsForSearch();
+    if (chatsPage !== 1) {
+      setChatsPage(1);
     } else {
-      setAllChats([]);
+      fetchMessages(1);
     }
   }, [searchQuery]);
 
@@ -481,7 +414,7 @@ const WhatsAppChat = () => {
     try {
       setLoadingChats(true);
   
-      const response = await getMessages('', page, chatsLimit);
+      const response = await getMessages('', page, chatsLimit, searchQuery.trim());
       const allMessages = response?.data || [];
       const meta = response?.meta || {
         total: 0,
@@ -992,13 +925,7 @@ const WhatsAppChat = () => {
       setChatLabels(prev => ({ ...prev, [phone]: currentLabels }));
     }
   };
-  const sourceChats = searchQuery.trim() ? allChats : chats;
-
-  const filteredChats = sourceChats
-    .filter((chat) =>
-      (chat.phone || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (chat.name || '').toLowerCase().includes(searchQuery.toLowerCase())
-    )
+  const filteredChats = chats
     .filter((chat) => {
       if (selectedLabel === "all") return true;
       if (selectedLabel === UNREAD_TAB) return chat.unreadCount > 0;
@@ -1580,7 +1507,6 @@ const WhatsAppChat = () => {
               localStorage.setItem('readMessages', JSON.stringify(newReadMessages));
               
               setChats(prev => prev.map(c => c.phone === chat.phone ? { ...c, unreadCount: 0 } : c));
-              setAllChats(prev => prev.map(c => c.phone === chat.phone ? { ...c, unreadCount: 0 } : c));
             }
 
             setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 100);

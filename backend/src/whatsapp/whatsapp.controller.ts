@@ -432,6 +432,7 @@ async getMessages(
   @Query('phone') phone?: string,
   @Query('page') page: string = '1',
   @Query('limit') limit: string = '20',
+  @Query('search') search?: string,
 ) {
   return this.whatsappService.getMessages(
     session.user.id,
@@ -439,6 +440,7 @@ async getMessages(
     session.userType || 'tenant',
     Number(page),
     Number(limit),
+    search,
   );
 }
 

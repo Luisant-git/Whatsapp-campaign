@@ -76,10 +76,11 @@ export const sendMediaMessage = async (to, file, caption) => {
   return await response.json();
 };
 
-export const getMessages = async (phone = '', page = 1, limit = 20) => {
+export const getMessages = async (phone = '', page = 1, limit = 20, search = '') => {
   const query = new URLSearchParams();
 
   if (phone) query.append('phone', phone);
+  if (search) query.append('search', search);
   query.append('page', String(page));
   query.append('limit', String(limit));
 

@@ -909,6 +909,7 @@ export class WhatsappService {
     userType: 'tenant' | 'subuser' = 'tenant',
     page: number = 1,
     limit: number = 20,
+    searchQuery?: string,
   ) {
     page = Math.max(1, Number(page) || 1);
     limit = Math.max(1, Number(limit) || 20);
@@ -1035,9 +1036,35 @@ export class WhatsappService {
     }
   
     // CASE 2: no phone => return paginated unique chats using DB-level DISTINCT
-    const whereClause = allowedPhones ? `AND "from" = ANY($3)` : '';
     const params: any[] = [(page - 1) * limit, limit];
-    if (allowedPhones) params.push(allowedPhones);
+    let allowedPhonesParamIdx = -1;
+    let searchParamIdx = -1;
+
+    if (allowedPhones) {
+      params.push(allowedPhones);
+      allowedPhonesParamIdx = params.length;
+    }
+    
+    if (searchQuery) {
+      params.push(`%${searchQuery}%`);
+      searchParamIdx = params.length;
+    }
+
+    const baseAllowedPhonesWhere = allowedPhones ? `WHERE "from" = ANY($${allowedPhonesParamIdx})` : '';
+    const searchFilterJoin = searchQuery ? `
+             LEFT JOIN "Contact" c ON c.phone = wm."from" OR '91' || c.phone = wm."from" OR c.phone = RIGHT(wm."from", 10)
+             WHERE wm."from" ILIKE $${searchParamIdx} OR wm."profileName" ILIKE $${searchParamIdx} OR c."name" ILIKE $${searchParamIdx}` : '';
+
+    const countQueryArgs: any[] = [];
+    if (allowedPhones) countQueryArgs.push(allowedPhones);
+    if (searchQuery) countQueryArgs.push(`%${searchQuery}%`);
+
+    const countParamOffset = allowedPhones ? 1 : 0;
+    const countSearchParamIdx = countParamOffset + 1;
+    const countAllowedPhonesWhere = allowedPhones ? `WHERE "from" = ANY($1)` : '';
+    const countSearchFilterJoin = searchQuery ? `
+             LEFT JOIN "Contact" c ON c.phone = wm."from" OR '91' || c.phone = wm."from" OR c.phone = RIGHT(wm."from", 10)
+             WHERE wm."from" ILIKE $${countSearchParamIdx} OR wm."profileName" ILIKE $${countSearchParamIdx} OR c."name" ILIKE $${countSearchParamIdx}` : '';
 
     const [uniqueChats, countResult] = await Promise.all([
       this.prisma.$queryRawUnsafe<any[]>(
@@ -1048,10 +1075,11 @@ export class WhatsappService {
              FROM (
                  SELECT MAX(id) as max_id
                  FROM "WhatsAppMessage"
-                 ${allowedPhones ? 'WHERE "from" = ANY($3)' : ''}
+                 ${baseAllowedPhonesWhere}
                  GROUP BY "from", "phoneNumberId"
              ) as latest_group
              JOIN "WhatsAppMessage" wm ON wm.id = latest_group.max_id
+             ${searchFilterJoin}
              ORDER BY CASE WHEN wm.direction = 'incoming' THEN 1 ELSE 2 END ASC, wm."createdAt" DESC
              LIMIT $2 OFFSET $1
          ) as latest
@@ -1060,8 +1088,18 @@ export class WhatsappService {
         ...params
       ),
       this.prisma.$queryRawUnsafe<[{ count: bigint }]>(
-        `SELECT COUNT(*) FROM (SELECT DISTINCT "from", "phoneNumberId" FROM "WhatsAppMessage" ${allowedPhones ? 'WHERE "from" = ANY($1)' : ''}) t`,
-        ...(allowedPhones ? [allowedPhones] : [])
+        `SELECT COUNT(*) FROM (
+             SELECT latest_group.max_id
+             FROM (
+                 SELECT MAX(id) as max_id
+                 FROM "WhatsAppMessage"
+                 ${countAllowedPhonesWhere}
+                 GROUP BY "from", "phoneNumberId"
+             ) as latest_group
+             JOIN "WhatsAppMessage" wm ON wm.id = latest_group.max_id
+             ${countSearchFilterJoin}
+        ) t`,
+        ...countQueryArgs
       ),
     ]);
 

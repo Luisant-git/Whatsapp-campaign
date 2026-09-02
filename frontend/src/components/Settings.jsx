@@ -35,6 +35,7 @@ const Settings = ({ onNavigate }) => {
   const [showVerifyToken, setShowVerifyToken] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [verifyTokenError, setVerifyTokenError] = useState('');
+  const [formErrors, setFormErrors] = useState({});
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -170,10 +171,14 @@ const Settings = ({ onNavigate }) => {
     });
     setEditingId(null);
     setShowForm(false);
+    setFormErrors({});
   };
 
   const handleInputChange = (field, value) => {
     setCurrentSettings((prev) => ({ ...prev, [field]: value }));
+    if (formErrors[field]) {
+      setFormErrors((prev) => ({ ...prev, [field]: false }));
+    }
   };
 
   const handleImageUpload = async (e) => {
@@ -199,6 +204,16 @@ const Settings = ({ onNavigate }) => {
   };
 
   const handleSaveConfiguration = async () => {
+    const errors = {};
+    if (!currentSettings.name) errors.name = true;
+
+    setFormErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      showError('Please fill in all mandatory fields');
+      return;
+    }
+
     setSaving(true);
     setVerifyTokenError('');
     try {
@@ -758,6 +773,7 @@ const Settings = ({ onNavigate }) => {
                   value={currentSettings.name}
                   onChange={(e) => handleInputChange("name", e.target.value)}
                   disabled={editingId !== null}
+                  style={formErrors.name ? { borderColor: '#ef4444' } : {}}
                 />
               </div>
 
@@ -789,7 +805,9 @@ const Settings = ({ onNavigate }) => {
 
               <div className="form-group">
                 <label>Template Name</label>
-                <select
+                <input
+                  type="text"
+                  placeholder="Enter template name"
                   value={currentSettings.templateName}
                   onChange={(e) => {
                     const newTemplateName = e.target.value;
@@ -803,15 +821,7 @@ const Settings = ({ onNavigate }) => {
                       handleInputChange("language", templateLangs[0]);
                     }
                   }}
-                >
-                  <option value="">Select a template</option>
-                  {uniqueTemplateNames.map(name => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                  {currentSettings.templateName && !uniqueTemplateNames.includes(currentSettings.templateName) && (
-                    <option value={currentSettings.templateName}>{currentSettings.templateName} (Legacy)</option>
-                  )}
-                </select>
+                />
               </div>
 
               <div className="form-group">

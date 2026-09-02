@@ -27,6 +27,7 @@ const MasterConfig = () => {
   const [showVerifyToken, setShowVerifyToken] = useState(false);
   const [selectedConfig, setSelectedConfig] = useState(null);
   const [verifyTokenError, setVerifyTokenError] = useState('');
+  const [formErrors, setFormErrors] = useState({});
   const [activeTab, setActiveTab] = useState('configurations');
   const [featureAssignments, setFeatureAssignments] = useState({
     whatsappChat: '',
@@ -339,9 +340,23 @@ const MasterConfig = () => {
     setCurrentConfig({ name: "", phoneNumberId: "", wabaId: "", appId: "", appSecret: "", accessToken: "", verifyToken: "" });
     setEditingId(null);
     setShowForm(false);
+    setFormErrors({});
   };
 
   const handleSave = async () => {
+    const errors = {};
+    if (!currentConfig.name) errors.name = true;
+    if (!currentConfig.phoneNumberId) errors.phoneNumberId = true;
+    if (!currentConfig.wabaId) errors.wabaId = true;
+    if (!currentConfig.accessToken) errors.accessToken = true;
+
+    setFormErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      showError('Please fill in all mandatory fields');
+      return;
+    }
+
     setSaving(true);
     setVerifyTokenError('');
     try {
@@ -710,9 +725,26 @@ const MasterConfig = () => {
           <div className="configurations-grid">
             {masterConfigs.map((config) => (
               <div key={config.id} className="config-card">
-                <div className="config-header">
-                  <h3>{config.name}</h3>
-                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <div className="config-header" style={{ marginBottom: '8px' }}>
+                  <h3 style={{ margin: 0 }}>{config.name}</h3>
+                </div>
+                <div className="config-details" style={{ marginBottom: '20px' }}>
+                  <p style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
+                    <span style={{ padding: '4px 8px', background: '#f1f5f9', borderRadius: '4px', border: '1px solid #e2e8f0', fontSize: '13px', color: '#475569' }}>
+                      <strong>Phone ID:</strong> {config.phoneNumberId}
+                    </span>
+                  </p>
+                </div>
+                <div className="config-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={() => handleEdit(config)} className="btn-secondary">
+                      Edit
+                    </button>
+                    <button onClick={() => setSelectedConfig(config)} className="btn-outline">
+                      <Eye size={16} /> View Details
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <button 
                       onClick={() => handleSubscribeWABA(config)} 
                       className="btn-outline"
@@ -751,21 +783,10 @@ const MasterConfig = () => {
                     >
                       <Wifi size={14} /> Set Webhook
                     </button>
+                    <button onClick={() => handleDelete(config.id)} className="btn-danger" style={{ marginLeft: 'auto' }}>
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                </div>
-                <div className="config-details">
-                  <p><strong>Phone ID:</strong> {config.phoneNumberId}</p>
-                </div>
-                <div className="config-actions">
-                  <button onClick={() => handleEdit(config)} className="btn-secondary">
-                    Edit
-                  </button>
-                  <button onClick={() => setSelectedConfig(config)} className="btn-outline">
-                    <Eye size={16} /> View Details
-                  </button>
-                  <button onClick={() => handleDelete(config.id)} className="btn-danger">
-                    <Trash2 size={16} />
-                  </button>
                 </div>
               </div>
             ))}
@@ -776,7 +797,7 @@ const MasterConfig = () => {
 
       {showForm && (
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content" style={{ maxWidth: '700px' }}>
             <div className="modal-header">
               <h2>{editingId ? "Edit Configuration" : "Add Configuration"}</h2>
               <button onClick={resetForm} className="close-btn">×</button>
@@ -788,7 +809,11 @@ const MasterConfig = () => {
                   type="text"
                   placeholder="e.g. Production API, Test API"
                   value={currentConfig.name}
-                  onChange={(e) => setCurrentConfig({...currentConfig, name: e.target.value})}
+                  onChange={(e) => {
+                    setCurrentConfig({...currentConfig, name: e.target.value});
+                    if (formErrors.name) setFormErrors({...formErrors, name: false});
+                  }}
+                  style={formErrors.name ? { borderColor: '#ef4444' } : {}}
                 />
               </div>
               <div className="form-group">
@@ -797,7 +822,11 @@ const MasterConfig = () => {
                   type="text"
                   placeholder="Enter Phone Number ID"
                   value={currentConfig.phoneNumberId}
-                  onChange={(e) => setCurrentConfig({...currentConfig, phoneNumberId: e.target.value})}
+                  onChange={(e) => {
+                    setCurrentConfig({...currentConfig, phoneNumberId: e.target.value});
+                    if (formErrors.phoneNumberId) setFormErrors({...formErrors, phoneNumberId: false});
+                  }}
+                  style={formErrors.phoneNumberId ? { borderColor: '#ef4444' } : {}}
                 />
               </div>
               <div className="form-group">
@@ -806,14 +835,18 @@ const MasterConfig = () => {
                   type="text"
                   placeholder="Enter WhatsApp Business Account ID"
                   value={currentConfig.wabaId}
-                  onChange={(e) => setCurrentConfig({...currentConfig, wabaId: e.target.value})}
+                  onChange={(e) => {
+                    setCurrentConfig({...currentConfig, wabaId: e.target.value});
+                    if (formErrors.wabaId) setFormErrors({...formErrors, wabaId: false});
+                  }}
+                  style={formErrors.wabaId ? { borderColor: '#ef4444' } : {}}
                 />
                 <small style={{color: '#666', fontSize: '12px', display: 'block', marginTop: '4px'}}>
                   Used for creating templates
                 </small>
               </div>
               <div className="form-group">
-                <label>App ID *</label>
+                <label>App ID</label>
                 <input
                   type="text"
                   placeholder="Enter Meta App ID"
@@ -825,7 +858,7 @@ const MasterConfig = () => {
                 </small>
               </div>
               <div className="form-group">
-                <label>App Secret *</label>
+                <label>App Secret</label>
                 <div className="input-with-icon">
                   <input
                     type={showAppSecret ? "text" : "password"}
@@ -849,7 +882,11 @@ const MasterConfig = () => {
                     type={showAccessToken ? "text" : "password"}
                     placeholder="Enter Access Token"
                     value={currentConfig.accessToken}
-                    onChange={(e) => setCurrentConfig({...currentConfig, accessToken: e.target.value})}
+                    onChange={(e) => {
+                      setCurrentConfig({...currentConfig, accessToken: e.target.value});
+                      if (formErrors.accessToken) setFormErrors({...formErrors, accessToken: false});
+                    }}
+                    style={formErrors.accessToken ? { borderColor: '#ef4444' } : {}}
                   />
                   <button
                     type="button"
@@ -861,7 +898,7 @@ const MasterConfig = () => {
                 </div>
               </div>
               <div className="form-group">
-                <label>Verify Token *</label>
+                <label>Verify Token</label>
                 <div className="input-with-icon">
                   <input
                     type={showVerifyToken ? "text" : "password"}

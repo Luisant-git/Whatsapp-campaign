@@ -176,6 +176,7 @@ function App() {
   const [ecommerceOpen, setEcommerceOpen] = useState(false);
   const [campaignsOpen, setCampaignsOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [automationOpen, setAutomationOpen] = useState(false);
 
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
 
@@ -379,13 +380,15 @@ function App() {
           const isEcommerce = menu.key === "ecommerce";
           const isSettingsGroup = menu.key === "settings";
           const isTemplates = menu.key === "templates";
+          const isAutomation = menu.key === "automation";
   
           const isOpen =
             (isContacts && contactsOpen) ||
             (isCampaigns && campaignsOpen) ||
             (isEcommerce && ecommerceOpen) ||
             (isSettingsGroup && settingsOpen) ||
-            (isTemplates && templatesOpen);
+            (isTemplates && templatesOpen) ||
+            (isAutomation && automationOpen);
   
           const toggleOpen = () => {
             if (isContacts) setContactsOpen((prev) => !prev);
@@ -393,6 +396,7 @@ function App() {
             if (isEcommerce) setEcommerceOpen((prev) => !prev);
             if (isSettingsGroup) setSettingsOpen((prev) => !prev);
             if (isTemplates) setTemplatesOpen((prev) => !prev);
+            if (isAutomation) setAutomationOpen((prev) => !prev);
           };
   
           const allowedChildren = (menu.children || []).filter((child) =>

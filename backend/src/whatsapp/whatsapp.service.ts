@@ -116,7 +116,7 @@ export class WhatsappService {
     const from = message.from;
     const messageId = message.id;
     let text = message.text?.body;
-    const image = message.image;
+    const image = message.image || message.sticker;
     const video = message.video;
     const document = message.document;
     const audio = message.audio;
@@ -176,15 +176,18 @@ export class WhatsappService {
       this.logger.log(`List item selected: ${listTitle} (ID: ${listId})`);
     }
 
-    // Handle reactions, stickers, and other non-text interactions
     if (message.type === 'reaction' && message.reaction?.emoji) {
       text = `Reaction: ${message.reaction.emoji}`;
     } else if (message.type === 'sticker') {
-      text = `[Sticker sent]`;
+      text = ``;
     } else if (message.type === 'location') {
-      text = `[Location shared: ${message.location?.latitude || ''}, ${message.location?.longitude || ''}]`;
+      const loc = message.location;
+      text = `[Location: ${loc?.name ? loc.name + ' - ' : ''}https://maps.google.com/?q=${loc?.latitude},${loc?.longitude}]`;
     } else if (message.type === 'contacts') {
-      text = `[Contact shared: ${message.contacts?.[0]?.name?.formatted_name || 'unknown'}]`;
+      const contact = message.contacts?.[0];
+      const name = contact?.name?.formatted_name || 'unknown';
+      const phone = contact?.phones?.[0]?.phone || 'no number';
+      text = `[Contact: ${name} (${phone})]`;
     } else if (message.type === 'unsupported' || message.type === 'unknown') {
       const errorTitle = message.errors?.[0]?.title;
       text = `[Unsupported message type sent by user${errorTitle ? ': ' + errorTitle : ''}]`;
@@ -1443,21 +1446,33 @@ export class WhatsappService {
       this.logger.log(`📋 List item selected: ${text}`);
     }
 
+    // Handle interactive nfm_reply (forms, flows, catalog)
+    if (message.type === 'interactive' && message.interactive?.type === 'nfm_reply') {
+      const nfmReplyName = message.interactive.nfm_reply?.name || 'Form/Catalog';
+      text = `[Interactive Reply: ${nfmReplyName}]`;
+      buttonClicked = `📋 Interactive: ${nfmReplyName}`;
+      this.logger.log(`🛒 Interactive nfm_reply received: ${nfmReplyName}`);
+    }
+
     // Handle reactions, stickers, and other non-text interactions
     if (message.type === 'reaction' && message.reaction?.emoji) {
       text = `Reaction: ${message.reaction.emoji}`;
     } else if (message.type === 'sticker') {
-      text = `[Sticker sent]`;
+      text = ``;
     } else if (message.type === 'location') {
-      text = `[Location shared: ${message.location?.latitude || ''}, ${message.location?.longitude || ''}]`;
+      const loc = message.location;
+      text = `[Location: ${loc?.name ? loc.name + ' - ' : ''}https://maps.google.com/?q=${loc?.latitude},${loc?.longitude}]`;
     } else if (message.type === 'contacts') {
-      text = `[Contact shared: ${message.contacts?.[0]?.name?.formatted_name || 'unknown'}]`;
+      const contact = message.contacts?.[0];
+      const name = contact?.name?.formatted_name || 'unknown';
+      const phone = contact?.phones?.[0]?.phone || 'no number';
+      text = `[Contact: ${name} (${phone})]`;
     } else if (message.type === 'unsupported' || message.type === 'unknown') {
       const errorTitle = message.errors?.[0]?.title;
       text = `[Unsupported message type sent by user${errorTitle ? ': ' + errorTitle : ''}]`;
     }
 
-    const image = message.image;
+    const image = message.image || message.sticker;
     const video = message.video;
     const document = message.document;
     const audio = message.audio;

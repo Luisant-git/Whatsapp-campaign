@@ -3000,12 +3000,37 @@ export class WhatsappService {
   async logExternalMessage(body: any) {
     const { phoneNumberId, customerPhone, messageId, templateName, templateLanguage, templateContent, websiteId, orderId } = body;
 
-    if (!phoneNumberId || !customerPhone || !templateName) {
-      throw new Error('Missing required fields: phoneNumberId, customerPhone, templateName');
+    // The controller will also validate, but we ensure service-level safety
+    if (!phoneNumberId || !customerPhone || !templateName || !messageId) {
+      throw new Error('Missing required fields');
     }
 
+    // Look up which tenant owns this WhatsApp Phone Number ID
+    const mapping = await this.centralPrisma.phoneNumberMapping.findUnique({
+      where: { phoneNumberId }
+    });
+
+    if (!mapping) {
+      throw new Error(`Unauthorized: No tenant mapping found for phoneNumberId ${phoneNumberId}`);
+    }
+
+    const tenantId = mapping.tenantId;
+
+    // Verify tenant is active
+    const tenant = await this.centralPrisma.tenant.findUnique({
+      where: { id: tenantId }
+    });
+
+    if (!tenant || !tenant.isActive) {
+      throw new Error('Unauthorized: Tenant is not active');
+    }
+
+    // Connect dynamically to the tenant's exact database
+    const dbUrl = await this.getTenantDbUrl(tenantId);
+    const tenantClient = this.tenantPrisma.getTenantClient(tenantId.toString(), dbUrl);
+
     const formattedPhone = this.formatPhoneNumber(customerPhone);
-    const finalMessageId = messageId || `ext_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const finalMessageId = messageId;
 
     let messageText = `Template sent: ${templateName}`;
     if (orderId) messageText += `\nOrder ID: ${orderId}`;
@@ -3013,11 +3038,10 @@ export class WhatsappService {
     if (templateLanguage) messageText += `\nLanguage: ${templateLanguage}`;
     if (templateContent) messageText += `\n\n${templateContent}`;
 
-    return this.prisma.whatsAppMessage.upsert({
+    // Upsert directly into the tenant's specific WhatsAppMessage table
+    return tenantClient.whatsAppMessage.upsert({
       where: { messageId: finalMessageId },
-      update: {
-        // If it already exists, just return it without recreating to prevent duplicates
-      },
+      update: {},
       create: {
         messageId: finalMessageId,
         to: formattedPhone,

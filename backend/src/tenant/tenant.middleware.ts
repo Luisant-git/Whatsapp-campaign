@@ -41,6 +41,7 @@ export class TenantMiddleware implements NestMiddleware {
       path.startsWith('/tenentnote') ||
       path.startsWith('/docs') ||
       path.startsWith('/webhooks') ||
+      path.startsWith('/whatsapp/external/log-message') ||
       path.startsWith('/ecommerce/payment-callback') ||
       path.includes('/flow-appointments/') && path.endsWith('/finish') ||
       path.includes('/api/flow-appointments/') && path.endsWith('/finish')

@@ -86,6 +86,7 @@ export class AppModule implements NestModule {
         { path: 'test/*path', method: RequestMethod.ALL },
         { path: 'whatsapp/webhook', method: RequestMethod.ALL },
         { path: 'whatsapp/webhook/*path', method: RequestMethod.ALL },
+        { path: 'whatsapp/external/log-message', method: RequestMethod.ALL },
         { path: 'webhooks/*path', method: RequestMethod.ALL },
         { path: 'meta/flows', method: RequestMethod.ALL },
         { path: 'meta/flows/*path', method: RequestMethod.ALL },

@@ -280,6 +280,13 @@ export class WhatsappController {
       if (!authHeader || authHeader.replace('Bearer ', '') !== expectedApiKey) {
         throw new Error('Unauthorized API Key');
       }
+
+      // Strict payload validation
+      const { phoneNumberId, customerPhone, messageId, templateName, templateLanguage } = body;
+      if (!phoneNumberId || !customerPhone || !messageId || !templateName || !templateLanguage) {
+        throw new Error('Bad Request: Missing required fields (phoneNumberId, customerPhone, messageId, templateName, templateLanguage)');
+      }
+
       const result = await this.whatsappService.logExternalMessage(body);
       return { success: true, message: 'Message logged successfully', data: result };
     } catch (error) {

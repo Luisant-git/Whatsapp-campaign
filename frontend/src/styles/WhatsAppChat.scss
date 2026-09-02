@@ -1109,8 +1109,15 @@
           }
 
           .tick-mark {
-            font-size: 15px;
-            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 2px;
+            
+            svg {
+              display: block;
+              flex-shrink: 0;
+            }
             
             &.sent {
               color: #999;

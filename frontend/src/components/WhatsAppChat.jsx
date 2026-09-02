@@ -2301,11 +2301,9 @@ const WhatsAppChat = () => {
                     >
                       {isSelectionMode && (
                         <div className="message-checkbox" style={{
-                          position: 'absolute',
-                          left: msg.direction === 'incoming' ? '-30px' : 'auto',
-                          right: msg.direction === 'outgoing' ? '-30px' : 'auto',
-                          top: '50%',
-                          transform: 'translateY(-50%)',
+                          marginRight: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
                           zIndex: 10
                         }}>
                           <input

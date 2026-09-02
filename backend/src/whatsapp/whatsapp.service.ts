@@ -186,7 +186,8 @@ export class WhatsappService {
     } else if (message.type === 'contacts') {
       text = `[Contact shared: ${message.contacts?.[0]?.name?.formatted_name || 'unknown'}]`;
     } else if (message.type === 'unsupported' || message.type === 'unknown') {
-      text = `[Unsupported message type sent by user]`;
+      const errorTitle = message.errors?.[0]?.title;
+      text = `[Unsupported message type sent by user${errorTitle ? ': ' + errorTitle : ''}]`;
     }
 
     // Check if message is "stop" or "yes" and handle labels
@@ -1452,7 +1453,8 @@ export class WhatsappService {
     } else if (message.type === 'contacts') {
       text = `[Contact shared: ${message.contacts?.[0]?.name?.formatted_name || 'unknown'}]`;
     } else if (message.type === 'unsupported' || message.type === 'unknown') {
-      text = `[Unsupported message type sent by user]`;
+      const errorTitle = message.errors?.[0]?.title;
+      text = `[Unsupported message type sent by user${errorTitle ? ': ' + errorTitle : ''}]`;
     }
 
     const image = message.image;

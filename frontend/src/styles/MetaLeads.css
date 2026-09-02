@@ -122,7 +122,7 @@
 .filters-left { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
 .search-wrapper { position: relative; display: flex; align-items: center; }
-.search-icon { position: absolute; left: 10px; color: var(--text-secondary); pointer-events: none; }
+.search-wrapper .search-icon { position: absolute; left: 10px; color: var(--text-secondary); pointer-events: none; }
 .search-input {
   padding: 7px 12px 7px 32px;
   background: #f0f2f5;

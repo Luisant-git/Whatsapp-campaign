@@ -1872,11 +1872,13 @@ const WhatsAppChat = () => {
                       )}
                       */}
                     </div>
-                    <div className="message-search" style={{ flex: 1, maxWidth: '350px', display: 'flex', alignItems: 'center', background: '#f0f2f5', borderRadius: '8px', padding: '0 8px' }}>
-                      <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#54656f" strokeWidth="2" style={{ margin: '0 8px' }}>
-                        <circle cx="11" cy="11" r="8" />
-                        <path d="m21 21-4.35-4.35" />
-                      </svg>
+                    <div className="message-search" style={{ flex: 1, maxWidth: '350px', display: 'flex', alignItems: 'center', background: 'white', borderRadius: '8px', padding: '0 8px' }}>
+                      {!messageSearchQuery && (
+                        <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#54656f" strokeWidth="2" style={{ margin: '0 8px' }}>
+                          <circle cx="11" cy="11" r="8" />
+                          <path d="m21 21-4.35-4.35" />
+                        </svg>
+                      )}
                       <input
                         type="text"
                         placeholder="Search..."
@@ -2293,10 +2295,12 @@ const WhatsAppChat = () => {
                     </svg>
                   </button>
                   <div className="search-input-wrapper" style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-                    <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="11" cy="11" r="8" />
-                      <path d="m21 21-4.35-4.35" />
-                    </svg>
+                    {!messageSearchQuery && (
+                      <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.35-4.35" />
+                      </svg>
+                    )}
                     <input
                       type="text"
                       placeholder="Search messages..."

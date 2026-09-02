@@ -2598,10 +2598,11 @@ const WhatsAppChat = () => {
                                 </svg>
                               )}
                               {(msg.status === 'delivered' || msg.status === 'read') && (
-                                <svg viewBox="0 0 16 15" width="16" height="15" fill={msg.status === 'read' ? '#53bdeb' : 'currentColor'}>
-                                  <path d="M15.01 3.316l-8.316 8.316L2.651 7.59l1.06-1.06l3.082 3.083L14.056 2.15l0.954 1.166z"></path>
-                                  <path d="M10.81 2.15l3.166 3.165l-1.06 1.06l-2.106-2.105L10.81 2.15z"></path>
-                                  <path d="M4.77 10.57L2.651 8.451l-1.06 1.06l3.179 3.179l1.41-1.41l-1.41-1.41z"></path>
+                                <svg viewBox="0 0 22 15" width="20" height="15" fill={msg.status === 'read' ? '#53bdeb' : 'currentColor'} style={{ marginLeft: '2px' }}>
+                                  <path d="M15.01 3.316l-8.316 8.316L2.651 7.59l1.06-1.06l3.082 3.083L14.056 2.15l.954 1.166z"></path>
+                                  <g transform="translate(6, 0)">
+                                    <path d="M15.01 3.316l-8.316 8.316L2.651 7.59l1.06-1.06l3.082 3.083L14.056 2.15l.954 1.166z"></path>
+                                  </g>
                                 </svg>
                               )}
                             </span>

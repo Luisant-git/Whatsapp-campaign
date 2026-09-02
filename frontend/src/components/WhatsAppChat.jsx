@@ -1275,16 +1275,12 @@ const WhatsAppChat = () => {
             )}
             {header?.format === 'DOCUMENT' && (
               header.example?.header_handle?.[0] ? (
-                <div className="whatsapp-document-message" style={{ background: '#f0f2f5', borderRadius: '8px', padding: '10px', marginBottom: '8px', cursor: 'pointer' }}>
+                <div className="whatsapp-document-message" style={{ marginBottom: '8px' }}>
                   <div className="document-content">
-                    <div className="document-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <div className="file-type-icon" style={{ background: '#fff', borderRadius: '4px', padding: '4px' }}>
-                          <span className="file-text">DOC</span>
-                        </div>
-                        <span className="document-title" style={{ marginLeft: '8px', fontSize: '14px', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          Template Document
-                        </span>
+                    <div className="document-header">
+                      {getFileIcon(header.example.header_handle[0])}
+                      <div className="document-title">
+                        {header.example.header_handle[0].split('/').pop()?.replace(/\.[^/.]+$/, '') || 'Template Document'}
                       </div>
                       <a 
                         href={resolveMediaUrl(header.example.header_handle[0])} 
@@ -1292,10 +1288,15 @@ const WhatsAppChat = () => {
                         target="_blank" 
                         rel="noopener noreferrer" 
                         onClick={(e) => e.stopPropagation()} 
-                        style={{ color: '#8d949e', marginLeft: '10px' }}
+                        className="document-download-btn"
                       >
                         <DownloadIcon />
                       </a>
+                    </div>
+                    <div className="document-footer">
+                      <span className="document-pages">{getFileTypeInfo(header.example.header_handle[0]).pages}</span>
+                      <span className="document-type">{getFileTypeInfo(header.example.header_handle[0]).type}</span>
+                      <span className="document-size">{getFileSize(header.example.header_handle[0])}</span>
                     </div>
                   </div>
                 </div>

@@ -27,7 +27,16 @@ export const MENU_CONFIG = [
         { key: "campaigns.bulk", label: "Compose Campaign" },
         { key: "campaigns.reports", label: "Campaign Reports" },
         { key: "campaigns.meta-leads", label: "Meta Leads" },
-        { key: "automation.logs", label: "Automation Logs", icon: "clipboardList" }
+      ],
+    },
+    {
+      key: "automation",
+      label: "Automation",
+      icon: "zap",
+      children: [
+        { key: "automation.templates", label: "Automation Templates" },
+        { key: "settings.meta-leads-automation", label: "Meta Leads Automation" },
+        { key: "automation.logs", label: "Run Automation Logs" },
       ],
     },
     {
@@ -85,8 +94,6 @@ export const MENU_CONFIG = [
       children: [
         { key: "settings.master-config", label: "WhatsApp Setup" },
         { key: "settings.meta-leads-config", label: "Meta Leads Setup" },
-        { key: "settings.meta-leads-automation", label: "Meta Leads Automation" },
-        { key: "automation.templates", label: "Automation Templates", icon: "layoutTemplate" },
         { key: "settings.templates", label: "Templates" },
         { key: "settings.labels", label: "Labels" },
         { key: "settings.createuser", label: "Create User" },

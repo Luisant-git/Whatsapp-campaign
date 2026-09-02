@@ -418,7 +418,9 @@
 }
 
 .input-with-icon input {
-  padding-right: 40px;
+  padding-right: 45px !important;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .toggle-visibility {

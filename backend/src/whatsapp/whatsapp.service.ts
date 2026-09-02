@@ -2998,7 +2998,7 @@ export class WhatsappService {
   }
 
   async logExternalMessage(body: any) {
-    const { phoneNumberId, customerPhone, messageId, templateName, templateLanguage, templateContent, websiteId, orderId } = body;
+    const { phoneNumberId, customerPhone, messageId, templateName, templateLanguage, templateContent, templateParameters, websiteId, orderId } = body;
 
     // The controller will also validate, but we ensure service-level safety
     if (!phoneNumberId || !customerPhone || !templateName || !messageId) {
@@ -3032,11 +3032,54 @@ export class WhatsappService {
     const formattedPhone = this.formatPhoneNumber(customerPhone);
     const finalMessageId = messageId;
 
-    let messageText = `Template sent: ${templateName}`;
-    if (orderId) messageText += `\nOrder ID: ${orderId}`;
-    if (websiteId) messageText += `\nWebsite: ${websiteId}`;
-    if (templateLanguage) messageText += `\nLanguage: ${templateLanguage}`;
-    if (templateContent) messageText += `\n\n${templateContent}`;
+    let messageText = '';
+
+    // If we have templateParameters, try to resolve the exact text from MessageTemplate
+    if (templateParameters && Array.isArray(templateParameters)) {
+      try {
+        const templateRecord = await tenantClient.messageTemplate.findFirst({
+          where: { name: templateName }
+        });
+        
+        if (templateRecord && templateRecord.components) {
+          const components = JSON.parse(templateRecord.components);
+          const bodyComponent = components.find((c: any) => c.type === 'BODY' || c.type === 'body');
+          
+          if (bodyComponent && bodyComponent.text) {
+            let formattedText = bodyComponent.text;
+            // Replace {{1}}, {{2}} with actual parameters
+            templateParameters.forEach((param, index) => {
+              const regex = new RegExp(`\\{\\{${index + 1}\\}\\}`, 'g');
+              formattedText = formattedText.replace(regex, param || '');
+            });
+            
+            // Add header/footer if they exist
+            const headerComponent = components.find((c: any) => c.format === 'TEXT' && (c.type === 'HEADER' || c.type === 'header'));
+            if (headerComponent && headerComponent.text) {
+               messageText += `*${headerComponent.text}*\n`; // Bold formatting for text headers
+            }
+            
+            messageText += formattedText;
+
+            const footerComponent = components.find((c: any) => c.type === 'FOOTER' || c.type === 'footer');
+            if (footerComponent && footerComponent.text) {
+              messageText += `\n${footerComponent.text}`; 
+            }
+          }
+        }
+      } catch (error) {
+        this.logger.error(`Error resolving template text for ${templateName}`, error);
+      }
+    }
+
+    // Fallback if we couldn't resolve the template
+    if (!messageText) {
+      messageText = `Template sent: ${templateName}`;
+      if (orderId) messageText += `\nOrder ID: ${orderId}`;
+      if (websiteId) messageText += `\nWebsite: ${websiteId}`;
+      if (templateLanguage) messageText += `\nLanguage: ${templateLanguage}`;
+      if (templateContent) messageText += `\n\n${templateContent}`;
+    }
 
     // Upsert directly into the tenant's specific WhatsAppMessage table
     return tenantClient.whatsAppMessage.upsert({

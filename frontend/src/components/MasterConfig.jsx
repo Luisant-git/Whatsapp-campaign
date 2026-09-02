@@ -725,25 +725,8 @@ const MasterConfig = () => {
           <div className="configurations-grid">
             {masterConfigs.map((config) => (
               <div key={config.id} className="config-card">
-                <div className="config-header" style={{ marginBottom: '8px' }}>
+                <div className="config-header" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                   <h3 style={{ margin: 0 }}>{config.name}</h3>
-                </div>
-                <div className="config-details" style={{ marginBottom: '20px' }}>
-                  <p style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
-                    <span style={{ padding: '4px 8px', background: '#f1f5f9', borderRadius: '4px', border: '1px solid #e2e8f0', fontSize: '13px', color: '#475569' }}>
-                      <strong>Phone ID:</strong> {config.phoneNumberId}
-                    </span>
-                  </p>
-                </div>
-                <div className="config-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => handleEdit(config)} className="btn-secondary">
-                      Edit
-                    </button>
-                    <button onClick={() => setSelectedConfig(config)} className="btn-outline">
-                      <Eye size={16} /> View Details
-                    </button>
-                  </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <button 
                       onClick={() => handleSubscribeWABA(config)} 
@@ -783,10 +766,34 @@ const MasterConfig = () => {
                     >
                       <Wifi size={14} /> Set Webhook
                     </button>
-                    <button onClick={() => handleDelete(config.id)} className="btn-danger" style={{ marginLeft: 'auto' }}>
-                      <Trash2 size={16} />
-                    </button>
                   </div>
+                </div>
+                <div className="config-details" style={{ marginBottom: '20px' }}>
+                  <p style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
+                    <span 
+                      onClick={() => {
+                        navigator.clipboard.writeText(config.phoneNumberId);
+                        showSuccess('Phone ID copied to clipboard!');
+                      }}
+                      style={{ padding: '6px 10px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '13px', color: '#334155', cursor: 'pointer', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      title="Click to copy Phone ID"
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+                    >
+                      <strong>Phone ID:</strong> {config.phoneNumberId}
+                    </span>
+                  </p>
+                </div>
+                <div className="config-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
+                  <button onClick={() => handleEdit(config)} className="btn-secondary">
+                    Edit
+                  </button>
+                  <button onClick={() => setSelectedConfig(config)} className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '8px 16px', background: 'white', color: '#10b981', border: '1px solid #10b981', borderRadius: '4px', cursor: 'pointer' }}>
+                    <Eye size={16} /> View Details
+                  </button>
+                  <button onClick={() => handleDelete(config.id)} className="btn-danger" style={{ padding: '8px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -937,7 +944,7 @@ const MasterConfig = () => {
 
       {selectedConfig && (
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content" style={{ maxWidth: '650px' }}>
             <div className="modal-header">
               <h2>Configuration Details</h2>
               <button onClick={() => setSelectedConfig(null)} className="close-btn">×</button>

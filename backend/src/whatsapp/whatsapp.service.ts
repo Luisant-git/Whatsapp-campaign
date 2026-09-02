@@ -2998,21 +2998,31 @@ export class WhatsappService {
   }
 
   async logExternalMessage(body: any) {
-    const { phoneNumberId, customerPhone, messageId, templateName, templateContent } = body;
+    const { phoneNumberId, customerPhone, messageId, templateName, templateLanguage, templateContent, websiteId, orderId } = body;
 
     if (!phoneNumberId || !customerPhone || !templateName) {
       throw new Error('Missing required fields: phoneNumberId, customerPhone, templateName');
     }
 
     const formattedPhone = this.formatPhoneNumber(customerPhone);
-    const contentText = templateContent ? `\n\n${templateContent}` : '';
+    const finalMessageId = messageId || `ext_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    return this.prisma.whatsAppMessage.create({
-      data: {
-        messageId: messageId || `ext_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+    let messageText = `Template sent: ${templateName}`;
+    if (orderId) messageText += `\nOrder ID: ${orderId}`;
+    if (websiteId) messageText += `\nWebsite: ${websiteId}`;
+    if (templateLanguage) messageText += `\nLanguage: ${templateLanguage}`;
+    if (templateContent) messageText += `\n\n${templateContent}`;
+
+    return this.prisma.whatsAppMessage.upsert({
+      where: { messageId: finalMessageId },
+      update: {
+        // If it already exists, just return it without recreating to prevent duplicates
+      },
+      create: {
+        messageId: finalMessageId,
         to: formattedPhone,
-        from: formattedPhone, // So it shows up in the chat as outgoing to this customer
-        message: `Template sent: ${templateName}${contentText}`,
+        from: formattedPhone,
+        message: messageText.trim(),
         direction: 'outgoing',
         status: 'sent',
         phoneNumberId: phoneNumberId,

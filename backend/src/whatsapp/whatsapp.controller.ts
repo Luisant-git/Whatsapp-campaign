@@ -14,7 +14,8 @@ import {
   HttpException,
   Session,
   UseGuards,
-  Res
+  Res,
+  Headers
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -273,8 +274,12 @@ export class WhatsappController {
   @Public()
   @Post('external/log-message')
   @ApiOperation({ summary: 'Log an external template sent by an external system' })
-  async logExternalMessage(@Body() body: any) {
+  async logExternalMessage(@Headers('authorization') authHeader: string, @Body() body: any) {
     try {
+      const expectedApiKey = process.env.EXTERNAL_API_KEY || 'default-secret-key';
+      if (!authHeader || authHeader.replace('Bearer ', '') !== expectedApiKey) {
+        throw new Error('Unauthorized API Key');
+      }
       const result = await this.whatsappService.logExternalMessage(body);
       return { success: true, message: 'Message logged successfully', data: result };
     } catch (error) {

@@ -1214,10 +1214,20 @@ const WhatsAppChat = () => {
       const template = templates.find(t => t.name === templateName);
       
       if (template && template.components) {
-        const header = template.components.find(c => c.type === 'HEADER');
-        const body = template.components.find(c => c.type === 'BODY');
-        const footer = template.components.find(c => c.type === 'FOOTER');
-        const buttons = template.components.find(c => c.type === 'BUTTONS');
+        let components = [];
+        try {
+          components = typeof template.components === 'string' 
+            ? JSON.parse(template.components) 
+            : template.components;
+          if (!Array.isArray(components)) components = [];
+        } catch (e) {
+          components = [];
+        }
+
+        const header = components.find(c => c.type === 'HEADER');
+        const body = components.find(c => c.type === 'BODY');
+        const footer = components.find(c => c.type === 'FOOTER');
+        const buttons = components.find(c => c.type === 'BUTTONS');
 
         return (
           <div className="template-message-preview">

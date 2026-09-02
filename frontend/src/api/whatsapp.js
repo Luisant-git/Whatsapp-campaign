@@ -213,8 +213,9 @@ export const removeChatAssignment = async (phone) => {
   return await response.json();
 };
 
-export const getTemplates = async () => {
-  const response = await fetch(`${API_BASE_URL}/templates`, {
+export const getTemplates = async (status) => {
+  const url = status ? `${API_BASE_URL}/templates?status=${status}` : `${API_BASE_URL}/templates`;
+  const response = await fetch(url, {
     credentials: 'include',
   });
 

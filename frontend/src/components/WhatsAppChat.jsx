@@ -135,7 +135,7 @@ const WhatsAppChat = () => {
   useEffect(() => {
     const loadTemplates = async () => {
       try {
-        const data = await getTemplates();
+        const data = await getTemplates('ALL');
         setTemplates(data);
       } catch (error) {
         console.error('Failed to load templates:', error);

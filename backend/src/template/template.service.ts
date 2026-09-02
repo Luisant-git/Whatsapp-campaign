@@ -338,6 +338,9 @@ export class TemplateService {
       if (status === TemplateStatus.ARCHIVED) {
         // If specifically requesting archived templates, show only archived
         where.status = TemplateStatus.ARCHIVED;
+      } else if (status === 'ALL' as any) {
+        // Do not filter by status, include archived templates
+        delete where.status;
       } else {
         // For other statuses, show that status but exclude archived
         where.status = status;

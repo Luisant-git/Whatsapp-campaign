@@ -850,10 +850,6 @@ const WhatsAppChat = () => {
       if (selectedBusinessNumber === 'all') return true;
       return m.displayPhoneNumber === selectedBusinessNumber;
     }))
-      .filter(msg =>
-        messageSearchQuery === '' ||
-        (msg.message && msg.message.toLowerCase().includes(messageSearchQuery.toLowerCase()))
-      )
     : [];
 
   const groupedMessages = groupMessagesByDate(filteredMessages);
@@ -1237,7 +1233,7 @@ const WhatsAppChat = () => {
                 <img 
                   src={resolveMediaUrl(header.example.header_handle[0])} 
                   alt="Template Header" 
-                  style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '8px 8px 0 0', marginBottom: '8px', cursor: 'pointer' }}
+                  style={{ width: '100%', height: 'auto', borderRadius: '8px 8px 0 0', marginBottom: '8px', cursor: 'pointer', display: 'block' }}
                   onClick={(e) => {
                     e.stopPropagation();
                     setLightboxMedia({ type: 'image', url: resolveMediaUrl(header.example.header_handle[0]) });
@@ -1255,7 +1251,7 @@ const WhatsAppChat = () => {
                 <div style={{ position: 'relative', marginBottom: '8px' }}>
                   <video 
                     src={resolveMediaUrl(header.example.header_handle[0])} 
-                    style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '8px 8px 0 0', cursor: 'pointer' }}
+                    style={{ width: '100%', height: 'auto', borderRadius: '8px 8px 0 0', cursor: 'pointer', display: 'block' }}
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -1363,7 +1359,20 @@ const WhatsAppChat = () => {
     }
 
     if (msg.message && !msg.message.endsWith(' file')) {
-      return <p>{msg.message}</p>;
+      if (!messageSearchQuery) {
+        return <p>{msg.message}</p>;
+      }
+      
+      const parts = msg.message.split(new RegExp(`(${messageSearchQuery})`, 'gi'));
+      return (
+        <p>
+          {parts.map((part, i) => 
+            part.toLowerCase() === messageSearchQuery.toLowerCase() ? (
+              <span key={i} style={{ backgroundColor: '#ffeb3b', color: '#000', borderRadius: '2px', padding: '0 2px' }}>{part}</span>
+            ) : part
+          )}
+        </p>
+      );
     }
     
     return null;
@@ -2472,8 +2481,17 @@ const WhatsAppChat = () => {
                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           {msg.direction === 'outgoing' && (
                             <span className={`tick-mark ${msg.status}`}>
-                              {msg.status === 'sent' && <Check size={16} />}
-                              {(msg.status === 'delivered' || msg.status === 'read') && <CheckCheck size={16} color={msg.status === 'read' ? '#53bdeb' : 'currentColor'} />}
+                              {msg.status === 'sent' && (
+                                <svg viewBox="0 0 16 15" width="16" height="15" fill="currentColor">
+                                  <path d="M15.01 3.316l-8.316 8.316L2.651 7.59l1.06-1.06l3.082 3.083L14.056 2.15l.954 1.166z"></path>
+                                </svg>
+                              )}
+                              {(msg.status === 'delivered' || msg.status === 'read') && (
+                                <svg viewBox="0 0 16 15" width="16" height="15" fill={msg.status === 'read' ? '#53bdeb' : 'currentColor'}>
+                                  <path d="M15.01 3.316l-8.316 8.316L2.651 7.59l1.06-1.06l3.082 3.083L14.056 2.15l.954 1.166z"></path>
+                                  <path d="M10.74 2.15l3.166 3.165-1.06 1.06-2.106-2.105L10.74 2.15zM4.77 10.57L2.651 8.451l-1.06 1.06L4.77 12.69l1.41-1.41-1.41-1.41z"></path>
+                                </svg>
+                              )}
                             </span>
                           )}
                         </span>

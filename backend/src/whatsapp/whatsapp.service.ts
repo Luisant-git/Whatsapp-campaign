@@ -2996,4 +2996,27 @@ export class WhatsappService {
       where: { id: { in: messageIds } },
     });
   }
+
+  async logExternalMessage(body: any) {
+    const { phoneNumberId, customerPhone, messageId, templateName, templateContent } = body;
+
+    if (!phoneNumberId || !customerPhone || !templateName) {
+      throw new Error('Missing required fields: phoneNumberId, customerPhone, templateName');
+    }
+
+    const formattedPhone = this.formatPhoneNumber(customerPhone);
+    const contentText = templateContent ? `\n\n${templateContent}` : '';
+
+    return this.prisma.whatsAppMessage.create({
+      data: {
+        messageId: messageId || `ext_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+        to: formattedPhone,
+        from: formattedPhone, // So it shows up in the chat as outgoing to this customer
+        message: `Template sent: ${templateName}${contentText}`,
+        direction: 'outgoing',
+        status: 'sent',
+        phoneNumberId: phoneNumberId,
+      }
+    });
+  }
 }

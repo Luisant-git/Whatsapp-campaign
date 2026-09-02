@@ -271,6 +271,19 @@ export class WhatsappController {
   }
  
   @Public()
+  @Post('external/log-message')
+  @ApiOperation({ summary: 'Log an external template sent by an external system' })
+  async logExternalMessage(@Body() body: any) {
+    try {
+      const result = await this.whatsappService.logExternalMessage(body);
+      return { success: true, message: 'Message logged successfully', data: result };
+    } catch (error) {
+      console.error('Error logging external message:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  @Public()
   @Post('webhook')
   @ApiOperation({ summary: 'Handle webhook without token parameter' })
   async catchAllWebhookPost(@Body() body: any) {

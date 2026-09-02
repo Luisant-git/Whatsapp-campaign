@@ -212,3 +212,15 @@ export const removeChatAssignment = async (phone) => {
 
   return await response.json();
 };
+
+export const getTemplates = async () => {
+  const response = await fetch(`${API_BASE_URL}/templates`, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch templates');
+  }
+
+  return await response.json();
+};

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '../api/config';
-import { getMessages, sendMessage, sendMediaMessage, getLabels, updateLabels, getCustomLabels, addCustomLabel as addCustomLabelAPI, deleteCustomLabel as deleteCustomLabelAPI, getChatAssignment, removeChatAssignment, assignChatToSubUser } from '../api/whatsapp';
+import { getMessages, sendMessage, sendMediaMessage, getLabels, updateLabels, getCustomLabels, addCustomLabel as addCustomLabelAPI, deleteCustomLabel as deleteCustomLabelAPI, getChatAssignment, removeChatAssignment, assignChatToSubUser, getTemplates } from '../api/whatsapp';
 import '../styles/WhatsAppChat.scss';
 import { contactAPI } from '../api/contact';
 import { groupAPI } from '../api/group';
@@ -121,11 +121,24 @@ const WhatsAppChat = () => {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [loadingChats, setLoadingChats] = useState(true);
   const [allChats, setAllChats] = useState([]);
-
+  const [templates, setTemplates] = useState([]);
+  const [lightboxMedia, setLightboxMedia] = useState(null);
 
   useEffect(() => {
     const storedUserType = localStorage.getItem("userType") || "tenant";
     setUserType(storedUserType);
+  }, []);
+
+  useEffect(() => {
+    const loadTemplates = async () => {
+      try {
+        const data = await getTemplates();
+        setTemplates(data);
+      } catch (error) {
+        console.error('Failed to load templates:', error);
+      }
+    };
+    loadTemplates();
   }, []);
 
   const UNREAD_TAB = "__unread__";
@@ -1149,6 +1162,139 @@ const WhatsAppChat = () => {
       console.error("Failed to assign user", err);
       toast.error("Failed to assign user");
     }
+  };
+
+  const renderMessageContent = (msg) => {
+    if (msg.mediaType === 'image' && msg.mediaUrl) {
+      return (
+        <img
+          src={resolveMediaUrl(msg.mediaUrl)}
+          alt="media"
+          className="message-media"
+          onClick={() => setLightboxMedia({ type: 'image', url: resolveMediaUrl(msg.mediaUrl) })}
+          style={{ cursor: 'pointer' }}
+          onError={(e) => {
+            console.error('Image load error:', resolveMediaUrl(msg.mediaUrl));
+            e.target.style.display = 'none';
+          }}
+        />
+      );
+    }
+    
+    if (msg.mediaType === 'video' && msg.mediaUrl) {
+      return (
+        <div style={{ position: 'relative' }}>
+          <video
+            src={resolveMediaUrl(msg.mediaUrl)}
+            className="message-media"
+            style={{ cursor: 'pointer' }}
+            onClick={(e) => {
+              e.preventDefault();
+              setLightboxMedia({ type: 'video', url: resolveMediaUrl(msg.mediaUrl) });
+            }}
+            onError={(e) => {
+              console.error('Video load error:', resolveMediaUrl(msg.mediaUrl));
+              e.target.style.display = 'none';
+            }}
+          />
+          <div className="video-play-overlay" style={{
+            position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+            width: '40px', height: '40px', background: 'rgba(0,0,0,0.5)', borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none'
+          }}>
+            <PlayIcon />
+          </div>
+        </div>
+      );
+    }
+    
+    const templateMatch = msg.message?.match(/^Template (.+) sent to /);
+    if (templateMatch && templates && templates.length > 0) {
+      const templateName = templateMatch[1];
+      const template = templates.find(t => t.name === templateName);
+      
+      if (template && template.components) {
+        const header = template.components.find(c => c.type === 'HEADER');
+        const body = template.components.find(c => c.type === 'BODY');
+        const footer = template.components.find(c => c.type === 'FOOTER');
+        const buttons = template.components.find(c => c.type === 'BUTTONS');
+
+        return (
+          <div className="template-message-preview">
+            {header?.text && <div className="wa-header" style={{ fontWeight: 'bold', marginBottom: '4px' }}>{header.text}</div>}
+            {header?.format === 'IMAGE' && (
+              <div className="wa-media-placeholder" style={{ background: '#f0f2f5', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px', borderRadius: '8px' }}>
+                <span style={{color: '#8d949e'}}>🖼️ Image Header</span>
+              </div>
+            )}
+            {header?.format === 'VIDEO' && (
+              <div className="wa-media-placeholder" style={{ background: '#f0f2f5', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px', borderRadius: '8px' }}>
+                <span style={{color: '#8d949e'}}>🎥 Video Header</span>
+              </div>
+            )}
+            {header?.format === 'DOCUMENT' && (
+              <div className="wa-media-placeholder" style={{ background: '#f0f2f5', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px', borderRadius: '8px' }}>
+                <span style={{color: '#8d949e'}}>📄 Document Header</span>
+              </div>
+            )}
+            
+            {body?.text && (
+              <div className="wa-body" style={{ whiteSpace: 'pre-wrap', marginTop: '4px' }} dangerouslySetInnerHTML={{ 
+                __html: body.text
+                  .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
+                  .replace(/_(.*?)_/g, '<em>$1</em>')
+                  .replace(/~(.*?)~/g, '<del>$1</del>')
+              }} />
+            )}
+            
+            {footer?.text && (
+              <div className="wa-footer" style={{ fontSize: '12px', color: 'rgba(17, 27, 33, 0.6)', marginTop: '6px' }}>
+                {footer.text}
+              </div>
+            )}
+            
+            {buttons?.buttons && (
+              <div className="wa-buttons" style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {buttons.buttons.map((btn, i) => (
+                  <div key={i} style={{ 
+                    padding: '8px', 
+                    textAlign: 'center', 
+                    color: '#00a884', 
+                    background: '#f0f2f5', 
+                    borderRadius: '8px',
+                    fontSize: '14px'
+                  }}>
+                    {btn.text}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      }
+    }
+
+    if (msg.message && msg.message.startsWith('🔘 Button:')) {
+      return (
+        <div style={{ background: '#e7f3ef', color: '#008069', padding: '6px 10px', borderRadius: '12px', display: 'inline-block', fontSize: '14px', margin: '4px 0' }}>
+          {msg.message}
+        </div>
+      );
+    }
+    
+    if (msg.message && msg.message.startsWith('📋 List:')) {
+      return (
+        <div style={{ background: '#e7f3ef', color: '#008069', padding: '6px 10px', borderRadius: '12px', display: 'inline-block', fontSize: '14px', margin: '4px 0' }}>
+          {msg.message}
+        </div>
+      );
+    }
+
+    if (msg.message && !msg.message.endsWith(' file')) {
+      return <p>{msg.message}</p>;
+    }
+    
+    return null;
   };
 
   return (
@@ -2176,28 +2322,7 @@ const WhatsAppChat = () => {
                         </div>
                       )}
                       <div className="message-bubble">
-                        {msg.mediaType === 'image' && msg.mediaUrl && (
-                          <img
-                            src={resolveMediaUrl(msg.mediaUrl)}
-                            alt="media"
-                            className="message-media"
-                            onError={(e) => {
-                              console.error('Image load error:', resolveMediaUrl(msg.mediaUrl));
-                              e.target.style.display = 'none';
-                            }}
-                          />
-                        )}
-                        {msg.mediaType === 'video' && msg.mediaUrl && (
-                          <video
-                            src={resolveMediaUrl(msg.mediaUrl)}
-                            controls
-                            className="message-media"
-                            onError={(e) => {
-                              console.error('Video load error:', resolveMediaUrl(msg.mediaUrl));
-                              e.target.style.display = 'none';
-                            }}
-                          />
-                        )}
+                        {renderMessageContent(msg)}
                         {msg.mediaType === 'audio' && msg.mediaUrl && (() => {
                           const audioId = `audio-${msg.id}`;
                           const isPlaying = playingAudio === audioId;
@@ -2273,7 +2398,6 @@ const WhatsAppChat = () => {
                             </div>
                           </div>
                         )}
-                        {msg.message && !msg.message.endsWith(' file') && <p>{msg.message}</p>}
                         <span className="message-time">
                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           {msg.direction === 'outgoing' && (
@@ -2400,9 +2524,39 @@ const WhatsAppChat = () => {
             Select a chat to start messaging
           </div>
         )}
-
       </div>
-      
+
+      {lightboxMedia && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(0, 0, 0, 0.9)',
+          zIndex: 9999,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }} onClick={() => setLightboxMedia(null)}>
+          <button style={{
+            position: 'absolute',
+            top: '20px',
+            right: '30px',
+            background: 'none',
+            border: 'none',
+            color: 'white',
+            fontSize: '40px',
+            cursor: 'pointer'
+          }} onClick={() => setLightboxMedia(null)}>&times;</button>
+          
+          {lightboxMedia.type === 'image' ? (
+            <img src={lightboxMedia.url} alt="Enlarged media" style={{ maxWidth: '90%', maxHeight: '90%', objectFit: 'contain' }} onClick={(e) => e.stopPropagation()} />
+          ) : (
+            <video src={lightboxMedia.url} controls autoPlay style={{ maxWidth: '90%', maxHeight: '90%' }} onClick={(e) => e.stopPropagation()} />
+          )}
+        </div>
+      )}
     </div>
   );
 };

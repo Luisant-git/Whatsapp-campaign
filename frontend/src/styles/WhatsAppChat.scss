@@ -1613,23 +1613,11 @@
   .whatsapp-chat .chat-main .chat-header .header-actions {
     gap: 6px;
   }
-  .whatsapp-chat .chat-main .chat-header .header-actions .message-search {
-    min-width: 120px;
-  }
-  .whatsapp-chat .chat-main .chat-header .header-actions .message-search input {
-    padding: 5px 22px 5px 22px;
-    font-size: 12px;
-  }
-  .whatsapp-chat .chat-main .chat-header .header-actions .message-search .search-icon {
-    left: 6px;
-    width: 14px;
-    height: 14px;
-  }
-  .whatsapp-chat .chat-main .chat-header .header-actions .message-search .clear-search {
-    right: 4px;
-    width: 16px;
-    height: 16px;
+  .whatsapp-chat .chat-main .chat-header h3 {
     font-size: 14px;
+  }
+  .whatsapp-chat .chat-main .chat-header .header-actions {
+    gap: 6px;
   }
   .whatsapp-chat .chat-main .chat-header .header-actions .date-filter select {
     padding: 6px 8px;
@@ -1743,23 +1731,11 @@
   .whatsapp-chat .chat-main .chat-header .header-actions {
     gap: 4px;
   }
-  .whatsapp-chat .chat-main .chat-header .header-actions .message-search {
-    min-width: 100px;
+  .whatsapp-chat .chat-main .chat-header h3 {
+    font-size: 14px;
   }
-  .whatsapp-chat .chat-main .chat-header .header-actions .message-search input {
-    padding: 4px 20px 4px 20px;
-    font-size: 11px;
-  }
-  .whatsapp-chat .chat-main .chat-header .header-actions .message-search .search-icon {
-    left: 5px;
-    width: 12px;
-    height: 12px;
-  }
-  .whatsapp-chat .chat-main .chat-header .header-actions .message-search .clear-search {
-    right: 3px;
-    width: 14px;
-    height: 14px;
-    font-size: 12px;
+  .whatsapp-chat .chat-main .chat-header .header-actions {
+    gap: 4px;
   }
   .whatsapp-chat .chat-main .chat-header .header-actions .date-filter select {
     font-size: 11px;

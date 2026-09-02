@@ -1233,19 +1233,81 @@ const WhatsAppChat = () => {
           <div className="template-message-preview">
             {header?.text && <div className="wa-header" style={{ fontWeight: 'bold', marginBottom: '4px' }}>{header.text}</div>}
             {header?.format === 'IMAGE' && (
-              <div className="wa-media-placeholder" style={{ background: '#f0f2f5', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px', borderRadius: '8px' }}>
-                <span style={{color: '#8d949e'}}>🖼️ Image Header</span>
-              </div>
+              header.example?.header_handle?.[0] ? (
+                <img 
+                  src={resolveMediaUrl(header.example.header_handle[0])} 
+                  alt="Template Header" 
+                  style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '8px 8px 0 0', marginBottom: '8px', cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLightboxMedia({ type: 'image', url: resolveMediaUrl(header.example.header_handle[0]) });
+                  }}
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              ) : (
+                <div className="wa-media-placeholder" style={{ background: '#f0f2f5', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px', borderRadius: '8px' }}>
+                  <span style={{color: '#8d949e'}}>🖼️ Image Header</span>
+                </div>
+              )
             )}
             {header?.format === 'VIDEO' && (
-              <div className="wa-media-placeholder" style={{ background: '#f0f2f5', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px', borderRadius: '8px' }}>
-                <span style={{color: '#8d949e'}}>🎥 Video Header</span>
-              </div>
+              header.example?.header_handle?.[0] ? (
+                <div style={{ position: 'relative', marginBottom: '8px' }}>
+                  <video 
+                    src={resolveMediaUrl(header.example.header_handle[0])} 
+                    style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '8px 8px 0 0', cursor: 'pointer' }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setLightboxMedia({ type: 'video', url: resolveMediaUrl(header.example.header_handle[0]) });
+                    }}
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                  <div className="video-play-overlay" style={{
+                    position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                    width: '40px', height: '40px', background: 'rgba(0,0,0,0.5)', borderRadius: '50%',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none'
+                  }}>
+                    <PlayIcon />
+                  </div>
+                </div>
+              ) : (
+                <div className="wa-media-placeholder" style={{ background: '#f0f2f5', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px', borderRadius: '8px' }}>
+                  <span style={{color: '#8d949e'}}>🎥 Video Header</span>
+                </div>
+              )
             )}
             {header?.format === 'DOCUMENT' && (
-              <div className="wa-media-placeholder" style={{ background: '#f0f2f5', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px', borderRadius: '8px' }}>
-                <span style={{color: '#8d949e'}}>📄 Document Header</span>
-              </div>
+              header.example?.header_handle?.[0] ? (
+                <div className="whatsapp-document-message" style={{ background: '#f0f2f5', borderRadius: '8px', padding: '10px', marginBottom: '8px', cursor: 'pointer' }}>
+                  <div className="document-content">
+                    <div className="document-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <div className="file-type-icon" style={{ background: '#fff', borderRadius: '4px', padding: '4px' }}>
+                          <span className="file-text">DOC</span>
+                        </div>
+                        <span className="document-title" style={{ marginLeft: '8px', fontSize: '14px', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          Template Document
+                        </span>
+                      </div>
+                      <a 
+                        href={resolveMediaUrl(header.example.header_handle[0])} 
+                        download 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        onClick={(e) => e.stopPropagation()} 
+                        style={{ color: '#8d949e', marginLeft: '10px' }}
+                      >
+                        <DownloadIcon />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="wa-media-placeholder" style={{ background: '#f0f2f5', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px', borderRadius: '8px' }}>
+                  <span style={{color: '#8d949e'}}>📄 Document Header</span>
+                </div>
+              )
             )}
             
             {body?.text && (

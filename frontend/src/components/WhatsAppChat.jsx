@@ -64,6 +64,9 @@ const WhatsAppChat = () => {
   const [audioCurrentTime, setAudioCurrentTime] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [messageSearchQuery, setMessageSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
+  const messageRefs = useRef({});
   const [chatLabels, setChatLabels] = useState({});
   const [selectedLabel, setSelectedLabel] = useState('all');
   const [showLabelMenu, setShowLabelMenu] = useState(null);
@@ -852,6 +855,61 @@ const WhatsAppChat = () => {
     }))
     : [];
 
+  const scrollToSearchResult = (index, resultsArray = searchResults) => {
+    if (index >= 0 && index < resultsArray.length) {
+      const msgId = resultsArray[index];
+      const element = messageRefs.current[msgId];
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!messageSearchQuery) {
+      setSearchResults([]);
+      setCurrentSearchIndex(-1);
+      return;
+    }
+    
+    const results = [];
+    filteredMessages.forEach(msg => {
+      if (msg.message && !msg.message.endsWith(' file') && msg.message.toLowerCase().includes(messageSearchQuery.toLowerCase())) {
+        results.push(msg.id);
+      }
+    });
+    
+    setSearchResults(results);
+    const initialIndex = results.length > 0 ? results.length - 1 : -1;
+    setCurrentSearchIndex(initialIndex);
+    
+    if (initialIndex !== -1) {
+      setTimeout(() => {
+        scrollToSearchResult(initialIndex, results);
+      }, 100);
+    }
+  }, [messageSearchQuery, messages, selectedChat, selectedBusinessNumber, dateFilter, selectedDate]);
+
+  const nextSearchResult = () => {
+    if (searchResults.length > 0) {
+      // "Next" in WhatsApp means going up in chat history (earlier messages)
+      // Since results are chronologically ordered, going "up" means index - 1
+      const newIndex = currentSearchIndex <= 0 ? searchResults.length - 1 : currentSearchIndex - 1;
+      setCurrentSearchIndex(newIndex);
+      scrollToSearchResult(newIndex);
+    }
+  };
+
+  const prevSearchResult = () => {
+    if (searchResults.length > 0) {
+      // "Prev" means going down in chat history (more recent messages)
+      // which is index + 1
+      const newIndex = (currentSearchIndex + 1) % searchResults.length;
+      setCurrentSearchIndex(newIndex);
+      scrollToSearchResult(newIndex);
+    }
+  };
+
   const groupedMessages = groupMessagesByDate(filteredMessages);
 
   const LABEL_COLOR_PALETTE = [
@@ -1364,12 +1422,13 @@ const WhatsAppChat = () => {
         return <p>{msg.message}</p>;
       }
       
+      const isActiveMatch = searchResults.length > 0 && currentSearchIndex >= 0 && msg.id === searchResults[currentSearchIndex];
       const parts = msg.message.split(new RegExp(`(${messageSearchQuery})`, 'gi'));
       return (
         <p>
           {parts.map((part, i) => 
             part.toLowerCase() === messageSearchQuery.toLowerCase() ? (
-              <span key={i} style={{ backgroundColor: '#ffeb3b', color: '#000', borderRadius: '2px', padding: '0 2px' }}>{part}</span>
+              <span key={i} style={{ backgroundColor: isActiveMatch ? '#ff9800' : '#ffeb3b', color: '#000', borderRadius: '2px', padding: '0 2px' }}>{part}</span>
             ) : part
           )}
         </p>
@@ -1813,21 +1872,47 @@ const WhatsAppChat = () => {
                       )}
                       */}
                     </div>
-                    <div className="message-search" style={{ flex: 1, maxWidth: '300px' }}>
-                      <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <div className="message-search" style={{ flex: 1, maxWidth: '350px', display: 'flex', alignItems: 'center', background: '#f0f2f5', borderRadius: '8px', padding: '0 8px' }}>
+                      <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#54656f" strokeWidth="2" style={{ margin: '0 8px' }}>
                         <circle cx="11" cy="11" r="8" />
                         <path d="m21 21-4.35-4.35" />
                       </svg>
                       <input
                         type="text"
-                        placeholder="Search messages..."
+                        placeholder="Search..."
                         value={messageSearchQuery}
                         onChange={(e) => setMessageSearchQuery(e.target.value)}
+                        style={{ border: 'none', background: 'transparent', outline: 'none', flex: 1, padding: '8px 0', fontSize: '14px', minWidth: '50px' }}
                       />
+                      {messageSearchQuery && searchResults.length > 0 && (
+                        <span style={{ fontSize: '12px', color: '#54656f', margin: '0 8px', whiteSpace: 'nowrap' }}>
+                          {currentSearchIndex + 1} of {searchResults.length}
+                        </span>
+                      )}
                       {messageSearchQuery && (
-                        <button className="clear-search" onClick={() => setMessageSearchQuery('')}>
-                          ×
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                          <button 
+                            onClick={nextSearchResult} 
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#54656f', display: 'flex' }}
+                            title="Previous match (Up)"
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                          </button>
+                          <button 
+                            onClick={prevSearchResult} 
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#54656f', display: 'flex' }}
+                            title="Next match (Down)"
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                          </button>
+                          <button 
+                            className="clear-search" 
+                            onClick={() => setMessageSearchQuery('')}
+                            style={{ position: 'static', transform: 'none', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 4px', color: '#54656f' }}
+                          >
+                            ×
+                          </button>
+                        </div>
                       )}
                     </div>
                     <div style={{ position: 'relative' }}>
@@ -2207,7 +2292,7 @@ const WhatsAppChat = () => {
                       <path d="M19 12H5M12 19l-7-7 7-7" />
                     </svg>
                   </button>
-                  <div className="search-input-wrapper">
+                  <div className="search-input-wrapper" style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
                     <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="11" cy="11" r="8" />
                       <path d="m21 21-4.35-4.35" />
@@ -2218,9 +2303,29 @@ const WhatsAppChat = () => {
                       value={messageSearchQuery}
                       onChange={(e) => setMessageSearchQuery(e.target.value)}
                       autoFocus
+                      style={{ flex: 1, minWidth: '50px' }}
                     />
+                    {messageSearchQuery && searchResults.length > 0 && (
+                      <span style={{ fontSize: '12px', color: '#54656f', margin: '0 8px', whiteSpace: 'nowrap' }}>
+                        {currentSearchIndex + 1} of {searchResults.length}
+                      </span>
+                    )}
                     {messageSearchQuery && (
-                      <button className="clear-btn" onClick={() => setMessageSearchQuery('')}>×</button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                        <button 
+                          onClick={nextSearchResult} 
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#54656f', display: 'flex' }}
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                        </button>
+                        <button 
+                          onClick={prevSearchResult} 
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#54656f', display: 'flex' }}
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </button>
+                        <button className="clear-btn" onClick={() => setMessageSearchQuery('')} style={{ fontSize: '20px', padding: '0 4px', background: 'none', border: 'none' }}>×</button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -2370,6 +2475,7 @@ const WhatsAppChat = () => {
                   {msgs.map(msg => (
                     <div
                       key={msg.id}
+                      ref={el => messageRefs.current[msg.id] = el}
                       className={`message ${msg.direction} ${isSelectionMode ? 'selection-mode' : ''} ${selectedMessages.has(msg.id) ? 'selected' : ''}`}
                       onClick={(e) => {
                         e.stopPropagation();

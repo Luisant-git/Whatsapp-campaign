@@ -3123,6 +3123,13 @@ export class WhatsappService {
       if (websiteId) messageText += `\nWebsite: ${websiteId}`;
       if (templateLanguage) messageText += `\nLanguage: ${templateLanguage}`;
       if (templateContent) messageText += `\n\n${templateContent}`;
+      
+      // Process explicit buttons if provided
+      if (body.templateButtons && Array.isArray(body.templateButtons)) {
+        body.templateButtons.forEach((btn: any) => {
+          messageText += `\n[BUTTON|${btn.type}|${btn.text}|${btn.value || ''}]`;
+        });
+      }
     }
 
     // Upsert directly into the tenant's specific WhatsAppMessage table

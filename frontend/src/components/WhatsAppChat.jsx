@@ -2689,7 +2689,7 @@ const WhatsAppChat = () => {
               </div>
             )}
 
-            <div className="chat-input">
+            <div className="chat-input" style={{ background: '#f0f2f5', padding: '10px 16px', display: 'flex', flexDirection: 'column' }}>
               <input
                 type="file"
                 ref={fileInputRef}
@@ -2706,25 +2706,52 @@ const WhatsAppChat = () => {
                 max={new Date().toISOString().split('T')[0]}
               />
               {selectedFile && (
-                <div className="file-preview">
+                <div className="file-preview" style={{ marginBottom: '10px' }}>
                   <span>{selectedFile.name}</span>
                   <button className="remove-file" onClick={() => setSelectedFile(null)}>×</button>
                 </div>
               )}
-              <div className="input-wrapper">
-                <button className="attach-btn" onClick={() => fileInputRef.current?.click()} title="Attach file">
+              <div className="input-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'transparent', padding: '0' }}>
+                <button className="attach-btn" onClick={() => fileInputRef.current?.click()} title="Attach file" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#54656f', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 'auto', height: 'auto' }}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                   </svg>
                 </button>
-                <input
-                  type="text"
-                  placeholder="Type a message..."
-                  value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                />
-                <button className="send-btn" onClick={handleSendMessage}>Send</button>
+                <button className="emoji-btn" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#54656f', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                    <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                    <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                  </svg>
+                </button>
+                <div style={{ flex: 1, background: 'white', borderRadius: '8px', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    placeholder="Type a message"
+                    value={messageText}
+                    onChange={(e) => setMessageText(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                    style={{ border: 'none', outline: 'none', width: '100%', fontSize: '15px', color: '#111b21', padding: '12px 16px', background: 'transparent', borderRadius: '8px' }}
+                  />
+                </div>
+                {messageText ? (
+                  <button onClick={handleSendMessage} title="Send" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00a884', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="22" y1="2" x2="11" y2="13"></line>
+                      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                  </button>
+                ) : (
+                  <button title="Voice message" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#54656f', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                      <line x1="12" y1="19" x2="12" y2="23"></line>
+                      <line x1="8" y1="23" x2="16" y2="23"></line>
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
           </>

@@ -3123,13 +3123,17 @@ export class WhatsappService {
       if (websiteId) messageText += `\nWebsite: ${websiteId}`;
       if (templateLanguage) messageText += `\nLanguage: ${templateLanguage}`;
       if (templateContent) messageText += `\n\n${templateContent}`;
-      
-      // Process explicit buttons if provided
-      if (body.templateButtons && Array.isArray(body.templateButtons)) {
-        body.templateButtons.forEach((btn: any) => {
-          messageText += `\n[BUTTON|${btn.type}|${btn.text}|${btn.value || ''}]`;
-        });
-      }
+    }
+    
+    // Always process explicit buttons if provided, regardless of whether the template was resolved
+    if (body.templateButtons && Array.isArray(body.templateButtons)) {
+      body.templateButtons.forEach((btn: any) => {
+        // Prevent duplicate buttons if the DB template already parsed them
+        const btnStr = `[BUTTON|${btn.type}|${btn.text}|${btn.value || ''}]`;
+        if (!messageText.includes(btnStr)) {
+          messageText += `\n${btnStr}`;
+        }
+      });
     }
 
     // Upsert directly into the tenant's specific WhatsAppMessage table

@@ -2516,7 +2516,7 @@ const WhatsAppChat = () => {
                           />
                         </div>
                       )}
-                      <div className="message-bubble">
+                      <div className="message-bubble" style={{ maxWidth: '400px', minWidth: '200px' }}>
                         {msg.mediaType === 'audio' && msg.mediaUrl && (() => {
                           const audioId = `audio-${msg.id}`;
                           const isPlaying = playingAudio === audioId;
@@ -2568,27 +2568,31 @@ const WhatsAppChat = () => {
                           );
                         })()}
                         {msg.mediaType === 'document' && msg.mediaUrl && (
-                          <div className="whatsapp-document-message">
-                            <div className="document-content">
-                              <div className="document-header">
-                                {getFileIcon(msg.mediaUrl)}
-                                <div className="document-title">
-                                  {msg.mediaUrl ? (msg.mediaUrl.split('/').pop()?.replace(/\.[^/.]+$/, '') || msg.fileName || 'Document') : (msg.fileName || 'Document')}
-                                </div>
-                                <a
-                                  href={resolveMediaUrl(msg.mediaUrl)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="document-download-btn"
-                                >
-                                  <DownloadIcon />
-                                </a>
+                          <div className="whatsapp-document-message" style={{ background: '#f0f2f5', borderRadius: '8px', padding: '10px 10px 0 10px', marginBottom: '8px', overflow: 'hidden' }}>
+                            <div className="document-content" style={{ display: 'flex', alignItems: 'center', paddingBottom: '10px' }}>
+                              {getFileIcon(msg.mediaUrl)}
+                              <div className="document-title" style={{ marginLeft: '10px', fontSize: '14px', color: '#111b21', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {msg.mediaUrl ? (msg.mediaUrl.split('/').pop()?.replace(/\.[^/.]+$/, '') || msg.fileName || 'Document') : (msg.fileName || 'Document')}
                               </div>
-                              <div className="document-footer">
-                                <span className="document-pages">{getFileTypeInfo(msg.mediaUrl).pages}</span>
-                                <span className="document-type">{getFileTypeInfo(msg.mediaUrl).type}</span>
-                                <span className="document-size">{getFileSize(msg.mediaUrl)}</span>
-                              </div>
+                            </div>
+                            <div className="document-actions" style={{ display: 'flex', borderTop: '1px solid #d1d7db', margin: '0 -10px' }}>
+                              <a
+                                href={resolveMediaUrl(msg.mediaUrl)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ flex: 1, padding: '10px', textAlign: 'center', color: '#00a884', textDecoration: 'none', fontSize: '13px', fontWeight: '500', borderRight: '1px solid #d1d7db' }}
+                              >
+                                View
+                              </a>
+                              <a
+                                href={resolveMediaUrl(msg.mediaUrl)}
+                                download
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ flex: 1, padding: '10px', textAlign: 'center', color: '#00a884', textDecoration: 'none', fontSize: '13px', fontWeight: '500' }}
+                              >
+                                Save as...
+                              </a>
                             </div>
                           </div>
                         )}
@@ -2708,9 +2712,9 @@ const WhatsAppChat = () => {
                 </div>
               )}
               <div className="input-wrapper">
-                <button className="attach-btn" onClick={() => fileInputRef.current?.click()}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                <button className="attach-btn" onClick={() => fileInputRef.current?.click()} title="Attach file">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                   </svg>
                 </button>
                 <input

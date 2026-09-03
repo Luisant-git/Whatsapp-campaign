@@ -2998,7 +2998,7 @@ export class WhatsappService {
   }
 
   async logExternalMessage(body: any) {
-    const { phoneNumberId, customerPhone, messageId, templateName, templateLanguage, templateContent, templateParameters, websiteId, orderId } = body;
+    const { phoneNumberId, customerPhone, messageId, templateName, templateLanguage, templateContent, templateParameters, websiteId, orderId, mediaId, fileName } = body;
 
     // The controller will also validate, but we ensure service-level safety
     if (!phoneNumberId || !customerPhone || !templateName || !messageId) {
@@ -3033,6 +3033,8 @@ export class WhatsappService {
     const finalMessageId = messageId;
 
     let messageText = '';
+    let finalMediaType = null;
+    let finalMediaUrl = null;
 
     // If we have templateParameters, try to resolve the exact text from MessageTemplate
     if (templateParameters && Array.isArray(templateParameters)) {
@@ -3054,9 +3056,13 @@ export class WhatsappService {
             });
             
             // Add header/footer if they exist
-            const headerComponent = components.find((c: any) => c.format === 'TEXT' && (c.type === 'HEADER' || c.type === 'header'));
-            if (headerComponent && headerComponent.text) {
-               messageText += `*${headerComponent.text}*\n`; // Bold formatting for text headers
+            const headerComponent = components.find((c: any) => c.type === 'HEADER' || c.type === 'header');
+            if (headerComponent) {
+              if (headerComponent.format === 'TEXT' && headerComponent.text) {
+                 messageText += `*${headerComponent.text}*\n`; // Bold formatting for text headers
+              } else if (headerComponent.format && ['DOCUMENT', 'IMAGE', 'VIDEO'].includes(headerComponent.format.toUpperCase())) {
+                 finalMediaType = headerComponent.format.toLowerCase();
+              }
             }
             
             messageText += formattedText;
@@ -3065,11 +3071,29 @@ export class WhatsappService {
             if (footerComponent && footerComponent.text) {
               messageText += `\n${footerComponent.text}`; 
             }
+
+            const buttonsComponent = components.find((c: any) => c.type === 'BUTTONS' || c.type === 'buttons');
+            if (buttonsComponent && buttonsComponent.buttons) {
+              messageText += '\n';
+              buttonsComponent.buttons.forEach((btn: any) => {
+                messageText += `\n🔘 Button: ${btn.text}`;
+              });
+            }
           }
         }
       } catch (error) {
         this.logger.error(`Error resolving template text for ${templateName}`, error);
       }
+    }
+
+    // Process Media if present
+    if (mediaId) {
+       if (!finalMediaType) finalMediaType = 'document'; // Fallback if template wasn't parsed
+       try {
+         finalMediaUrl = await this.downloadMedia(mediaId, tenantId);
+       } catch (error) {
+         this.logger.error(`Failed to download mediaId ${mediaId} for tenant ${tenantId}`, error);
+       }
     }
 
     // Fallback if we couldn't resolve the template
@@ -3093,6 +3117,8 @@ export class WhatsappService {
         direction: 'outgoing',
         status: 'sent',
         phoneNumberId: phoneNumberId,
+        mediaType: finalMediaType,
+        mediaUrl: finalMediaUrl,
       }
     });
   }

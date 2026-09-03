@@ -866,24 +866,7 @@ const WhatsAppChat = () => {
   useEffect(() => {
     if (!messageSearchQuery) {
       setSearchResults([]);
-     const sortedChats = useMemo(() => {
-    return Object.values(chatGroups)
-      .filter(chat => {
-        if (!searchTerm) return true;
-        const searchLower = searchTerm.toLowerCase();
-        return (
-          chat.customerName?.toLowerCase().includes(searchLower) ||
-          chat.customerPhone?.includes(searchLower) ||
-          chat.recentMessage?.toLowerCase().includes(searchLower)
-        );
-      })
-      .sort((a, b) => {
-        // Sort by the most recent message's timestamp (whether incoming or outgoing)
-        const dateA = new Date(a.messages?.[a.messages.length - 1]?.createdAt || 0).getTime();
-        const dateB = new Date(b.messages?.[b.messages.length - 1]?.createdAt || 0).getTime();
-        return dateB - dateA;
-      });
-  }, [chatGroups, searchTerm]);
+
       setCurrentSearchIndex(-1);
       return;
     }

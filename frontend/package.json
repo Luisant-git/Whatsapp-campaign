@@ -13,6 +13,7 @@
     "@nestjs/platform-socket.io": "^11.1.13",
     "@nestjs/websockets": "^11.1.13",
     "axios": "^1.13.2",
+    "emoji-picker-react": "^4.19.4",
     "lucide-react": "^0.468.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

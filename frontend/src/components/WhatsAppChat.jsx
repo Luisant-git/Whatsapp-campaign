@@ -7,6 +7,7 @@ import { contactAPI } from '../api/contact';
 import { groupAPI } from '../api/group';
 import { Users, UserCheck, MoreVertical, Loader2, ChevronRight, ChevronLeft, Check, CheckCheck } from 'lucide-react';
 import { getTenantSubUsers } from "../api/subuser";
+import EmojiPicker from 'emoji-picker-react';
 
 // Simple play/pause icons
 const PlayIcon = () => (
@@ -49,6 +50,7 @@ const WhatsAppChat = () => {
   const [messages, setMessages] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [messageText, setMessageText] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [chats, setChats] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [dateFilter, setDateFilter] = useState('all');
@@ -545,6 +547,10 @@ const WhatsAppChat = () => {
     }
   };
 
+  const handleEmojiClick = (emojiObject) => {
+    setMessageText(prev => prev + emojiObject.emoji);
+  };
+
   const handleSendMessage = async () => {
     if ((!messageText.trim() && !selectedFile) || !selectedChat) return;
 
@@ -677,35 +683,27 @@ const WhatsAppChat = () => {
 
   const getFileIcon = (fileName) => {
     const ext = fileName?.split('.').pop()?.toLowerCase();
+    
+    const baseStyle = { color: 'white', borderRadius: '4px', padding: '4px 6px', fontSize: '12px', fontWeight: 'bold' };
 
     if (ext === 'pdf') return (
-      <div className="file-type-icon pdf">
-        <span className="file-text">PDF</span>
-      </div>
+      <div style={{ ...baseStyle, background: '#e53935' }}>PDF</div>
     );
 
     if (['doc', 'docx'].includes(ext)) return (
-      <div className="file-type-icon doc">
-        <span className="file-text">DOC</span>
-      </div>
+      <div style={{ ...baseStyle, background: '#1e88e5' }}>DOC</div>
     );
 
     if (['xls', 'xlsx'].includes(ext)) return (
-      <div className="file-type-icon xls">
-        <span className="file-text">XLS</span>
-      </div>
+      <div style={{ ...baseStyle, background: '#43a047' }}>XLS</div>
     );
 
     if (['ppt', 'pptx'].includes(ext)) return (
-      <div className="file-type-icon ppt">
-        <span className="file-text">PPT</span>
-      </div>
+      <div style={{ ...baseStyle, background: '#fb8c00' }}>PPT</div>
     );
 
     return (
-      <div className="file-type-icon default">
-        <span className="file-text">FILE</span>
-      </div>
+      <div style={{ ...baseStyle, background: '#757575' }}>FILE</div>
     );
   };
 
@@ -2568,7 +2566,7 @@ const WhatsAppChat = () => {
                           );
                         })()}
                         {msg.mediaType === 'document' && msg.mediaUrl && (
-                          <div className="whatsapp-document-message" style={{ background: '#f0f2f5', borderRadius: '8px', padding: '10px 10px 0 10px', marginBottom: '8px', overflow: 'hidden' }}>
+                          <div className="whatsapp-document-message" style={{ background: 'rgba(0,0,0,0.05)', borderRadius: '8px', padding: '10px 10px 0 10px', marginBottom: '8px', overflow: 'hidden' }}>
                             <div className="document-content" style={{ display: 'flex', alignItems: 'center', paddingBottom: '10px' }}>
                               {getFileIcon(msg.mediaUrl)}
                               <div className="document-title" style={{ marginLeft: '10px', fontSize: '14px', color: '#111b21', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -2717,14 +2715,21 @@ const WhatsAppChat = () => {
                     <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                   </svg>
                 </button>
-                <button className="emoji-btn" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#54656f', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
-                    <line x1="9" y1="9" x2="9.01" y2="9"></line>
-                    <line x1="15" y1="9" x2="15.01" y2="9"></line>
-                  </svg>
-                </button>
+                <div style={{ position: 'relative' }}>
+                  <button className="emoji-btn" onClick={() => setShowEmojiPicker(!showEmojiPicker)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#54656f', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                      <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                      <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                    </svg>
+                  </button>
+                  {showEmojiPicker && (
+                    <div style={{ position: 'absolute', bottom: '100%', left: 0, zIndex: 100, marginBottom: '10px' }}>
+                      <EmojiPicker onEmojiClick={handleEmojiClick} />
+                    </div>
+                  )}
+                </div>
                 <div style={{ flex: 1, background: 'white', borderRadius: '8px', display: 'flex', alignItems: 'center' }}>
                   <input
                     type="text"

@@ -1080,15 +1080,15 @@ export class WhatsappService {
              ) as latest_group
              JOIN "WhatsAppMessage" wm ON wm.id = latest_group.max_id
              ${searchFilterJoin}
-             ORDER BY CASE WHEN wm.direction = 'incoming' THEN 1 ELSE 2 END ASC, wm."createdAt" DESC
+             ORDER BY wm."createdAt" DESC
              LIMIT $2 OFFSET $1
          ) as latest
          JOIN "WhatsAppMessage" m ON m.id = latest.max_id
-         ORDER BY CASE WHEN m.direction = 'incoming' THEN 1 ELSE 2 END ASC, m."createdAt" DESC`,
+         ORDER BY m."createdAt" DESC`,
         ...params
       ),
       this.prisma.$queryRawUnsafe<[{ count: bigint }]>(
-        `SELECT COUNT(*) FROM (
+        `SELECT COUNT(*) as count FROM (
              SELECT latest_group.max_id
              FROM (
                  SELECT MAX(id) as max_id

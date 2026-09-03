@@ -56,6 +56,8 @@ const WhatsAppChat = () => {
   const [dateFilter, setDateFilter] = useState('all');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
+  const emojiPickerRef = useRef(null);
+  const [isRecording, setIsRecording] = useState(false);
   const [readMessages, setReadMessages] = useState(() => {
     const saved = localStorage.getItem('readMessages');
     return saved ? JSON.parse(saved) : {};
@@ -384,6 +386,19 @@ const WhatsAppChat = () => {
     }
   }, [messages]);
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
+        setShowEmojiPicker(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   // Mark chat as read whenever it is opened
   useEffect(() => {
     if (!selectedChat) return;
@@ -549,6 +564,58 @@ const WhatsAppChat = () => {
 
   const handleEmojiClick = (emojiObject) => {
     setMessageText(prev => prev + emojiObject.emoji);
+  };
+
+  const handleDownloadMedia = async (url, filename) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const objectUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = filename || 'document.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error('Download failed:', error);
+      toast.error('Failed to download file');
+    }
+  };
+
+  const startSpeechToText = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error('Speech recognition is not supported in this browser.');
+      return;
+    }
+    
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    
+    recognition.onstart = () => {
+      setIsRecording(true);
+      toast.success('Listening... Speak now.');
+    };
+    
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setMessageText(prev => prev ? prev + ' ' + transcript : transcript);
+    };
+    
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error', event.error);
+      toast.error('Speech recognition failed.');
+      setIsRecording(false);
+    };
+    
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+    
+    recognition.start();
   };
 
   const handleSendMessage = async () => {
@@ -799,6 +866,24 @@ const WhatsAppChat = () => {
   useEffect(() => {
     if (!messageSearchQuery) {
       setSearchResults([]);
+     const sortedChats = useMemo(() => {
+    return Object.values(chatGroups)
+      .filter(chat => {
+        if (!searchTerm) return true;
+        const searchLower = searchTerm.toLowerCase();
+        return (
+          chat.customerName?.toLowerCase().includes(searchLower) ||
+          chat.customerPhone?.includes(searchLower) ||
+          chat.recentMessage?.toLowerCase().includes(searchLower)
+        );
+      })
+      .sort((a, b) => {
+        // Sort by the most recent message's timestamp (whether incoming or outgoing)
+        const dateA = new Date(a.messages?.[a.messages.length - 1]?.createdAt || 0).getTime();
+        const dateB = new Date(b.messages?.[b.messages.length - 1]?.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
+  }, [chatGroups, searchTerm]);
       setCurrentSearchIndex(-1);
       return;
     }
@@ -2582,15 +2667,15 @@ const WhatsAppChat = () => {
                               >
                                 View
                               </a>
-                              <a
-                                href={resolveMediaUrl(msg.mediaUrl)}
-                                download
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ flex: 1, padding: '10px', textAlign: 'center', color: '#00a884', textDecoration: 'none', fontSize: '13px', fontWeight: '500' }}
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleDownloadMedia(resolveMediaUrl(msg.mediaUrl), msg.mediaUrl.split('/').pop());
+                                }}
+                                style={{ flex: 1, padding: '10px', textAlign: 'center', color: '#00a884', textDecoration: 'none', fontSize: '13px', fontWeight: '500', background: 'none', border: 'none', cursor: 'pointer' }}
                               >
                                 Save as...
-                              </a>
+                              </button>
                             </div>
                           </div>
                         )}
@@ -2715,7 +2800,7 @@ const WhatsAppChat = () => {
                     <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                   </svg>
                 </button>
-                <div style={{ position: 'relative' }}>
+                <div style={{ position: 'relative' }} ref={emojiPickerRef}>
                   <button className="emoji-btn" onClick={() => setShowEmojiPicker(!showEmojiPicker)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#54656f', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="10"></circle>
@@ -2732,6 +2817,7 @@ const WhatsAppChat = () => {
                 </div>
                 <div style={{ flex: 1, background: 'white', borderRadius: '8px', display: 'flex', alignItems: 'center' }}>
                   <input
+                    className="message-input"
                     type="text"
                     placeholder="Type a message"
                     value={messageText}
@@ -2748,7 +2834,7 @@ const WhatsAppChat = () => {
                     </svg>
                   </button>
                 ) : (
-                  <button title="Voice message" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#54656f', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <button onClick={startSpeechToText} title="Dictate voice message" style={{ background: 'none', border: 'none', cursor: 'pointer', color: isRecording ? '#ef4444' : '#54656f', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
                       <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>

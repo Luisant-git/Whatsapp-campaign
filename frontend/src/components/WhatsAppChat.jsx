@@ -1345,20 +1345,92 @@ const WhatsAppChat = () => {
     }
 
     if (msg.message && !msg.message.endsWith(' file')) {
-      if (!messageSearchQuery) {
-        return <p>{msg.message}</p>;
+      let msgText = msg.message;
+      const buttons = [];
+      
+      // Parse [BUTTON|TYPE|TEXT|VALUE] tags
+      const btnRegex = /\[BUTTON\|([^|]+)\|([^|]*)\|([^\]]*)\]/g;
+      let match;
+      while ((match = btnRegex.exec(msgText)) !== null) {
+        buttons.push({ type: match[1], text: match[2], value: match[3] });
       }
       
-      const isActiveMatch = searchResults.length > 0 && currentSearchIndex >= 0 && msg.id === searchResults[currentSearchIndex];
-      const parts = msg.message.split(new RegExp(`(${messageSearchQuery})`, 'gi'));
+      // Remove button tags from text
+      if (buttons.length > 0) {
+        msgText = msgText.replace(btnRegex, '').trim();
+      }
+
+      let textContent = <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{msgText}</p>;
+      if (messageSearchQuery && msgText) {
+        const isActiveMatch = searchResults.length > 0 && currentSearchIndex >= 0 && msg.id === searchResults[currentSearchIndex];
+        const parts = msgText.split(new RegExp(`(${messageSearchQuery})`, 'gi'));
+        textContent = (
+          <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>
+            {parts.map((part, i) => 
+              part.toLowerCase() === messageSearchQuery.toLowerCase() ? (
+                <span key={i} style={{ backgroundColor: isActiveMatch ? '#ff9800' : '#ffeb3b', color: '#000', borderRadius: '2px', padding: '0 2px' }}>{part}</span>
+              ) : part
+            )}
+          </p>
+        );
+      }
+
+      if (buttons.length === 0) {
+        return textContent;
+      }
+
       return (
-        <p>
-          {parts.map((part, i) => 
-            part.toLowerCase() === messageSearchQuery.toLowerCase() ? (
-              <span key={i} style={{ backgroundColor: isActiveMatch ? '#ff9800' : '#ffeb3b', color: '#000', borderRadius: '2px', padding: '0 2px' }}>{part}</span>
-            ) : part
-          )}
-        </p>
+        <div className="message-with-buttons" style={{ display: 'flex', flexDirection: 'column' }}>
+          {msgText && textContent}
+          <div className="whatsapp-interactive-buttons" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
+            {buttons.map((btn, idx) => {
+              const baseStyle = {
+                display: 'block',
+                background: '#fff',
+                color: '#00a884',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                fontSize: '14px',
+                textAlign: 'center',
+                textDecoration: 'none',
+                fontWeight: '500',
+                border: '1px solid #e9edef',
+                cursor: 'pointer',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                width: '100%'
+              };
+
+              if (btn.type === 'URL' && btn.value) {
+                return (
+                  <a key={idx} href={btn.value} target="_blank" rel="noopener noreferrer" style={baseStyle}>
+                    <i className="fas fa-external-link-alt" style={{ marginRight: '8px' }}></i>
+                    {btn.text}
+                  </a>
+                );
+              } else if (btn.type === 'PHONE_NUMBER' && btn.value) {
+                return (
+                  <a key={idx} href={`tel:${btn.value}`} style={baseStyle}>
+                    <i className="fas fa-phone" style={{ marginRight: '8px' }}></i>
+                    {btn.text}
+                  </a>
+                );
+              } else if (btn.type === 'COPY_CODE') {
+                return (
+                  <button key={idx} style={{...baseStyle, background: '#f0f2f5', border: 'none'}} onClick={() => { navigator.clipboard.writeText(btn.value); alert('Copied to clipboard!'); }}>
+                    <i className="fas fa-copy" style={{ marginRight: '8px' }}></i>
+                    {btn.text}
+                  </button>
+                );
+              } else {
+                return (
+                  <button key={idx} style={{...baseStyle, background: '#f0f2f5', border: 'none'}}>
+                    {btn.text}
+                  </button>
+                );
+              }
+            })}
+          </div>
+        </div>
       );
     }
     

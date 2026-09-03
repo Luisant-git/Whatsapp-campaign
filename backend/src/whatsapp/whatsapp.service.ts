@@ -3076,7 +3076,12 @@ export class WhatsappService {
             if (buttonsComponent && buttonsComponent.buttons) {
               messageText += '\n';
               buttonsComponent.buttons.forEach((btn: any) => {
-                messageText += `\n🔘 Button: ${btn.text}`;
+                const btnType = btn.type || 'QUICK_REPLY';
+                let btnValue = '';
+                if (btnType === 'URL') btnValue = btn.url || '';
+                if (btnType === 'PHONE_NUMBER') btnValue = btn.phone_number || '';
+                if (btnType === 'COPY_CODE') btnValue = btn.example || ''; 
+                messageText += `\n[BUTTON|${btnType}|${btn.text}|${btnValue}]`;
               });
             }
           }

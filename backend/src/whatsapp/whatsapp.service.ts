@@ -3033,8 +3033,8 @@ export class WhatsappService {
     const finalMessageId = messageId;
 
     let messageText = '';
-    let finalMediaType = null;
-    let finalMediaUrl = null;
+    let finalMediaType: string | null = null;
+    let finalMediaUrl: string | null = null;
 
     // If we have templateParameters, try to resolve the exact text from MessageTemplate
     if (templateParameters && Array.isArray(templateParameters)) {

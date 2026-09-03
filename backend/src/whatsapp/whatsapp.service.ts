@@ -3076,12 +3076,18 @@ export class WhatsappService {
             if (buttonsComponent && buttonsComponent.buttons) {
               messageText += '\n';
               buttonsComponent.buttons.forEach((btn: any) => {
-                const btnType = btn.type || 'QUICK_REPLY';
+                let btnType = btn.type || 'QUICK_REPLY';
                 let btnValue = '';
                 if (btnType === 'URL') btnValue = btn.url || '';
                 if (btnType === 'PHONE_NUMBER') btnValue = btn.phone_number || '';
                 if (btnType === 'COPY_CODE') btnValue = btn.example || ''; 
-                messageText += `\n[BUTTON|${btnType}|${btn.text}|${btnValue}]`;
+                if (btnType === 'OTP') {
+                  btnType = 'COPY_CODE';
+                  // In auth templates, the OTP is typically the first parameter
+                  btnValue = (templateParameters && templateParameters.length > 0) ? templateParameters[0] : '';
+                }
+                const btnText = btn.text || (btnType === 'COPY_CODE' ? 'Copy code' : 'Button');
+                messageText += `\n[BUTTON|${btnType}|${btnText}|${btnValue}]`;
               });
             }
           }

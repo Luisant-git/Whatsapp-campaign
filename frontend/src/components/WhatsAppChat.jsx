@@ -1423,7 +1423,14 @@ const WhatsAppChat = () => {
                 );
               } else {
                 return (
-                  <button key={idx} style={{...baseStyle, background: '#f0f2f5', border: 'none'}}>
+                  <button 
+                    key={idx} 
+                    style={{...baseStyle, background: '#f0f2f5', border: 'none'}} 
+                    onClick={() => {
+                      setMessageText(btn.text);
+                    }}
+                    title="Click to copy to message input"
+                  >
                     {btn.text}
                   </button>
                 );

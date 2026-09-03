@@ -2516,10 +2516,38 @@ export class WhatsappService {
       return { success: false, error: error.message };
     }
   }
+  private extractTemplateButtonsStr(templateComponents: any[], parameters?: any[]): string {
+    let buttonsStr = '';
+    const buttonsComponent = templateComponents?.find((c: any) => c.type === 'BUTTONS' || c.type === 'buttons');
+    if (buttonsComponent && buttonsComponent.buttons) {
+      buttonsComponent.buttons.forEach((btn: any) => {
+        let btnType = btn.type || 'QUICK_REPLY';
+        let btnValue = '';
+        if (btnType === 'URL') btnValue = btn.url || '';
+        if (btnType === 'PHONE_NUMBER') btnValue = btn.phone_number || '';
+        if (btnType === 'COPY_CODE' || btnType === 'OTP') {
+          btnType = 'COPY_CODE';
+          if (parameters && parameters.length > 0) btnValue = parameters[0];
+        }
+        const btnText = btn.text || (btnType === 'COPY_CODE' ? 'Copy code' : 'Button');
+        buttonsStr += `\n[BUTTON|${btnType}|${btnText}|${btnValue}]`;
+      });
+    }
+    return buttonsStr;
+  }
 
   async sendBulkTemplateMessage(phoneNumbers: string[], templateName: string, userId: number, parameters?: any[]) {
     const settings = await this.getSettings(userId);
     const results: Array<{ phoneNumber: string; success: boolean; messageId?: string; error?: string }> = [];
+
+    const dbTemplate = await this.prisma.messageTemplate.findFirst({
+      where: { name: templateName },
+      orderBy: { updatedAt: 'desc' },
+    });
+    const templateComponents = dbTemplate?.components
+      ? (typeof dbTemplate.components === 'string' ? JSON.parse(dbTemplate.components as string) : dbTemplate.components as any[])
+      : [];
+    const buttonsStr = this.extractTemplateButtonsStr(templateComponents, parameters);
 
     for (const phoneNumber of phoneNumbers) {
       try {
@@ -2559,7 +2587,7 @@ export class WhatsappService {
             messageId: response.data.messages[0].id,
             to: phoneNumber,
             from: phoneNumber,
-            message: `Template ${templateName} sent`,
+            message: `Template ${templateName} sent${buttonsStr}`,
             direction: 'outgoing',
             status: 'sent',
           }
@@ -2568,7 +2596,7 @@ export class WhatsappService {
         results.push({ phoneNumber, success: true, messageId: response.data.messages[0].id });
       } catch (error) {
         this.logger.error(`Failed to send to ${phoneNumber}:`, error.response?.data || error.message);
-        results.push({ phoneNumber, success: false, error: error.message });
+        results.push({ phoneNumber: phoneNumber, success: false, error: error.message });
       }
     }
 
@@ -2591,6 +2619,8 @@ export class WhatsappService {
     const headerComponent = templateComponents.find((c: any) => c.type === 'HEADER');
     const bodyComponent = templateComponents.find((c: any) => c.type === 'BODY');
     const templateBodyVariables: string[] = bodyComponent?.text?.match(/{{\d+}}/g) || [];
+
+    const buttonsStr = this.extractTemplateButtonsStr(templateComponents);
 
     // Fetch all contact data in one query before the loop
     const allFormattedPhones = contacts.map(c => this.formatPhoneNumber(c.phone));
@@ -2636,7 +2666,7 @@ export class WhatsappService {
             const field = varFields[i];
             const value = i === 0
               ? (fullContact?.name || contact.name || 'Customer')
-              : (fullContact?.[field] || '');
+              : (fullContact?.[field as keyof typeof fullContact] || '');
             return { type: 'text', text: value || ' ' };
           });
           components.push({ type: 'body', parameters: bodyParameters });
@@ -2669,7 +2699,7 @@ export class WhatsappService {
           messageId: response.data.messages[0].id,
           to: formattedPhone,
           from: formattedPhone,
-          message: `Template ${templateName} sent to ${contact.name}`,
+          message: `Template ${templateName} sent to ${contact.name}${buttonsStr}`,
           direction: 'outgoing',
           status: 'sent',
           phoneNumberId,

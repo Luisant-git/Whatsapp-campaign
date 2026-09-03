@@ -2438,7 +2438,6 @@ const WhatsAppChat = () => {
                         </div>
                       )}
                       <div className="message-bubble">
-                        {renderMessageContent(msg)}
                         {msg.mediaType === 'audio' && msg.mediaUrl && (() => {
                           const audioId = `audio-${msg.id}`;
                           const isPlaying = playingAudio === audioId;
@@ -2514,6 +2513,7 @@ const WhatsAppChat = () => {
                             </div>
                           </div>
                         )}
+                        {renderMessageContent(msg)}
                         <span className="message-time">
                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           {msg.direction === 'outgoing' && (

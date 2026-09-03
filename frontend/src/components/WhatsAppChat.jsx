@@ -1466,21 +1466,30 @@ const WhatsAppChat = () => {
                 width: '100%'
               };
 
-              if (btn.type === 'URL' && btn.value) {
+              const btnType = (btn.type || '').toUpperCase();
+
+              if (btnType === 'URL' && btn.value) {
+                // For dynamic URLs with variables like {{1}}, we still want them clickable
+                // If it contains a variable, it might not be a valid URL yet, but the user can still copy it.
+                // However, href handles most characters fine.
+                let href = btn.value;
+                if (!href.startsWith('http://') && !href.startsWith('https://')) {
+                  href = 'https://' + href;
+                }
                 return (
-                  <a key={idx} href={btn.value} target="_blank" rel="noopener noreferrer" style={baseStyle}>
+                  <a key={idx} href={href} target="_blank" rel="noopener noreferrer" style={baseStyle}>
                     <i className="fas fa-external-link-alt" style={{ marginRight: '8px' }}></i>
                     {btn.text}
                   </a>
                 );
-              } else if (btn.type === 'PHONE_NUMBER' && btn.value) {
+              } else if (btnType === 'PHONE_NUMBER' && btn.value) {
                 return (
                   <a key={idx} href={`tel:${btn.value}`} style={baseStyle}>
                     <i className="fas fa-phone" style={{ marginRight: '8px' }}></i>
                     {btn.text}
                   </a>
                 );
-              } else if (btn.type === 'COPY_CODE') {
+              } else if (btnType === 'COPY_CODE') {
                 return (
                   <button key={idx} style={{...baseStyle, background: '#f0f2f5', border: 'none'}} onClick={() => { navigator.clipboard.writeText(btn.value); alert('Copied to clipboard!'); }}>
                     <i className="fas fa-copy" style={{ marginRight: '8px' }}></i>

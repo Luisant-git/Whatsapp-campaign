@@ -2518,13 +2518,13 @@ export class WhatsappService {
   }
   private extractTemplateButtonsStr(templateComponents: any[], parameters?: any[]): string {
     let buttonsStr = '';
-    const buttonsComponent = templateComponents?.find((c: any) => c.type === 'BUTTONS' || c.type === 'buttons');
+    const buttonsComponent = templateComponents?.find((c: any) => c.type?.toUpperCase() === 'BUTTONS');
     if (buttonsComponent && buttonsComponent.buttons) {
       buttonsComponent.buttons.forEach((btn: any) => {
-        let btnType = btn.type || 'QUICK_REPLY';
+        let btnType = (btn.type || 'QUICK_REPLY').toUpperCase();
         let btnValue = '';
-        if (btnType === 'URL') btnValue = btn.url || '';
-        if (btnType === 'PHONE_NUMBER') btnValue = btn.phone_number || '';
+        if (btnType === 'URL') btnValue = btn.url || btn.URL || btn.uri || '';
+        if (btnType === 'PHONE_NUMBER') btnValue = btn.phone_number || btn.phoneNumber || '';
         if (btnType === 'COPY_CODE' || btnType === 'OTP') {
           btnType = 'COPY_CODE';
           if (parameters && parameters.length > 0) btnValue = parameters[0];

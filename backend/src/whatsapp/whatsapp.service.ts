@@ -3036,8 +3036,8 @@ export class WhatsappService {
     let finalMediaType: string | null = null;
     let finalMediaUrl: string | null = null;
 
-    // If we have templateParameters, try to resolve the exact text from MessageTemplate
-    if (templateParameters && Array.isArray(templateParameters)) {
+    // If we have a templateName, try to resolve the exact text and components from MessageTemplate
+    if (templateName) {
       try {
         const templateRecord = await tenantClient.messageTemplate.findFirst({
           where: { name: templateName }
@@ -3049,11 +3049,16 @@ export class WhatsappService {
           
           if (bodyComponent && bodyComponent.text) {
             let formattedText = bodyComponent.text;
-            // Replace {{1}}, {{2}} with actual parameters
-            templateParameters.forEach((param, index) => {
-              const regex = new RegExp(`\\{\\{${index + 1}\\}\\}`, 'g');
-              formattedText = formattedText.replace(regex, param || '');
-            });
+            // Replace {{1}}, {{2}} with actual parameters if provided
+            if (templateParameters && Array.isArray(templateParameters)) {
+              templateParameters.forEach((param, index) => {
+                const regex = new RegExp(`\\{\\{${index + 1}\\}\\}`, 'g');
+                formattedText = formattedText.replace(regex, param || '');
+              });
+            } else if (templateContent) {
+              // If parameters weren't provided, use the externally provided content as the body
+              formattedText = templateContent;
+            }
             
             // Add header/footer if they exist
             const headerComponent = components.find((c: any) => c.type === 'HEADER' || c.type === 'header');
@@ -3085,6 +3090,11 @@ export class WhatsappService {
                   btnType = 'COPY_CODE';
                   // In auth templates, the OTP is typically the first parameter
                   btnValue = (templateParameters && templateParameters.length > 0) ? templateParameters[0] : '';
+                  // Fallback: extract OTP from the message body if parameters weren't sent
+                  if (!btnValue && templateContent) {
+                    const match = templateContent.match(/\b\d{4,8}\b/);
+                    if (match) btnValue = match[0];
+                  }
                 }
                 const btnText = btn.text || (btnType === 'COPY_CODE' ? 'Copy code' : 'Button');
                 messageText += `\n[BUTTON|${btnType}|${btnText}|${btnValue}]`;

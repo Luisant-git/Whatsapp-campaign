@@ -3085,11 +3085,10 @@ export class WhatsappService {
                 let btnValue = '';
                 if (btnType === 'URL') btnValue = btn.url || '';
                 if (btnType === 'PHONE_NUMBER') btnValue = btn.phone_number || '';
-                if (btnType === 'COPY_CODE') btnValue = btn.example || ''; 
-                if (btnType === 'OTP') {
+                if (btnType === 'COPY_CODE' || btnType === 'OTP') {
                   btnType = 'COPY_CODE';
                   // In auth templates, the OTP is typically the first parameter
-                  btnValue = (templateParameters && templateParameters.length > 0) ? templateParameters[0] : '';
+                  btnValue = (templateParameters && templateParameters.length > 0) ? templateParameters[0] : (btn.example || '');
                   // Fallback: extract OTP from the message body if parameters weren't sent
                   if (!btnValue && templateContent) {
                     const match = templateContent.match(/\b\d{4,8}\b/);

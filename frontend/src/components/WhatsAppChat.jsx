@@ -1375,18 +1375,66 @@ const WhatsAppChat = () => {
             
             {buttons?.buttons && (
               <div className="wa-buttons" style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {buttons.buttons.map((btn, i) => (
-                  <div key={i} style={{ 
-                    padding: '8px', 
-                    textAlign: 'center', 
-                    color: '#00a884', 
-                    background: '#f0f2f5', 
+                {buttons.buttons.map((btn, i) => {
+                  const btnType = (btn.type || '').toUpperCase();
+                  const baseStyle = {
+                    display: 'block',
+                    background: '#fff',
+                    color: '#00a884',
+                    padding: '8px 14px',
                     borderRadius: '8px',
-                    fontSize: '14px'
-                  }}>
-                    {btn.text}
-                  </div>
-                ))}
+                    fontSize: '14px',
+                    textAlign: 'center',
+                    textDecoration: 'none',
+                    fontWeight: '500',
+                    border: '1px solid #e9edef',
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                    width: '100%',
+                    fontFamily: 'inherit',
+                    transition: 'background-color 0.2s',
+                  };
+                  
+                  if (btnType === 'URL' && (btn.url || btn.value)) {
+                    let href = btn.url || btn.value;
+                    if (!href.startsWith('http://') && !href.startsWith('https://')) {
+                      href = 'https://' + href;
+                    }
+                    return (
+                      <a key={i} href={href} target="_blank" rel="noopener noreferrer" style={baseStyle}>
+                        <i className="fas fa-external-link-alt" style={{ marginRight: '8px' }}></i>
+                        {btn.text}
+                      </a>
+                    );
+                  } else if (btnType === 'PHONE_NUMBER' && (btn.phone_number || btn.value)) {
+                    let phone = btn.phone_number || btn.value;
+                    return (
+                      <a key={i} href={`tel:${phone}`} style={baseStyle}>
+                        <i className="fas fa-phone" style={{ marginRight: '8px' }}></i>
+                        {btn.text}
+                      </a>
+                    );
+                  } else if (btnType === 'COPY_CODE' && (btn.example || btn.value)) {
+                    let code = btn.example || btn.value;
+                    return (
+                      <button key={i} style={{...baseStyle, background: '#f0f2f5', border: 'none'}} onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(code); alert('Copied to clipboard!'); }}>
+                        <i className="fas fa-copy" style={{ marginRight: '8px' }}></i>
+                        {btn.text}
+                      </button>
+                    );
+                  } else {
+                    return (
+                      <button key={i} style={{...baseStyle, background: '#f0f2f5', border: 'none'}} onClick={(e) => { 
+                        e.stopPropagation();
+                        if (typeof setMessageText === 'function') {
+                          setMessageText(btn.text);
+                        }
+                      }}>
+                        {btn.text}
+                      </button>
+                    );
+                  }
+                })}
               </div>
             )}
           </div>

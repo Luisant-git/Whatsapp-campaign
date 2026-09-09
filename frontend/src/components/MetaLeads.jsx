@@ -246,6 +246,24 @@ const MetaLeads = ({ onNavigate }) => {
     }
   };
 
+  const deleteLead = async (id, event) => {
+    event.stopPropagation();
+    const confirmed = confirm('Are you sure you want to delete this lead?');
+    if (!confirmed) return;
+
+    try {
+      const tenantId = localStorage.getItem('tenantId');
+      await axios.delete(`${API_BASE_URL}/meta-leads/${id}`, {
+        headers: { 'x-tenant-id': tenantId },
+        withCredentials: true,
+      });
+      fetchLeads();
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('❌ Failed to delete lead');
+    }
+  };
+
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setStatusFilter(tab === 'All' ? '' : tab);
@@ -684,6 +702,9 @@ const MetaLeads = ({ onNavigate }) => {
                     <td onClick={(e) => e.stopPropagation()}>
                       <button className="action-dots" title="View details" onClick={() => viewLeadDetails(lead)}>
                         <ExternalLink size={15} />
+                      </button>
+                      <button className="action-dots" title="Delete lead" onClick={(e) => deleteLead(lead.id, e)} style={{ color: '#dc3545', marginLeft: '8px' }}>
+                        <Trash2 size={15} />
                       </button>
                     </td>
                   </tr>

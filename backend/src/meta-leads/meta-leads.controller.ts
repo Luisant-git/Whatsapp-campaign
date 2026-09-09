@@ -269,6 +269,20 @@ export class MetaLeadsController {
     }
   }
 
+  @Delete(':id')
+  async deleteLead(@Req() req: any, @Param('id') id: string) {
+    try {
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
+      const result = await this.metaLeadsService.deleteLead(Number(id), tenantId, dbUrl);
+      return result;
+    } catch (error) {
+      return {
+        error: true,
+        message: error.message || 'Failed to delete lead'
+      };
+    }
+  }
+
   @Post('import-csv')
   @UseInterceptors(FileInterceptor('file'))
   async importCSV(

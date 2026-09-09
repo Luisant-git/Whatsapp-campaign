@@ -81,6 +81,18 @@ export class MetaLeadsService {
     });
   }
 
+  async deleteAllLeads(tenantId: string, dbUrl?: string) {
+    const client = await this.getClient(tenantId, dbUrl);
+    const result = await client.metaLead.deleteMany({});
+    return { success: true, count: result.count };
+  }
+
+  async deleteLead(id: number, tenantId: string, dbUrl?: string) {
+    const client = await this.getClient(tenantId, dbUrl);
+    await client.metaLead.delete({ where: { id } });
+    return { success: true };
+  }
+
   async getFormInfo(formId: string, accessToken: string) {
     try {
       const url = `https://graph.facebook.com/v25.0/${formId}`;

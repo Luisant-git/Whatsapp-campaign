@@ -246,17 +246,20 @@ const MetaLeads = ({ onNavigate }) => {
     }
   };
 
-  const deleteLead = async (id, event) => {
-    event.stopPropagation();
-    const confirmed = confirm('Are you sure you want to delete this lead?');
-    if (!confirmed) return;
+  const deleteLeadWithConfirm = async (lead) => {
+    const input = prompt(`To delete this lead, please type its exact name:\n${lead.name || 'Anonymous Lead'}`);
+    if (input !== (lead.name || 'Anonymous Lead')) {
+      if (input !== null) alert('Name did not match. Lead was not deleted.');
+      return;
+    }
 
     try {
       const tenantId = localStorage.getItem('tenantId');
-      await axios.delete(`${API_BASE_URL}/meta-leads/${id}`, {
+      await axios.delete(`${API_BASE_URL}/meta-leads/${lead.id}`, {
         headers: { 'x-tenant-id': tenantId },
         withCredentials: true,
       });
+      setShowDetailsModal(false);
       fetchLeads();
     } catch (error) {
       console.error('Delete error:', error);
@@ -703,9 +706,6 @@ const MetaLeads = ({ onNavigate }) => {
                       <button className="action-dots" title="View details" onClick={() => viewLeadDetails(lead)}>
                         <ExternalLink size={15} />
                       </button>
-                      <button className="action-dots" title="Delete lead" onClick={(e) => deleteLead(lead.id, e)} style={{ color: '#dc3545', marginLeft: '8px' }}>
-                        <Trash2 size={15} />
-                      </button>
                     </td>
                   </tr>
                 ))
@@ -797,16 +797,19 @@ const MetaLeads = ({ onNavigate }) => {
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#65676b', textTransform: 'uppercase', marginBottom: 8 }}>Additional Fields</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {Object.entries(selectedLead.customFields).map(([key, value]) => (
-                      <div key={key} style={{ padding: '8px 10px', background: '#f7f8fa', borderRadius: 6, borderLeft: '3px solid #1877f2' }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: '#65676b', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: 3 }}>
-                          {key.replace(/_/g, ' ')}
+                    {Object.entries(selectedLead.customFields).map(([key, value]) => {
+                      const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                      return (
+                        <div key={key} style={{ padding: '4px 0' }}>
+                          <div style={{ fontSize: 14, color: '#1c1e21', marginBottom: 2 }}>
+                            {formattedKey}
+                          </div>
+                          <div style={{ fontSize: 14, color: '#1c1e21', fontWeight: 'bold', wordBreak: 'break-word' }}>
+                            {String(value || 'N/A')}
+                          </div>
                         </div>
-                        <div style={{ fontSize: 14, color: '#1c1e21', fontWeight: 600, wordBreak: 'break-word' }}>
-                          {String(value || 'N/A').replace(/_/g, ' ')}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -830,7 +833,20 @@ const MetaLeads = ({ onNavigate }) => {
             </div>
 
             {/* Drawer Footer */}
-            <div style={{ padding: '12px 20px', borderTop: '1px solid #e4e6eb' }}>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #e4e6eb', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button 
+                onClick={() => deleteLeadWithConfirm(selectedLead)}
+                style={{ 
+                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', 
+                  padding: '10px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', 
+                  color: '#1c1e21', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#f9fafb'}
+                onMouseOut={(e) => e.currentTarget.style.background = 'white'}
+              >
+                <Trash2 size={16} color="#65676b" />
+                Delete lead
+              </button>
               <button className="sync-btn secondary" onClick={closeDetailsModal} style={{ width: '100%', justifyContent: 'center' }}>Close</button>
             </div>
           </div>

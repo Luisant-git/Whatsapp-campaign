@@ -584,6 +584,7 @@ const MetaLeads = ({ onNavigate }) => {
               />
             </div>
         {/* Form Filter Dropdown - like Meta's UI */}
+        {/*
             <div style={{ position: 'relative' }}>
               <select
                 value={formFilter}
@@ -591,7 +592,6 @@ const MetaLeads = ({ onNavigate }) => {
                 className="sync-btn secondary"
                 style={{ padding: '6px 12px', cursor: 'pointer', minWidth: 180 }}
               >
-                {/* <option value="all">All forms</option> */}
                 {metaForms.map(form => (
                   <option key={form.id} value={form.id}>
                     {form.name} {form.leads_count ? `(${form.leads_count})` : ''}
@@ -599,6 +599,7 @@ const MetaLeads = ({ onNavigate }) => {
                 ))}
               </select>
             </div>
+        */}
             <select 
               value={campaignFilter} 
               onChange={(e) => setCampaignFilter(e.target.value)}

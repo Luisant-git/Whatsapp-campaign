@@ -24,15 +24,10 @@ const RunAutomationLogs = () => {
 
   const [filterStatus, setFilterStatus] = useState("all"); // all | sent | failed
   const [filterType, setFilterType] = useState("all"); // all | DOB | ANNIVERSARY
+  const [activeTab, setActiveTab] = useState("DAILY"); // DAILY | META_LEADS
 
   // ✅ OVERALL stats (not page-wise)
   const [overall, setOverall] = useState({ total: 0, sent: 0, failed: 0 });
-
-  const getType = (r) => {
-    if (r?.runDailyAutomation) return r.runDailyAutomation.eventType || "-";
-    if (r?.metaLead) return "META_LEADS";
-    return "-";
-  };
 
   // ----------------------------
   // TABLE LOGS (paginated)
@@ -40,36 +35,19 @@ const RunAutomationLogs = () => {
   const fetchLogs = async (signal) => {
     setLoading(true);
     try {
-      const fetchAmount = page * limit;
-      let dailyData = [];
-      let metaData = [];
-      let totalDaily = 0;
-      let totalMeta = 0;
-
-      if (filterType === "all" || filterType === "DOB" || filterType === "ANNIVERSARY") {
-        const dailyRes = await getRunAutomationLogs({ page: 1, limit: fetchAmount, status: filterStatus, type: filterType !== "all" ? filterType : undefined, signal });
-        dailyData = Array.isArray(dailyRes?.data) ? dailyRes.data : [];
-        totalDaily = dailyRes?.pagination?.total || 0;
+      if (activeTab === "DAILY") {
+        const json = await getRunAutomationLogs({
+          page, limit, status: filterStatus, type: filterType !== "all" ? filterType : undefined, signal
+        });
+        setRows(Array.isArray(json?.data) ? json.data : []);
+        setPagination(json?.pagination || null);
+      } else {
+        const json = await getMetaLeadsAutomationLogs({
+          page, limit, status: filterStatus, signal
+        });
+        setRows(Array.isArray(json?.data) ? json.data : []);
+        setPagination(json?.pagination || null);
       }
-
-      if (filterType === "all" || filterType === "META_LEADS") {
-        const metaRes = await getMetaLeadsAutomationLogs({ page: 1, limit: fetchAmount, status: filterStatus, signal });
-        metaData = Array.isArray(metaRes?.data) ? metaRes.data : [];
-        totalMeta = metaRes?.pagination?.total || 0;
-      }
-
-      // Merge and sort
-      let combined = [...dailyData, ...metaData];
-      combined.sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
-
-      // Paginate manually
-      const startIndex = (page - 1) * limit;
-      const paginatedRows = combined.slice(startIndex, startIndex + limit);
-
-      setRows(paginatedRows);
-      
-      const totalCombined = totalDaily + totalMeta;
-      setPagination({ total: totalCombined, page, limit, totalPages: Math.ceil(totalCombined / limit) });
     } catch (e) {
       if (e?.name !== "AbortError") {
         console.error(e);
@@ -86,7 +64,7 @@ const RunAutomationLogs = () => {
     fetchLogs(ac.signal);
     return () => ac.abort();
     // eslint-disable-next-line
-  }, [page, limit, filterStatus, filterType]);
+  }, [page, limit, filterStatus, filterType, activeTab]);
 
   // ----------------------------
   // OVERALL COUNTS (not paginated)
@@ -97,39 +75,37 @@ const RunAutomationLogs = () => {
     try {
       let tTotal = 0, sTotal = 0, fTotal = 0;
 
-      if (filterType === "all" || filterType === "DOB" || filterType === "ANNIVERSARY") {
+      if (activeTab === "DAILY") {
         const typeParam = filterType !== "all" ? filterType : undefined;
         
         if (filterStatus === "sent") {
           const [{ total }] = await Promise.all([getRunAutomationLogsTotal({ status: "sent", type: typeParam, signal })]);
-          tTotal += total ?? 0; sTotal += total ?? 0;
+          tTotal = total ?? 0; sTotal = total ?? 0;
         } else if (filterStatus === "failed") {
           const [{ total }] = await Promise.all([getRunAutomationLogsTotal({ status: "failed", type: typeParam, signal })]);
-          tTotal += total ?? 0; fTotal += total ?? 0;
+          tTotal = total ?? 0; fTotal = total ?? 0;
         } else {
           const [t, s, f] = await Promise.all([
             getRunAutomationLogsTotal({ status: "all", type: typeParam, signal }),
             getRunAutomationLogsTotal({ status: "sent", type: typeParam, signal }),
             getRunAutomationLogsTotal({ status: "failed", type: typeParam, signal }),
           ]);
-          tTotal += t?.total ?? 0; sTotal += s?.total ?? 0; fTotal += f?.total ?? 0;
+          tTotal = t?.total ?? 0; sTotal = s?.total ?? 0; fTotal = f?.total ?? 0;
         }
-      }
-
-      if (filterType === "all" || filterType === "META_LEADS") {
+      } else {
         if (filterStatus === "sent") {
           const [{ total }] = await Promise.all([getMetaLeadsAutomationLogsTotal({ status: "sent", signal })]);
-          tTotal += total ?? 0; sTotal += total ?? 0;
+          tTotal = total ?? 0; sTotal = total ?? 0;
         } else if (filterStatus === "failed") {
           const [{ total }] = await Promise.all([getMetaLeadsAutomationLogsTotal({ status: "failed", signal })]);
-          tTotal += total ?? 0; fTotal += total ?? 0;
+          tTotal = total ?? 0; fTotal = total ?? 0;
         } else {
           const [t, s, f] = await Promise.all([
             getMetaLeadsAutomationLogsTotal({ status: "all", signal }),
             getMetaLeadsAutomationLogsTotal({ status: "sent", signal }),
             getMetaLeadsAutomationLogsTotal({ status: "failed", signal }),
           ]);
-          tTotal += t?.total ?? 0; sTotal += s?.total ?? 0; fTotal += f?.total ?? 0;
+          tTotal = t?.total ?? 0; sTotal = s?.total ?? 0; fTotal = f?.total ?? 0;
         }
       }
 
@@ -142,12 +118,14 @@ const RunAutomationLogs = () => {
     }
   };
 
+
+
   useEffect(() => {
     const ac = new AbortController();
     fetchOverallCounts(ac.signal);
     return () => ac.abort();
     // eslint-disable-next-line
-  }, [filterStatus, filterType]);
+  }, [filterStatus, filterType, activeTab]);
 
   const successRate = useMemo(() => {
     return overall.total > 0
@@ -183,7 +161,7 @@ const RunAutomationLogs = () => {
 
   return (
     <div className="run-automation-logs">
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div className="page-title">
           <h1>Run Automation Logs</h1>
           <span className="page-subtitle">
@@ -192,7 +170,26 @@ const RunAutomationLogs = () => {
           </span>
         </div>
 
-        
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            style={{ 
+              padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600,
+              border: activeTab === 'DAILY' ? '1px solid #1e293b' : '1px solid #cbd5e1', 
+              background: activeTab === 'DAILY' ? '#1e293b' : '#fff', 
+              color: activeTab === 'DAILY' ? '#fff' : '#1e293b', 
+            }}
+            onClick={() => { setActiveTab('DAILY'); setPage(1); }}
+          >Daily Automations</button>
+          <button 
+            style={{ 
+              padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600,
+              border: activeTab === 'META_LEADS' ? '1px solid #1e293b' : '1px solid #cbd5e1', 
+              background: activeTab === 'META_LEADS' ? '#1e293b' : '#fff', 
+              color: activeTab === 'META_LEADS' ? '#fff' : '#1e293b', 
+            }}
+            onClick={() => { setActiveTab('META_LEADS'); setPage(1); }}
+          >Meta Leads</button>
+        </div>
       </div>
 
       <div className="results-section">
@@ -241,21 +238,22 @@ const RunAutomationLogs = () => {
             </select>
           </div>
 
-          <div className="filter-group">
-            <label>Type:</label>
-            <select
-              value={filterType}
-              onChange={(e) => {
-                setFilterType(e.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="all">All</option>
-              <option value="DOB">DOB</option>
-              <option value="ANNIVERSARY">ANNIVERSARY</option>
-              <option value="META_LEADS">Meta Leads</option>
-            </select>
-          </div>
+          {activeTab === 'DAILY' && (
+            <div className="filter-group">
+              <label>Type:</label>
+              <select
+                value={filterType}
+                onChange={(e) => {
+                  setFilterType(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="all">All</option>
+                <option value="DOB">DOB</option>
+                <option value="ANNIVERSARY">ANNIVERSARY</option>
+              </select>
+            </div>
+          )}
 
           <div className="filter-group">
             <label>Entries:</label>
@@ -294,10 +292,11 @@ const RunAutomationLogs = () => {
               <thead>
                 <tr>
                   <th>S.NO</th>
-                  <th>Contact</th>
+                  <th>{activeTab === 'DAILY' ? 'Contact' : 'Lead Name'}</th>
                   <th>Phone</th>
-                  <th>Type</th>
-                  <th>Day Offset</th>
+                  {activeTab === 'DAILY' && <th>Type</th>}
+                  {activeTab === 'DAILY' && <th>Day Offset</th>}
+                  {activeTab === 'META_LEADS' && <th>Step</th>}
                   <th>Template</th>
                   <th>Status</th>
                   <th>Sent At</th>
@@ -308,10 +307,11 @@ const RunAutomationLogs = () => {
                 {rows.map((r, idx) => (
                   <tr key={r.id}>
                     <td>{(page - 1) * limit + idx + 1}</td>
-                    <td>{r.contact?.name || r.metaLead?.name || "-"}</td>
-                    <td>{r.contact?.phone || r.metaLead?.phone || "-"}</td>
-                    <td>{getType(r)}</td>
-                    <td>{r.runDailyAutomation?.dayBefore ?? r.stepIndex ?? "-"}</td>
+                    <td>{activeTab === 'DAILY' ? r.contact?.name || "-" : r.metaLead?.name || "-"}</td>
+                    <td>{activeTab === 'DAILY' ? r.contact?.phone || "-" : r.metaLead?.phone || "-"}</td>
+                    {activeTab === 'DAILY' && <td>{r.runDailyAutomation?.eventType || "-"}</td>}
+                    {activeTab === 'DAILY' && <td>{r.runDailyAutomation?.dayBefore ?? "-"}</td>}
+                    {activeTab === 'META_LEADS' && <td>{r.stepIndex ?? "-"}</td>}
 
                     <td>
                       {r.templateName || r.whatsAppSettings?.templateName || "-"}

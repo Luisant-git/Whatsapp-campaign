@@ -210,11 +210,21 @@ export class MetaLeadsController {
   @Post('webhook')
   async handleWebhook(@Req() req: any, @Body() body: any) {
     const signature = req.headers['x-hub-signature-256'];
-    const appSecret = process.env.META_APP_SECRET;
+    
+    // Resolve dynamic App Secret from DB (if available for this tenant)
+    let appSecret = await this.metaLeadsService.resolveAppSecretForWebhook(body);
+    
+    // Fallback to global ENV secret
+    if (!appSecret) {
+      appSecret = process.env.META_APP_SECRET;
+      console.log('Using fallback global META_APP_SECRET from .env');
+    } else {
+      console.log('Using dynamic App Secret resolved from tenant MasterConfig');
+    }
 
     if (!appSecret) {
-      console.error('Webhook failed: META_APP_SECRET is not configured on the server');
-      throw new UnauthorizedException('META_APP_SECRET is not configured on the server');
+      console.error('Webhook failed: No App Secret could be resolved (Dynamic or Global)');
+      throw new UnauthorizedException('No App Secret available to verify webhook');
     }
 
     if (!signature) {

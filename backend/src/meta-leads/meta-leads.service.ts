@@ -437,6 +437,79 @@ export class MetaLeadsService {
     }
   }
 
+  async resolveTenantMapping(pageId: string) {
+    let mapping = await this.centralPrisma.metaPageMapping.findUnique({
+      where: { pageId }
+    });
+
+    if (!mapping) {
+      this.logger.warn(`No tenant mapping found for page ${pageId}. Attempting fallback search...`);
+      const activeTenants = await this.centralPrisma.tenant.findMany({
+        where: { isActive: true }
+      });
+
+      for (const tenant of activeTenants) {
+        try {
+          const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+          const tempClient = await this.getClient(tenant.id.toString(), dbUrl);
+          const metaConfig = await tempClient.metaConfig.findFirst({
+            where: { isActive: true, pageId }
+          });
+
+          if (metaConfig) {
+            this.logger.log(`Fallback search found page ${pageId} belongs to tenant ${tenant.id}. Creating mapping.`);
+            mapping = await this.centralPrisma.metaPageMapping.create({
+              data: { pageId, tenantId: tenant.id }
+            });
+            break;
+          }
+        } catch (e) {
+          // Ignore connection errors
+        }
+      }
+    }
+    return mapping;
+  }
+
+  async resolveAppSecretForWebhook(body: any): Promise<string | null> {
+    try {
+      if (body?.object !== 'page') return null;
+      
+      const entries = body.entry || [];
+      for (const entry of entries) {
+        const changes = entry?.changes || [];
+        for (const change of changes) {
+          if (change.field === 'leadgen') {
+            const pageId = change.value?.page_id;
+            if (!pageId) continue;
+
+            const mapping = await this.resolveTenantMapping(pageId);
+            if (!mapping) continue;
+
+            const matchedTenant = await this.centralPrisma.tenant.findUnique({
+              where: { id: mapping.tenantId, isActive: true }
+            });
+            if (!matchedTenant) continue;
+
+            const dbUrl = `postgresql://${matchedTenant.dbUser}:${matchedTenant.dbPassword}@${matchedTenant.dbHost}:${matchedTenant.dbPort}/${matchedTenant.dbName}`;
+            const client = await this.getClient(matchedTenant.id.toString(), dbUrl);
+            
+            const masterConfig = await client.masterConfig.findFirst({
+              where: { isActive: true }
+            });
+            
+            if (masterConfig?.appSecret) {
+              return masterConfig.appSecret;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      this.logger.error('Error resolving app secret:', e);
+    }
+    return null;
+  }
+
   async handleWebhook(body: any) {
     try {
       if (body.object !== 'page') return;
@@ -451,42 +524,12 @@ export class MetaLeadsService {
             const pageId = change.value.page_id;
 
             this.logger.log(`Received Meta Lead: ${leadgenId}`);
-            let mapping = await this.centralPrisma.metaPageMapping.findUnique({
-              where: { pageId }
-            });
+            
+            const mapping = await this.resolveTenantMapping(pageId);
 
             if (!mapping) {
-              this.logger.warn(`No tenant mapping found for page ${pageId}. Attempting fallback search...`);
-              
-              // Fallback: search all active tenants
-              const activeTenants = await this.centralPrisma.tenant.findMany({
-                where: { isActive: true }
-              });
-
-              for (const tenant of activeTenants) {
-                try {
-                  const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-                  const tempClient = await this.getClient(tenant.id.toString(), dbUrl);
-                  const metaConfig = await tempClient.metaConfig.findFirst({
-                    where: { isActive: true, pageId }
-                  });
-
-                  if (metaConfig) {
-                    this.logger.log(`Fallback search found page ${pageId} belongs to tenant ${tenant.id}. Creating mapping.`);
-                    mapping = await this.centralPrisma.metaPageMapping.create({
-                      data: { pageId, tenantId: tenant.id }
-                    });
-                    break;
-                  }
-                } catch (e) {
-                  // Ignore connection errors for inactive/broken databases during search
-                }
-              }
-
-              if (!mapping) {
-                this.logger.error(`Fallback search failed. Ignoring lead for page ${pageId}.`);
-                continue;
-              }
+              this.logger.error(`Failed to resolve mapping. Ignoring lead for page ${pageId}.`);
+              continue;
             }
 
             const matchedTenant = await this.centralPrisma.tenant.findUnique({

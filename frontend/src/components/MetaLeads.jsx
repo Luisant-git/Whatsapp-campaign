@@ -12,7 +12,9 @@ import {
   ExternalLink,
   Upload,
   Trash2,
-  MessageSquare
+  MessageSquare,
+  Check,
+  X
 } from 'lucide-react';
 import { sendBulkMessages } from "../api/whatsapp";
 import { getAllSettings } from "../api/auth";

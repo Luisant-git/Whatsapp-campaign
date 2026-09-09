@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './src/app.module';
-import { MetaLeadsService } from './src/meta-leads/meta-leads.service';
-import { TenantPrismaService } from './src/tenant-prisma.service';
+import { AppModule } from './app.module';
+import { MetaLeadsService } from './meta-leads/meta-leads.service';
+import { TenantPrismaService } from './tenant-prisma.service';
 import { PrismaClient as CentralPrismaClient } from '@prisma/client-central';
 
 async function bootstrap() {

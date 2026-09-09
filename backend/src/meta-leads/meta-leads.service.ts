@@ -451,13 +451,42 @@ export class MetaLeadsService {
             const pageId = change.value.page_id;
 
             this.logger.log(`Received Meta Lead: ${leadgenId}`);
-            const mapping = await this.centralPrisma.metaPageMapping.findUnique({
+            let mapping = await this.centralPrisma.metaPageMapping.findUnique({
               where: { pageId }
             });
 
             if (!mapping) {
-              this.logger.warn(`Received Meta Lead for page ${pageId} but no tenant mapping found.`);
-              continue;
+              this.logger.warn(`No tenant mapping found for page ${pageId}. Attempting fallback search...`);
+              
+              // Fallback: search all active tenants
+              const activeTenants = await this.centralPrisma.tenant.findMany({
+                where: { isActive: true }
+              });
+
+              for (const tenant of activeTenants) {
+                try {
+                  const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+                  const tempClient = await this.getClient(tenant.id.toString(), dbUrl);
+                  const metaConfig = await tempClient.metaConfig.findFirst({
+                    where: { isActive: true, pageId }
+                  });
+
+                  if (metaConfig) {
+                    this.logger.log(`Fallback search found page ${pageId} belongs to tenant ${tenant.id}. Creating mapping.`);
+                    mapping = await this.centralPrisma.metaPageMapping.create({
+                      data: { pageId, tenantId: tenant.id }
+                    });
+                    break;
+                  }
+                } catch (e) {
+                  // Ignore connection errors for inactive/broken databases during search
+                }
+              }
+
+              if (!mapping) {
+                this.logger.error(`Fallback search failed. Ignoring lead for page ${pageId}.`);
+                continue;
+              }
             }
 
             const matchedTenant = await this.centralPrisma.tenant.findUnique({

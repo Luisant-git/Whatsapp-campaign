@@ -39,7 +39,12 @@ const MetaLeads = ({ onNavigate }) => {
   const [tabCounts, setTabCounts] = useState({ All: 0, Intake: 0, Qualified: 0, Converted: 0 });
   const [selectedLead, setSelectedLead] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [showDeleteAllConfirmModal, setShowDeleteAllConfirmModal] = useState(false);
+  const [deleteAllConfirmText, setDeleteAllConfirmText] = useState('');
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [syncResult, setSyncResult] = useState({ show: false, success: false, message: '', count: 0 });
   const [showComposeModal, setShowComposeModal] = useState(false);
   const [composeCampaignFilter, setComposeCampaignFilter] = useState('');
   const [composeCampaignName, setComposeCampaignName] = useState('');
@@ -220,14 +225,14 @@ const MetaLeads = ({ onNavigate }) => {
       });
       
       if (response.data.error) {
-        alert(`❌ Sync failed: ${response.data.message}`);
+        setSyncResult({ show: true, success: false, message: response.data.message, count: 0 });
         return;
       }
       
-      alert(`✅ SUCCESS! ${response.data.count || 0} leads imported from Meta`);
+      setSyncResult({ show: true, success: true, message: 'Successfully imported leads from Meta.', count: response.data.count || 0 });
       fetchLeads();
     } catch (error) {
-      alert('❌ ' + (error.response?.data?.message || 'Failed to sync leads.'));
+      setSyncResult({ show: true, success: false, message: error.response?.data?.message || 'Failed to sync leads.', count: 0 });
     } finally {
       setSyncing(false);
     }
@@ -246,19 +251,22 @@ const MetaLeads = ({ onNavigate }) => {
     }
   };
 
-  const deleteLeadWithConfirm = async (lead) => {
-    const input = prompt(`To delete this lead, please type its exact name:\n${lead.name || 'Anonymous Lead'}`);
-    if (input !== (lead.name || 'Anonymous Lead')) {
-      if (input !== null) alert('Name did not match. Lead was not deleted.');
-      return;
-    }
+  const openDeleteConfirm = (lead) => {
+    setDeleteConfirmText('');
+    setShowDeleteConfirmModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    const expectedName = selectedLead?.name || 'Anonymous Lead';
+    if (deleteConfirmText !== expectedName) return;
 
     try {
       const tenantId = localStorage.getItem('tenantId');
-      await axios.delete(`${API_BASE_URL}/meta-leads/${lead.id}`, {
+      await axios.delete(`${API_BASE_URL}/meta-leads/${selectedLead.id}`, {
         headers: { 'x-tenant-id': tenantId },
         withCredentials: true,
       });
+      setShowDeleteConfirmModal(false);
       setShowDetailsModal(false);
       fetchLeads();
     } catch (error) {
@@ -326,12 +334,13 @@ const MetaLeads = ({ onNavigate }) => {
     }
   };
 
-  const handleDeleteAll = async () => {
-    const confirmed = confirm('⚠️ WARNING: This will permanently delete ALL leads!\n\nAre you sure you want to continue?');
-    if (!confirmed) return;
+  const openDeleteAllConfirm = () => {
+    setDeleteAllConfirmText('');
+    setShowDeleteAllConfirmModal(true);
+  };
 
-    const doubleConfirm = confirm('⚠️ FINAL CONFIRMATION\n\nThis action CANNOT be undone. All lead data will be lost forever.\n\nType YES in your mind and click OK to proceed.');
-    if (!doubleConfirm) return;
+  const confirmDeleteAll = async () => {
+    if (deleteAllConfirmText !== 'DELETE ALL') return;
 
     try {
       setLoading(true);
@@ -346,7 +355,7 @@ const MetaLeads = ({ onNavigate }) => {
         return;
       }
 
-      alert(`✅ Successfully deleted ${response.data.count || 0} leads`);
+      setShowDeleteAllConfirmModal(false);
       fetchLeads();
     } catch (error) {
       alert('❌ ' + (error.response?.data?.message || 'Failed to delete leads'));
@@ -554,8 +563,8 @@ const MetaLeads = ({ onNavigate }) => {
               style={{ display: 'none' }}
               id="csv-upload"
             />
-            <button onClick={handleDeleteAll} className="sync-btn" style={{ background: '#dc3545' }}>
-              <Trash2 size={16} />
+            <button onClick={openDeleteAllConfirm} className="sync-btn" style={{ background: '#dc3545' }}>
+              <Trash2 size={18} />
               Delete All
             </button>
             <label htmlFor="csv-upload" className="sync-btn secondary" style={{ cursor: 'pointer', margin: 0 }}>
@@ -835,7 +844,7 @@ const MetaLeads = ({ onNavigate }) => {
             {/* Drawer Footer */}
             <div style={{ padding: '12px 20px', borderTop: '1px solid #e4e6eb', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button 
-                onClick={() => deleteLeadWithConfirm(selectedLead)}
+                onClick={() => openDeleteConfirm(selectedLead)}
                 style={{ 
                   width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', 
                   padding: '10px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', 
@@ -852,6 +861,140 @@ const MetaLeads = ({ onNavigate }) => {
           </div>
           <style>{`@keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }`}</style>
         </>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirmModal && selectedLead && (
+        <div className="modal-overlay" onClick={() => setShowDeleteConfirmModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h2 style={{ color: '#dc3545', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Trash2 size={20} /> Delete Lead
+              </h2>
+              <button className="modal-close" onClick={() => setShowDeleteConfirmModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ color: '#1c1e21', marginBottom: '12px', fontSize: '15px' }}>
+                This action <strong>cannot</strong> be undone. This will permanently delete the lead from your database.
+              </p>
+              <p style={{ color: '#65676B', marginBottom: '16px', fontSize: '14px' }}>
+                Please type <strong>{selectedLead.name || 'Anonymous Lead'}</strong> to confirm.
+              </p>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder={selectedLead.name || 'Anonymous Lead'}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+            <div className="modal-footer">
+              <button className="sync-btn secondary" onClick={() => setShowDeleteConfirmModal(false)}>Cancel</button>
+              <button 
+                className="sync-btn" 
+                onClick={handleConfirmDelete}
+                disabled={deleteConfirmText !== (selectedLead.name || 'Anonymous Lead')}
+                style={{ 
+                  background: deleteConfirmText === (selectedLead.name || 'Anonymous Lead') ? '#dc3545' : '#fca5a5', 
+                  opacity: deleteConfirmText === (selectedLead.name || 'Anonymous Lead') ? 1 : 0.6,
+                  cursor: deleteConfirmText === (selectedLead.name || 'Anonymous Lead') ? 'pointer' : 'not-allowed'
+                }}
+              >
+                I understand, delete this lead
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete All Confirmation Modal */}
+      {showDeleteAllConfirmModal && (
+        <div className="modal-overlay" onClick={() => setShowDeleteAllConfirmModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h2 style={{ color: '#dc3545', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Trash2 size={20} /> Delete All Leads
+              </h2>
+              <button className="modal-close" onClick={() => setShowDeleteAllConfirmModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ color: '#1c1e21', marginBottom: '12px', fontSize: '15px' }}>
+                This action <strong>cannot</strong> be undone. This will permanently delete ALL leads from your database.
+              </p>
+              <p style={{ color: '#65676B', marginBottom: '16px', fontSize: '14px' }}>
+                Please type <strong>DELETE ALL</strong> to confirm.
+              </p>
+              <input
+                type="text"
+                value={deleteAllConfirmText}
+                onChange={(e) => setDeleteAllConfirmText(e.target.value)}
+                placeholder="DELETE ALL"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+            <div className="modal-footer">
+              <button className="sync-btn secondary" onClick={() => setShowDeleteAllConfirmModal(false)}>Cancel</button>
+              <button 
+                className="sync-btn" 
+                onClick={confirmDeleteAll}
+                disabled={deleteAllConfirmText !== 'DELETE ALL'}
+                style={{ 
+                  background: deleteAllConfirmText === 'DELETE ALL' ? '#dc3545' : '#fca5a5', 
+                  opacity: deleteAllConfirmText === 'DELETE ALL' ? 1 : 0.6,
+                  cursor: deleteAllConfirmText === 'DELETE ALL' ? 'pointer' : 'not-allowed'
+                }}
+              >
+                Permanently Delete All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sync Result Modal */}
+      {syncResult.show && (
+        <div className="modal-overlay" onClick={() => setSyncResult({ ...syncResult, show: false })}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h2 style={{ color: syncResult.success ? '#16a34a' : '#dc3545', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {syncResult.success ? <Check size={20} /> : <X size={20} />} 
+                {syncResult.success ? 'Sync Successful' : 'Sync Failed'}
+              </h2>
+              <button className="modal-close" onClick={() => setSyncResult({ ...syncResult, show: false })}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ color: '#1c1e21', marginBottom: '12px', fontSize: '15px' }}>
+                {syncResult.message}
+              </p>
+              {syncResult.success && (
+                <div style={{ background: '#f0fdf4', color: '#16a34a', padding: '12px', borderRadius: '6px', fontWeight: 'bold' }}>
+                  {syncResult.count} leads imported
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="sync-btn" onClick={() => setSyncResult({ ...syncResult, show: false })} style={{ width: '100%', justifyContent: 'center' }}>
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Sync Leads Modal */}

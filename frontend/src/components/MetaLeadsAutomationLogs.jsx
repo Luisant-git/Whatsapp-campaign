@@ -112,7 +112,7 @@ const MetaLeadsAutomationLogs = () => {
     fetchOverallCounts(ac.signal);
     return () => ac.abort();
     // eslint-disable-next-line
-  }, [filterStatus, filterType]);
+  }, [filterStatus]);
 
   const successRate = useMemo(() => {
     return overall.total > 0

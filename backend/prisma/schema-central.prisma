@@ -53,7 +53,8 @@ model Tenant {
   
   subscription SubscriptionPlan? @relation(fields: [subscriptionId], references: [id])
   subscriptionOrders SubscriptionOrder[]
-  phoneNumbers PhoneNumberMapping[]
+   phoneNumbers PhoneNumberMapping[]
+  metaPageMappings MetaPageMapping[]
 
   menuPermission MenuPermission?
    subUsers    SubUser[]  
@@ -191,3 +192,20 @@ model LandingContactSubmission {
   @@index([whatsappNumber])
   @@index([createdAt])
 }
+
+model session {
+  sid    String   @id @db.VarChar
+  sess   Json     @db.Json
+  expire DateTime @db.Timestamp(6)
+
+  @@index([expire], map: "IDX_session_expire")
+}
+
+model MetaPageMapping {
+
+  id        Int      @id @default(autoincrement())
+  pageId    String   @unique
+  tenantId  Int
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}

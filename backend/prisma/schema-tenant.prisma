@@ -612,6 +612,7 @@ model MetaLead {
   createdTime      DateTime
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  automationLogs   MetaLeadAutomationLog[]
 
   @@index([formId])
   @@index([pageId])
@@ -643,8 +644,25 @@ model Grievance {
 model MetaLeadAutomation {
   id             Int      @id @default(autoincrement())
   templateName   String
+  delayValue     Int      @default(5)
+  delayUnit      String   @default("minutes")
   delayMinutes   Int      @default(5)
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model MetaLeadAutomationLog {
+  id                   Int                @id @default(autoincrement())
+  metaLeadId           Int
+  templateName         String
+  status               String             // "sent" or "failed"
+  error                String?
+  stepIndex            Int                
+  sentAt               DateTime           @default(now())
+  
+  metaLead             MetaLead           @relation(fields: [metaLeadId], references: [id], onDelete: Cascade)
+
+  @@index([sentAt])
+  @@index([status])
 }

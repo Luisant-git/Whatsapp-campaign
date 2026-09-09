@@ -1,11 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { TenantPrismaService } from '../tenant-prisma.service';
+import { CentralPrismaService } from '../central-prisma.service';
 
 @Injectable()
 export class MetaConfigService {
   private readonly logger = new Logger(MetaConfigService.name);
 
-  constructor(private prisma: TenantPrismaService) {}
+  constructor(
+    private prisma: TenantPrismaService,
+    private centralPrisma: CentralPrismaService,
+  ) {}
 
   private async getClient(tenantId: string, dbUrl?: string) {
     const url = dbUrl || process.env.TENANT_DATABASE_URL || '';
@@ -84,7 +88,7 @@ export class MetaConfigService {
       });
     }
 
-    return client.metaConfig.create({
+    const result = await client.metaConfig.create({
       data: {
         name: data.name,
         pageId: data.pageId,
@@ -93,6 +97,19 @@ export class MetaConfigService {
         isActive: data.isActive !== false,
       },
     });
+
+    const centralTenantId = parseInt(tenantId);
+    if (!isNaN(centralTenantId) && data.pageId) {
+      await this.centralPrisma.executeWithRetry((prisma) =>
+        prisma.metaPageMapping.upsert({
+          where: { pageId: data.pageId },
+          update: { tenantId: centralTenantId },
+          create: { pageId: data.pageId, tenantId: centralTenantId },
+        })
+      );
+    }
+
+    return result;
   }
 
   async update(tenantId: string, id: number, data: any, dbUrl?: string) {
@@ -109,7 +126,7 @@ export class MetaConfigService {
       });
     }
 
-    return client.metaConfig.update({
+    const result = await client.metaConfig.update({
       where: { id },
       data: {
         name: data.name,
@@ -119,10 +136,34 @@ export class MetaConfigService {
         isActive: data.isActive,
       },
     });
+
+    const centralTenantId = parseInt(tenantId);
+    if (!isNaN(centralTenantId) && data.pageId) {
+      await this.centralPrisma.executeWithRetry((prisma) =>
+        prisma.metaPageMapping.upsert({
+          where: { pageId: data.pageId },
+          update: { tenantId: centralTenantId },
+          create: { pageId: data.pageId, tenantId: centralTenantId },
+        })
+      );
+    }
+
+    return result;
   }
 
   async delete(tenantId: string, id: number, dbUrl?: string) {
     const client = await this.getClient(tenantId, dbUrl);
+    
+    // Get pageId before deleting
+    const config = await client.metaConfig.findUnique({ where: { id } });
+    if (config?.pageId) {
+      await this.centralPrisma.executeWithRetry((prisma) =>
+        prisma.metaPageMapping.deleteMany({
+          where: { pageId: config.pageId }
+        })
+      );
+    }
+
     return client.metaConfig.delete({
       where: { id },
     });

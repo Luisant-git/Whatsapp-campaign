@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, Req, UseInterceptors, UploadedFile, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, Req, UseInterceptors, UploadedFile, Delete, UnauthorizedException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MetaLeadsService } from './meta-leads.service';
 import csv from 'csv-parser';
+import * as crypto from 'crypto';
 
 @Controller('meta-leads')
 export class MetaLeadsController {
@@ -208,6 +209,27 @@ export class MetaLeadsController {
 
   @Post('webhook')
   async handleWebhook(@Req() req: any, @Body() body: any) {
+    const signature = req.headers['x-hub-signature-256'];
+    const appSecret = process.env.META_APP_SECRET;
+
+    if (!appSecret) {
+      throw new UnauthorizedException('META_APP_SECRET is not configured on the server');
+    }
+
+    if (!signature) {
+      throw new UnauthorizedException('Missing x-hub-signature-256 header');
+    }
+
+    const expectedSignature = 'sha256=' + crypto.createHmac('sha256', appSecret).update(req.rawBody || JSON.stringify(body)).digest('hex');
+    
+    // Use timingSafeEqual to prevent timing attacks
+    const sigBuffer = Buffer.from(signature as string, 'utf8');
+    const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
+
+    if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
+      throw new UnauthorizedException('Invalid x-hub-signature-256');
+    }
+
     // Process async so we can return immediately
     setImmediate(() => {
       this.metaLeadsService.handleWebhook(body).catch(error => {
@@ -327,6 +349,46 @@ export class MetaLeadsController {
       return {
         error: true,
         message: error.message || 'Failed to delete automation rule'
+      };
+    }
+  }
+
+  @Get('automation-logs')
+  async getAutomationLogs(
+    @Req() req: any,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+    @Query('status') status: string = 'all'
+  ) {
+    try {
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
+      return await this.metaLeadsService.getAutomationLogs(
+        tenantId,
+        parseInt(page) || 1,
+        parseInt(limit) || 10,
+        status,
+        dbUrl
+      );
+    } catch (error) {
+      return {
+        error: true,
+        message: error.message || 'Failed to fetch automation logs'
+      };
+    }
+  }
+
+  @Get('automation-logs/total')
+  async getAutomationLogsTotal(
+    @Req() req: any,
+    @Query('status') status: string = 'all'
+  ) {
+    try {
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
+      return await this.metaLeadsService.getAutomationLogsTotal(tenantId, status, dbUrl);
+    } catch (error) {
+      return {
+        error: true,
+        message: error.message || 'Failed to fetch automation logs total'
       };
     }
   }

@@ -100,6 +100,15 @@ export class MetaLeadsAutomationCronService {
              
              this.logger.log(`Tenant ${tenantId}: Sequence step ${i + 1} sent successfully. Result: ${JSON.stringify(result)}`);
 
+             // Create success logs
+             const logsToCreate = eligibleLeads.map(lead => ({
+               metaLeadId: lead.id,
+               templateName: templateName,
+               status: 'sent',
+               stepIndex: i + 1
+             }));
+             await client.metaLeadAutomationLog.createMany({ data: logsToCreate });
+
              // Increment lastAutomationStep for processed leads
              const leadIds = eligibleLeads.map(l => l.id);
              await client.metaLead.updateMany({
@@ -113,6 +122,17 @@ export class MetaLeadsAutomationCronService {
 
           } catch (err) {
              this.logger.error(`Tenant ${tenantId}: Failed to send template ${templateName}`, err);
+             
+             // Create failure logs
+             const errorMsg = err.message || String(err);
+             const logsToCreate = eligibleLeads.map(lead => ({
+               metaLeadId: lead.id,
+               templateName: templateName,
+               status: 'failed',
+               error: errorMsg,
+               stepIndex: i + 1
+             }));
+             await client.metaLeadAutomationLog.createMany({ data: logsToCreate });
           }
         }
       }

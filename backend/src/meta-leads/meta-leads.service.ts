@@ -451,47 +451,50 @@ export class MetaLeadsService {
             const pageId = change.value.page_id;
 
             this.logger.log(`Received Meta Lead: ${leadgenId}`);
-
-            const tenants = await this.centralPrisma.tenant.findMany({
-              where: { isActive: true },
+            const mapping = await this.centralPrisma.metaPageMapping.findUnique({
+              where: { pageId }
             });
 
+            if (!mapping) {
+              this.logger.warn(`Received Meta Lead for page ${pageId} but no tenant mapping found.`);
+              continue;
+            }
+
+            const matchedTenant = await this.centralPrisma.tenant.findUnique({
+              where: { id: mapping.tenantId, isActive: true }
+            });
+
+            if (!matchedTenant) {
+              this.logger.warn(`Tenant ${mapping.tenantId} not found or inactive for page ${pageId}.`);
+              continue;
+            }
+
+            const matchedDbUrl = `postgresql://${matchedTenant.dbUser}:${matchedTenant.dbPassword}@${matchedTenant.dbHost}:${matchedTenant.dbPort}/${matchedTenant.dbName}`;
+            const client = await this.getClient(matchedTenant.id.toString(), matchedDbUrl);
+            
+            const matchedMetaConfig = await client.metaConfig.findFirst({
+              where: { isActive: true, pageId }
+            });
+
+            if (!matchedMetaConfig || !matchedMetaConfig.accessToken) {
+              this.logger.error(`No active access token found for tenant ${matchedTenant.id} and page ${pageId}.`);
+              continue;
+            }
+
             let leadData: any = null;
-            let matchedTenant: any = null;
-            let matchedDbUrl = '';
-            let matchedMetaConfig: any = null;
-
-            // Try to fetch lead using tokens of all active tenants until one works
-            for (const tenant of tenants) {
-              try {
-                const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-                const client = await this.getClient(tenant.id.toString(), dbUrl);
-                
-                const metaConfig = await client.metaConfig.findFirst({
-                  where: { isActive: true },
-                });
-
-                if (metaConfig && metaConfig.accessToken) {
-                  const response = await axios.get(
-                    `https://graph.facebook.com/v25.0/${leadgenId}`,
-                    { params: { access_token: metaConfig.accessToken } }
-                  );
-                  
-                  if (response.data) {
-                    leadData = response.data;
-                    matchedTenant = tenant;
-                    matchedDbUrl = dbUrl;
-                    matchedMetaConfig = metaConfig;
-                    break;
-                  }
-                }
-              } catch (e) {
-                // Ignore API fetch errors for other tenants' tokens
-              }
+            try {
+              const response = await axios.get(
+                `https://graph.facebook.com/v25.0/${leadgenId}`,
+                { params: { access_token: matchedMetaConfig.accessToken } }
+              );
+              leadData = response.data;
+            } catch (error) {
+              this.logger.error(`Failed to fetch lead ${leadgenId} from Meta: ${error.message}`);
+              continue;
             }
 
             if (!leadData) {
-              this.logger.error(`Failed to fetch lead ${leadgenId} from Meta with any provided access token`);
+              this.logger.error(`Failed to fetch lead ${leadgenId} from Meta with provided access token`);
               continue;
             }
 
@@ -515,7 +518,6 @@ export class MetaLeadsService {
             }
 
             // 3. Create lead in matched tenant's database
-            const client = await this.getClient(matchedTenant.id.toString(), matchedDbUrl);
             await client.metaLead.upsert({
               where: { leadId: leadgenId },
               update: { ...fieldData, campaignName },
@@ -685,14 +687,22 @@ export class MetaLeadsService {
     });
   }
 
-  async saveAutomationRule(data: { templateName: string, delayMinutes: number, isActive: boolean, id?: number }, tenantId: string, dbUrl?: string) {
+  async saveAutomationRule(data: { templateName: string, delayMinutes?: number, delayValue: number, delayUnit: string, isActive: boolean, id?: number }, tenantId: string, dbUrl?: string) {
     const client = await this.getClient(tenantId, dbUrl);
+    
+    let delayMinutes = 0;
+    if (data.delayUnit === 'minutes') delayMinutes = data.delayValue;
+    else if (data.delayUnit === 'hours') delayMinutes = data.delayValue * 60;
+    else if (data.delayUnit === 'days') delayMinutes = data.delayValue * 60 * 24;
+
     if (data.id) {
       return client.metaLeadAutomation.update({
         where: { id: data.id },
         data: {
           templateName: data.templateName,
-          delayMinutes: data.delayMinutes,
+          delayValue: data.delayValue,
+          delayUnit: data.delayUnit,
+          delayMinutes: delayMinutes,
           isActive: data.isActive
         }
       });
@@ -700,7 +710,9 @@ export class MetaLeadsService {
       return client.metaLeadAutomation.create({
         data: {
           templateName: data.templateName,
-          delayMinutes: data.delayMinutes,
+          delayValue: data.delayValue,
+          delayUnit: data.delayUnit,
+          delayMinutes: delayMinutes,
           isActive: data.isActive
         }
       });
@@ -712,5 +724,51 @@ export class MetaLeadsService {
     return client.metaLeadAutomation.delete({
       where: { id }
     });
+  }
+  async getAutomationLogs(tenantId: string, page: number, limit: number, status: string, dbUrl?: string) {
+    const client = await this.getClient(tenantId, dbUrl);
+    const skip = (page - 1) * limit;
+    
+    const where: any = {};
+    if (status && status !== 'all') {
+      where.status = status;
+    }
+
+    const [data, total] = await Promise.all([
+      client.metaLeadAutomationLog.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { sentAt: 'desc' },
+        include: {
+          metaLead: {
+            select: { name: true, phone: true }
+          }
+        }
+      }),
+      client.metaLeadAutomationLog.count({ where })
+    ]);
+
+    return {
+      data,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  }
+
+  async getAutomationLogsTotal(tenantId: string, status: string, dbUrl?: string) {
+    const client = await this.getClient(tenantId, dbUrl);
+    
+    const where: any = {};
+    if (status && status !== 'all') {
+      where.status = status;
+    }
+
+    const total = await client.metaLeadAutomationLog.count({ where });
+    return { total };
   }
 }

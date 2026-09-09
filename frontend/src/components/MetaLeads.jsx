@@ -784,9 +784,9 @@ const MetaLeads = ({ onNavigate }) => {
                     ['Business Type', selectedLead.businessType || 'N/A'],
                     ['Created', new Date(selectedLead.createdTime).toLocaleString()],
                   ].map(([label, val]) => (
-                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #f0f2f5' }}>
-                      <span style={{ fontSize: 14, color: '#65676b', minWidth: 110 }}>{label}</span>
-                      <span style={{ fontSize: 14, color: '#1c1e21', fontWeight: 500, textAlign: 'right' }}>{val}</span>
+                    <div key={label} style={{ padding: '4px 0' }}>
+                      <div style={{ fontSize: 14, color: '#1c1e21', marginBottom: 2 }}>{label}</div>
+                      <div style={{ fontSize: 14, color: '#1c1e21', fontWeight: 'bold', wordBreak: 'break-word' }}>{val}</div>
                     </div>
                   ))}
                 </div>
@@ -800,7 +800,7 @@ const MetaLeads = ({ onNavigate }) => {
                     {Object.entries(selectedLead.customFields).map(([key, value]) => {
                       const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                       return (
-                        <div key={key} style={{ padding: '4px 0' }}>
+                        <div key={key} style={{ padding: '8px 10px', background: '#f7f8fa', borderLeft: '3px solid #1877f2', borderRadius: 0, marginBottom: '6px' }}>
                           <div style={{ fontSize: 14, color: '#1c1e21', marginBottom: 2 }}>
                             {formattedKey}
                           </div>
@@ -823,9 +823,9 @@ const MetaLeads = ({ onNavigate }) => {
                     ['Form ID', selectedLead.formId],
                     ['Page ID', selectedLead.pageId],
                   ].map(([label, val]) => (
-                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #f0f2f5' }}>
-                      <span style={{ fontSize: 14, color: '#65676b', minWidth: 110 }}>{label}</span>
-                      <span style={{ fontSize: 12, color: '#1c1e21', fontFamily: 'monospace', textAlign: 'right', wordBreak: 'break-all', maxWidth: 200 }}>{val}</span>
+                    <div key={label} style={{ padding: '4px 0' }}>
+                      <div style={{ fontSize: 14, color: '#1c1e21', marginBottom: 2 }}>{label}</div>
+                      <div style={{ fontSize: 14, color: '#1c1e21', fontWeight: 'bold', wordBreak: 'break-all' }}>{val}</div>
                     </div>
                   ))}
                 </div>

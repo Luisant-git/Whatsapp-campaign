@@ -9,6 +9,7 @@ import {
 
 import "../styles/RunAutomationLogs.scss";
 import { getRunAutomationLogs, getRunAutomationLogsTotal } from "../api/runDailyAutomationLogs";
+import { getMetaLeadsAutomationLogs, getMetaLeadsAutomationLogsTotal } from "../api/metaLeadsAutomationLogs";
 
 const LIMIT_OPTIONS = [10, 20, 50, 100];
 
@@ -27,7 +28,11 @@ const RunAutomationLogs = () => {
   // ✅ OVERALL stats (not page-wise)
   const [overall, setOverall] = useState({ total: 0, sent: 0, failed: 0 });
 
-  const getType = (r) => r?.runDailyAutomation?.eventType || "-";
+  const getType = (r) => {
+    if (r?.runDailyAutomation) return r.runDailyAutomation.eventType || "-";
+    if (r?.metaLead) return "META_LEADS";
+    return "-";
+  };
 
   // ----------------------------
   // TABLE LOGS (paginated)
@@ -35,16 +40,36 @@ const RunAutomationLogs = () => {
   const fetchLogs = async (signal) => {
     setLoading(true);
     try {
-      const json = await getRunAutomationLogs({
-        page,
-        limit,
-        status: filterStatus,
-        type: filterType,
-        signal,
-      });
+      const fetchAmount = page * limit;
+      let dailyData = [];
+      let metaData = [];
+      let totalDaily = 0;
+      let totalMeta = 0;
 
-      setRows(Array.isArray(json?.data) ? json.data : []);
-      setPagination(json?.pagination || null);
+      if (filterType === "all" || filterType === "DOB" || filterType === "ANNIVERSARY") {
+        const dailyRes = await getRunAutomationLogs({ page: 1, limit: fetchAmount, status: filterStatus, type: filterType !== "all" ? filterType : undefined, signal });
+        dailyData = Array.isArray(dailyRes?.data) ? dailyRes.data : [];
+        totalDaily = dailyRes?.pagination?.total || 0;
+      }
+
+      if (filterType === "all" || filterType === "META_LEADS") {
+        const metaRes = await getMetaLeadsAutomationLogs({ page: 1, limit: fetchAmount, status: filterStatus, signal });
+        metaData = Array.isArray(metaRes?.data) ? metaRes.data : [];
+        totalMeta = metaRes?.pagination?.total || 0;
+      }
+
+      // Merge and sort
+      let combined = [...dailyData, ...metaData];
+      combined.sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
+
+      // Paginate manually
+      const startIndex = (page - 1) * limit;
+      const paginatedRows = combined.slice(startIndex, startIndex + limit);
+
+      setRows(paginatedRows);
+      
+      const totalCombined = totalDaily + totalMeta;
+      setPagination({ total: totalCombined, page, limit, totalPages: Math.ceil(totalCombined / limit) });
     } catch (e) {
       if (e?.name !== "AbortError") {
         console.error(e);
@@ -70,43 +95,45 @@ const RunAutomationLogs = () => {
   // ----------------------------
   const fetchOverallCounts = async (signal) => {
     try {
-      // If user filters by status, summary should follow that filter too:
-      if (filterStatus === "sent") {
-        const [{ total: sent }] = await Promise.all([
-          getRunAutomationLogsTotal({ status: "sent", type: filterType, signal }),
-        ]);
-        setOverall({ total: sent ?? 0, sent: sent ?? 0, failed: 0 });
-        return;
+      let tTotal = 0, sTotal = 0, fTotal = 0;
+
+      if (filterType === "all" || filterType === "DOB" || filterType === "ANNIVERSARY") {
+        const typeParam = filterType !== "all" ? filterType : undefined;
+        
+        if (filterStatus === "sent") {
+          const [{ total }] = await Promise.all([getRunAutomationLogsTotal({ status: "sent", type: typeParam, signal })]);
+          tTotal += total ?? 0; sTotal += total ?? 0;
+        } else if (filterStatus === "failed") {
+          const [{ total }] = await Promise.all([getRunAutomationLogsTotal({ status: "failed", type: typeParam, signal })]);
+          tTotal += total ?? 0; fTotal += total ?? 0;
+        } else {
+          const [t, s, f] = await Promise.all([
+            getRunAutomationLogsTotal({ status: "all", type: typeParam, signal }),
+            getRunAutomationLogsTotal({ status: "sent", type: typeParam, signal }),
+            getRunAutomationLogsTotal({ status: "failed", type: typeParam, signal }),
+          ]);
+          tTotal += t?.total ?? 0; sTotal += s?.total ?? 0; fTotal += f?.total ?? 0;
+        }
       }
 
-      if (filterStatus === "failed") {
-        const [{ total: failed }] = await Promise.all([
-          getRunAutomationLogsTotal({
-            status: "failed",
-            type: filterType,
-            signal,
-          }),
-        ]);
-        setOverall({ total: failed ?? 0, sent: 0, failed: failed ?? 0 });
-        return;
+      if (filterType === "all" || filterType === "META_LEADS") {
+        if (filterStatus === "sent") {
+          const [{ total }] = await Promise.all([getMetaLeadsAutomationLogsTotal({ status: "sent", signal })]);
+          tTotal += total ?? 0; sTotal += total ?? 0;
+        } else if (filterStatus === "failed") {
+          const [{ total }] = await Promise.all([getMetaLeadsAutomationLogsTotal({ status: "failed", signal })]);
+          tTotal += total ?? 0; fTotal += total ?? 0;
+        } else {
+          const [t, s, f] = await Promise.all([
+            getMetaLeadsAutomationLogsTotal({ status: "all", signal }),
+            getMetaLeadsAutomationLogsTotal({ status: "sent", signal }),
+            getMetaLeadsAutomationLogsTotal({ status: "failed", signal }),
+          ]);
+          tTotal += t?.total ?? 0; sTotal += s?.total ?? 0; fTotal += f?.total ?? 0;
+        }
       }
 
-      // filterStatus === "all"
-      const [t, s, f] = await Promise.all([
-        getRunAutomationLogsTotal({ status: "all", type: filterType, signal }),
-        getRunAutomationLogsTotal({ status: "sent", type: filterType, signal }),
-        getRunAutomationLogsTotal({
-          status: "failed",
-          type: filterType,
-          signal,
-        }),
-      ]);
-
-      setOverall({
-        total: Number(t?.total ?? 0),
-        sent: Number(s?.total ?? 0),
-        failed: Number(f?.total ?? 0),
-      });
+      setOverall({ total: tTotal, sent: sTotal, failed: fTotal });
     } catch (e) {
       if (e?.name !== "AbortError") {
         console.error(e);
@@ -226,6 +253,7 @@ const RunAutomationLogs = () => {
               <option value="all">All</option>
               <option value="DOB">DOB</option>
               <option value="ANNIVERSARY">ANNIVERSARY</option>
+              <option value="META_LEADS">Meta Leads</option>
             </select>
           </div>
 
@@ -280,10 +308,10 @@ const RunAutomationLogs = () => {
                 {rows.map((r, idx) => (
                   <tr key={r.id}>
                     <td>{(page - 1) * limit + idx + 1}</td>
-                    <td>{r.contact?.name || "-"}</td>
-                    <td>{r.contact?.phone || "-"}</td>
+                    <td>{r.contact?.name || r.metaLead?.name || "-"}</td>
+                    <td>{r.contact?.phone || r.metaLead?.phone || "-"}</td>
                     <td>{getType(r)}</td>
-                    <td>{r.runDailyAutomation?.dayBefore ?? "-"}</td>
+                    <td>{r.runDailyAutomation?.dayBefore ?? r.stepIndex ?? "-"}</td>
 
                     <td>
                       {r.templateName || r.whatsAppSettings?.templateName || "-"}

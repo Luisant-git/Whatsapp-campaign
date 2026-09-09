@@ -1,5 +1,5 @@
 import axios from 'axios';
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010';
 const getHeaders = () => {
   const t = localStorage.getItem('token');
   const tid = localStorage.getItem('tenantId');

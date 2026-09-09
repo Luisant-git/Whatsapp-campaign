@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Trash2, Zap, Clock, Play, ArrowRight } from 'lucide-react';
 import '../styles/Settings.css';
-import MetaLeadsAutomationLogs from './MetaLeadsAutomationLogs';
+import Select from 'react-select';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010';
 
@@ -186,20 +186,26 @@ const MetaLeadsAutomation = () => {
 
             <div className="form-group" style={{ flex: 2, minWidth: '250px' }}>
               <label className="form-label">Then Send Template</label>
-              <select
-                className="form-input"
-                value={formData.templateName}
-                onChange={(e) => setFormData({ ...formData, templateName: e.target.value })}
-                required
-                style={{ cursor: 'pointer' }}
-              >
-                <option value="" disabled>Select a WhatsApp Template...</option>
-                {templates.map((t) => (
-                  <option key={t.id || t.templateId} value={t.name}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
+              <Select
+                options={templates.map(t => ({ value: t.name, label: t.name }))}
+                value={formData.templateName ? { value: formData.templateName, label: formData.templateName } : null}
+                onChange={(option) => setFormData({ ...formData, templateName: option ? option.value : '' })}
+                placeholder="Select a WhatsApp Template..."
+                isClearable
+                isSearchable
+                styles={{
+                  control: (base) => ({
+                    ...base,
+                    minHeight: '48px',
+                    borderRadius: '8px',
+                    borderColor: '#cbd5e1',
+                    boxShadow: 'none',
+                    '&:hover': {
+                      borderColor: '#94a3b8'
+                    }
+                  })
+                }}
+              />
             </div>
 
             <div className="form-group" style={{ minWidth: '180px' }}>
@@ -276,8 +282,6 @@ const MetaLeadsAutomation = () => {
           </div>
         </div>
       )}
-
-      <MetaLeadsAutomationLogs />
     </div>
   );
 };

@@ -213,12 +213,16 @@ export class MetaLeadsController {
     const appSecret = process.env.META_APP_SECRET;
 
     if (!appSecret) {
+      console.error('Webhook failed: META_APP_SECRET is not configured on the server');
       throw new UnauthorizedException('META_APP_SECRET is not configured on the server');
     }
 
     if (!signature) {
+      console.error('Webhook failed: Missing x-hub-signature-256 header');
       throw new UnauthorizedException('Missing x-hub-signature-256 header');
     }
+
+    console.log(`Webhook arrived. req.rawBody exists? ${!!req.rawBody}`);
 
     const expectedSignature = 'sha256=' + crypto.createHmac('sha256', appSecret).update(req.rawBody || JSON.stringify(body)).digest('hex');
     
@@ -227,6 +231,8 @@ export class MetaLeadsController {
     const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
 
     if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
+      console.error(`Webhook signature mismatch! Received: ${signature}, Expected: ${expectedSignature}`);
+      if (!req.rawBody) console.error('Warning: req.rawBody was missing, fallback JSON.stringify caused signature failure.');
       throw new UnauthorizedException('Invalid x-hub-signature-256');
     }
 

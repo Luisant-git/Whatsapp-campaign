@@ -216,7 +216,7 @@ export class MetaLeadsController {
     
     // Fallback to global ENV secret
     if (!appSecret) {
-      appSecret = process.env.META_APP_SECRET;
+      appSecret = process.env.META_APP_SECRET || null;
       console.log('Using fallback global META_APP_SECRET from .env');
     } else {
       console.log('Using dynamic App Secret resolved from tenant MasterConfig');

@@ -591,7 +591,7 @@ const MetaLeads = ({ onNavigate }) => {
                 className="sync-btn secondary"
                 style={{ padding: '6px 12px', cursor: 'pointer', minWidth: 180 }}
               >
-                <option value="all">All forms</option>
+                {/* <option value="all">All forms</option> */}
                 {metaForms.map(form => (
                   <option key={form.id} value={form.id}>
                     {form.name} {form.leads_count ? `(${form.leads_count})` : ''}

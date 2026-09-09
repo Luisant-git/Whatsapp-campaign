@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Trash2, Zap, Clock, Play, ArrowRight } from 'lucide-react';
 import '../styles/Settings.css';
+import MetaLeadsAutomationLogs from './MetaLeadsAutomationLogs';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010';
 
@@ -11,10 +12,11 @@ const MetaLeadsAutomation = () => {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const [formData, setFormData] = useState({
-    templateName: '',
-    delayMinutes: 5,
-    isActive: true,
+  const [formData, setFormData] = useState({ 
+    templateName: '', 
+    delayValue: 5, 
+    delayUnit: 'minutes', 
+    isActive: true 
   });
 
   useEffect(() => {
@@ -65,18 +67,20 @@ const MetaLeadsAutomation = () => {
     
     setIsSubmitting(true);
     try {
-      const payload = {
-        ...formData,
-        delayMinutes: parseInt(formData.delayMinutes, 10),
-      };
-
-      await axios.post(`${API_BASE_URL}/meta-leads/automation-rules`, payload, {
+      const response = await axios.post(`${API_BASE_URL}/meta-leads/automation-rules`, {
+        templateName: formData.templateName,
+        delayValue: parseInt(formData.delayValue, 10),
+        delayUnit: formData.delayUnit,
+        isActive: formData.isActive
+      }, {
         headers: getHeaders(),
         withCredentials: true,
       });
 
-      setFormData({ templateName: '', delayMinutes: 5, isActive: true });
-      fetchRules();
+      if (response.data && !response.data.error) {
+        fetchRules();
+        setFormData({ templateName: '', delayValue: 5, delayUnit: 'minutes', isActive: true });
+      }
     } catch (error) {
       console.error('Failed to save rule:', error);
       alert('Failed to save automation rule');
@@ -150,17 +154,30 @@ const MetaLeadsAutomation = () => {
             <div className="form-group" style={{ flex: 1, minWidth: '200px' }}>
               <label className="form-label">
                 <Clock size={16} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '6px' }} />
-                Wait Time (Minutes)
+                Wait Time
               </label>
-              <input
-                type="number"
-                className="form-input"
-                min="0"
-                value={formData.delayMinutes}
-                onChange={(e) => setFormData({ ...formData, delayMinutes: e.target.value })}
-                placeholder="e.g., 5"
-                required
-              />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="number"
+                  className="form-input"
+                  min="0"
+                  value={formData.delayValue}
+                  onChange={(e) => setFormData({ ...formData, delayValue: e.target.value })}
+                  placeholder="e.g., 5"
+                  required
+                  style={{ flex: 1 }}
+                />
+                <select
+                  className="form-input"
+                  value={formData.delayUnit}
+                  onChange={(e) => setFormData({ ...formData, delayUnit: e.target.value })}
+                  style={{ flex: 1 }}
+                >
+                  <option value="minutes">Minutes</option>
+                  <option value="hours">Hours</option>
+                  <option value="days">Days</option>
+                </select>
+              </div>
             </div>
 
             <div style={{ color: '#94a3b8', paddingBottom: '14px', display: 'flex', alignItems: 'center' }}>
@@ -236,7 +253,7 @@ const MetaLeadsAutomation = () => {
                     <span style={{ fontWeight: 600, fontSize: '13px', color: '#1e293b' }}>{rule.templateName}</span>
                     <span style={{ marginLeft: '10px', fontSize: '12px', color: '#64748b' }}>
                       <Clock size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '3px' }} />
-                      {rule.delayMinutes}m{!rule.isActive && <span style={{ color: '#ef4444', marginLeft: '6px' }}>Paused</span>}
+                      {rule.delayValue || rule.delayMinutes} {rule.delayUnit || 'minutes'}{!rule.isActive && <span style={{ color: '#ef4444', marginLeft: '6px' }}>Paused</span>}
                     </span>
                   </div>
 
@@ -259,6 +276,8 @@ const MetaLeadsAutomation = () => {
           </div>
         </div>
       )}
+
+      <MetaLeadsAutomationLogs />
     </div>
   );
 };

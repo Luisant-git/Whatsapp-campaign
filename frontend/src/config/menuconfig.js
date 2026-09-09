@@ -35,7 +35,7 @@ export const MENU_CONFIG = [
     icon: "zap",
     children: [
       { key: "automation.templates", label: "Automation Templates", icon: "layoutTemplate" },
-      { key: "settings.meta-leads-automation", label: "Meta Leads Automation", icon: "zap" },
+      { key: "settings.meta-leads-automation", label: "Meta Leads Automation", icon: "bot" },
       { key: "automation.logs", label: "Run Automation Logs", icon: "clipboardList" },
     ],
   },

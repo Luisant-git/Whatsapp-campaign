@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Trash2, Zap, Clock, Play, ArrowRight } from 'lucide-react';
+import { Trash2, Clock, Play, ArrowRight } from 'lucide-react';
 import '../styles/Settings.css';
 import Select from 'react-select';
 
@@ -135,7 +135,6 @@ const MetaLeadsAutomation = () => {
     <div className="settings-container">
       <div className="settings-header">
         <div className="settings-title-section">
-          <Zap size={32} />
           <div>
             <h1>Meta Leads Automation</h1>
             <p>Automatically send WhatsApp messages to new Meta Leads after a set delay.</p>

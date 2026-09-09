@@ -151,6 +151,7 @@ const CHILD_ICON_MAP = {
   book: Package,
   eye: List,
   truck: Truck,
+  bot: Bot,
 };
 
 

@@ -180,6 +180,13 @@ export class MetaLeadsAutomationCronService {
                   stepIndex: i + 1
                 }));
                 await client.contactAutomationLog.createMany({ data: logsToCreate });
+                
+                await client.contact.updateMany({
+                  where: { id: { in: recordIds } },
+                  data: {
+                    lastAutomationStep: i + 1,
+                  },
+                });
               } else {
                 const logsToCreate = eligibleRecords.map(record => ({
                   metaLeadId: record.id,
@@ -189,6 +196,13 @@ export class MetaLeadsAutomationCronService {
                   stepIndex: i + 1
                 }));
                 await client.metaLeadAutomationLog.createMany({ data: logsToCreate });
+                
+                await client.metaLead.updateMany({
+                  where: { id: { in: recordIds } },
+                  data: {
+                    lastAutomationStep: i + 1,
+                  },
+                });
               }
             }
           }

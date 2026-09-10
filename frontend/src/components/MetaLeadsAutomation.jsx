@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Trash2, Clock, Play, ArrowRight, Target, MessageSquare, Zap, AlertTriangle, X } from 'lucide-react';
+import { Trash2, Clock, Play, ArrowRight, Target, MessageSquare, Zap, AlertTriangle, X, HelpCircle } from 'lucide-react';
 import '../styles/Settings.css';
 import Select from 'react-select';
 
@@ -14,6 +14,7 @@ const MetaLeadsAutomation = () => {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingRuleId, setDeletingRuleId] = useState(null);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   
   const [formData, setFormData] = useState({ 
     targetType: 'all',
@@ -256,6 +257,20 @@ const MetaLeadsAutomation = () => {
             <p style={{ margin: 0, color: '#64748b' }}>Automatically send WhatsApp sequences to leads or contacts after a set delay.</p>
           </div>
         </div>
+        
+        <button 
+          onClick={() => setShowHelpModal(true)}
+          style={{ 
+            padding: '10px 16px', background: '#fff', border: '1px solid #cbd5e1', 
+            borderRadius: '8px', color: '#334155', fontWeight: 600, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)'
+          }}
+          onMouseOver={(e) => e.currentTarget.style.background = '#f8fafc'}
+          onMouseOut={(e) => e.currentTarget.style.background = '#fff'}
+        >
+          <HelpCircle size={18} color="#64748b" />
+          View Help
+        </button>
       </div>
 
       <div style={{ display: 'flex', gap: '32px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -581,6 +596,47 @@ const MetaLeadsAutomation = () => {
                 Delete Rule
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Help Modal */}
+      {showHelpModal && (
+        <div className="modal-overlay" style={{ zIndex: 10000 }} onClick={() => setShowHelpModal(false)}>
+          <div className="modal-content" style={{ maxWidth: '500px', padding: '32px' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#f1f5f9', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <HelpCircle size={24} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 600, color: '#0f172a' }}>How Automations Work</h3>
+                </div>
+              </div>
+              <button onClick={() => setShowHelpModal(false)} style={{ background: 'none', border: 'none', fontSize: '24px', color: '#94a3b8', cursor: 'pointer' }}>&times;</button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', color: '#475569', fontSize: '15px', lineHeight: 1.6 }}>
+              <p style={{ margin: 0 }}>
+                <strong style={{ color: '#0f172a' }}>1. Background Execution</strong><br />
+                Automations run automatically in the background every minute. You do not need to keep this page open.
+              </p>
+              <p style={{ margin: 0 }}>
+                <strong style={{ color: '#0f172a' }}>2. Absolute Wait Times</strong><br />
+                The "Wait" time is calculated from the exact moment the contact was created. For example, if you want to send a message 5 minutes after a contact is added, and another message 10 minutes later, you should set Step 1 to "Wait 5 minutes" and Step 2 to "Wait 15 minutes".
+              </p>
+              <p style={{ margin: 0 }}>
+                <strong style={{ color: '#0f172a' }}>3. Viewing Logs & Failures</strong><br />
+                If a template fails to send (e.g., due to an invalid phone number or missing parameters), the system will still move the contact to the next step so they don't get stuck. You can see detailed delivery reports in the <strong>Run Automation Logs</strong> page.
+              </p>
+            </div>
+            
+            <button 
+              onClick={() => setShowHelpModal(false)}
+              style={{ width: '100%', padding: '12px', marginTop: '24px', borderRadius: '8px', background: '#3b82f6', color: 'white', border: 'none', fontWeight: 600, cursor: 'pointer' }}
+            >
+              Got it, thanks!
+            </button>
           </div>
         </div>
       )}

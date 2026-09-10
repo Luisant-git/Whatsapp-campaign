@@ -11,7 +11,7 @@ export class MetaLeadsAutomationCronService {
   constructor(
     private centralPrisma: CentralPrismaService,
     private tenantPrisma: TenantPrismaService,
-  ) {}
+  ) { }
 
   @Cron(CronExpression.EVERY_MINUTE)
   async handleMetaLeadsAutomation() {
@@ -87,7 +87,14 @@ export class MetaLeadsAutomationCronService {
 
           const eligibleRecords = pendingRecords.filter(record => {
             if (record.lastAutomationStep !== i) return false;
-            return (now.getTime() - record.createdAt.getTime()) >= delayMs;
+            // Step 0 (first step): delay is measured from when the record was created.
+            // Steps 1+ (subsequent steps): delay is measured from when the previous
+            // step was sent (automationSentAt). This ensures "wait 5 minutes" means
+            // 5 minutes after the prior step, not 5 minutes after contact creation.
+            const baseTime = i === 0
+              ? record.createdAt.getTime()
+              : (record.automationSentAt?.getTime() ?? record.createdAt.getTime());
+            return (now.getTime() - baseTime) >= delayMs;
           });
 
           if (!eligibleRecords.length) continue;
@@ -163,6 +170,7 @@ export class MetaLeadsAutomationCronService {
             this.logger.log(`Tenant ${tenantId}: Step ${i + 1} — ${sentCount} sent, ${failCount} failed.`);
 
             // Write per-contact logs and advance step
+            const stepAdvancedAt = new Date();
             if (isContact) {
               await client.contactAutomationLog.createMany({
                 data: eligibleRecords.map((record: any) => {
@@ -178,7 +186,7 @@ export class MetaLeadsAutomationCronService {
               });
               await client.contact.updateMany({
                 where: { id: { in: recordIds } },
-                data: { isAutomationSent: true, automationSentAt: new Date(), lastAutomationStep: i + 1 },
+                data: { isAutomationSent: true, automationSentAt: stepAdvancedAt, lastAutomationStep: i + 1 },
               });
             } else {
               await client.metaLeadAutomationLog.createMany({
@@ -195,8 +203,20 @@ export class MetaLeadsAutomationCronService {
               });
               await client.metaLead.updateMany({
                 where: { id: { in: recordIds } },
-                data: { isAutomationSent: true, automationSentAt: new Date(), lastAutomationStep: i + 1 },
+                data: { isAutomationSent: true, automationSentAt: stepAdvancedAt, lastAutomationStep: i + 1 },
               });
+            }
+
+            // Update in-memory records so subsequent step iterations in this
+            // same cron tick see the updated lastAutomationStep and automationSentAt.
+            // Without this, steps i+1 onward would still see the old step index in
+            // the pendingRecords array and never match their eligibility filter.
+            const sentIds = new Set(recordIds);
+            for (const record of pendingRecords) {
+              if (sentIds.has(record.id)) {
+                record.lastAutomationStep = i + 1;
+                record.automationSentAt = stepAdvancedAt;
+              }
             }
           } catch (err: any) {
             this.logger.error(`Tenant ${tenantId}: Outer error for step ${i + 1}: ${err?.message || err}`);

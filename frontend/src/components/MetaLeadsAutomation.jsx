@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Trash2, Clock, Play, Target, MessageSquare, AlertTriangle, HelpCircle, CheckCircle, XCircle, Info, Zap } from 'lucide-react';
+import { Trash2, Clock, Play, Target, MessageSquare, AlertTriangle, HelpCircle, CheckCircle, XCircle, Info, Zap, Bot, RefreshCw, Timer, ClipboardList, ShieldAlert } from 'lucide-react';
 import '../styles/Settings.css';
 import Select from 'react-select';
 
@@ -433,7 +433,7 @@ const MetaLeadsAutomation = () => {
           {/* Empty state */}
           {groupedSequences.length === 0 ? (
             <div style={{ background: '#fff', border: '2px dashed #e2e8f0', borderRadius: 16, padding: '48px 24px', textAlign: 'center' }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🤖</div>
+              <div style={{ fontSize: 40, marginBottom: 12 }}><Bot size={40} color="#94a3b8" /></div>
               <div style={{ fontWeight: 600, color: '#334155', marginBottom: 6 }}>No automations yet</div>
               <div style={{ fontSize: 13, color: '#94a3b8' }}>Create your first rule on the left to start sending automated WhatsApp messages.</div>
             </div>
@@ -559,13 +559,13 @@ const MetaLeadsAutomation = () => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, fontSize: 14, color: '#475569', lineHeight: 1.7 }}>
               {[
-                ['🔄 Background Execution', 'Automations run every minute in the background. You do not need to keep this page open.'],
-                ['⏱ Absolute Wait Times', 'Wait time is counted from when the contact was created. If Step 1 is "5 min" and Step 2 is "15 min", the second message sends 15 min after creation — not 10 min after Step 1.'],
-                ['📋 Viewing Logs', 'Check the Run Automation Logs page to see delivery status, failures, and which contacts received each step.'],
-                ['⚠️ Failed Sends', 'If a template fails (e.g. invalid number), the contact still advances to the next step so they are never stuck.'],
-              ].map(([title, desc]) => (
+                [<RefreshCw size={14} />, 'Background Execution', 'Automations run every minute in the background. You do not need to keep this page open.'],
+                [<Timer size={14} />, 'Absolute Wait Times', 'Wait time is counted from when the contact was created. If Step 1 is "5 min" and Step 2 is "15 min", the second message sends 15 min after creation — not 10 min after Step 1.'],
+                [<ClipboardList size={14} />, 'Viewing Logs', 'Check the Run Automation Logs page to see delivery status, failures, and which contacts received each step.'],
+                [<ShieldAlert size={14} />, 'Failed Sends', 'If a template fails (e.g. invalid number), the contact still advances to the next step so they are never stuck.'],
+              ].map(([icon, title, desc]) => (
                 <div key={title} style={{ background: '#f8fafc', borderRadius: 8, padding: '12px 14px' }}>
-                  <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>{title}</div>
+                  <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>{icon}{title}</div>
                   <div>{desc}</div>
                 </div>
               ))}

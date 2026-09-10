@@ -513,10 +513,6 @@ const MetaLeads = ({ onNavigate }) => {
   const handleComposeClick = () => {
     setComposeCampaignFilter('');
     setComposeCampaignName('');
-    setTemplateName("");
-    setScheduleType("one-time");
-    setScheduledDays([]);
-    setScheduledTime("09:00");
     setShowComposeModal(true);
   };
 

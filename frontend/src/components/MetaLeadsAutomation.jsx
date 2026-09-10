@@ -295,9 +295,9 @@ const MetaLeadsAutomation = () => {
                     onChange={e => setFormData(f => ({ ...f, targetType: e.target.value, campaignName: '', groupId: '' }))}
                     style={{ minHeight: 42, borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14 }}
                   >
-                    <option value="all">🌐 Global (All New Records)</option>
-                    <option value="meta_campaign">📋 Meta Lead Campaign</option>
-                    <option value="contact_group">👥 Contact Group</option>
+                    <option value="all">Global (All New Records)</option>
+                    <option value="meta_campaign">Meta Lead Campaign</option>
+                    <option value="contact_group">Contact Group</option>
                   </select>
 
                   {formData.targetType === 'meta_campaign' && (

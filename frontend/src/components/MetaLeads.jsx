@@ -24,6 +24,7 @@ import { groupAPI } from '../api/group';
 import { contactAPI } from '../api/contact';
 import { getAllSettings } from "../api/auth";
 import { useToast } from "../contexts/ToastContext";
+import Select from 'react-select';
 import '../styles/MetaLeads.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010';
@@ -1275,17 +1276,29 @@ const MetaLeads = ({ onNavigate }) => {
               </div>
               <div className="form-group">
                 <label style={{ fontSize: 13, fontWeight: 700, color: '#1c1e21', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Select Group <span style={{ color: '#dc3545' }}>*</span></label>
-                <select
-                  className="form-input"
-                  value={allocateGroupId}
-                  onChange={e => setAllocateGroupId(e.target.value)}
-                  style={{ marginTop: 6 }}
-                >
-                  <option value="">— Choose a group —</option>
-                  {groups.map(g => (
-                    <option key={g.id} value={g.id}>{g.name}</option>
-                  ))}
-                </select>
+                <div style={{ marginTop: 6 }}>
+                  <Select
+                    placeholder="Choose a group"
+                    options={groups.map(g => ({ value: g.id.toString(), label: g.name }))}
+                    value={allocateGroupId ? { value: allocateGroupId.toString(), label: groups.find(g => g.id.toString() === allocateGroupId.toString())?.name || allocateGroupId } : null}
+                    onChange={option => setAllocateGroupId(option ? option.value : '')}
+                    isSearchable
+                    isClearable
+                    styles={{
+                      control: (base, state) => ({
+                        ...base,
+                        padding: '2px 4px',
+                        borderRadius: 6,
+                        borderColor: '#ced0d4',
+                        fontSize: 14,
+                        boxShadow: state.isFocused ? '0 0 0 1px #1877f2' : 'none',
+                        '&:hover': {
+                          borderColor: '#8a8d91'
+                        }
+                      })
+                    }}
+                  />
+                </div>
               </div>
             </div>
             <div className="modal-footer">

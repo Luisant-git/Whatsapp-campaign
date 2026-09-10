@@ -45,94 +45,152 @@ export class MetaLeadsAutomationCronService {
 
       if (!activeRules.length) return;
 
-      // Find leads that haven't finished the automation sequence yet
-      const pendingLeads = await client.metaLead.findMany({
-        where: {
-          phone: { not: null },
-          lastAutomationStep: { lt: activeRules.length },
-        },
-      });
-
-      if (!pendingLeads.length) return;
-
       const now = new Date();
 
-      for (let i = 0; i < activeRules.length; i++) {
-        const rule = activeRules[i];
-        const templateName = rule.templateName;
-        const delayMs = rule.delayMinutes * 60 * 1000;
+      // We need settingsId to send. Let's find default WhatsApp settings
+      const defaultSettings = await client.whatsAppSettings.findFirst({
+        where: { isDefault: true },
+      });
 
-        // Filter leads that are on this exact step in the sequence
-        const eligibleLeads = pendingLeads.filter(lead => {
-          if (lead.lastAutomationStep !== i) return false;
-          const createdTime = lead.createdAt.getTime();
-          // Check if time passed since creation satisfies the delay
-          return (now.getTime() - createdTime) >= delayMs;
-        });
+      if (!defaultSettings) {
+        this.logger.warn(`Tenant ${tenantId} has no default WhatsApp settings. Cannot send automation.`);
+        return;
+      }
 
-        if (eligibleLeads.length > 0) {
-          this.logger.log(`Tenant ${tenantId}: Found ${eligibleLeads.length} leads for sequence step ${i + 1} (template: ${templateName})`);
+      // Group rules by target sequence
+      const targetSequences = new Map<string, any[]>();
+      for (const rule of activeRules) {
+        const key = `${rule.targetType}_${rule.campaignName || 'all'}_${rule.groupId || 'all'}`;
+        if (!targetSequences.has(key)) targetSequences.set(key, []);
+        targetSequences.get(key)!.push(rule);
+      }
 
-          // We need settingsId to send. Let's find default WhatsApp settings
-          const defaultSettings = await client.whatsAppSettings.findFirst({
-            where: { isDefault: true },
+      for (const [key, sequenceRules] of targetSequences.entries()) {
+        const firstRule = sequenceRules[0];
+        const targetType = firstRule.targetType;
+        
+        let pendingRecords: any[] = [];
+        let isContact = false;
+
+        if (targetType === 'contact_group') {
+          isContact = true;
+          pendingRecords = await client.contact.findMany({
+            where: {
+              phone: { not: null },
+              groupId: firstRule.groupId,
+              lastAutomationStep: { lt: sequenceRules.length },
+            },
+          });
+        } else {
+          // targetType === 'meta_campaign' or 'all'
+          const whereClause: any = {
+            phone: { not: null },
+            lastAutomationStep: { lt: sequenceRules.length },
+          };
+          if (targetType === 'meta_campaign' && firstRule.campaignName) {
+            whereClause.campaignName = firstRule.campaignName;
+          }
+          pendingRecords = await client.metaLead.findMany({
+            where: whereClause,
+          });
+        }
+
+        if (!pendingRecords.length) continue;
+
+        for (let i = 0; i < sequenceRules.length; i++) {
+          const rule = sequenceRules[i];
+          const templateName = rule.templateName;
+          const delayMs = rule.delayMinutes * 60 * 1000;
+
+          // Filter records that are on this exact step in the sequence
+          const eligibleRecords = pendingRecords.filter(record => {
+            if (record.lastAutomationStep !== i) return false;
+            const createdTime = record.createdAt.getTime();
+            // Check if time passed since creation satisfies the delay
+            return (now.getTime() - createdTime) >= delayMs;
           });
 
-          if (!defaultSettings) {
-            this.logger.warn(`Tenant ${tenantId} has no default WhatsApp settings. Cannot send automation.`);
-            continue;
-          }
+          if (eligibleRecords.length > 0) {
+            this.logger.log(`Tenant ${tenantId}: Found ${eligibleRecords.length} records for sequence step ${i + 1} (target: ${key}, template: ${templateName})`);
 
-          // Format contacts for sendBulkTemplateMessageWithNames
-          const contactsForTemplate = eligibleLeads.map(lead => ({
-            name: lead.name || 'User',
-            phone: lead.phone,
-          }));
+            const contactsForTemplate = eligibleRecords.map(record => ({
+              name: record.name || 'User',
+              phone: record.phone,
+            }));
 
-          // Send template
-          try {
-             const result = await this.whatsappService.sendBulkTemplateMessageWithNames(
+            try {
+              const result = await this.whatsappService.sendBulkTemplateMessageWithNames(
                 contactsForTemplate,
                 templateName,
                 Number(tenant.userId) || 1, 
                 defaultSettings.id
-             );
-             
-             this.logger.log(`Tenant ${tenantId}: Sequence step ${i + 1} sent successfully. Result: ${JSON.stringify(result)}`);
+              );
+              
+              this.logger.log(`Tenant ${tenantId}: Sequence step ${i + 1} sent successfully.`);
 
-             // Create success logs
-             const logsToCreate = eligibleLeads.map(lead => ({
-               metaLeadId: lead.id,
-               templateName: templateName,
-               status: 'sent',
-               stepIndex: i + 1
-             }));
-             await client.metaLeadAutomationLog.createMany({ data: logsToCreate });
+              // Create success logs and update lastAutomationStep
+              const recordIds = eligibleRecords.map(r => r.id);
+              
+              if (isContact) {
+                const logsToCreate = eligibleRecords.map(record => ({
+                  contactId: record.id,
+                  templateName: templateName,
+                  status: 'sent',
+                  stepIndex: i + 1
+                }));
+                await client.contactAutomationLog.createMany({ data: logsToCreate });
+                
+                await client.contact.updateMany({
+                  where: { id: { in: recordIds } },
+                  data: {
+                    isAutomationSent: true,
+                    automationSentAt: new Date(),
+                    lastAutomationStep: i + 1,
+                  },
+                });
+              } else {
+                const logsToCreate = eligibleRecords.map(record => ({
+                  metaLeadId: record.id,
+                  templateName: templateName,
+                  status: 'sent',
+                  stepIndex: i + 1
+                }));
+                await client.metaLeadAutomationLog.createMany({ data: logsToCreate });
+                
+                await client.metaLead.updateMany({
+                  where: { id: { in: recordIds } },
+                  data: {
+                    isAutomationSent: true,
+                    automationSentAt: new Date(),
+                    lastAutomationStep: i + 1,
+                  },
+                });
+              }
 
-             // Increment lastAutomationStep for processed leads
-             const leadIds = eligibleLeads.map(l => l.id);
-             await client.metaLead.updateMany({
-               where: { id: { in: leadIds } },
-               data: {
-                 isAutomationSent: true,
-                 automationSentAt: new Date(),
-                 lastAutomationStep: i + 1,
-               },
-             });
-
-          } catch (err) {
-             this.logger.error(`Tenant ${tenantId}: Failed to send template ${templateName}`, err);
-             
-             // Create failure logs
-             const errorMsg = err.message || String(err);
-             const logsToCreate = eligibleLeads.map(lead => ({
-               metaLeadId: lead.id,
-               templateName: templateName,
-               status: 'failed',
-               error: errorMsg,
-               stepIndex: i + 1
-             }));
-             await client.metaLeadAutomationLog.createMany({ data: logsToCreate });
+            } catch (err) {
+              this.logger.error(`Tenant ${tenantId}: Failed to send template ${templateName}`, err);
+              
+              const errorMsg = err.message || String(err);
+              if (isContact) {
+                const logsToCreate = eligibleRecords.map(record => ({
+                  contactId: record.id,
+                  templateName: templateName,
+                  status: 'failed',
+                  error: errorMsg,
+                  stepIndex: i + 1
+                }));
+                await client.contactAutomationLog.createMany({ data: logsToCreate });
+              } else {
+                const logsToCreate = eligibleRecords.map(record => ({
+                  metaLeadId: record.id,
+                  templateName: templateName,
+                  status: 'failed',
+                  error: errorMsg,
+                  stepIndex: i + 1
+                }));
+                await client.metaLeadAutomationLog.createMany({ data: logsToCreate });
+              }
+            }
           }
         }
       }

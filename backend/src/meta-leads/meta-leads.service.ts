@@ -767,7 +767,7 @@ export class MetaLeadsService {
     });
   }
 
-  async saveAutomationRule(data: { templateName: string, delayMinutes?: number, delayValue: number, delayUnit: string, isActive: boolean, id?: number }, tenantId: string, dbUrl?: string) {
+  async saveAutomationRule(data: { templateName: string, delayMinutes?: number, delayValue: number, delayUnit: string, isActive: boolean, id?: number, targetType?: string, campaignName?: string, groupId?: number }, tenantId: string, dbUrl?: string) {
     const client = await this.getClient(tenantId, dbUrl);
     
     let delayMinutes = 0;
@@ -783,7 +783,10 @@ export class MetaLeadsService {
           delayValue: data.delayValue,
           delayUnit: data.delayUnit,
           delayMinutes: delayMinutes,
-          isActive: data.isActive
+          isActive: data.isActive,
+          targetType: data.targetType || 'all',
+          campaignName: data.campaignName || null,
+          groupId: data.groupId || null
         }
       });
     } else {
@@ -793,7 +796,10 @@ export class MetaLeadsService {
           delayValue: data.delayValue,
           delayUnit: data.delayUnit,
           delayMinutes: delayMinutes,
-          isActive: data.isActive
+          isActive: data.isActive,
+          targetType: data.targetType || 'all',
+          campaignName: data.campaignName || null,
+          groupId: data.groupId || null
         }
       });
     }

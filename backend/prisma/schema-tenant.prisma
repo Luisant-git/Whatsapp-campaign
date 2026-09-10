@@ -233,6 +233,10 @@ model Contact {
   group                  Group?                  @relation(fields: [groupId], references: [id], onDelete: Cascade)
   runDailyAutomation     RunDailyAutomation[]
   runDailyAutomationLogs RunDailyAutomationLog[]
+  isAutomationSent       Boolean                 @default(false)
+  automationSentAt       DateTime?
+  lastAutomationStep     Int                     @default(0)
+  automationLogs         ContactAutomationLog[]
 
   @@unique([phone])
   @@index([phoneNumberId])
@@ -647,6 +651,9 @@ model MetaLeadAutomation {
   delayValue     Int      @default(5)
   delayUnit      String   @default("minutes")
   delayMinutes   Int      @default(5)
+  targetType     String   @default("all")
+  campaignName   String?
+  groupId        Int?
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -662,6 +669,21 @@ model MetaLeadAutomationLog {
   sentAt               DateTime           @default(now())
   
   metaLead             MetaLead           @relation(fields: [metaLeadId], references: [id], onDelete: Cascade)
+
+  @@index([sentAt])
+  @@index([status])
+}
+
+model ContactAutomationLog {
+  id                   Int                @id @default(autoincrement())
+  contactId            Int
+  templateName         String
+  status               String             // "sent" or "failed"
+  error                String?
+  stepIndex            Int                
+  sentAt               DateTime           @default(now())
+  
+  contact              Contact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@index([sentAt])
   @@index([status])

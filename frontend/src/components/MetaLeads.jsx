@@ -14,9 +14,12 @@ import {
   Trash2,
   MessageSquare,
   Check,
-  X
+  X,
+  Users
 } from 'lucide-react';
 import { sendBulkMessages } from "../api/whatsapp";
+import { groupAPI } from '../api/group';
+import { contactAPI } from '../api/contact';
 import { getAllSettings } from "../api/auth";
 import { useToast } from "../contexts/ToastContext";
 import '../styles/MetaLeads.css';
@@ -62,8 +65,53 @@ const MetaLeads = ({ onNavigate }) => {
   const [templateName, setTemplateName] = useState("");
   const [scheduleType, setScheduleType] = useState("one-time");
   const [scheduledDays, setScheduledDays] = useState([]);
-  const [scheduledTime, setScheduledTime] = useState("09:00");
+  const [composeDateFilter, setComposeDateFilter] = useState('');
   const [sendingCampaign, setSendingCampaign] = useState(false);
+
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [createGroupName, setCreateGroupName] = useState('');
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+
+  const handleCreateGroup = async () => {
+    if (!createGroupName.trim()) {
+      alert("Please enter a group name");
+      return;
+    }
+    setIsCreatingGroup(true);
+    try {
+      const groupRes = await groupAPI.create({ name: createGroupName });
+      const newGroupId = groupRes.data?.id || groupRes.data?.group?.id || groupRes.data?.newGroup?.id;
+      
+      if (!newGroupId) {
+          console.error("No group ID returned", groupRes.data);
+      } else {
+          let successCount = 0;
+          for (const lead of selectedLeads) {
+            if (!lead.phone) continue;
+            try {
+              await contactAPI.create({
+                name: lead.name || 'Meta Lead',
+                phone: lead.phone,
+                groupId: newGroupId
+              });
+              successCount++;
+            } catch (e) {
+              console.error("Failed to add contact", e);
+            }
+          }
+          alert(`Group created! Successfully added ${successCount} contacts.`);
+      }
+
+      setShowCreateGroupModal(false);
+      setCreateGroupName('');
+      setSelectedLeads([]);
+    } catch (error) {
+      console.error('Failed to create group:', error);
+      alert('Failed to create group');
+    } finally {
+      setIsCreatingGroup(false);
+    }
+  };
 
   const daysOfWeek = [
     { value: "sunday", label: "Sunday" },
@@ -603,14 +651,13 @@ const MetaLeads = ({ onNavigate }) => {
               <Trash2 size={18} />
               Delete All
             </button>
-            <label htmlFor="csv-upload" className="sync-btn secondary" style={{ cursor: 'pointer', margin: 0 }}>
-              <Upload size={16} />
-              {importing ? 'Importing...' : 'Import CSV'}
-            </label>
-            <button className="sync-btn secondary" onClick={handleExport}>
-              <Download size={16} />
-              Export
-            </button>
+
+            {selectedLeads.length > 0 && (
+              <button className="sync-btn" onClick={() => setShowCreateGroupModal(true)} style={{ background: '#1877f2' }}>
+                <Users size={16} />
+                Create Group ({selectedLeads.length})
+              </button>
+            )}
             <button className="sync-btn" onClick={handleComposeClick} style={{ background: '#25D366' }}>
               <MessageSquare size={16} />
               {selectedLeads.length > 0 ? `Compose (${selectedLeads.length})` : 'Compose'}
@@ -623,17 +670,27 @@ const MetaLeads = ({ onNavigate }) => {
         </div>
 
         {/* Tabs Section */}
-        <div className="leads-tabs">
-          {tabs.map(tab => (
-            <div 
-              key={tab} 
-              className={`tab-item ${activeTab === tab ? 'active' : ''}`}
-              onClick={() => handleTabChange(tab)}
-            >
-              {tab}
-              <span className="tab-count">{tabCounts[tab] || 0}</span>
-            </div>
-          ))}
+        <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #e2e8f0', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', gap: '8px', padding: '0 16px', borderRight: '1px solid #e2e8f0' }}>
+            <label htmlFor="csv-upload" className="sync-btn secondary" style={{ cursor: 'pointer', margin: 0, padding: '6px 10px', fontSize: '12px', height: '32px' }} title="Import CSV">
+              <Upload size={14} style={{ marginRight: '4px' }} /> Import
+            </label>
+            <button className="sync-btn secondary" onClick={handleExport} style={{ padding: '6px 10px', fontSize: '12px', height: '32px' }} title="Export">
+              <Download size={14} style={{ marginRight: '4px' }} /> Export
+            </button>
+          </div>
+          <div className="leads-tabs" style={{ borderBottom: 'none', marginBottom: 0, paddingLeft: '8px' }}>
+            {tabs.map(tab => (
+              <div 
+                key={tab} 
+                className={`tab-item ${activeTab === tab ? 'active' : ''}`}
+                onClick={() => handleTabChange(tab)}
+              >
+                {tab}
+                <span className="tab-count">{tabCounts[tab] || 0}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Filters & Table Section */}
@@ -1117,6 +1174,43 @@ const MetaLeads = ({ onNavigate }) => {
             <div className="modal-footer" style={{ borderTop: 'none', paddingTop: '0' }}>
               <button className="sync-btn secondary" onClick={() => setShowSyncModal(false)}>Cancel</button>
               <button className="sync-btn" onClick={performSync}>Start Sync</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Group Modal */}
+      {showCreateGroupModal && (
+        <div className="modal-overlay" onClick={() => setShowCreateGroupModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '450px' }}>
+            <div className="modal-header">
+              <h2>Create Contact Group</h2>
+              <button className="modal-close" onClick={() => setShowCreateGroupModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ color: '#65676B', marginBottom: '20px', fontSize: '14px' }}>
+                Create a new Contact Group from the {selectedLeads.length} selected lead(s).
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21', textTransform: 'uppercase' }}>Group Name <span style={{ color: 'red' }}>*</span></label>
+                <input 
+                  type="text" 
+                  value={createGroupName}
+                  onChange={(e) => setCreateGroupName(e.target.value)}
+                  placeholder="e.g., Q3 High Intent Leads"
+                  style={{ 
+                    width: '100%', padding: '10px 12px', border: '1px solid #ced0d4', borderRadius: '6px',
+                    outline: 'none', fontSize: '14px'
+                  }}
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="modal-footer" style={{ borderTop: 'none', paddingTop: '0' }}>
+              <button className="sync-btn secondary" onClick={() => setShowCreateGroupModal(false)} disabled={isCreatingGroup}>Cancel</button>
+              <button className="sync-btn" onClick={handleCreateGroup} disabled={isCreatingGroup} style={{ background: '#1877f2' }}>
+                {isCreatingGroup ? 'Creating...' : 'Create & Add Contacts'}
+              </button>
             </div>
           </div>
         </div>

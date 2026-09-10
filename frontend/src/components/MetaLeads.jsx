@@ -54,6 +54,9 @@ const MetaLeads = ({ onNavigate }) => {
   const [specificFormId, setSpecificFormId] = useState('');
   const fileInputRef = useRef(null);
 
+  // Selection state
+  const [selectedLeads, setSelectedLeads] = useState([]);
+
   // Bulk Message states
   const [settings, setSettings] = useState([]);
   const [templateName, setTemplateName] = useState("");
@@ -97,6 +100,28 @@ const MetaLeads = ({ onNavigate }) => {
   const uniqueTemplateNames = useMemo(() => {
     return [...new Set(settings.map((item) => item.templateName).filter(Boolean))];
   }, [settings]);
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const newSelected = [...selectedLeads];
+      leads.forEach(lead => {
+        if (!newSelected.find(l => l.id === lead.id)) {
+          newSelected.push(lead);
+        }
+      });
+      setSelectedLeads(newSelected);
+    } else {
+      setSelectedLeads(selectedLeads.filter(l => !leads.find(currL => currL.id === l.id)));
+    }
+  };
+
+  const handleSelectLead = (lead, e) => {
+    e.stopPropagation();
+    setSelectedLeads(prev => 
+      prev.find(l => l.id === lead.id) ? prev.filter(l => l.id !== lead.id) : [...prev, lead]
+    );
+  };
+
 
   const fetchLeads = async () => {
     try {
@@ -464,8 +489,8 @@ const MetaLeads = ({ onNavigate }) => {
   };
 
   const proceedToCompose = async () => {
-    if (!composeCampaignFilter) {
-      showError('Please select a Form Campaign.');
+    if (selectedLeads.length === 0 && !composeCampaignFilter) {
+      showError('Please select a Form Campaign or select leads.');
       return;
     }
     if (!composeCampaignName.trim()) {
@@ -483,23 +508,31 @@ const MetaLeads = ({ onNavigate }) => {
     
     try {
       setSendingCampaign(true);
-      const tenantId = localStorage.getItem('tenantId');
-      const { data } = await axios.get(`${API_BASE_URL}/meta-leads`, {
-        params: { page: 1, limit: 10000, search: '', status: '', campaignName: composeCampaignFilter },
-        headers: { 'x-tenant-id': tenantId },
-        withCredentials: true,
-      });
+      let dataToSend = [];
 
-      const leadsToCompose = data.data || [];
-      if (leadsToCompose.length === 0) {
-        showError('No leads found for this campaign.');
-        setSendingCampaign(false);
-        return;
+      if (selectedLeads.length > 0) {
+        dataToSend = selectedLeads
+          .filter(lead => lead.phone)
+          .map(lead => ({ phone: lead.phone, name: lead.name || '' }));
+      } else {
+        const tenantId = localStorage.getItem('tenantId');
+        const { data } = await axios.get(`${API_BASE_URL}/meta-leads`, {
+          params: { page: 1, limit: 10000, search: '', status: '', campaignName: composeCampaignFilter },
+          headers: { 'x-tenant-id': tenantId },
+          withCredentials: true,
+        });
+
+        const leadsToCompose = data.data || [];
+        if (leadsToCompose.length === 0) {
+          showError('No leads found for this campaign.');
+          setSendingCampaign(false);
+          return;
+        }
+
+        dataToSend = leadsToCompose
+          .filter(lead => lead.phone)
+          .map(lead => ({ phone: lead.phone, name: lead.name || '' }));
       }
-
-      const dataToSend = leadsToCompose
-        .filter(lead => lead.phone)
-        .map(lead => ({ phone: lead.phone, name: lead.name || '' }));
 
       if (dataToSend.length === 0) {
         showError('No valid phone numbers found for this campaign.');
@@ -536,6 +569,7 @@ const MetaLeads = ({ onNavigate }) => {
       if (response.success) {
         showSuccess(`Campaign started! Sending to ${dataToSend.length} contacts in the background.`);
         setShowComposeModal(false);
+        setSelectedLeads([]);
       } else {
         throw new Error(response.message || "Failed to start campaign");
       }
@@ -579,7 +613,7 @@ const MetaLeads = ({ onNavigate }) => {
             </button>
             <button className="sync-btn" onClick={handleComposeClick} style={{ background: '#25D366' }}>
               <MessageSquare size={16} />
-              Compose
+              {selectedLeads.length > 0 ? `Compose (${selectedLeads.length})` : 'Compose'}
             </button>
             <button onClick={handleSyncClick} disabled={syncing} className="sync-btn">
               <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
@@ -653,6 +687,14 @@ const MetaLeads = ({ onNavigate }) => {
           <table className="meta-table">
             <thead>
               <tr>
+                <th style={{ width: '40px', textAlign: 'center' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={leads.length > 0 && leads.every(lead => selectedLeads.find(l => l.id === lead.id))}
+                    onChange={handleSelectAll}
+                    style={{ accentColor: '#1877f2', cursor: 'pointer', width: '16px', height: '16px' }}
+                  />
+                </th>
                 <th>Name</th>
                 <th>Campaign</th>
                 <th>Status</th>
@@ -665,20 +707,35 @@ const MetaLeads = ({ onNavigate }) => {
               {loading ? (
                 Array(5).fill(0).map((_, i) => (
                   <tr key={i}>
-                    <td colSpan="6">
+                    <td colSpan="7">
                       <div className="shimmer" style={{ height: '40px', borderRadius: '4px' }}></div>
                     </td>
                   </tr>
                 ))
               ) : leads.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#65676B' }}>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#65676B' }}>
                     No leads found matching your criteria.
                   </td>
                 </tr>
               ) : (
                 leads.map((lead) => (
-                  <tr key={lead.id} onClick={() => viewLeadDetails(lead)} style={{ cursor: 'pointer' }}>
+                  <tr 
+                    key={lead.id} 
+                    onClick={() => viewLeadDetails(lead)} 
+                    style={{ 
+                      cursor: 'pointer', 
+                      backgroundColor: selectedLeads.find(l => l.id === lead.id) ? '#f0f7ff' : 'transparent' 
+                    }}
+                  >
+                    <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={!!selectedLeads.find(l => l.id === lead.id)}
+                        onChange={(e) => handleSelectLead(lead, e)}
+                        style={{ accentColor: '#1877f2', cursor: 'pointer', width: '16px', height: '16px' }}
+                      />
+                    </td>
                     <td>
                       <div className="lead-name-cell">
                         <div className="lead-initials">
@@ -1079,27 +1136,33 @@ const MetaLeads = ({ onNavigate }) => {
               </p>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21', textTransform: 'uppercase' }}>Target Form Campaign <span style={{ color: 'red' }}>*</span></label>
-                  <select 
-                    value={composeCampaignFilter} 
-                    onChange={(e) => {
-                      setComposeCampaignFilter(e.target.value);
-                      if (e.target.value) {
-                        setComposeCampaignName(e.target.value);
-                      }
-                    }}
-                    style={{ 
-                      width: '100%', padding: '10px 12px', border: '1px solid #ced0d4', borderRadius: '6px',
-                      outline: 'none', fontSize: '14px', backgroundColor: 'white', cursor: 'pointer'
-                    }}
-                  >
-                    <option value="">Select a Campaign</option>
-                    {campaigns.map(campaign => (
-                      <option key={campaign} value={campaign}>{campaign}</option>
-                    ))}
-                  </select>
-                </div>
+                {selectedLeads.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21', textTransform: 'uppercase' }}>Target</label>
+                    <div style={{ padding: '10px 12px', border: '1px solid #ced0d4', borderRadius: '6px', backgroundColor: '#e7f3ff', color: '#1877f2', fontWeight: 500, fontSize: '14px' }}>
+                      Sending to {selectedLeads.length} selected lead{selectedLeads.length !== 1 ? 's' : ''}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21', textTransform: 'uppercase' }}>Target Form Campaign <span style={{ color: 'red' }}>*</span></label>
+                    <select 
+                      value={composeCampaignFilter} 
+                      onChange={(e) => {
+                        setComposeCampaignFilter(e.target.value);
+                      }}
+                      style={{ 
+                        width: '100%', padding: '10px 12px', border: '1px solid #ced0d4', borderRadius: '6px',
+                        outline: 'none', fontSize: '14px', backgroundColor: 'white', cursor: 'pointer'
+                      }}
+                    >
+                      <option value="">Select a Campaign</option>
+                      {campaigns.map(campaign => (
+                        <option key={campaign} value={campaign}>{campaign}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <label style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21', textTransform: 'uppercase' }}>Campaign Name <span style={{ color: 'red' }}>*</span></label>

@@ -9,10 +9,12 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3010
 const MetaLeadsAutomation = () => {
   const [rules, setRules] = useState([]);
   const [templates, setTemplates] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({ 
+    campaignName: '',
     templateName: '', 
     delayValue: 5, 
     delayUnit: 'minutes', 
@@ -22,6 +24,7 @@ const MetaLeadsAutomation = () => {
   useEffect(() => {
     fetchRules();
     fetchTemplates();
+    fetchCampaigns();
   }, []);
 
   const getHeaders = () => {
@@ -58,6 +61,20 @@ const MetaLeadsAutomation = () => {
     }
   };
 
+  const fetchCampaigns = async () => {
+    try {
+      const { data } = await axios.get(`${API_BASE_URL}/meta-leads`, {
+        params: { page: 1, limit: 1000 },
+        headers: getHeaders(),
+        withCredentials: true,
+      });
+      const uniqueCampaigns = [...new Set(data.data?.map(lead => lead.campaignName).filter(Boolean))];
+      setCampaigns(uniqueCampaigns);
+    } catch (error) {
+      console.error('Error fetching campaigns:', error);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.templateName) {
@@ -68,6 +85,7 @@ const MetaLeadsAutomation = () => {
     setIsSubmitting(true);
     try {
       const response = await axios.post(`${API_BASE_URL}/meta-leads/automation-rules`, {
+        campaignName: formData.campaignName,
         templateName: formData.templateName,
         delayValue: parseInt(formData.delayValue, 10),
         delayUnit: formData.delayUnit,
@@ -79,7 +97,7 @@ const MetaLeadsAutomation = () => {
 
       if (response.data && !response.data.error) {
         fetchRules();
-        setFormData({ templateName: '', delayValue: 5, delayUnit: 'minutes', isActive: true });
+        setFormData({ campaignName: '', templateName: '', delayValue: 5, delayUnit: 'minutes', isActive: true });
       }
     } catch (error) {
       console.error('Failed to save rule:', error);
@@ -149,78 +167,93 @@ const MetaLeadsAutomation = () => {
         </div>
         
         <form onSubmit={handleSubmit} className="settings-form" style={{ padding: 0 }}>
-          <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div className="form-group" style={{ flex: 1, minWidth: '200px' }}>
-              <label className="form-label">
-                <Clock size={16} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '6px' }} />
-                Wait Time
-              </label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input
-                  type="number"
-                  className="form-input"
-                  min="0"
-                  value={formData.delayValue}
-                  onChange={(e) => setFormData({ ...formData, delayValue: e.target.value })}
-                  placeholder="e.g., 5"
-                  required
-                  style={{ flex: 1 }}
-                />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div className="form-group" style={{ flex: 1, minWidth: '200px' }}>
+                <label className="form-label">Target Campaign (Optional)</label>
                 <select
                   className="form-input"
-                  value={formData.delayUnit}
-                  onChange={(e) => setFormData({ ...formData, delayUnit: e.target.value })}
-                  style={{ flex: 1 }}
+                  value={formData.campaignName}
+                  onChange={(e) => setFormData({ ...formData, campaignName: e.target.value })}
+                  style={{ width: '100%', minHeight: '48px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}
                 >
-                  <option value="minutes">Minutes</option>
-                  <option value="hours">Hours</option>
-                  <option value="days">Days</option>
+                  <option value="">All Campaigns (Any new lead)</option>
+                  {campaigns.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
                 </select>
+              </div>
+
+              <div className="form-group" style={{ flex: 1, minWidth: '200px' }}>
+                <label className="form-label">
+                  <Clock size={16} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '6px' }} />
+                  Wait Time
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="number"
+                    className="form-input"
+                    min="0"
+                    value={formData.delayValue}
+                    onChange={(e) => setFormData({ ...formData, delayValue: e.target.value })}
+                    placeholder="e.g., 5"
+                    required
+                    style={{ flex: 1, minHeight: '48px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  />
+                  <select
+                    className="form-input"
+                    value={formData.delayUnit}
+                    onChange={(e) => setFormData({ ...formData, delayUnit: e.target.value })}
+                    style={{ flex: 1, minHeight: '48px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  >
+                    <option value="minutes">Minutes</option>
+                    <option value="hours">Hours</option>
+                    <option value="days">Days</option>
+                  </select>
+                </div>
               </div>
             </div>
 
-            <div style={{ color: '#94a3b8', paddingBottom: '14px', display: 'flex', alignItems: 'center' }}>
-              <ArrowRight size={24} />
-            </div>
+            <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div className="form-group" style={{ flex: 2, minWidth: '250px' }}>
+                <label className="form-label">Then Send Template</label>
+                <Select
+                  options={templates.map(t => ({ value: t.name, label: t.name }))}
+                  value={formData.templateName ? { value: formData.templateName, label: formData.templateName } : null}
+                  onChange={(option) => setFormData({ ...formData, templateName: option ? option.value : '' })}
+                  placeholder="Select a WhatsApp Template..."
+                  isClearable
+                  isSearchable
+                  styles={{
+                    control: (base) => ({
+                      ...base,
+                      minHeight: '48px',
+                      borderRadius: '8px',
+                      borderColor: '#cbd5e1',
+                      boxShadow: 'none',
+                      '&:hover': {
+                        borderColor: '#94a3b8'
+                      }
+                    })
+                  }}
+                />
+              </div>
 
-            <div className="form-group" style={{ flex: 2, minWidth: '250px' }}>
-              <label className="form-label">Then Send Template</label>
-              <Select
-                options={templates.map(t => ({ value: t.name, label: t.name }))}
-                value={formData.templateName ? { value: formData.templateName, label: formData.templateName } : null}
-                onChange={(option) => setFormData({ ...formData, templateName: option ? option.value : '' })}
-                placeholder="Select a WhatsApp Template..."
-                isClearable
-                isSearchable
-                styles={{
-                  control: (base) => ({
-                    ...base,
-                    minHeight: '48px',
-                    borderRadius: '8px',
-                    borderColor: '#cbd5e1',
-                    boxShadow: 'none',
-                    '&:hover': {
-                      borderColor: '#94a3b8'
-                    }
-                  })
-                }}
-              />
-            </div>
-
-            <div className="form-group" style={{ minWidth: '180px' }}>
-              <button 
-                type="submit" 
-                className="btn-primary" 
-                disabled={isSubmitting || !formData.templateName}
-                style={{ width: '100%', height: '48px', justifyContent: 'center' }}
-              >
-                {isSubmitting ? 'Saving...' : (
-                  <>
-                    <Play size={18} />
-                    Start Automating
-                  </>
-                )}
-              </button>
+              <div className="form-group" style={{ minWidth: '180px' }}>
+                <button 
+                  type="submit" 
+                  className="btn-primary" 
+                  disabled={isSubmitting || !formData.templateName}
+                  style={{ width: '100%', height: '48px', justifyContent: 'center', backgroundColor: '#1877f2', color: 'white', borderRadius: '8px', border: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', cursor: (isSubmitting || !formData.templateName) ? 'not-allowed' : 'pointer' }}
+                >
+                  {isSubmitting ? 'Saving...' : (
+                    <>
+                      <Play size={18} />
+                      Start Automating
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </form>
@@ -254,11 +287,24 @@ const MetaLeadsAutomation = () => {
                     fontSize: '13px', fontWeight: 'bold'
                   }}>{index + 1}</div>
 
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ fontWeight: 600, fontSize: '13px', color: '#1e293b' }}>{rule.templateName}</span>
-                    <span style={{ marginLeft: '10px', fontSize: '12px', color: '#64748b' }}>
-                      <Clock size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '3px' }} />
-                      {rule.delayValue || rule.delayMinutes} {rule.delayUnit || 'minutes'}{!rule.isActive && <span style={{ color: '#ef4444', marginLeft: '6px' }}>Paused</span>}
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 600, fontSize: '14px', color: '#1c1e21' }}>{rule.templateName}</span>
+                      {rule.campaignName && (
+                        <span style={{ marginLeft: '10px', fontSize: '11px', backgroundColor: '#e7f3ff', color: '#1877f2', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                          {rule.campaignName}
+                        </span>
+                      )}
+                      {!rule.campaignName && (
+                        <span style={{ marginLeft: '10px', fontSize: '11px', backgroundColor: '#f3f4f6', color: '#4b5563', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                          All Campaigns
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: '12px', color: '#65676b', display: 'flex', alignItems: 'center' }}>
+                      <Clock size={12} style={{ display: 'inline', marginRight: '4px' }} />
+                      Wait {rule.delayValue || rule.delayMinutes} {rule.delayUnit || 'minutes'} before sending
+                      {!rule.isActive && <span style={{ color: '#ef4444', marginLeft: '6px', fontWeight: 600 }}>• Paused</span>}
                     </span>
                   </div>
 

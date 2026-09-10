@@ -188,7 +188,7 @@ const RunAutomationLogs = () => {
               color: activeTab === 'META_LEADS' ? '#fff' : '#1e293b', 
             }}
             onClick={() => { setActiveTab('META_LEADS'); setPage(1); }}
-          >Meta Leads</button>
+          >Campaigns</button>
         </div>
       </div>
 
@@ -292,7 +292,7 @@ const RunAutomationLogs = () => {
               <thead>
                 <tr>
                   <th>S.NO</th>
-                  <th>{activeTab === 'DAILY' ? 'Contact' : 'Lead Name'}</th>
+                  <th>{activeTab === 'DAILY' ? 'Contact' : 'Recipient Name'}</th>
                   <th>Phone</th>
                   {activeTab === 'DAILY' && <th>Type</th>}
                   {activeTab === 'DAILY' && <th>Day Offset</th>}
@@ -307,8 +307,8 @@ const RunAutomationLogs = () => {
                 {rows.map((r, idx) => (
                   <tr key={r.id}>
                     <td>{(page - 1) * limit + idx + 1}</td>
-                    <td>{activeTab === 'DAILY' ? r.contact?.name || "-" : r.metaLead?.name || "-"}</td>
-                    <td>{activeTab === 'DAILY' ? r.contact?.phone || "-" : r.metaLead?.phone || "-"}</td>
+                    <td>{activeTab === 'DAILY' ? r.contact?.name || "-" : (r.metaLead?.name || r.contact?.name || "-")}</td>
+                    <td>{activeTab === 'DAILY' ? r.contact?.phone || "-" : (r.metaLead?.phone || r.contact?.phone || "-")}</td>
                     {activeTab === 'DAILY' && <td>{r.runDailyAutomation?.eventType || "-"}</td>}
                     {activeTab === 'DAILY' && <td>{r.runDailyAutomation?.dayBefore ?? "-"}</td>}
                     {activeTab === 'META_LEADS' && <td>{r.stepIndex ?? "-"}</td>}

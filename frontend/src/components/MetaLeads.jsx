@@ -705,58 +705,27 @@ const MetaLeads = ({ onNavigate }) => {
               style={{ display: 'none' }}
               id="csv-upload"
             />
-
-            {/* Import / Export moved here */}
-            <label htmlFor="csv-upload" className="sync-btn secondary" style={{ cursor: 'pointer', margin: 0 }} title="Import CSV">
-              <Upload size={16} /> {importing ? 'Importing...' : 'Import'}
-            </label>
-            <button className="sync-btn secondary" onClick={handleExport} title="Export CSV">
-              <Download size={16} /> Export
-            </button>
-
             <button onClick={openDeleteAllConfirm} className="sync-btn" style={{ background: '#dc3545' }}>
-              <Trash2 size={18} />
-              Delete All
+              <Trash2 size={18} /> Delete All
             </button>
-
             {selectedLeads.length > 0 && (
               <div style={{ position: 'relative' }} ref={groupMenuRef}>
-                <button
-                  className="sync-btn"
-                  style={{ background: '#1877f2' }}
-                  onClick={() => setShowGroupActionMenu(v => !v)}
-                >
-                  <Users size={16} />
-                  Group ({selectedLeads.length}) ▾
+                <button className="sync-btn" style={{ background: '#1877f2' }} onClick={() => setShowGroupActionMenu(v => !v)}>
+                  <Users size={16} /> Group ({selectedLeads.length}) ▾
                 </button>
                 {showGroupActionMenu && (
-                  <div style={{
-                    position: 'absolute', top: '110%', right: 0, background: '#fff',
-                    border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                    zIndex: 999, minWidth: 200, overflow: 'hidden'
-                  }}>
-                    <button
-                      onClick={() => { setShowGroupActionMenu(false); setShowCreateGroupModal(true); }}
-                      style={{ width: '100%', padding: '11px 16px', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 14, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}
-                      onMouseOver={e => e.currentTarget.style.background = '#f1f5f9'}
-                      onMouseOut={e => e.currentTarget.style.background = 'none'}
-                    >
+                  <div style={{ position: 'absolute', top: '110%', right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 999, minWidth: 210, overflow: 'hidden' }}>
+                    <button onClick={() => { setShowGroupActionMenu(false); setShowCreateGroupModal(true); }} className="group-menu-item">
                       <Users size={15} color="#1877f2" /> Create New Group
                     </button>
                     <div style={{ height: 1, background: '#f1f5f9' }} />
-                    <button
-                      onClick={() => { setShowGroupActionMenu(false); setAllocateGroupId(''); setShowAllocateModal(true); }}
-                      style={{ width: '100%', padding: '11px 16px', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 14, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}
-                      onMouseOver={e => e.currentTarget.style.background = '#f1f5f9'}
-                      onMouseOut={e => e.currentTarget.style.background = 'none'}
-                    >
+                    <button onClick={() => { setShowGroupActionMenu(false); setAllocateGroupId(''); setShowAllocateModal(true); }} className="group-menu-item">
                       <ThumbsUp size={15} color="#16a34a" /> Allocate to Existing Group
                     </button>
                   </div>
                 )}
               </div>
             )}
-
             <button className="sync-btn" onClick={handleComposeClick} style={{ background: '#25D366' }}>
               <MessageSquare size={16} />
               {selectedLeads.length > 0 ? `Compose (${selectedLeads.length})` : 'Compose'}
@@ -768,8 +737,8 @@ const MetaLeads = ({ onNavigate }) => {
           </div>
         </div>
 
-        {/* Tabs Section */}
-        <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #e2e8f0', marginBottom: '20px' }}>
+        {/* Tabs + Import/Export row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', marginBottom: '20px' }}>
           <div className="leads-tabs" style={{ borderBottom: 'none', marginBottom: 0 }}>
             {tabs.map(tab => (
               <div
@@ -781,6 +750,23 @@ const MetaLeads = ({ onNavigate }) => {
                 <span className="tab-count">{tabCounts[tab] || 0}</span>
               </div>
             ))}
+          </div>
+          {/* Import / Export — small icon buttons on the right */}
+          <div style={{ display: 'flex', gap: 6, paddingRight: 4, paddingBottom: 6 }}>
+            <label
+              htmlFor="csv-upload"
+              title="Import CSV"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', background: '#f0f2f5', border: '1px solid #dddfe2', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#1c1e21', whiteSpace: 'nowrap' }}
+            >
+              <Upload size={13} /> {importing ? 'Importing...' : 'Import'}
+            </label>
+            <button
+              onClick={handleExport}
+              title="Export CSV"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', background: '#f0f2f5', border: '1px solid #dddfe2', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#1c1e21', whiteSpace: 'nowrap' }}
+            >
+              <Download size={13} /> Export
+            </button>
           </div>
         </div>
 
@@ -1273,34 +1259,45 @@ const MetaLeads = ({ onNavigate }) => {
       {/* Allocate to Existing Group Modal */}
       {showAllocateModal && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '450px' }}>
+          <div className="modal-content" style={{ maxWidth: '460px' }}>
             <div className="modal-header">
-              <h3>Allocate to Existing Group</h3>
-              <button className="close-btn" onClick={() => setShowAllocateModal(false)}><X size={20} /></button>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ThumbsUp size={18} color="#16a34a" /> Allocate to Group
+              </h2>
+              <button className="modal-close" onClick={() => setShowAllocateModal(false)}>&times;</button>
             </div>
-            <div className="modal-body" style={{ padding: '24px' }}>
-              <p style={{ marginBottom: '16px', color: '#64748b', fontSize: 14 }}>
-                Add <strong>{selectedLeads.length}</strong> selected lead(s) as contacts into an existing group.
-              </p>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '8px', display: 'block' }}>SELECT GROUP <span style={{ color: '#ef4444' }}>*</span></label>
+            <div className="modal-body">
+              {/* Selected leads preview */}
+              <div style={{ background: '#f0f2f5', borderRadius: 8, padding: '10px 14px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Users size={16} color="#1877f2" />
+                <span style={{ fontSize: 14, color: '#1c1e21', fontWeight: 600 }}>{selectedLeads.length} lead{selectedLeads.length !== 1 ? 's' : ''} selected</span>
+                <span style={{ fontSize: 13, color: '#65676b' }}>will be added as contacts</span>
+              </div>
+              <div className="form-group">
+                <label style={{ fontSize: 13, fontWeight: 700, color: '#1c1e21', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Select Group <span style={{ color: '#dc3545' }}>*</span></label>
                 <select
                   className="form-input"
                   value={allocateGroupId}
                   onChange={e => setAllocateGroupId(e.target.value)}
-                  style={{ width: '100%', minHeight: '44px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  style={{ marginTop: 6 }}
                 >
-                  <option value="">— Select a group —</option>
+                  <option value="">— Choose a group —</option>
                   {groups.map(g => (
                     <option key={g.id} value={g.id}>{g.name}</option>
                   ))}
                 </select>
               </div>
             </div>
-            <div className="modal-footer" style={{ borderTop: '1px solid #f1f5f9', padding: '16px 24px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button className="btn-secondary" onClick={() => setShowAllocateModal(false)} disabled={isAllocating}>Cancel</button>
-              <button className="btn-primary" onClick={handleAllocateToGroup} disabled={isAllocating || !allocateGroupId}>
-                {isAllocating ? 'Allocating...' : 'Allocate'}
+            <div className="modal-footer">
+              <button className="sync-btn secondary" onClick={() => setShowAllocateModal(false)} disabled={isAllocating}>Cancel</button>
+              <button
+                className="sync-btn"
+                onClick={handleAllocateToGroup}
+                disabled={isAllocating || !allocateGroupId}
+                style={{ background: isAllocating || !allocateGroupId ? '#90caf9' : '#1877f2' }}
+              >
+                <ThumbsUp size={15} />
+                {isAllocating ? 'Allocating...' : 'Allocate Contacts'}
               </button>
             </div>
           </div>
@@ -1310,36 +1307,43 @@ const MetaLeads = ({ onNavigate }) => {
       {/* Create Group Modal */}
       {showCreateGroupModal && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '450px' }}>
+          <div className="modal-content" style={{ maxWidth: '460px' }}>
             <div className="modal-header">
-              <h3>Create Contact Group</h3>
-              <button className="close-btn" onClick={() => setShowCreateGroupModal(false)}><X size={20} /></button>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Users size={18} color="#1877f2" /> Create New Group
+              </h2>
+              <button className="modal-close" onClick={() => setShowCreateGroupModal(false)}>&times;</button>
             </div>
-            <div className="modal-body" style={{ padding: '24px' }}>
-              <p style={{ marginBottom: '16px', color: '#64748b' }}>
-                Create a new Contact Group from the {selectedLeads.length} selected lead(s).
-              </p>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '8px', display: 'block' }}>GROUP NAME <span style={{color: '#ef4444'}}>*</span></label>
+            <div className="modal-body">
+              {/* Selected leads preview */}
+              <div style={{ background: '#f0f2f5', borderRadius: 8, padding: '10px 14px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Users size={16} color="#1877f2" />
+                <span style={{ fontSize: 14, color: '#1c1e21', fontWeight: 600 }}>{selectedLeads.length} lead{selectedLeads.length !== 1 ? 's' : ''} selected</span>
+                <span style={{ fontSize: 13, color: '#65676b' }}>will be added as contacts</span>
+              </div>
+              <div className="form-group">
+                <label style={{ fontSize: 13, fontWeight: 700, color: '#1c1e21', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Group Name <span style={{ color: '#dc3545' }}>*</span></label>
                 <input
                   type="text"
                   className="form-input"
                   value={createGroupName}
-                  onChange={(e) => setCreateGroupName(e.target.value)}
-                  placeholder="e.g., Summer Campaign Leads"
-                  style={{ width: '100%', minHeight: '44px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  onChange={e => setCreateGroupName(e.target.value)}
+                  placeholder="e.g. Summer Campaign Leads"
                   autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleCreateGroup();
-                  }}
+                  style={{ marginTop: 6 }}
+                  onKeyDown={e => { if (e.key === 'Enter') handleCreateGroup(); }}
                 />
               </div>
             </div>
-            <div className="modal-footer" style={{ borderTop: '1px solid #f1f5f9', padding: '16px 24px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button className="btn-secondary" onClick={() => setShowCreateGroupModal(false)} disabled={isCreatingGroup} style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', cursor: 'pointer' }}>
-                Cancel
-              </button>
-              <button className="btn-primary" onClick={handleCreateGroup} disabled={isCreatingGroup || !createGroupName.trim()} style={{ padding: '8px 16px', borderRadius: '8px', background: '#3b82f6', color: 'white', border: 'none', cursor: (isCreatingGroup || !createGroupName.trim()) ? 'not-allowed' : 'pointer' }}>
+            <div className="modal-footer">
+              <button className="sync-btn secondary" onClick={() => setShowCreateGroupModal(false)} disabled={isCreatingGroup}>Cancel</button>
+              <button
+                className="sync-btn"
+                onClick={handleCreateGroup}
+                disabled={isCreatingGroup || !createGroupName.trim()}
+                style={{ background: isCreatingGroup || !createGroupName.trim() ? '#90caf9' : '#1877f2' }}
+              >
+                <Users size={15} />
                 {isCreatingGroup ? 'Creating...' : 'Create Group'}
               </button>
             </div>

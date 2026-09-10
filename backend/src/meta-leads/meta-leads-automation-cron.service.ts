@@ -118,6 +118,8 @@ export class MetaLeadsAutomationCronService {
               phone: record.phone,
             }));
 
+            const recordIds = eligibleRecords.map(r => r.id);
+
             try {
               const result = await this.whatsappService.sendBulkTemplateMessageWithNames(
                 contactsForTemplate,
@@ -129,8 +131,6 @@ export class MetaLeadsAutomationCronService {
               this.logger.log(`Tenant ${tenantId}: Sequence step ${i + 1} sent successfully.`);
 
               // Create success logs and update lastAutomationStep
-              const recordIds = eligibleRecords.map(r => r.id);
-              
               if (isContact) {
                 const logsToCreate = eligibleRecords.map(record => ({
                   contactId: record.id,

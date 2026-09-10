@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Trash2, Clock, Play, ArrowRight } from 'lucide-react';
+import { Trash2, Clock, Play, ArrowRight, Target, MessageSquare } from 'lucide-react';
 import '../styles/Settings.css';
 import Select from 'react-select';
 
@@ -202,75 +202,81 @@ const MetaLeadsAutomation = () => {
         </div>
       </div>
 
-      <div className="preference-card" style={{ marginBottom: '32px' }}>
-        <div className="preference-header">
-          <h2>Create New Automation</h2>
-          <p>Set a target, a delay, and pick a template to automatically engage.</p>
+      <div className="preference-card" style={{ marginBottom: '40px', padding: '32px', maxWidth: '800px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}>
+        <div className="preference-header" style={{ marginBottom: '24px', borderBottom: '1px solid #f1f5f9', paddingBottom: '16px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 600 }}>Create Automation Rule</h2>
+          <p style={{ color: '#64748b' }}>Configure your automated WhatsApp engagement sequence.</p>
         </div>
         
         <form onSubmit={handleSubmit} className="settings-form" style={{ padding: 0 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-              
-              <div className="form-group" style={{ flex: 1, minWidth: '200px' }}>
-                <label className="form-label">Target Type</label>
-                <select
-                  className="form-input"
-                  value={formData.targetType}
-                  onChange={(e) => setFormData({ ...formData, targetType: e.target.value })}
-                  style={{ width: '100%', minHeight: '48px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}
-                >
-                  <option value="all">Global (All New Records)</option>
-                  <option value="meta_campaign">Meta Lead Campaign</option>
-                  <option value="contact_group">Contact Group</option>
-                </select>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+            
+            {/* Step 1: Target */}
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#e0e7ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>1</div>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Target size={16} /> Choose Target Audience
+                </h3>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  <div className="form-group" style={{ flex: 1, minWidth: '200px', margin: 0 }}>
+                    <select
+                      className="form-input"
+                      value={formData.targetType}
+                      onChange={(e) => setFormData({ ...formData, targetType: e.target.value })}
+                      style={{ width: '100%', minHeight: '44px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}
+                    >
+                      <option value="all">Global (All New Records)</option>
+                      <option value="meta_campaign">Meta Lead Campaign</option>
+                      <option value="contact_group">Contact Group</option>
+                    </select>
+                  </div>
+
+                  {formData.targetType === 'meta_campaign' && (
+                    <div className="form-group" style={{ flex: 1, minWidth: '200px', margin: 0 }}>
+                      <select
+                        className="form-input"
+                        value={formData.campaignName}
+                        onChange={(e) => setFormData({ ...formData, campaignName: e.target.value })}
+                        style={{ width: '100%', minHeight: '44px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}
+                        required
+                      >
+                        <option value="">Select a Campaign...</option>
+                        {campaigns.map(c => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {formData.targetType === 'contact_group' && (
+                    <div className="form-group" style={{ flex: 1, minWidth: '200px', margin: 0 }}>
+                      <select
+                        className="form-input"
+                        value={formData.groupId}
+                        onChange={(e) => setFormData({ ...formData, groupId: e.target.value })}
+                        style={{ width: '100%', minHeight: '44px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}
+                        required
+                      >
+                        <option value="">Select a Group...</option>
+                        {contactGroups.map(g => (
+                          <option key={g.id} value={g.id}>{g.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
               </div>
-
-              {formData.targetType === 'meta_campaign' && (
-                <div className="form-group" style={{ flex: 1, minWidth: '200px' }}>
-                  <label className="form-label">Select Meta Campaign</label>
-                  <select
-                    className="form-input"
-                    value={formData.campaignName}
-                    onChange={(e) => setFormData({ ...formData, campaignName: e.target.value })}
-                    style={{ width: '100%', minHeight: '48px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}
-                    required
-                  >
-                    <option value="">Select a Campaign...</option>
-                    {campaigns.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {formData.targetType === 'contact_group' && (
-                <div className="form-group" style={{ flex: 1, minWidth: '200px' }}>
-                  <label className="form-label">Select Contact Group</label>
-                  <select
-                    className="form-input"
-                    value={formData.groupId}
-                    onChange={(e) => setFormData({ ...formData, groupId: e.target.value })}
-                    style={{ width: '100%', minHeight: '48px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}
-                    required
-                  >
-                    <option value="">Select a Group...</option>
-                    {contactGroups.map(g => (
-                      <option key={g.id} value={g.id}>{g.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
             </div>
 
-            <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-              <div className="form-group" style={{ flex: 1, minWidth: '200px' }}>
-                <label className="form-label">
-                  <Clock size={16} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '6px' }} />
-                  Wait Time
-                </label>
-                <div style={{ display: 'flex', gap: '8px' }}>
+            {/* Step 2: Delay */}
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#e0e7ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>2</div>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Clock size={16} /> Set Wait Time
+                </h3>
+                <div style={{ display: 'flex', gap: '12px', maxWidth: '300px' }}>
                   <input
                     type="number"
                     className="form-input"
@@ -279,13 +285,13 @@ const MetaLeadsAutomation = () => {
                     onChange={(e) => setFormData({ ...formData, delayValue: e.target.value })}
                     placeholder="e.g., 5"
                     required
-                    style={{ flex: 1, minHeight: '48px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                    style={{ flex: 1, minHeight: '44px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
                   />
                   <select
                     className="form-input"
                     value={formData.delayUnit}
                     onChange={(e) => setFormData({ ...formData, delayUnit: e.target.value })}
-                    style={{ flex: 1, minHeight: '48px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                    style={{ flex: 2, minHeight: '44px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
                   >
                     <option value="minutes">Minutes</option>
                     <option value="hours">Hours</option>
@@ -293,53 +299,70 @@ const MetaLeadsAutomation = () => {
                   </select>
                 </div>
               </div>
+            </div>
 
-              <div className="form-group" style={{ flex: 2, minWidth: '250px' }}>
-                <label className="form-label">Then Send Template</label>
-                <Select
-                  options={templates.map(t => ({ value: t.name, label: t.name }))}
-                  value={formData.templateName ? { value: formData.templateName, label: formData.templateName } : null}
-                  onChange={(option) => setFormData({ ...formData, templateName: option ? option.value : '' })}
-                  placeholder="Select a WhatsApp Template..."
-                  isClearable
-                  isSearchable
-                  styles={{
-                    control: (base) => ({
-                      ...base,
-                      minHeight: '48px',
-                      borderRadius: '8px',
-                      borderColor: '#cbd5e1',
-                      boxShadow: 'none',
-                      '&:hover': { borderColor: '#94a3b8' }
-                    })
-                  }}
-                />
-              </div>
-
-              <div className="form-group" style={{ minWidth: '180px' }}>
-                <button 
-                  type="submit" 
-                  className="btn-primary" 
-                  disabled={isSubmitting || !formData.templateName}
-                  style={{ width: '100%', height: '48px', justifyContent: 'center', backgroundColor: '#1877f2', color: 'white', borderRadius: '8px', border: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', cursor: (isSubmitting || !formData.templateName) ? 'not-allowed' : 'pointer' }}
-                >
-                  {isSubmitting ? 'Saving...' : (
-                    <>
-                      <Play size={18} />
-                      Start Automating
-                    </>
-                  )}
-                </button>
+            {/* Step 3: Message */}
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#e0e7ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>3</div>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <MessageSquare size={16} /> Select Message Template
+                </h3>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 2, minWidth: '250px' }}>
+                    <Select
+                      options={templates.map(t => ({ value: t.name, label: t.name }))}
+                      value={formData.templateName ? { value: formData.templateName, label: formData.templateName } : null}
+                      onChange={(option) => setFormData({ ...formData, templateName: option ? option.value : '' })}
+                      placeholder="Search templates..."
+                      isClearable
+                      isSearchable
+                      styles={{
+                        control: (base) => ({
+                          ...base,
+                          minHeight: '44px',
+                          borderRadius: '8px',
+                          borderColor: '#cbd5e1',
+                          boxShadow: 'none',
+                          '&:hover': { borderColor: '#94a3b8' }
+                        })
+                      }}
+                    />
+                  </div>
+                  <div style={{ minWidth: '160px' }}>
+                    <button 
+                      type="submit" 
+                      className="btn-primary" 
+                      disabled={isSubmitting || !formData.templateName}
+                      style={{ 
+                        width: '100%', height: '44px', justifyContent: 'center', 
+                        backgroundColor: '#4f46e5', color: 'white', 
+                        borderRadius: '8px', border: 'none', fontWeight: 600, 
+                        display: 'flex', alignItems: 'center', gap: '8px', 
+                        cursor: (isSubmitting || !formData.templateName) ? 'not-allowed' : 'pointer',
+                        transition: 'background-color 0.2s'
+                      }}
+                    >
+                      {isSubmitting ? 'Saving...' : (
+                        <>
+                          <Play size={16} />
+                          Activate Rule
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
+
           </div>
         </form>
       </div>
 
       {rules.length > 0 && (
-        <div className="settings-content" style={{ maxWidth: '600px', margin: 0 }}>
-          <div className="preference-header" style={{ marginBottom: '12px', textAlign: 'left' }}>
-            <h2 style={{ fontSize: '15px', margin: 0 }}>Automation Sequences</h2>
+        <div className="settings-content" style={{ maxWidth: '800px', margin: 0 }}>
+          <div className="preference-header" style={{ marginBottom: '16px', textAlign: 'left' }}>
+            <h2 style={{ fontSize: '16px', margin: 0, fontWeight: 600 }}>Active Sequences</h2>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
             {[...rules].sort((a, b) => {
@@ -352,31 +375,35 @@ const MetaLeadsAutomation = () => {
               const targetColor = getTargetColor(rule);
               return (
                 <div key={rule.id} style={{
-                  width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '8px',
-                  border: rule.isActive ? '1.5px solid #25d366' : '1px solid #e2e8f0',
-                  background: rule.isActive ? '#f0fdf4' : '#fafafa',
-                  opacity: rule.isActive ? 1 : 0.6, boxSizing: 'border-box'
+                  width: '100%', display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', borderRadius: '12px',
+                  border: rule.isActive ? '1px solid #e2e8f0' : '1px solid #e2e8f0',
+                  background: rule.isActive ? '#ffffff' : '#f8fafc',
+                  opacity: rule.isActive ? 1 : 0.6, boxSizing: 'border-box',
+                  boxShadow: rule.isActive ? '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)' : 'none'
                 }}>
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 600, fontSize: '14px', color: '#1c1e21' }}>{rule.templateName}</span>
-                      <span style={{ fontSize: '11px', backgroundColor: targetColor.bg, color: targetColor.color, padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                      <span style={{ fontWeight: 600, fontSize: '15px', color: '#0f172a' }}>{rule.templateName}</span>
+                      <span style={{ fontSize: '12px', backgroundColor: targetColor.bg, color: targetColor.color, padding: '4px 8px', borderRadius: '6px', fontWeight: 600 }}>
                         {getTargetLabel(rule)}
                       </span>
                     </div>
-                    <span style={{ fontSize: '12px', color: '#65676b', display: 'flex', alignItems: 'center' }}>
-                      <Clock size={12} style={{ display: 'inline', marginRight: '4px' }} />
+                    <span style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center' }}>
+                      <Clock size={14} style={{ display: 'inline', marginRight: '6px' }} />
                       Wait {rule.delayValue || rule.delayMinutes} {rule.delayUnit || 'minutes'} before sending
-                      {!rule.isActive && <span style={{ color: '#ef4444', marginLeft: '6px', fontWeight: 600 }}>• Paused</span>}
+                      {!rule.isActive && <span style={{ color: '#ef4444', marginLeft: '8px', fontWeight: 600 }}>• Paused</span>}
                     </span>
                   </div>
-                  <label className="toggle-switch" style={{ flexShrink: 0 }} title={rule.isActive ? 'Pause' : 'Resume'}>
-                    <input type="checkbox" checked={rule.isActive} onChange={() => toggleStatus(rule)} />
-                    <span className="toggle-slider"></span>
-                  </label>
-                  <button className="btn-danger" onClick={() => handleDelete(rule.id)} style={{ padding: '5px 8px', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                    <Trash2 size={14} />
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0 }}>
+                    <label className="toggle-switch" title={rule.isActive ? 'Pause' : 'Resume'}>
+                      <input type="checkbox" checked={rule.isActive} onChange={() => toggleStatus(rule)} />
+                      <span className="toggle-slider"></span>
+                    </label>
+                    <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }} />
+                    <button onClick={() => handleDelete(rule.id)} style={{ padding: '8px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', borderRadius: '6px' }} onMouseOver={(e) => e.currentTarget.style.background = '#fee2e2'} onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}>
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </div>
               );
             })}

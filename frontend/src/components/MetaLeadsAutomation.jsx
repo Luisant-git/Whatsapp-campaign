@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Trash2, Clock, Play, ArrowRight, Target, MessageSquare } from 'lucide-react';
+import { Trash2, Clock, Play, ArrowRight, Target, MessageSquare, Zap } from 'lucide-react';
 import '../styles/Settings.css';
 import Select from 'react-select';
 

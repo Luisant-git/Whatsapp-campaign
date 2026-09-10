@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { CentralPrismaService } from '../central-prisma.service';
 import { TenantPrismaService } from '../tenant-prisma.service';
-import { WhatsappService } from '../whatsapp/whatsapp.service';
+import axios from 'axios';
 
 @Injectable()
 export class MetaLeadsAutomationCronService {
@@ -11,7 +11,6 @@ export class MetaLeadsAutomationCronService {
   constructor(
     private centralPrisma: CentralPrismaService,
     private tenantPrisma: TenantPrismaService,
-    private whatsappService: WhatsappService,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -111,12 +110,35 @@ export class MetaLeadsAutomationCronService {
             const recordIds = eligibleRecords.map(r => r.id);
 
             try {
-              const result = await this.whatsappService.sendBulkTemplateMessageWithNames(
-                contactsForTemplate,
-                templateName,
-                Number(tenant.userId) || 1
-              );
-              
+              const masterConfig = await client.masterConfig.findFirst({
+                where: { isActive: true },
+              });
+
+              if (!masterConfig) {
+                throw new Error('No active MasterConfig found for tenant');
+              }
+
+              const { phoneNumberId, accessToken } = masterConfig;
+              const apiUrl = `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`;
+
+              for (const contact of contactsForTemplate) {
+                await axios.post(apiUrl, {
+                  messaging_product: 'whatsapp',
+                  to: contact.phone,
+                  type: 'template',
+                  template: {
+                    name: templateName,
+                    language: { code: 'en' },
+                    components: contact.name ? [{
+                      type: 'body',
+                      parameters: [{ type: 'text', text: contact.name }]
+                    }] : []
+                  }
+                }, {
+                  headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
+                });
+              }
+
               this.logger.log(`Tenant ${tenantId}: Sequence step ${i + 1} sent successfully.`);
 
               // Create success logs and update lastAutomationStep

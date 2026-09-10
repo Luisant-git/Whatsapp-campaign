@@ -74,10 +74,50 @@ const MetaLeads = ({ onNavigate }) => {
   const [createGroupName, setCreateGroupName] = useState('');
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [successModalData, setSuccessModalData] = useState(null);
+  const [groups, setGroups] = useState([]);
+  const [showAllocateModal, setShowAllocateModal] = useState(false);
+  const [allocateGroupId, setAllocateGroupId] = useState('');
+  const [isAllocating, setIsAllocating] = useState(false);
+  const [showGroupActionMenu, setShowGroupActionMenu] = useState(false);
+  const groupMenuRef = React.useRef(null);
+
+  const fetchGroups = async () => {
+    try {
+      const res = await groupAPI.getAll();
+      const arr = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      setGroups(arr);
+    } catch (e) {
+      console.error('Failed to fetch groups', e);
+    }
+  };
+
+  const handleAllocateToGroup = async () => {
+    if (!allocateGroupId) { showError('Please select a group'); return; }
+    setIsAllocating(true);
+    try {
+      let successCount = 0;
+      for (const lead of selectedLeads) {
+        if (!lead.phone) continue;
+        try {
+          await contactAPI.create({ name: lead.name || 'Meta Lead', phone: lead.phone, groupId: parseInt(allocateGroupId), upsert: true });
+          successCount++;
+        } catch (e) { console.error('Failed to add contact', e); }
+      }
+      const grpName = groups.find(g => String(g.id) === String(allocateGroupId))?.name || 'group';
+      setShowAllocateModal(false);
+      setAllocateGroupId('');
+      setSelectedLeads([]);
+      setSuccessModalData({ title: 'Contacts Allocated!', message: `Successfully added ${successCount} contact(s) to "${grpName}".` });
+    } catch (error) {
+      showError('Failed to allocate contacts');
+    } finally {
+      setIsAllocating(false);
+    }
+  };
 
   const handleCreateGroup = async () => {
     if (!createGroupName.trim()) {
-      alert("Please enter a group name");
+      showError('Please enter a group name');
       return;
     }
     setIsCreatingGroup(true);
@@ -105,8 +145,9 @@ const MetaLeads = ({ onNavigate }) => {
           }
           setSuccessModalData({
             title: 'Group Created!',
-            message: `Successfully added ${successCount} contacts to ${createGroupName}.`
+            message: `Successfully added ${successCount} contact(s) to "${createGroupName}".`
           });
+      fetchGroups();
       }
 
       setShowCreateGroupModal(false);
@@ -114,7 +155,7 @@ const MetaLeads = ({ onNavigate }) => {
       setSelectedLeads([]);
     } catch (error) {
       console.error('Failed to create group:', error);
-      alert('Failed to create group');
+      showError('Failed to create group');
     } finally {
       setIsCreatingGroup(false);
     }
@@ -136,6 +177,20 @@ const MetaLeads = ({ onNavigate }) => {
   useEffect(() => {
     fetchLeads();
   }, [page, search, statusFilter, campaignFilter, formFilter]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (groupMenuRef.current && !groupMenuRef.current.contains(e.target)) {
+        setShowGroupActionMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    fetchGroups();
+  }, []);
 
   useEffect(() => {
     fetchCampaigns();
@@ -650,17 +705,58 @@ const MetaLeads = ({ onNavigate }) => {
               style={{ display: 'none' }}
               id="csv-upload"
             />
+
+            {/* Import / Export moved here */}
+            <label htmlFor="csv-upload" className="sync-btn secondary" style={{ cursor: 'pointer', margin: 0 }} title="Import CSV">
+              <Upload size={16} /> {importing ? 'Importing...' : 'Import'}
+            </label>
+            <button className="sync-btn secondary" onClick={handleExport} title="Export CSV">
+              <Download size={16} /> Export
+            </button>
+
             <button onClick={openDeleteAllConfirm} className="sync-btn" style={{ background: '#dc3545' }}>
               <Trash2 size={18} />
               Delete All
             </button>
 
             {selectedLeads.length > 0 && (
-              <button className="sync-btn" onClick={() => setShowCreateGroupModal(true)} style={{ background: '#1877f2' }}>
-                <Users size={16} />
-                Create Group ({selectedLeads.length})
-              </button>
+              <div style={{ position: 'relative' }} ref={groupMenuRef}>
+                <button
+                  className="sync-btn"
+                  style={{ background: '#1877f2' }}
+                  onClick={() => setShowGroupActionMenu(v => !v)}
+                >
+                  <Users size={16} />
+                  Group ({selectedLeads.length}) ▾
+                </button>
+                {showGroupActionMenu && (
+                  <div style={{
+                    position: 'absolute', top: '110%', right: 0, background: '#fff',
+                    border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    zIndex: 999, minWidth: 200, overflow: 'hidden'
+                  }}>
+                    <button
+                      onClick={() => { setShowGroupActionMenu(false); setShowCreateGroupModal(true); }}
+                      style={{ width: '100%', padding: '11px 16px', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 14, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}
+                      onMouseOver={e => e.currentTarget.style.background = '#f1f5f9'}
+                      onMouseOut={e => e.currentTarget.style.background = 'none'}
+                    >
+                      <Users size={15} color="#1877f2" /> Create New Group
+                    </button>
+                    <div style={{ height: 1, background: '#f1f5f9' }} />
+                    <button
+                      onClick={() => { setShowGroupActionMenu(false); setAllocateGroupId(''); setShowAllocateModal(true); }}
+                      style={{ width: '100%', padding: '11px 16px', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 14, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}
+                      onMouseOver={e => e.currentTarget.style.background = '#f1f5f9'}
+                      onMouseOut={e => e.currentTarget.style.background = 'none'}
+                    >
+                      <ThumbsUp size={15} color="#16a34a" /> Allocate to Existing Group
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
+
             <button className="sync-btn" onClick={handleComposeClick} style={{ background: '#25D366' }}>
               <MessageSquare size={16} />
               {selectedLeads.length > 0 ? `Compose (${selectedLeads.length})` : 'Compose'}
@@ -674,18 +770,10 @@ const MetaLeads = ({ onNavigate }) => {
 
         {/* Tabs Section */}
         <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #e2e8f0', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', gap: '8px', padding: '0 16px', borderRight: '1px solid #e2e8f0' }}>
-            <label htmlFor="csv-upload" className="sync-btn secondary" style={{ cursor: 'pointer', margin: 0, padding: '6px 10px', fontSize: '12px', height: '32px' }} title="Import CSV">
-              <Upload size={14} style={{ marginRight: '4px' }} /> Import
-            </label>
-            <button className="sync-btn secondary" onClick={handleExport} style={{ padding: '6px 10px', fontSize: '12px', height: '32px' }} title="Export">
-              <Download size={14} style={{ marginRight: '4px' }} /> Export
-            </button>
-          </div>
-          <div className="leads-tabs" style={{ borderBottom: 'none', marginBottom: 0, paddingLeft: '8px' }}>
+          <div className="leads-tabs" style={{ borderBottom: 'none', marginBottom: 0 }}>
             {tabs.map(tab => (
-              <div 
-                key={tab} 
+              <div
+                key={tab}
                 className={`tab-item ${activeTab === tab ? 'active' : ''}`}
                 onClick={() => handleTabChange(tab)}
               >
@@ -1177,6 +1265,43 @@ const MetaLeads = ({ onNavigate }) => {
             <div className="modal-footer" style={{ borderTop: 'none', paddingTop: '0' }}>
               <button className="sync-btn secondary" onClick={() => setShowSyncModal(false)}>Cancel</button>
               <button className="sync-btn" onClick={performSync}>Start Sync</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Allocate to Existing Group Modal */}
+      {showAllocateModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '450px' }}>
+            <div className="modal-header">
+              <h3>Allocate to Existing Group</h3>
+              <button className="close-btn" onClick={() => setShowAllocateModal(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body" style={{ padding: '24px' }}>
+              <p style={{ marginBottom: '16px', color: '#64748b', fontSize: 14 }}>
+                Add <strong>{selectedLeads.length}</strong> selected lead(s) as contacts into an existing group.
+              </p>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '8px', display: 'block' }}>SELECT GROUP <span style={{ color: '#ef4444' }}>*</span></label>
+                <select
+                  className="form-input"
+                  value={allocateGroupId}
+                  onChange={e => setAllocateGroupId(e.target.value)}
+                  style={{ width: '100%', minHeight: '44px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                >
+                  <option value="">— Select a group —</option>
+                  {groups.map(g => (
+                    <option key={g.id} value={g.id}>{g.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ borderTop: '1px solid #f1f5f9', padding: '16px 24px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button className="btn-secondary" onClick={() => setShowAllocateModal(false)} disabled={isAllocating}>Cancel</button>
+              <button className="btn-primary" onClick={handleAllocateToGroup} disabled={isAllocating || !allocateGroupId}>
+                {isAllocating ? 'Allocating...' : 'Allocate'}
+              </button>
             </div>
           </div>
         </div>

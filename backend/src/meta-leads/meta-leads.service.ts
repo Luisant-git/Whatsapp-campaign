@@ -820,12 +820,13 @@ export class MetaLeadsService {
       where.status = status;
     }
 
-    const fetchLimit = skip + limit;
+    // Fetch enough rows from each table to cover the requested page after merging
+    const fetchEach = skip + limit;
 
     const [metaLogs, contactLogs, totalMeta, totalContact] = await Promise.all([
       client.metaLeadAutomationLog.findMany({
         where,
-        take: fetchLimit,
+        take: fetchEach,
         orderBy: { sentAt: 'desc' },
         include: {
           metaLead: {
@@ -835,7 +836,7 @@ export class MetaLeadsService {
       }),
       client.contactAutomationLog.findMany({
         where,
-        take: fetchLimit,
+        take: fetchEach,
         orderBy: { sentAt: 'desc' },
         include: {
           contact: {

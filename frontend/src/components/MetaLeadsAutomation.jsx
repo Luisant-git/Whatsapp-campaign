@@ -183,7 +183,7 @@ const MetaLeadsAutomation = () => {
 
   const getTargetColor = (rule) => {
     if (rule.targetType === 'meta_campaign') return { bg: '#e7f3ff', color: '#1877f2' };
-    if (rule.targetType === 'contact_group') return { bg: '#fdf4ff', color: '#c026d3' };
+    if (rule.targetType === 'contact_group') return { bg: '#dcfce7', color: '#16a34a' };
     return { bg: '#f3f4f6', color: '#4b5563' };
   };
 

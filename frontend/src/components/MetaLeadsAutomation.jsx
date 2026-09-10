@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Trash2, Clock, Play, ArrowRight, Target, MessageSquare, Zap } from 'lucide-react';
+import { Trash2, Clock, Play, ArrowRight, Target, MessageSquare, Zap, AlertTriangle, X } from 'lucide-react';
 import '../styles/Settings.css';
 import Select from 'react-select';
 
@@ -13,6 +13,7 @@ const MetaLeadsAutomation = () => {
   const [contactGroups, setContactGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingRuleId, setDeletingRuleId] = useState(null);
   
   const [formData, setFormData] = useState({ 
     targetType: 'all',
@@ -134,10 +135,14 @@ const MetaLeadsAutomation = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this automation?')) return;
+  const triggerDelete = (id) => {
+    setDeletingRuleId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingRuleId) return;
     try {
-      await axios.delete(`${API_BASE_URL}/meta-leads/automation-rules/${id}`, {
+      await axios.delete(`${API_BASE_URL}/meta-leads/automation-rules/${deletingRuleId}`, {
         headers: getHeaders(),
         withCredentials: true,
       });
@@ -145,6 +150,8 @@ const MetaLeadsAutomation = () => {
     } catch (error) {
       console.error('Failed to delete rule:', error);
       alert('Failed to delete automation rule');
+    } finally {
+      setDeletingRuleId(null);
     }
   };
 
@@ -454,7 +461,7 @@ const MetaLeadsAutomation = () => {
                             </label>
                             <div style={{ width: '1px', height: '20px', background: '#e2e8f0' }} />
                             <button 
-                              onClick={() => handleDelete(rule.id)} 
+                              onClick={() => triggerDelete(rule.id)} 
                               style={{ padding: '6px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', borderRadius: '6px' }} 
                               onMouseOver={(e) => e.currentTarget.style.background = '#fee2e2'} 
                               onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
@@ -472,6 +479,39 @@ const MetaLeadsAutomation = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deletingRuleId && (
+        <div className="modal-overlay" style={{ zIndex: 10000 }}>
+          <div className="modal-content" style={{ maxWidth: '400px', padding: 0, overflow: 'hidden' }}>
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
+                <AlertTriangle size={32} />
+              </div>
+              <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#0f172a', margin: '0 0 12px 0' }}>
+                Delete Automation Rule?
+              </h3>
+              <p style={{ color: '#64748b', fontSize: '15px', margin: 0, lineHeight: 1.5 }}>
+                Are you sure you want to delete this automation? This action cannot be undone and scheduled messages will be stopped.
+              </p>
+            </div>
+            <div style={{ background: '#f8fafc', padding: '16px 24px', display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0' }}>
+              <button 
+                onClick={() => setDeletingRuleId(null)}
+                style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color: '#334155', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDelete}
+                style={{ padding: '10px 16px', borderRadius: '8px', background: '#ef4444', color: 'white', border: 'none', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Delete Rule
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

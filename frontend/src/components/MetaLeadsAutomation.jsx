@@ -397,71 +397,72 @@ const MetaLeadsAutomation = () => {
                 }}>
                   {/* Container Header */}
                   <div style={{ 
-                    padding: '16px 20px', 
+                    padding: '12px 16px', 
                     background: group.color.bg, 
                     color: group.color.color, 
                     fontWeight: 600, 
                     display: 'flex', 
                     alignItems: 'center', 
-                    gap: '8px',
-                    borderBottom: '1px solid rgba(0,0,0,0.05)'
+                    gap: '6px',
+                    borderBottom: '1px solid rgba(0,0,0,0.05)',
+                    fontSize: '13px'
                   }}>
-                    <Target size={18} /> {group.label}
+                    <Target size={14} /> {group.label}
                   </div>
                   
                   {/* Pipeline Steps */}
-                  <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '0' }}>
+                  <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '0' }}>
                     {group.rules.map((rule, index) => (
-                      <div key={rule.id} style={{ display: 'flex', gap: '16px', alignItems: 'stretch' }}>
+                      <div key={rule.id} style={{ display: 'flex', gap: '12px', alignItems: 'stretch' }}>
                         
                         {/* Timeline Graphic */}
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                           <div style={{ 
-                            width: '28px', height: '28px', borderRadius: '50%', 
+                            width: '22px', height: '22px', borderRadius: '50%', 
                             background: rule.isActive ? '#3b82f6' : '#cbd5e1', 
                             color: '#fff', display: 'flex', alignItems: 'center', 
-                            justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', zIndex: 1 
+                            justifyContent: 'center', fontSize: '11px', fontWeight: 'bold', zIndex: 1 
                           }}>
                             {index + 1}
                           </div>
                           {index < group.rules.length - 1 && (
-                            <div style={{ width: '2px', flex: 1, background: '#e2e8f0', margin: '4px 0' }} />
+                            <div style={{ width: '2px', flex: 1, background: '#e2e8f0', margin: '2px 0' }} />
                           )}
                         </div>
                         
                         {/* Step Content */}
                         <div style={{ 
-                          flex: 1, border: '1px solid #e2e8f0', borderRadius: '8px', 
-                          padding: '16px', background: rule.isActive ? '#fff' : '#f8fafc', 
+                          flex: 1, border: '1px solid #e2e8f0', borderRadius: '6px', 
+                          padding: '10px 12px', background: rule.isActive ? '#fff' : '#f8fafc', 
                           opacity: rule.isActive ? 1 : 0.6, display: 'flex', 
                           justifyContent: 'space-between', alignItems: 'center',
-                          marginBottom: index < group.rules.length - 1 ? '16px' : '0',
+                          marginBottom: index < group.rules.length - 1 ? '10px' : '0',
                           transition: 'opacity 0.2s'
                         }}>
                           <div>
-                            <div style={{ fontWeight: 600, fontSize: '15px', color: '#0f172a', marginBottom: '6px' }}>
+                            <div style={{ fontWeight: 600, fontSize: '13px', color: '#0f172a', marginBottom: '4px' }}>
                               {rule.templateName}
                             </div>
-                            <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center' }}>
-                              <Clock size={14} style={{ marginRight: '6px' }} /> 
+                            <div style={{ fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center' }}>
+                              <Clock size={12} style={{ marginRight: '4px' }} /> 
                               Wait {rule.delayValue || rule.delayMinutes} {rule.delayUnit || 'minutes'}
-                              {!rule.isActive && <span style={{ color: '#ef4444', marginLeft: '8px', fontWeight: 600 }}>• Paused</span>}
+                              {!rule.isActive && <span style={{ color: '#ef4444', marginLeft: '6px', fontWeight: 600 }}>• Paused</span>}
                             </div>
                           </div>
                           
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                            <label className="toggle-switch" title={rule.isActive ? 'Pause' : 'Resume'}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <label className="toggle-switch" title={rule.isActive ? 'Pause' : 'Resume'} style={{ transform: 'scale(0.8)' }}>
                               <input type="checkbox" checked={rule.isActive} onChange={() => toggleStatus(rule)} />
                               <span className="toggle-slider"></span>
                             </label>
-                            <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }} />
+                            <div style={{ width: '1px', height: '20px', background: '#e2e8f0' }} />
                             <button 
                               onClick={() => handleDelete(rule.id)} 
-                              style={{ padding: '8px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', borderRadius: '6px' }} 
+                              style={{ padding: '6px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', borderRadius: '6px' }} 
                               onMouseOver={(e) => e.currentTarget.style.background = '#fee2e2'} 
                               onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                             >
-                              <Trash2 size={18} />
+                              <Trash2 size={16} />
                             </button>
                           </div>
                         </div>

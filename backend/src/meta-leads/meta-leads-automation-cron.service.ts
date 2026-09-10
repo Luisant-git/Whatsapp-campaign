@@ -47,16 +47,6 @@ export class MetaLeadsAutomationCronService {
 
       const now = new Date();
 
-      // We need settingsId to send. Let's find default WhatsApp settings
-      const defaultSettings = await client.whatsAppSettings.findFirst({
-        where: { isDefault: true },
-      });
-
-      if (!defaultSettings) {
-        this.logger.warn(`Tenant ${tenantId} has no default WhatsApp settings. Cannot send automation.`);
-        return;
-      }
-
       // Group rules by target sequence
       const targetSequences = new Map<string, any[]>();
       for (const rule of activeRules) {
@@ -124,8 +114,7 @@ export class MetaLeadsAutomationCronService {
               const result = await this.whatsappService.sendBulkTemplateMessageWithNames(
                 contactsForTemplate,
                 templateName,
-                Number(tenant.userId) || 1, 
-                defaultSettings.id
+                Number(tenant.userId) || 1
               );
               
               this.logger.log(`Tenant ${tenantId}: Sequence step ${i + 1} sent successfully.`);

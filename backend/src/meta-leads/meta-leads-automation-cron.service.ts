@@ -66,7 +66,7 @@ export class MetaLeadsAutomationCronService {
           isContact = true;
           pendingRecords = await client.contact.findMany({
             where: {
-              phone: { not: null },
+              phone: { not: '' },
               groupId: firstRule.groupId,
               lastAutomationStep: { lt: sequenceRules.length },
             },

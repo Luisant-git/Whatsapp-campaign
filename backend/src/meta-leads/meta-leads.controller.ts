@@ -383,6 +383,52 @@ export class MetaLeadsController {
     }
   }
 
+  @Get('automation-progress')
+  async getAutomationProgress(
+    @Req() req: any,
+    @Query('targetType') targetType: string,
+    @Query('campaignName') campaignName: string,
+    @Query('groupId') groupId: string,
+    @Query('totalSteps') totalSteps: string,
+  ) {
+    try {
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
+      return await this.metaLeadsService.getAutomationProgress(
+        tenantId,
+        targetType,
+        campaignName,
+        groupId,
+        parseInt(totalSteps) || 1,
+        dbUrl
+      );
+    } catch (error) {
+      return { error: true, message: error.message || 'Failed to fetch progress' };
+    }
+  }
+
+  @Patch('automation-toggle')
+  async toggleAutomationSequence(
+    @Req() req: any,
+    @Body('targetType') targetType: string,
+    @Body('campaignName') campaignName: string,
+    @Body('groupId') groupId: string,
+    @Body('isActive') isActive: boolean,
+  ) {
+    try {
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
+      return await this.metaLeadsService.toggleAutomationSequence(
+        tenantId,
+        targetType,
+        campaignName,
+        groupId,
+        isActive,
+        dbUrl
+      );
+    } catch (error) {
+      return { error: true, message: error.message || 'Failed to toggle sequence' };
+    }
+  }
+
   @Get('automation-logs')
   async getAutomationLogs(
     @Req() req: any,

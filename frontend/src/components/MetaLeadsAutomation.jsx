@@ -187,6 +187,55 @@ const MetaLeadsAutomation = () => {
     return { bg: '#f3f4f6', color: '#4b5563' };
   };
 
+  const toggleSequence = async (targetType, campaignName, groupId, isActive) => {
+    try {
+      await axios.patch(`${API_BASE_URL}/meta-leads/automation-toggle`, {
+        targetType, campaignName, groupId, isActive
+      }, { headers: getHeaders(), withCredentials: true });
+      fetchRules();
+    } catch (error) {
+      console.error('Failed to toggle sequence:', error);
+      alert('Failed to update sequence status');
+    }
+  };
+
+  const PipelineProgress = ({ targetType, campaignName, groupId, totalSteps }) => {
+    const [progress, setProgress] = useState(null);
+
+    useEffect(() => {
+      let active = true;
+      const fetchProgress = async () => {
+        try {
+          const { data } = await axios.get(`${API_BASE_URL}/meta-leads/automation-progress`, {
+            params: { targetType, campaignName: campaignName || '', groupId: groupId || '', totalSteps },
+            headers: getHeaders(),
+            withCredentials: true
+          });
+          if (active) setProgress(data);
+        } catch (err) {
+          console.error("Progress fetch error", err);
+        }
+      };
+      fetchProgress();
+      const interval = setInterval(fetchProgress, 60000);
+      return () => { active = false; clearInterval(interval); };
+    }, [targetType, campaignName, groupId, totalSteps]);
+
+    if (!progress) return null;
+
+    return (
+      <div style={{ marginTop: '12px', background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px', color: '#475569', fontWeight: 600 }}>
+          <span>Overall Sequence Progress</span>
+          <span>{progress.percentage}% ({progress.completed} / {progress.total} Completed)</span>
+        </div>
+        <div style={{ height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${progress.percentage}%`, background: '#25D366', transition: 'width 0.5s ease-in-out' }} />
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="settings-container">
@@ -383,6 +432,9 @@ const MetaLeadsAutomation = () => {
                   acc[key] = {
                     label: getTargetLabel(rule),
                     color: getTargetColor(rule),
+                    targetType: rule.targetType,
+                    campaignName: rule.campaignName,
+                    groupId: rule.groupId,
                     rules: []
                   };
                 }
@@ -407,15 +459,35 @@ const MetaLeadsAutomation = () => {
                     fontWeight: 600, 
                     display: 'flex', 
                     alignItems: 'center', 
-                    gap: '6px',
+                    justifyContent: 'space-between',
                     borderBottom: '1px solid rgba(0,0,0,0.05)',
                     fontSize: '13px'
                   }}>
-                    <Target size={14} /> {group.label}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Target size={14} /> {group.label}
+                    </div>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 'normal', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        {group.rules.every(r => r.isActive) ? 'RUNNING' : 'PAUSED'}
+                      </span>
+                      <label className="toggle-switch" title={group.rules.every(r => r.isActive) ? 'Pause Entire Sequence' : 'Play Entire Sequence'}>
+                        <input 
+                          type="checkbox" 
+                          checked={group.rules.every(r => r.isActive)} 
+                          onChange={(e) => toggleSequence(group.targetType, group.campaignName, group.groupId, e.target.checked)} 
+                        />
+                        <span className="toggle-slider"></span>
+                      </label>
+                    </div>
                   </div>
                   
                   {/* Pipeline Steps */}
                   <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '0' }}>
+                    
+                    <PipelineProgress targetType={group.targetType} campaignName={group.campaignName} groupId={group.groupId} totalSteps={group.rules.length} />
+                    <div style={{ height: '16px' }} />
+
                     {group.rules.map((rule, index) => (
                       <div key={rule.id} style={{ display: 'flex', gap: '12px', alignItems: 'stretch' }}>
                         

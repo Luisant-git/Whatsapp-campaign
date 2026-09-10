@@ -1257,8 +1257,8 @@ const MetaLeads = ({ onNavigate }) => {
                 gap: '8px'
               }}
             >
-              <ThumbsUp size={18} />
-              Awesome!
+              <Check size={18} />
+              Done
             </button>
           </div>
         </div>

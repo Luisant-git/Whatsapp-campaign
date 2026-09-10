@@ -15,7 +15,9 @@ import {
   MessageSquare,
   Check,
   X,
-  Users
+  Users,
+  CheckCircle,
+  ThumbsUp
 } from 'lucide-react';
 import { sendBulkMessages } from "../api/whatsapp";
 import { groupAPI } from '../api/group';
@@ -71,6 +73,7 @@ const MetaLeads = ({ onNavigate }) => {
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [createGroupName, setCreateGroupName] = useState('');
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [successModalData, setSuccessModalData] = useState(null);
 
   const handleCreateGroup = async () => {
     if (!createGroupName.trim()) {
@@ -100,7 +103,10 @@ const MetaLeads = ({ onNavigate }) => {
               console.error("Failed to add contact", e);
             }
           }
-          alert(`Group created! Successfully added ${successCount} contacts.`);
+          setSuccessModalData({
+            title: 'Group Created!',
+            message: `Successfully added ${successCount} contacts to ${createGroupName}.`
+          });
       }
 
       setShowCreateGroupModal(false);
@@ -1182,37 +1188,78 @@ const MetaLeads = ({ onNavigate }) => {
 
       {/* Create Group Modal */}
       {showCreateGroupModal && (
-        <div className="modal-overlay" onClick={() => setShowCreateGroupModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '450px' }}>
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '450px' }}>
             <div className="modal-header">
-              <h2>Create Contact Group</h2>
-              <button className="modal-close" onClick={() => setShowCreateGroupModal(false)}>&times;</button>
+              <h3>Create Contact Group</h3>
+              <button className="close-btn" onClick={() => setShowCreateGroupModal(false)}><X size={20} /></button>
             </div>
-            <div className="modal-body">
-              <p style={{ color: '#65676B', marginBottom: '20px', fontSize: '14px' }}>
+            <div className="modal-body" style={{ padding: '24px' }}>
+              <p style={{ marginBottom: '16px', color: '#64748b' }}>
                 Create a new Contact Group from the {selectedLeads.length} selected lead(s).
               </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21', textTransform: 'uppercase' }}>Group Name <span style={{ color: 'red' }}>*</span></label>
-                <input 
-                  type="text" 
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '8px', display: 'block' }}>GROUP NAME <span style={{color: '#ef4444'}}>*</span></label>
+                <input
+                  type="text"
+                  className="form-input"
                   value={createGroupName}
                   onChange={(e) => setCreateGroupName(e.target.value)}
-                  placeholder="e.g., Q3 High Intent Leads"
-                  style={{ 
-                    width: '100%', padding: '10px 12px', border: '1px solid #ced0d4', borderRadius: '6px',
-                    outline: 'none', fontSize: '14px'
-                  }}
+                  placeholder="e.g., Summer Campaign Leads"
+                  style={{ width: '100%', minHeight: '44px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
                   autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCreateGroup();
+                  }}
                 />
               </div>
             </div>
-            <div className="modal-footer" style={{ borderTop: 'none', paddingTop: '0' }}>
-              <button className="sync-btn secondary" onClick={() => setShowCreateGroupModal(false)} disabled={isCreatingGroup}>Cancel</button>
-              <button className="sync-btn" onClick={handleCreateGroup} disabled={isCreatingGroup} style={{ background: '#1877f2' }}>
-                {isCreatingGroup ? 'Creating...' : 'Create & Add Contacts'}
+            <div className="modal-footer" style={{ borderTop: '1px solid #f1f5f9', padding: '16px 24px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button className="btn-secondary" onClick={() => setShowCreateGroupModal(false)} disabled={isCreatingGroup} style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button className="btn-primary" onClick={handleCreateGroup} disabled={isCreatingGroup || !createGroupName.trim()} style={{ padding: '8px 16px', borderRadius: '8px', background: '#3b82f6', color: 'white', border: 'none', cursor: (isCreatingGroup || !createGroupName.trim()) ? 'not-allowed' : 'pointer' }}>
+                {isCreatingGroup ? 'Creating...' : 'Create Group'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {successModalData && (
+        <div className="modal-overlay" style={{ zIndex: 10000 }}>
+          <div className="modal-content" style={{ maxWidth: '400px', textAlign: 'center', padding: '40px 24px' }}>
+            <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px auto' }}>
+              <CheckCircle size={36} />
+            </div>
+            <h3 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', marginBottom: '12px' }}>
+              {successModalData.title}
+            </h3>
+            <p style={{ color: '#64748b', fontSize: '15px', marginBottom: '32px', lineHeight: 1.5 }}>
+              {successModalData.message}
+            </p>
+            <button 
+              onClick={() => setSuccessModalData(null)}
+              style={{ 
+                width: '100%', 
+                minHeight: '48px', 
+                borderRadius: '8px', 
+                backgroundColor: '#16a34a', 
+                color: 'white', 
+                border: 'none', 
+                fontWeight: 600, 
+                fontSize: '15px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              <ThumbsUp size={18} />
+              Awesome!
+            </button>
           </div>
         </div>
       )}

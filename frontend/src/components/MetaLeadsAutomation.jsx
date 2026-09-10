@@ -195,9 +195,6 @@ const MetaLeadsAutomation = () => {
     <div className="settings-container">
       <div className="page-header" style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#e0e7ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Zap size={24} />
-          </div>
           <div>
             <h1 style={{ fontSize: '24px', fontWeight: 700, margin: '0 0 4px 0', color: '#0f172a' }}>Campaign Automation</h1>
             <p style={{ margin: 0, color: '#64748b' }}>Automatically send WhatsApp sequences to leads or contacts after a set delay.</p>

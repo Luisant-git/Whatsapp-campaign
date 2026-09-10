@@ -213,7 +213,7 @@ const MetaLeadsAutomation = () => {
             
             {/* Step 1: Target */}
             <div style={{ display: 'flex', gap: '16px' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#e0e7ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>1</div>
+              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>1</div>
               <div style={{ flex: 1 }}>
                 <h3 style={{ fontSize: '15px', fontWeight: 600, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Target size={16} /> Choose Target Audience
@@ -271,7 +271,7 @@ const MetaLeadsAutomation = () => {
 
             {/* Step 2: Delay */}
             <div style={{ display: 'flex', gap: '16px' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#e0e7ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>2</div>
+              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>2</div>
               <div style={{ flex: 1 }}>
                 <h3 style={{ fontSize: '15px', fontWeight: 600, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Clock size={16} /> Set Wait Time
@@ -303,7 +303,7 @@ const MetaLeadsAutomation = () => {
 
             {/* Step 3: Message */}
             <div style={{ display: 'flex', gap: '16px' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#e0e7ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>3</div>
+              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>3</div>
               <div style={{ flex: 1 }}>
                 <h3 style={{ fontSize: '15px', fontWeight: 600, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <MessageSquare size={16} /> Select Message Template
@@ -330,26 +330,26 @@ const MetaLeadsAutomation = () => {
                     />
                   </div>
                   <div style={{ minWidth: '160px' }}>
-                    <button 
-                      type="submit" 
-                      className="btn-primary" 
-                      disabled={isSubmitting || !formData.templateName}
-                      style={{ 
-                        width: '100%', height: '44px', justifyContent: 'center', 
-                        backgroundColor: '#4f46e5', color: 'white', 
-                        borderRadius: '8px', border: 'none', fontWeight: 600, 
-                        display: 'flex', alignItems: 'center', gap: '8px', 
-                        cursor: (isSubmitting || !formData.templateName) ? 'not-allowed' : 'pointer',
-                        transition: 'background-color 0.2s'
-                      }}
-                    >
-                      {isSubmitting ? 'Saving...' : (
-                        <>
-                          <Play size={16} />
-                          Activate Rule
-                        </>
-                      )}
-                    </button>
+                      <button 
+                        type="submit" 
+                        className="btn-primary" 
+                        disabled={isSubmitting || !formData.templateName}
+                        style={{ 
+                          width: '100%', height: '44px', justifyContent: 'center', 
+                          backgroundColor: '#25D366', color: 'white', 
+                          borderRadius: '8px', border: 'none', fontWeight: 600, 
+                          display: 'flex', alignItems: 'center', gap: '8px', 
+                          cursor: (isSubmitting || !formData.templateName) ? 'not-allowed' : 'pointer',
+                          transition: 'background-color 0.2s'
+                        }}
+                      >
+                        {isSubmitting ? 'Saving...' : (
+                          <>
+                            <Play size={16} />
+                            Start Automation
+                          </>
+                        )}
+                      </button>
                   </div>
                 </div>
               </div>
@@ -384,9 +384,6 @@ const MetaLeadsAutomation = () => {
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                       <span style={{ fontWeight: 600, fontSize: '15px', color: '#0f172a' }}>{rule.templateName}</span>
-                      <span style={{ fontSize: '12px', backgroundColor: targetColor.bg, color: targetColor.color, padding: '4px 8px', borderRadius: '6px', fontWeight: 600 }}>
-                        {getTargetLabel(rule)}
-                      </span>
                     </div>
                     <span style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center' }}>
                       <Clock size={14} style={{ display: 'inline', marginRight: '6px' }} />
@@ -395,6 +392,9 @@ const MetaLeadsAutomation = () => {
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0 }}>
+                    <span style={{ fontSize: '12px', backgroundColor: targetColor.bg, color: targetColor.color, padding: '4px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                      {getTargetLabel(rule)}
+                    </span>
                     <label className="toggle-switch" title={rule.isActive ? 'Pause' : 'Resume'}>
                       <input type="checkbox" checked={rule.isActive} onChange={() => toggleStatus(rule)} />
                       <span className="toggle-slider"></span>

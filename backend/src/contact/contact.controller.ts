@@ -22,7 +22,7 @@ export class CreateContactDto {
   dob?: Date;
   anniversary?: Date;
   groupId: number;
-
+  upsert?: boolean;
 
 variable2?: string;
 variable3?: string;

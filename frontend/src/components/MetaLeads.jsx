@@ -92,7 +92,8 @@ const MetaLeads = ({ onNavigate }) => {
               await contactAPI.create({
                 name: lead.name || 'Meta Lead',
                 phone: lead.phone,
-                groupId: newGroupId
+                groupId: newGroupId,
+                upsert: true
               });
               successCount++;
             } catch (e) {

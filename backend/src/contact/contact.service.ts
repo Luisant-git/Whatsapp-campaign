@@ -70,13 +70,26 @@ export class ContactService {
     const existing = await prisma.contact.findFirst({
       where: { phone },
     });
+    const groupId = data.groupId ? Number(data.groupId) : undefined;
+
     if (existing) {
+      if (data.upsert) {
+        return await prisma.contact.update({
+          where: { id: existing.id },
+          data: {
+            name: data.name || existing.name,
+            ...(groupId ? { groupId } : {}),
+            email: data.email || existing.email,
+            place: data.place || existing.place,
+          },
+          include: { group: true },
+        });
+      }
       throw new ConflictException(
         `A contact with phone number ${phone} already exists`,
       );
     }
 
-    const groupId = data.groupId ? Number(data.groupId) : undefined;
 
     const contact = await prisma.contact.create({
       data: {

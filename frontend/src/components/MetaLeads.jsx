@@ -17,7 +17,9 @@ import {
   X,
   Users,
   CheckCircle,
-  ThumbsUp
+  ThumbsUp,
+  Edit2,
+  Settings2,
 } from 'lucide-react';
 import { sendBulkMessages } from "../api/whatsapp";
 import { groupAPI } from '../api/group';
@@ -82,13 +84,90 @@ const MetaLeads = ({ onNavigate }) => {
   const [showGroupActionMenu, setShowGroupActionMenu] = useState(false);
   const groupMenuRef = React.useRef(null);
 
+  // ── Group Management (full CRUD modal, like Contact module) ──────────
+  const [showGroupsModal, setShowGroupsModal] = useState(false);
+  const [groupSearch, setGroupSearch] = useState('');
+  const [newGroupName, setNewGroupName] = useState('');
+  const [editingGroupId, setEditingGroupId] = useState(null);
+  const [selectedGroupFilterId, setSelectedGroupFilterId] = useState('');
+  // map: phone → groupId  (built after fetchGroups + any lead refresh)
+  const [phoneGroupMap, setPhoneGroupMap] = useState({});
+
+  const filteredGroups = useMemo(() =>
+    groups.filter(g => g.name.toLowerCase().includes(groupSearch.toLowerCase())),
+    [groups, groupSearch]
+  );
+
   const fetchGroups = async () => {
     try {
       const res = await groupAPI.getAll();
       const arr = Array.isArray(res.data) ? res.data : res.data?.data || [];
       setGroups(arr);
+      // Build phone → groupId map from contacts in each group
+      buildPhoneGroupMap(arr);
     } catch (e) {
       console.error('Failed to fetch groups', e);
+    }
+  };
+
+  const buildPhoneGroupMap = async (groupList) => {
+    try {
+      const map = {};
+      await Promise.all(groupList.map(async (g) => {
+        try {
+          const res = await groupAPI.getContacts(g.id);
+          const contacts = Array.isArray(res.data) ? res.data : res.data?.data || [];
+          contacts.forEach(c => { if (c.phone) map[String(c.phone)] = g.id; });
+        } catch { /* ignore individual errors */ }
+      }));
+      setPhoneGroupMap(map);
+    } catch { /* ignore */ }
+  };
+
+  // ── Group CRUD handlers ───────────────────────────────────────────────
+  const handleSaveGroup = async () => {
+    const name = newGroupName.trim();
+    if (!name) { showError('Please enter a group name'); return; }
+    try {
+      if (editingGroupId) {
+        await groupAPI.update(editingGroupId, { name });
+        showSuccess('Group updated');
+      } else {
+        await groupAPI.create({ name });
+        showSuccess('Group created');
+      }
+      setNewGroupName('');
+      setEditingGroupId(null);
+      await fetchGroups();
+    } catch (e) {
+      console.error(e);
+      showError(editingGroupId ? 'Failed to update group' : 'Failed to create group');
+    }
+  };
+
+  const handleEditGroupClick = (group) => {
+    setEditingGroupId(group.id);
+    setNewGroupName(group.name);
+  };
+
+  const handleCancelEditGroup = () => {
+    setEditingGroupId(null);
+    setNewGroupName('');
+  };
+
+  const handleDeleteGroup = async (id, name) => {
+    if (!window.confirm(`Delete group "${name}"?`)) return;
+    try {
+      await groupAPI.delete(id);
+      showSuccess('Group deleted');
+      await fetchGroups();
+      if (String(selectedGroupFilterId) === String(id)) {
+        setSelectedGroupFilterId('');
+        setPage(1);
+      }
+    } catch (e) {
+      console.error(e);
+      showError('Failed to delete group');
     }
   };
 
@@ -108,6 +187,8 @@ const MetaLeads = ({ onNavigate }) => {
       setShowAllocateModal(false);
       setAllocateGroupId('');
       setSelectedLeads([]);
+      // Rebuild phoneGroupMap so Group column and filter update immediately
+      await fetchGroups();
       setSuccessModalData({ title: 'Contacts Allocated!', message: `Successfully added ${successCount} contact(s) to "${grpName}".` });
     } catch (error) {
       showError('Failed to allocate contacts');
@@ -127,33 +208,34 @@ const MetaLeads = ({ onNavigate }) => {
       const newGroupId = groupRes.data?.id || groupRes.data?.group?.id || groupRes.data?.newGroup?.id;
       
       if (!newGroupId) {
-          console.error("No group ID returned", groupRes.data);
+        console.error("No group ID returned", groupRes.data);
       } else {
-          let successCount = 0;
-          for (const lead of selectedLeads) {
-            if (!lead.phone) continue;
-            try {
-              await contactAPI.create({
-                name: lead.name || 'Meta Lead',
-                phone: lead.phone,
-                groupId: newGroupId,
-                upsert: true
-              });
-              successCount++;
-            } catch (e) {
-              console.error("Failed to add contact", e);
-            }
+        let successCount = 0;
+        for (const lead of selectedLeads) {
+          if (!lead.phone) continue;
+          try {
+            await contactAPI.create({
+              name: lead.name || 'Meta Lead',
+              phone: lead.phone,
+              groupId: newGroupId,
+              upsert: true
+            });
+            successCount++;
+          } catch (e) {
+            console.error("Failed to add contact", e);
           }
-          setSuccessModalData({
-            title: 'Group Created!',
-            message: `Successfully added ${successCount} contact(s) to "${createGroupName}".`
-          });
-      fetchGroups();
+        }
+        setSuccessModalData({
+          title: 'Group Created!',
+          message: `Successfully added ${successCount} contact(s) to "${createGroupName}".`
+        });
       }
 
       setShowCreateGroupModal(false);
       setCreateGroupName('');
       setSelectedLeads([]);
+      // Rebuild phoneGroupMap so Group column and filter update immediately
+      await fetchGroups();
     } catch (error) {
       console.error('Failed to create group:', error);
       showError('Failed to create group');
@@ -211,6 +293,14 @@ const MetaLeads = ({ onNavigate }) => {
   const uniqueTemplateNames = useMemo(() => {
     return [...new Set(settings.map((item) => item.templateName).filter(Boolean))];
   }, [settings]);
+
+  // Filter leads by selected group (client-side using phoneGroupMap)
+  const displayedLeads = useMemo(() => {
+    if (!selectedGroupFilterId) return leads;
+    return leads.filter(lead =>
+      lead.phone && String(phoneGroupMap[String(lead.phone)]) === String(selectedGroupFilterId)
+    );
+  }, [leads, selectedGroupFilterId, phoneGroupMap]);
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
@@ -709,6 +799,14 @@ const MetaLeads = ({ onNavigate }) => {
             <button onClick={openDeleteAllConfirm} className="sync-btn" style={{ background: '#dc3545' }}>
               <Trash2 size={18} /> Delete All
             </button>
+            <button
+              onClick={() => { setGroupSearch(''); setNewGroupName(''); setEditingGroupId(null); setShowGroupsModal(true); }}
+              className="sync-btn"
+              style={{ background: '#7c3aed' }}
+              title="Manage lead groups"
+            >
+              <Settings2 size={16} /> Manage Groups
+            </button>
             {selectedLeads.length > 0 && (
               <div style={{ position: 'relative' }} ref={groupMenuRef}>
                 <button className="sync-btn" style={{ background: '#1877f2' }} onClick={() => setShowGroupActionMenu(v => !v)}>
@@ -812,6 +910,18 @@ const MetaLeads = ({ onNavigate }) => {
                 <option key={campaign} value={campaign}>{campaign}</option>
               ))}
             </select>
+            {/* Group filter — shows only leads whose phone is in the selected group */}
+            <select
+              value={selectedGroupFilterId}
+              onChange={(e) => { setSelectedGroupFilterId(e.target.value); setPage(1); }}
+              className="sync-btn secondary"
+              style={{ padding: '6px 12px', cursor: 'pointer' }}
+            >
+              <option value="">All Groups</option>
+              {groups.map(g => (
+                <option key={g.id} value={String(g.id)}>{g.name}</option>
+              ))}
+            </select>
           </div>
           <div className="filters-right">
             <p className="pagination-info">Showing {leads.length} leads</p>
@@ -825,13 +935,14 @@ const MetaLeads = ({ onNavigate }) => {
                 <th style={{ width: '40px', textAlign: 'center' }}>
                   <input 
                     type="checkbox" 
-                    checked={leads.length > 0 && leads.every(lead => selectedLeads.find(l => l.id === lead.id))}
+                    checked={displayedLeads.length > 0 && displayedLeads.every(lead => selectedLeads.find(l => l.id === lead.id))}
                     onChange={handleSelectAll}
                     style={{ accentColor: '#1877f2', cursor: 'pointer', width: '16px', height: '16px' }}
                   />
                 </th>
                 <th>Name</th>
                 <th>Campaign</th>
+                <th>Group</th>
                 <th>Status</th>
                 <th>Contact</th>
                 <th>Created</th>
@@ -842,19 +953,19 @@ const MetaLeads = ({ onNavigate }) => {
               {loading ? (
                 Array(5).fill(0).map((_, i) => (
                   <tr key={i}>
-                    <td colSpan="7">
+                    <td colSpan="8">
                       <div className="shimmer" style={{ height: '40px', borderRadius: '4px' }}></div>
                     </td>
                   </tr>
                 ))
-              ) : leads.length === 0 ? (
+              ) : displayedLeads.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#65676B' }}>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: '#65676B' }}>
                     No leads found matching your criteria.
                   </td>
                 </tr>
               ) : (
-                leads.map((lead) => (
+                displayedLeads.map((lead) => (
                   <tr 
                     key={lead.id} 
                     onClick={() => viewLeadDetails(lead)} 
@@ -881,6 +992,15 @@ const MetaLeads = ({ onNavigate }) => {
                     </td>
                     <td>
                       <span className="campaign-tag">{lead.campaignName || '—'}</span>
+                    </td>
+                    <td>
+                      {(() => {
+                        const gid = lead.phone ? phoneGroupMap[String(lead.phone)] : null;
+                        const grp = gid ? groups.find(g => g.id === gid) : null;
+                        return grp
+                          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 12, background: '#f0fdf4', color: '#16a34a', fontSize: 12, fontWeight: 600, border: '1px solid #bbf7d0' }}><Users size={11} />{grp.name}</span>
+                          : <span style={{ color: '#9ca3af', fontSize: 12 }}>—</span>;
+                      })()}
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
                       <select
@@ -1398,6 +1518,117 @@ const MetaLeads = ({ onNavigate }) => {
               <Check size={18} />
               Done
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Groups Management Modal (full CRUD, mirrors Contact module) ── */}
+      {showGroupsModal && (
+        <div className="modal-overlay" onClick={() => setShowGroupsModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 700 }}>
+            <div className="modal-header">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Users size={18} color="#7c3aed" /> Manage Lead Groups
+              </h3>
+              <button className="modal-close" onClick={() => setShowGroupsModal(false)}>&times;</button>
+            </div>
+
+            {/* Search + Add/Update row */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+              {/* Search bar */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #ced0d4', borderRadius: 8, padding: '0 10px', background: '#fff' }}>
+                <Search size={16} color="#65676b" />
+                <input
+                  type="text"
+                  placeholder="Search groups..."
+                  value={groupSearch}
+                  onChange={(e) => setGroupSearch(e.target.value)}
+                  style={{ border: 'none', outline: 'none', width: '100%', height: 38, background: 'transparent', fontSize: 14 }}
+                />
+                {groupSearch && (
+                  <button onClick={() => setGroupSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#65676b', lineHeight: 1 }}>
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              {/* Add / Update row */}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  type="text"
+                  placeholder="Enter group name..."
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveGroup(); }}
+                  style={{ flex: 1, padding: '8px 12px', border: '1px solid #ced0d4', borderRadius: 8, fontSize: 14, outline: 'none' }}
+                />
+                <button
+                  className="sync-btn"
+                  style={{ background: editingGroupId ? '#f59e0b' : '#7c3aed', whiteSpace: 'nowrap' }}
+                  onClick={handleSaveGroup}
+                  disabled={!newGroupName.trim()}
+                >
+                  {editingGroupId ? <><Edit2 size={14} /> Update Group</> : <><Users size={14} /> Add Group</>}
+                </button>
+                {editingGroupId && (
+                  <button className="sync-btn secondary" onClick={handleCancelEditGroup} style={{ whiteSpace: 'nowrap' }}>
+                    <X size={14} /> Cancel
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Groups table */}
+            <div style={{ maxHeight: 340, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+              <table className="meta-table" style={{ marginBottom: 0 }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: 60 }}>S.No</th>
+                    <th>Group Name</th>
+                    <th style={{ width: 140, textAlign: 'center' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredGroups.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} style={{ textAlign: 'center', padding: 20, color: '#65676b' }}>
+                        {groupSearch ? 'No groups match your search.' : 'No groups yet. Add one above.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredGroups.map((g, idx) => (
+                      <tr key={g.id} style={{ background: editingGroupId === g.id ? '#fef9c3' : 'transparent' }}>
+                        <td style={{ color: '#65676b', fontSize: 13 }}>{idx + 1}</td>
+                        <td style={{ fontWeight: editingGroupId === g.id ? 600 : 400 }}>{g.name}</td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                            <button
+                              title="Edit group name"
+                              onClick={() => handleEditGroupClick(g)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#22c55e', padding: '4px 6px', borderRadius: 6, display: 'flex', alignItems: 'center' }}
+                            >
+                              <Edit2 size={15} />
+                            </button>
+                            <button
+                              title="Delete group"
+                              onClick={() => handleDeleteGroup(g.id, g.name)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px 6px', borderRadius: 6, display: 'flex', alignItems: 'center' }}
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="modal-footer" style={{ marginTop: 14 }}>
+              <span style={{ fontSize: 13, color: '#65676b' }}>{groups.length} group{groups.length !== 1 ? 's' : ''} total</span>
+              <button className="sync-btn secondary" onClick={() => setShowGroupsModal(false)}>Close</button>
+            </div>
           </div>
         </div>
       )}

@@ -306,7 +306,9 @@ const WhatsAppChat = () => {
   const fetchManuallyEdited = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/contact/manually-edited`, { credentials: 'include' });
+      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
       const phones = await res.json();
+      if (!Array.isArray(phones)) return;
       const map = {};
       phones.forEach(p => map[p] = true);
       setManuallyEditedPhones(map);

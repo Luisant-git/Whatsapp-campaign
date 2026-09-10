@@ -2612,7 +2612,27 @@ export class WhatsappService {
       where: { OR: [{ name: templateName }, { name: { startsWith: templateName + '_v' } }] },
       orderBy: { updatedAt: 'desc' },
     });
-    const actualTemplateName = dbTemplate?.name || templateName;
+
+    // Validate template exists and is approved before sending
+    if (!dbTemplate) {
+      this.logger.error(`Template "${templateName}" not found in local database. Please sync templates first.`);
+      return contacts.map(c => ({
+        phoneNumber: this.formatPhoneNumber(c.phone),
+        success: false,
+        error: `Template "${templateName}" not found. Please sync templates from Meta or use a valid template name.`
+      }));
+    }
+
+    if (dbTemplate.status !== 'ACTIVE' && dbTemplate.status !== 'approved') {
+      this.logger.error(`Template "${dbTemplate.name}" is not approved. Current status: ${dbTemplate.status}`);
+      return contacts.map(c => ({
+        phoneNumber: this.formatPhoneNumber(c.phone),
+        success: false,
+        error: `Template "${dbTemplate.name}" is not approved by Meta (status: ${dbTemplate.status}). Only ACTIVE/approved templates can be used.`
+      }));
+    }
+
+    const actualTemplateName = dbTemplate.name;
     const templateComponents = dbTemplate?.components
       ? (typeof dbTemplate.components === 'string' ? JSON.parse(dbTemplate.components as string) : dbTemplate.components as any[])
       : [];

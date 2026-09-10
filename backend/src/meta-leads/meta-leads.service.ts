@@ -894,10 +894,10 @@ export class MetaLeadsService {
       if (isNaN(gid)) return { total: 0, completed: 0, percentage: 0 };
       
       total = await client.contact.count({
-        where: { groupId: gid, phone: { not: null } }
+        where: { groupId: gid }
       });
       completed = await client.contact.count({
-        where: { groupId: gid, phone: { not: null }, lastAutomationStep: { gte: totalSteps } }
+        where: { groupId: gid, lastAutomationStep: { gte: totalSteps } }
       });
     } else {
       const whereClause: any = { phone: { not: null } };

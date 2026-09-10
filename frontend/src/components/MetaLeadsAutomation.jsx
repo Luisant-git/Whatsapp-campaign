@@ -221,7 +221,7 @@ const MetaLeadsAutomation = () => {
       return () => { active = false; clearInterval(interval); };
     }, [targetType, campaignName, groupId, totalSteps]);
 
-    if (!progress) return null;
+    if (!progress || progress.error) return null;
 
     return (
       <div style={{ marginTop: '12px', background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>

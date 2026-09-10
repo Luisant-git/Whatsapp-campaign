@@ -820,11 +820,12 @@ export class MetaLeadsService {
       where.status = status;
     }
 
-    const [data, total] = await Promise.all([
+    const fetchLimit = skip + limit;
+
+    const [metaLogs, contactLogs, totalMeta, totalContact] = await Promise.all([
       client.metaLeadAutomationLog.findMany({
         where,
-        skip,
-        take: limit,
+        take: fetchLimit,
         orderBy: { sentAt: 'desc' },
         include: {
           metaLead: {
@@ -832,8 +833,29 @@ export class MetaLeadsService {
           }
         }
       }),
-      client.metaLeadAutomationLog.count({ where })
+      client.contactAutomationLog.findMany({
+        where,
+        take: fetchLimit,
+        orderBy: { sentAt: 'desc' },
+        include: {
+          contact: {
+            select: { name: true, phone: true }
+          }
+        }
+      }),
+      client.metaLeadAutomationLog.count({ where }),
+      client.contactAutomationLog.count({ where })
     ]);
+
+    const combined = [
+      ...metaLogs.map(log => ({ ...log, type: 'meta_lead' })),
+      ...contactLogs.map(log => ({ ...log, type: 'contact_group' }))
+    ];
+
+    combined.sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime());
+
+    const data = combined.slice(skip, skip + limit);
+    const total = totalMeta + totalContact;
 
     return {
       data,
@@ -854,7 +876,11 @@ export class MetaLeadsService {
       where.status = status;
     }
 
-    const total = await client.metaLeadAutomationLog.count({ where });
-    return { total };
+    const [totalMeta, totalContact] = await Promise.all([
+      client.metaLeadAutomationLog.count({ where }),
+      client.contactAutomationLog.count({ where })
+    ]);
+    
+    return { total: totalMeta + totalContact };
   }
 }

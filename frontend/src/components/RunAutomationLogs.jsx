@@ -24,7 +24,7 @@ const RunAutomationLogs = () => {
 
   const [filterStatus, setFilterStatus] = useState("all"); // all | sent | failed
   const [filterType, setFilterType] = useState("all"); // all | DOB | ANNIVERSARY
-  const [activeTab, setActiveTab] = useState("DAILY"); // DAILY | META_LEADS
+  const [activeTab, setActiveTab] = useState("META_LEADS"); // META_LEADS | DAILY
 
   // ✅ OVERALL stats (not page-wise)
   const [overall, setOverall] = useState({ total: 0, sent: 0, failed: 0 });
@@ -174,21 +174,21 @@ const RunAutomationLogs = () => {
           <button 
             style={{ 
               padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600,
-              border: activeTab === 'DAILY' ? '1px solid #1e293b' : '1px solid #cbd5e1', 
-              background: activeTab === 'DAILY' ? '#1e293b' : '#fff', 
-              color: activeTab === 'DAILY' ? '#fff' : '#1e293b', 
-            }}
-            onClick={() => { setActiveTab('DAILY'); setPage(1); }}
-          >Daily Automations</button>
-          <button 
-            style={{ 
-              padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600,
               border: activeTab === 'META_LEADS' ? '1px solid #1e293b' : '1px solid #cbd5e1', 
               background: activeTab === 'META_LEADS' ? '#1e293b' : '#fff', 
               color: activeTab === 'META_LEADS' ? '#fff' : '#1e293b', 
             }}
             onClick={() => { setActiveTab('META_LEADS'); setPage(1); }}
           >Campaigns</button>
+          <button 
+            style={{ 
+              padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600,
+              border: activeTab === 'DAILY' ? '1px solid #1e293b' : '1px solid #cbd5e1', 
+              background: activeTab === 'DAILY' ? '#1e293b' : '#fff', 
+              color: activeTab === 'DAILY' ? '#fff' : '#1e293b', 
+            }}
+            onClick={() => { setActiveTab('DAILY'); setPage(1); }}
+          >Daily Automations</button>
         </div>
       </div>
 
@@ -312,29 +312,23 @@ const RunAutomationLogs = () => {
                     {activeTab === 'DAILY' && <td>{r.runDailyAutomation?.eventType || "-"}</td>}
                     {activeTab === 'DAILY' && <td>{r.runDailyAutomation?.dayBefore ?? "-"}</td>}
                     {activeTab === 'META_LEADS' && <td>{r.stepIndex ?? "-"}</td>}
-
-                    <td>
-                      {r.templateName || r.whatsAppSettings?.templateName || "-"}
-                      <div className="subtext">
-                        lang: {r.whatsAppSettings?.language || "-"}
-                      </div>
-                    </td>
-
+                    <td>{r.templateName || r.whatsAppSettings?.templateName || "-"}</td>
                     <td>
                       <span className={badgeClass(r.status)}>
                         {r.status || "unknown"}
                       </span>
+                      {r.status === 'failed' && r.error && (
+                        <div className="error-reason" title={r.error}>
+                          {r.error}
+                        </div>
+                      )}
                     </td>
-
-                    <td>
-                      {r.sentAt ? new Date(r.sentAt).toLocaleString() : "-"}
-                    </td>
+                    <td>{r.sentAt ? new Date(r.sentAt).toLocaleString() : "-"}</td>
                   </tr>
                 ))}
-
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan="8" style={{ padding: 20, color: "#64748b" }}>
+                    <td colSpan="8" style={{ padding: 16, color: "#64748b", textAlign: 'center' }}>
                       No logs found for the selected filters.
                     </td>
                   </tr>

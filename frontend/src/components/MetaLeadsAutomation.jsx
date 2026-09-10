@@ -95,6 +95,7 @@ const MetaLeadsAutomation = () => {
   const [deletingRuleId, setDeletingRuleId] = useState(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [newRuleId, setNewRuleId] = useState(null); // for highlight animation
+  const [newRuleGroupKey, setNewRuleGroupKey] = useState(null); // hide progress for new sequence
 
   const [formData, setFormData] = useState({
     targetType: 'all', campaignName: '', groupId: '',
@@ -169,6 +170,9 @@ const MetaLeadsAutomation = () => {
         toast('Automation rule created successfully!', 'success');
         setNewRuleId(data.id);
         setTimeout(() => setNewRuleId(null), 2500);
+        const groupKey = `${payload.targetType}_${payload.campaignName}_${payload.groupId}`;
+        setNewRuleGroupKey(groupKey);
+        setTimeout(() => setNewRuleGroupKey(null), 30000);
         setFormData(f => ({ ...f, templateName: '', delayValue: 5, delayUnit: 'minutes' }));
         fetchRules();
       } else {
@@ -464,7 +468,9 @@ const MetaLeadsAutomation = () => {
 
                   {/* Steps */}
                   <div style={{ padding: '12px 16px' }}>
-                    <PipelineProgress targetType={group.targetType} campaignName={group.campaignName} groupId={group.groupId} totalSteps={group.rules.length} />
+                    {newRuleGroupKey !== `${group.targetType}_${group.campaignName}_${group.groupId}` && (
+                      <PipelineProgress targetType={group.targetType} campaignName={group.campaignName} groupId={group.groupId} totalSteps={group.rules.length} />
+                    )}
                     <div style={{ height: 12 }} />
 
                     {group.rules.map((rule, i) => (

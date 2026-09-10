@@ -193,16 +193,21 @@ const MetaLeadsAutomation = () => {
 
   return (
     <div className="settings-container">
-      <div className="settings-header">
-        <div className="settings-title-section">
+      <div className="page-header" style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#e0e7ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Zap size={24} />
+          </div>
           <div>
-            <h1>Campaign Automation</h1>
-            <p>Automatically send WhatsApp sequences to leads or contacts after a set delay.</p>
+            <h1 style={{ fontSize: '24px', fontWeight: 700, margin: '0 0 4px 0', color: '#0f172a' }}>Campaign Automation</h1>
+            <p style={{ margin: 0, color: '#64748b' }}>Automatically send WhatsApp sequences to leads or contacts after a set delay.</p>
           </div>
         </div>
       </div>
 
-      <div className="preference-card" style={{ marginBottom: '40px', padding: '32px', maxWidth: '800px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}>
+      <div style={{ display: 'flex', gap: '32px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        {/* Left Column: Form */}
+        <div className="preference-card" style={{ flex: 1, minWidth: '400px', padding: '32px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)', background: '#fff', borderRadius: '16px' }}>
         <div className="preference-header" style={{ marginBottom: '24px', borderBottom: '1px solid #f1f5f9', paddingBottom: '16px' }}>
           <h2 style={{ fontSize: '18px', fontWeight: 600 }}>Create Automation Rule</h2>
           <p style={{ color: '#64748b' }}>Configure your automated WhatsApp engagement sequence.</p>
@@ -357,59 +362,118 @@ const MetaLeadsAutomation = () => {
 
           </div>
         </form>
-      </div>
+        </div>
 
-      {rules.length > 0 && (
-        <div className="settings-content" style={{ maxWidth: '800px', margin: 0 }}>
-          <div className="preference-header" style={{ marginBottom: '16px', textAlign: 'left' }}>
-            <h2 style={{ fontSize: '16px', margin: 0, fontWeight: 600 }}>Active Sequences</h2>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
-            {[...rules].sort((a, b) => {
-              // Group by targetType then targetId, then sort by delay
-              const targetA = `${a.targetType}_${a.campaignName}_${a.groupId}`;
-              const targetB = `${b.targetType}_${b.campaignName}_${b.groupId}`;
-              if (targetA !== targetB) return targetA.localeCompare(targetB);
-              return a.delayMinutes - b.delayMinutes;
-            }).map((rule) => {
-              const targetColor = getTargetColor(rule);
-              return (
-                <div key={rule.id} style={{
-                  width: '100%', display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', borderRadius: '12px',
-                  border: rule.isActive ? '1px solid #e2e8f0' : '1px solid #e2e8f0',
-                  background: rule.isActive ? '#ffffff' : '#f8fafc',
-                  opacity: rule.isActive ? 1 : 0.6, boxSizing: 'border-box',
-                  boxShadow: rule.isActive ? '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)' : 'none'
+        {/* Right Column: Active Sequences Pipeline */}
+        {rules.length > 0 && (
+          <div className="settings-content" style={{ flex: 1, minWidth: '400px', margin: 0 }}>
+            <div className="preference-header" style={{ marginBottom: '24px', textAlign: 'left' }}>
+              <h2 style={{ fontSize: '18px', margin: 0, fontWeight: 600, color: '#0f172a' }}>Active Sequences</h2>
+              <p style={{ color: '#64748b', fontSize: '14px', marginTop: '4px' }}>Your running automation pipelines</p>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
+              {Object.values(rules.reduce((acc, rule) => {
+                const key = `${rule.targetType}_${rule.campaignName}_${rule.groupId}`;
+                if (!acc[key]) {
+                  acc[key] = {
+                    label: getTargetLabel(rule),
+                    color: getTargetColor(rule),
+                    rules: []
+                  };
+                }
+                acc[key].rules.push(rule);
+                return acc;
+              }, {})).map(group => {
+                group.rules.sort((a, b) => (a.delayMinutes || 0) - (b.delayMinutes || 0));
+                return group;
+              }).map((group, idx) => (
+                <div key={idx} style={{ 
+                  border: '1px solid #e2e8f0', 
+                  borderRadius: '12px', 
+                  background: '#fff', 
+                  overflow: 'hidden',
+                  boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)'
                 }}>
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 600, fontSize: '15px', color: '#0f172a' }}>{rule.templateName}</span>
-                    </div>
-                    <span style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center' }}>
-                      <Clock size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                      Wait {rule.delayValue || rule.delayMinutes} {rule.delayUnit || 'minutes'} before sending
-                      {!rule.isActive && <span style={{ color: '#ef4444', marginLeft: '8px', fontWeight: 600 }}>• Paused</span>}
-                    </span>
+                  {/* Container Header */}
+                  <div style={{ 
+                    padding: '16px 20px', 
+                    background: group.color.bg, 
+                    color: group.color.color, 
+                    fontWeight: 600, 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px',
+                    borderBottom: '1px solid rgba(0,0,0,0.05)'
+                  }}>
+                    <Target size={18} /> {group.label}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0 }}>
-                    <span style={{ fontSize: '12px', backgroundColor: targetColor.bg, color: targetColor.color, padding: '4px 8px', borderRadius: '6px', fontWeight: 600 }}>
-                      {getTargetLabel(rule)}
-                    </span>
-                    <label className="toggle-switch" title={rule.isActive ? 'Pause' : 'Resume'}>
-                      <input type="checkbox" checked={rule.isActive} onChange={() => toggleStatus(rule)} />
-                      <span className="toggle-slider"></span>
-                    </label>
-                    <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }} />
-                    <button onClick={() => handleDelete(rule.id)} style={{ padding: '8px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', borderRadius: '6px' }} onMouseOver={(e) => e.currentTarget.style.background = '#fee2e2'} onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}>
-                      <Trash2 size={18} />
-                    </button>
+                  
+                  {/* Pipeline Steps */}
+                  <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '0' }}>
+                    {group.rules.map((rule, index) => (
+                      <div key={rule.id} style={{ display: 'flex', gap: '16px', alignItems: 'stretch' }}>
+                        
+                        {/* Timeline Graphic */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <div style={{ 
+                            width: '28px', height: '28px', borderRadius: '50%', 
+                            background: rule.isActive ? '#3b82f6' : '#cbd5e1', 
+                            color: '#fff', display: 'flex', alignItems: 'center', 
+                            justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', zIndex: 1 
+                          }}>
+                            {index + 1}
+                          </div>
+                          {index < group.rules.length - 1 && (
+                            <div style={{ width: '2px', flex: 1, background: '#e2e8f0', margin: '4px 0' }} />
+                          )}
+                        </div>
+                        
+                        {/* Step Content */}
+                        <div style={{ 
+                          flex: 1, border: '1px solid #e2e8f0', borderRadius: '8px', 
+                          padding: '16px', background: rule.isActive ? '#fff' : '#f8fafc', 
+                          opacity: rule.isActive ? 1 : 0.6, display: 'flex', 
+                          justifyContent: 'space-between', alignItems: 'center',
+                          marginBottom: index < group.rules.length - 1 ? '16px' : '0',
+                          transition: 'opacity 0.2s'
+                        }}>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: '15px', color: '#0f172a', marginBottom: '6px' }}>
+                              {rule.templateName}
+                            </div>
+                            <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center' }}>
+                              <Clock size={14} style={{ marginRight: '6px' }} /> 
+                              Wait {rule.delayValue || rule.delayMinutes} {rule.delayUnit || 'minutes'}
+                              {!rule.isActive && <span style={{ color: '#ef4444', marginLeft: '8px', fontWeight: 600 }}>• Paused</span>}
+                            </div>
+                          </div>
+                          
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <label className="toggle-switch" title={rule.isActive ? 'Pause' : 'Resume'}>
+                              <input type="checkbox" checked={rule.isActive} onChange={() => toggleStatus(rule)} />
+                              <span className="toggle-slider"></span>
+                            </label>
+                            <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }} />
+                            <button 
+                              onClick={() => handleDelete(rule.id)} 
+                              style={{ padding: '8px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', borderRadius: '6px' }} 
+                              onMouseOver={(e) => e.currentTarget.style.background = '#fee2e2'} 
+                              onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

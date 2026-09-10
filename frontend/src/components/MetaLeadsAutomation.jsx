@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Trash2, Clock, AlertTriangle, CheckCircle, XCircle, Info } from 'lucide-react';
-import { IoSendSharp, IoAddCircleOutline, IoListOutline, IoHelpCircleOutline, IoTimeOutline, IoPeopleOutline, IoChatbubbleEllipsesOutline, IoPlayCircleOutline, IoPauseCircleOutline } from 'react-icons/io5';
+import { Trash2, Clock, Play, Target, MessageSquare, AlertTriangle, HelpCircle, CheckCircle, XCircle, Info, Zap } from 'lucide-react';
 import '../styles/Settings.css';
 import Select from 'react-select';
 
@@ -267,7 +266,7 @@ const MetaLeadsAutomation = () => {
           onClick={() => setShowHelpModal(true)}
           style={{ padding: '9px 16px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: 8, color: '#334155', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, fontSize: 14 }}
         >
-          <IoHelpCircleOutline size={18} color="#64748b" /> How it works
+          <HelpCircle size={16} color="#64748b" /> How it works
         </button>
       </div>
 
@@ -287,7 +286,7 @@ const MetaLeadsAutomation = () => {
               <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0, marginTop: 2 }}>1</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <IoPeopleOutline size={16} /> Who should receive this message?
+                  <Target size={14} /> Choose Target Audience
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <select
@@ -335,7 +334,7 @@ const MetaLeadsAutomation = () => {
               <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0, marginTop: 2 }}>2</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <IoTimeOutline size={16} /> How long to wait before sending?
+                  <Clock size={14} /> Set Wait Time
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <input
@@ -359,8 +358,8 @@ const MetaLeadsAutomation = () => {
                 </div>
                 {/* Live preview */}
                 <div style={{ marginTop: 7, fontSize: 12, color: '#6366f1', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IoTimeOutline size={13} />
-                  Message will be sent {delayLabel(formData.delayValue, formData.delayUnit)}
+                  <Zap size={12} />
+                  Sends {delayLabel(formData.delayValue, formData.delayUnit)}
                 </div>
               </div>
             </div>
@@ -370,7 +369,7 @@ const MetaLeadsAutomation = () => {
               <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0, marginTop: 2 }}>3</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <IoChatbubbleEllipsesOutline size={16} /> Which WhatsApp template to send?
+                  <MessageSquare size={14} /> Select Message Template
                 </div>
                 <Select
                   options={templates.map(t => ({ value: t.name, label: t.name }))}
@@ -404,9 +403,9 @@ const MetaLeadsAutomation = () => {
               }}
             >
               {isSubmitting ? (
-                <><div className="loading-spinner" style={{ borderTopColor: '#fff' }} /> Saving Step...</>
+                <><div className="loading-spinner" style={{ borderTopColor: '#fff' }} /> Saving...</>
               ) : (
-                <><IoAddCircleOutline size={18} /> Save & Add to Sequence</>
+                <><Play size={16} /> Start Automation</>
               )}
             </button>
 
@@ -422,10 +421,7 @@ const MetaLeadsAutomation = () => {
         <div style={{ flex: 1, minWidth: 340 }}>
           <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <h2 style={{ fontSize: 17, fontWeight: 700, margin: '0 0 2px 0', color: '#0f172a', display: 'flex', alignItems: 'center', gap: 7 }}>
-                <IoListOutline size={20} /> Scheduled Message Sequences
-              </h2>
-              <p style={{ margin: 0, color: '#64748b', fontSize: 13 }}>All active automation pipelines running in the background</p>
+              <h2 style={{ fontSize: 17, fontWeight: 700, margin: '0 0 2px 0', color: '#0f172a' }}>Active Sequences</h2>
             </div>
             {rules.length > 0 && (
               <span style={{ background: '#f1f5f9', color: '#475569', borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>
@@ -437,9 +433,9 @@ const MetaLeadsAutomation = () => {
           {/* Empty state */}
           {groupedSequences.length === 0 ? (
             <div style={{ background: '#fff', border: '2px dashed #e2e8f0', borderRadius: 16, padding: '48px 24px', textAlign: 'center' }}>
-              <IoSendSharp size={36} color="#cbd5e1" style={{ marginBottom: 12 }} />
-              <div style={{ fontWeight: 600, color: '#334155', marginBottom: 6 }}>No automation sequences yet</div>
-              <div style={{ fontSize: 13, color: '#94a3b8' }}>Use the form on the left to add your first message step. Once saved, it will appear here and run automatically.</div>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🤖</div>
+              <div style={{ fontWeight: 600, color: '#334155', marginBottom: 6 }}>No automations yet</div>
+              <div style={{ fontSize: 13, color: '#94a3b8' }}>Create your first rule on the left to start sending automated WhatsApp messages.</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -449,17 +445,15 @@ const MetaLeadsAutomation = () => {
                   {/* Sequence header */}
                   <div style={{ padding: '11px 16px', background: group.color.bg, color: group.color.color, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(0,0,0,0.05)', fontSize: 13 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <IoPeopleOutline size={14} />
+                      <Target size={13} />
                       {group.label}
                       <span style={{ background: 'rgba(0,0,0,0.08)', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>
                         {group.rules.length} step{group.rules.length !== 1 ? 's' : ''}
                       </span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {group.rules.every(r => r.isActive)
-                          ? <><IoPlayCircleOutline size={13} /> Running</>
-                          : <><IoPauseCircleOutline size={13} /> Paused</>}
+                      <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        {group.rules.every(r => r.isActive) ? '● RUNNING' : '⏸ PAUSED'}
                       </span>
                       <label className="toggle-switch" title={group.rules.every(r => r.isActive) ? 'Pause sequence' : 'Resume sequence'}>
                         <input type="checkbox" checked={group.rules.every(r => r.isActive)} onChange={e => toggleSequence(group.targetType, group.campaignName, group.groupId, e.target.checked)} />
@@ -496,7 +490,7 @@ const MetaLeadsAutomation = () => {
                           <div>
                             <div style={{ fontWeight: 600, fontSize: 13, color: '#0f172a', marginBottom: 3 }}>{rule.templateName}</div>
                             <div style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <IoTimeOutline size={12} />
+                              <Clock size={11} />
                               Sends {delayLabel(rule.delayValue || rule.delayMinutes, rule.delayUnit || 'minutes')}
                               {!rule.isActive && <span style={{ color: '#ef4444', fontWeight: 600, marginLeft: 4 }}>• Paused</span>}
                             </div>
@@ -556,7 +550,7 @@ const MetaLeadsAutomation = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 44, height: 44, borderRadius: 10, background: '#eff6ff', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <IoHelpCircleOutline size={24} />
+                  <HelpCircle size={22} />
                 </div>
                 <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#0f172a' }}>How Automations Work</h3>
               </div>

@@ -885,21 +885,33 @@ export class MetaLeadsService {
       const gid = parseInt(groupId);
       if (isNaN(gid)) return { total: 0, completed: 0, percentage: 0 };
 
-      total = await client.contact.count({
-        where: { groupId: gid }
+      total = await client.contact.count({ where: { groupId: gid } });
+
+      // "Completed" = has a sent log entry for the final step.
+      // lastAutomationStep was unreliable: Meta can return HTTP 200 yet never
+      // deliver the message, so the counter advanced while nothing was received.
+      // Counting actual sent log rows is the ground truth.
+      const contactSentLogs = await client.contactAutomationLog.groupBy({
+        by: ['contactId'],
+        where: { status: 'sent', stepIndex: totalSteps, contact: { groupId: gid } },
+        _count: { contactId: true },
       });
-      completed = await client.contact.count({
-        where: { groupId: gid, lastAutomationStep: { gte: totalSteps } }
-      });
+      completed = contactSentLogs.length;
+
     } else {
       const whereClause: any = { phone: { not: null } };
       if (targetType === 'meta_campaign' && campaignName) {
         whereClause.campaignName = campaignName;
       }
       total = await client.metaLead.count({ where: whereClause });
-      completed = await client.metaLead.count({
-        where: { ...whereClause, lastAutomationStep: { gte: totalSteps } }
+
+      // Same logic for meta leads.
+      const leadSentLogs = await client.metaLeadAutomationLog.groupBy({
+        by: ['metaLeadId'],
+        where: { status: 'sent', stepIndex: totalSteps, metaLead: whereClause },
+        _count: { metaLeadId: true },
       });
+      completed = leadSentLogs.length;
     }
 
     return { total, completed, percentage: total > 0 ? Math.round((completed / total) * 100) : 0 };

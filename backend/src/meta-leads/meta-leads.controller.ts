@@ -474,14 +474,78 @@ export class MetaLeadsController {
   }
 
   // ── Manual trigger / debug endpoint ──────────────────────────────────────
-  // Call GET /meta-leads/automation-run-now to fire the cron for your tenant
-  // immediately and get a full diagnostic trace back in the response.
+  // Call GET /meta-leads/automation-run-now?tenantId=YOUR_TENANT_ID
+  // This bypasses session auth — tenantId from the query param is used directly.
+  // Remove or restrict this endpoint after debugging.
   @Get('automation-run-now')
-  async runAutomationNow(@Req() req: any) {
+  async runAutomationNow(@Req() req: any, @Query('tenantId') tenantIdParam?: string) {
+    try {
+      let tenantId: string;
+      let dbUrl: string;
+
+      if (tenantIdParam) {
+        // Direct debug path: look up tenant by ID without needing a session
+        const { CentralPrismaService } = require('../central-prisma.service');
+        const cp = new CentralPrismaService();
+        const tenant = await cp.executeWithRetry((p: any) =>
+          p.tenant.findFirst({ where: { id: Number(tenantIdParam), isActive: true } })
+        );
+        if (!tenant) return { ok: false, error: `Tenant ${tenantIdParam} not found or inactive` };
+        tenantId = String(tenant.id);
+        dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+      } else {
+        // Normal path: use session/header
+        const ctx = await this.getTenantContext(req);
+        tenantId = ctx.tenantId;
+        dbUrl = ctx.dbUrl;
+      }
+
+      const result = await this.automationCronService.runForTenant(tenantId, dbUrl);
+      return { ok: true, tenantId, ...result };
+    } catch (error) {
+      return { ok: false, error: error.message || String(error) };
+    }
+  }
+
+  // ── Reset automation progress for a group ────────────────────────────────
+  // GET /meta-leads/automation-reset-group?groupId=5
+  // Resets lastAutomationStep=0 and clears automationSentAt for every contact
+  // in the group, so the sequence will run from the beginning on the next tick.
+  // Use this to recover contacts that were skipped due to old bugs.
+  @Get('automation-reset-group')
+  async resetGroupAutomation(@Req() req: any, @Query('groupId') groupId: string) {
     try {
       const { tenantId, dbUrl } = await this.getTenantContext(req);
-      const result = await this.automationCronService.runForTenant(tenantId, dbUrl);
-      return { ok: true, ...result };
+      if (!groupId) return { ok: false, error: 'groupId query param is required' };
+
+      const client = await (this.automationCronService as any).tenantPrisma
+        .getTenantClientReady(tenantId, dbUrl);
+
+      const gid = parseInt(groupId);
+      if (isNaN(gid)) return { ok: false, error: 'groupId must be a number' };
+
+      // Count contacts before reset
+      const before = await client.contact.count({
+        where: { groupId: gid },
+      });
+
+      // Reset step counter and clear sent timestamp
+      const updated = await client.contact.updateMany({
+        where: { groupId: gid },
+        data: {
+          lastAutomationStep: 0,
+          isAutomationSent: false,
+          automationSentAt: null,
+        },
+      });
+
+      return {
+        ok: true,
+        groupId: gid,
+        contactsInGroup: before,
+        contactsReset: updated.count,
+        message: `Reset ${updated.count} contact(s) in group ${gid}. The automation will retry from Step 1 on the next cron tick (within 1 minute).`,
+      };
     } catch (error) {
       return { ok: false, error: error.message || String(error) };
     }

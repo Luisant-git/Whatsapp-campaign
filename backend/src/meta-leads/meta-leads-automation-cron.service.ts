@@ -169,8 +169,13 @@ export class MetaLeadsAutomationCronService {
             const failCount = sendResults.filter(r => !r.success).length;
             this.logger.log(`Tenant ${tenantId}: Step ${i + 1} — ${sentCount} sent, ${failCount} failed.`);
 
-            // Write per-contact logs and advance step
+            // Write per-contact logs.
+            // Only advance lastAutomationStep for contacts where the send SUCCEEDED.
+            // Failed contacts keep their current step so the cron retries them next tick.
             const stepAdvancedAt = new Date();
+            const successIds = new Set(sendResults.filter(r => r.success).map(r => r.id));
+            const successRecordIds = recordIds.filter(id => successIds.has(id));
+
             if (isContact) {
               await client.contactAutomationLog.createMany({
                 data: eligibleRecords.map((record: any) => {
@@ -184,10 +189,13 @@ export class MetaLeadsAutomationCronService {
                   };
                 }),
               });
-              await client.contact.updateMany({
-                where: { id: { in: recordIds } },
-                data: { isAutomationSent: true, automationSentAt: stepAdvancedAt, lastAutomationStep: i + 1 },
-              });
+              // Only advance contacts that were sent successfully
+              if (successRecordIds.length > 0) {
+                await client.contact.updateMany({
+                  where: { id: { in: successRecordIds } },
+                  data: { isAutomationSent: true, automationSentAt: stepAdvancedAt, lastAutomationStep: i + 1 },
+                });
+              }
             } else {
               await client.metaLeadAutomationLog.createMany({
                 data: eligibleRecords.map((record: any) => {
@@ -201,19 +209,21 @@ export class MetaLeadsAutomationCronService {
                   };
                 }),
               });
-              await client.metaLead.updateMany({
-                where: { id: { in: recordIds } },
-                data: { isAutomationSent: true, automationSentAt: stepAdvancedAt, lastAutomationStep: i + 1 },
-              });
+              // Only advance leads that were sent successfully
+              if (successRecordIds.length > 0) {
+                await client.metaLead.updateMany({
+                  where: { id: { in: successRecordIds } },
+                  data: { isAutomationSent: true, automationSentAt: stepAdvancedAt, lastAutomationStep: i + 1 },
+                });
+              }
             }
 
             // Update in-memory records so subsequent step iterations in this
             // same cron tick see the updated lastAutomationStep and automationSentAt.
-            // Without this, steps i+1 onward would still see the old step index in
-            // the pendingRecords array and never match their eligibility filter.
-            const sentIds = new Set(recordIds);
+            // Only update successfully-sent records — failed ones stay at their current
+            // step so they appear eligible for retry in the next tick.
             for (const record of pendingRecords) {
-              if (sentIds.has(record.id)) {
+              if (successIds.has(record.id)) {
                 record.lastAutomationStep = i + 1;
                 record.automationSentAt = stepAdvancedAt;
               }

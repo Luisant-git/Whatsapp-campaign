@@ -130,12 +130,19 @@ export class MetaLeadsAutomationCronService {
 
           const eligibleRecords = pendingRecords.filter(record => {
             if (record.lastAutomationStep !== i) return false;
+            // Step 0: measure delay from updatedAt, not createdAt.
+            // Using updatedAt means:
+            //   - For brand-new contacts: updatedAt ≈ createdAt, so delay is
+            //     counted from when they were added. ✓
+            //   - For reset contacts: updatedAt is the reset timestamp, so the
+            //     delay is counted from the reset, not from the original creation
+            //     date weeks/months ago. ✓
+            // Steps 1+: measure from automationSentAt (when previous step sent).
             const baseTime = i === 0
-              ? record.createdAt.getTime()
-              : (record.automationSentAt?.getTime() ?? record.createdAt.getTime());
+              ? record.updatedAt.getTime()
+              : (record.automationSentAt?.getTime() ?? record.updatedAt.getTime());
             const elapsed = now.getTime() - baseTime;
             const eligible = elapsed >= delayMs;
-            // Verbose: log every record's eligibility check
             log(`    Record id=${record.id} lastStep=${record.lastAutomationStep} elapsed=${Math.round(elapsed / 1000)}s needed=${Math.round(delayMs / 1000)}s → ${eligible ? 'ELIGIBLE' : 'NOT YET'}`);
             return eligible;
           });

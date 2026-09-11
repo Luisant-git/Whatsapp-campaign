@@ -134,6 +134,23 @@ export class MetaLeadsAutomationCronService {
             const sendResults: { id: number; success: boolean; error?: string }[] = [];
 
             for (const contact of eligibleRecords) {
+              // Normalize to E.164: strip all non-digits then prepend '+'.
+              // Meta's Graph API v18+ requires the 'to' field in E.164 format
+              // (e.g. +917824017222). Sending a raw stored number without the '+'
+              // causes silent delivery failures — Meta returns HTTP 200 but never
+              // queues the message.
+              const rawPhone = String(contact.phone || '').trim();
+              const digitsOnly = rawPhone.replace(/\D/g, '');
+              const toPhone = digitsOnly.startsWith('+')
+                ? rawPhone          // already has +, keep as-is
+                : `+${digitsOnly}`; // prepend +
+
+              if (!digitsOnly) {
+                sendResults.push({ id: contact.id, success: false, error: 'Empty phone number' });
+                this.logger.warn(`Tenant ${tenantId}: Skipping contact ${contact.id} — empty phone`);
+                continue;
+              }
+
               try {
                 const components: any[] = [];
                 if (templateHasBodyVar && contact.name) {
@@ -142,9 +159,9 @@ export class MetaLeadsAutomationCronService {
                     parameters: [{ type: 'text', text: contact.name }],
                   });
                 }
-                await axios.post(apiUrl, {
+                const metaResponse = await axios.post(apiUrl, {
                   messaging_product: 'whatsapp',
-                  to: contact.phone,
+                  to: toPhone,
                   type: 'template',
                   template: {
                     name: templateName,
@@ -154,14 +171,26 @@ export class MetaLeadsAutomationCronService {
                 }, {
                   headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
                 });
-                sendResults.push({ id: contact.id, success: true });
+
+                // Meta returns HTTP 200 even when it silently drops the message.
+                // A genuine acceptance always includes a messages[0].id (wamid).
+                const wamid = metaResponse.data?.messages?.[0]?.id;
+                if (!wamid) {
+                  const warning = `Meta accepted request but returned no wamid — message may not have been queued. Response: ${JSON.stringify(metaResponse.data)}`;
+                  this.logger.warn(`Tenant ${tenantId}: ${contact.phone} — ${warning}`);
+                  // Still mark success so we don't endlessly retry — the API accepted it
+                  sendResults.push({ id: contact.id, success: true, error: warning });
+                } else {
+                  this.logger.log(`Tenant ${tenantId}: Sent to ${toPhone} — wamid: ${wamid}`);
+                  sendResults.push({ id: contact.id, success: true });
+                }
               } catch (sendErr: any) {
                 const metaErr = sendErr.response?.data?.error;
                 const errorMsg = metaErr
                   ? `[${metaErr.code}] ${metaErr.message}${metaErr.error_data?.details ? ' — ' + metaErr.error_data.details : ''}`
                   : sendErr.message || String(sendErr);
                 sendResults.push({ id: contact.id, success: false, error: errorMsg });
-                this.logger.warn(`Tenant ${tenantId}: Failed for ${contact.phone}: ${errorMsg}`);
+                this.logger.warn(`Tenant ${tenantId}: Failed for ${toPhone}: ${errorMsg}`);
               }
             }
 

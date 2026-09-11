@@ -186,7 +186,7 @@ export class MetaLeadsAutomationCronService {
             }
 
             // Send per-contact
-            const sendResults: { id: number; success: boolean; error?: string }[] = [];
+            const sendResults: { id: number; success: boolean; wamid?: string; error?: string }[] = [];
 
             for (const contact of eligibleRecords) {
               // Normalize to E.164 (+<digits>)
@@ -227,10 +227,10 @@ export class MetaLeadsAutomationCronService {
                 if (!wamid) {
                   const warning = `Meta returned no wamid — response: ${JSON.stringify(metaResponse.data)}`;
                   warn(`  ${contact.phone}: ${warning}`);
-                  sendResults.push({ id: contact.id, success: true, error: warning });
+                  sendResults.push({ id: contact.id, success: true });
                 } else {
                   log(`  ✓ Sent to ${toPhone} — wamid: ${wamid}`);
-                  sendResults.push({ id: contact.id, success: true });
+                  sendResults.push({ id: contact.id, success: true, wamid });
                 }
               } catch (sendErr: any) {
                 const metaErr = sendErr.response?.data?.error;
@@ -271,6 +271,37 @@ export class MetaLeadsAutomationCronService {
                 });
                 log(`  Advanced ${successRecordIds.length} contact(s) to step ${i + 1}`);
               }
+
+              // Save a WhatsAppMessage record for every successful contact send so
+              // the template bubble appears in the WhatsApp chat page for that contact.
+              const successContacts = eligibleRecords.filter((r: any) => successIds.has(r.id));
+              if (successContacts.length > 0) {
+                const chatMessages = successContacts.map((contact: any) => {
+                  const rawPhone = String(contact.phone || '').trim();
+                  const digitsOnly = rawPhone.replace(/\D/g, '');
+                  const toPhone = `+${digitsOnly}`;
+                  const sendResult = sendResults.find(r => r.id === contact.id);
+                  const messageId = sendResult?.wamid || `auto_${contact.id}_step${i + 1}_${Date.now()}`;
+                  return {
+                    messageId,
+                    to: toPhone,
+                    from: toPhone,
+                    message: `Template ${templateName} sent to ${contact.name || toPhone}`,
+                    direction: 'outgoing',
+                    status: 'sent',
+                    phoneNumberId: masterConfig.phoneNumberId,
+                  };
+                });
+                try {
+                  await client.whatsAppMessage.createMany({
+                    data: chatMessages,
+                    skipDuplicates: true,
+                  });
+                  log(`  Saved ${chatMessages.length} chat message(s) for template preview in chat`);
+                } catch (msgErr: any) {
+                  warn(`  Could not save chat messages: ${msgErr?.message}`);
+                }
+              }
             } else {
               await client.metaLeadAutomationLog.createMany({
                 data: eligibleRecords.map((record: any) => {
@@ -290,6 +321,36 @@ export class MetaLeadsAutomationCronService {
                   data: { isAutomationSent: true, automationSentAt: stepAdvancedAt, lastAutomationStep: i + 1 },
                 });
                 log(`  Advanced ${successRecordIds.length} lead(s) to step ${i + 1}`);
+              }
+
+              // Save chat messages for leads too (matched by phone in the chat list)
+              const successLeads = eligibleRecords.filter((r: any) => successIds.has(r.id));
+              if (successLeads.length > 0) {
+                const chatMessages = successLeads.map((lead: any) => {
+                  const rawPhone = String(lead.phone || '').trim();
+                  const digitsOnly = rawPhone.replace(/\D/g, '');
+                  const toPhone = `+${digitsOnly}`;
+                  const sendResult = sendResults.find(r => r.id === lead.id);
+                  const messageId = sendResult?.wamid || `auto_lead_${lead.id}_step${i + 1}_${Date.now()}`;
+                  return {
+                    messageId,
+                    to: toPhone,
+                    from: toPhone,
+                    message: `Template ${templateName} sent to ${lead.name || toPhone}`,
+                    direction: 'outgoing',
+                    status: 'sent',
+                    phoneNumberId: masterConfig.phoneNumberId,
+                  };
+                });
+                try {
+                  await client.whatsAppMessage.createMany({
+                    data: chatMessages,
+                    skipDuplicates: true,
+                  });
+                  log(`  Saved ${chatMessages.length} chat message(s) for template preview in chat`);
+                } catch (msgErr: any) {
+                  warn(`  Could not save chat messages: ${msgErr?.message}`);
+                }
               }
             }
 

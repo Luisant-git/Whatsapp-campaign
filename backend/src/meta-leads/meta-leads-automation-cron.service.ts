@@ -279,14 +279,19 @@ export class MetaLeadsAutomationCronService {
                 const chatMessages = successContacts.map((contact: any) => {
                   const rawPhone = String(contact.phone || '').trim();
                   const digitsOnly = rawPhone.replace(/\D/g, '');
-                  const toPhone = `+${digitsOnly}`;
+                  const toPhone = `+${digitsOnly}`; // E.164 used only for Meta API call
                   const sendResult = sendResults.find(r => r.id === contact.id);
                   const messageId = sendResult?.wamid || `auto_${contact.id}_step${i + 1}_${Date.now()}`;
                   return {
                     messageId,
-                    to: toPhone,
-                    from: toPhone,
-                    message: `Template ${templateName} sent to ${contact.name || toPhone}`,
+                    // Use digitsOnly (no +) for from/to so this message is grouped
+                    // into the same chat thread as existing messages. The chat list
+                    // groups by "from" + "phoneNumberId" — if existing messages store
+                    // "919360999351" then we must store "919360999351" too, not
+                    // "+919360999351", otherwise a duplicate separate chat appears.
+                    to: digitsOnly,
+                    from: digitsOnly,
+                    message: `Template ${templateName} sent to ${contact.name || digitsOnly}`,
                     direction: 'outgoing',
                     status: 'sent',
                     phoneNumberId: masterConfig.phoneNumberId,
@@ -329,14 +334,13 @@ export class MetaLeadsAutomationCronService {
                 const chatMessages = successLeads.map((lead: any) => {
                   const rawPhone = String(lead.phone || '').trim();
                   const digitsOnly = rawPhone.replace(/\D/g, '');
-                  const toPhone = `+${digitsOnly}`;
                   const sendResult = sendResults.find(r => r.id === lead.id);
                   const messageId = sendResult?.wamid || `auto_lead_${lead.id}_step${i + 1}_${Date.now()}`;
                   return {
                     messageId,
-                    to: toPhone,
-                    from: toPhone,
-                    message: `Template ${templateName} sent to ${lead.name || toPhone}`,
+                    to: digitsOnly,
+                    from: digitsOnly,
+                    message: `Template ${templateName} sent to ${lead.name || digitsOnly}`,
                     direction: 'outgoing',
                     status: 'sent',
                     phoneNumberId: masterConfig.phoneNumberId,

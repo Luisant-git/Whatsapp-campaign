@@ -549,26 +549,40 @@ export class MetaLeadsController {
     }
   }
 
-  // ── Inspect group contacts raw state ─────────────────────────────────────
-  // GET /meta-leads/automation-inspect-group?groupId=5
-  @Get('automation-inspect-group')
-  async inspectGroupContacts(@Req() req: any, @Query('groupId') groupId: string) {
+  // ── Clean up duplicate chats caused by + prefix phone mismatch ──────────
+  // GET /meta-leads/automation-cleanup-chats
+  // Deletes WhatsAppMessage rows where "from" starts with "+" that are
+  // duplicates of rows stored without "+" — these were created by the old
+  // automation code and caused phantom duplicate chat entries.
+  @Get('automation-cleanup-chats')
+  async cleanupDuplicateChats(@Req() req: any) {
     try {
       const { tenantId, dbUrl } = await this.getTenantContext(req);
       const client = await (this.automationCronService as any).tenantPrisma
         .getTenantClientReady(tenantId, dbUrl);
-      const gid = parseInt(groupId);
-      const contacts = await client.contact.findMany({
-        where: { groupId: gid },
-        select: { id: true, name: true, phone: true, lastAutomationStep: true, isAutomationSent: true, automationSentAt: true, createdAt: true },
+
+      // Find all messages where "from" starts with "+"
+      const withPlus = await client.whatsAppMessage.findMany({
+        where: { from: { startsWith: '+' } },
+        select: { id: true, from: true, messageId: true },
       });
-      const logs = await client.contactAutomationLog.findMany({
-        where: { contact: { groupId: gid } },
-        orderBy: { sentAt: 'desc' },
-        take: 20,
-        select: { id: true, contactId: true, stepIndex: true, status: true, error: true, sentAt: true, templateName: true },
+
+      if (withPlus.length === 0) {
+        return { ok: true, deleted: 0, message: 'No duplicate + prefix chats found' };
+      }
+
+      const idsToDelete = withPlus.map((m: any) => m.id);
+
+      await client.whatsAppMessage.deleteMany({
+        where: { id: { in: idsToDelete } },
       });
-      return { ok: true, contacts, recentLogs: logs };
+
+      return {
+        ok: true,
+        deleted: idsToDelete.length,
+        phones: [...new Set(withPlus.map((m: any) => m.from))],
+        message: `Deleted ${idsToDelete.length} duplicate message(s) with + prefix phones. Duplicate chats are now removed.`,
+      };
     } catch (error) {
       return { ok: false, error: error.message || String(error) };
     }

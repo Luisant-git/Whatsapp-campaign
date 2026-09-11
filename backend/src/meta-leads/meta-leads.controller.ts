@@ -551,9 +551,8 @@ export class MetaLeadsController {
 
   // ── Clean up duplicate chats caused by + prefix phone mismatch ──────────
   // GET /meta-leads/automation-cleanup-chats
-  // Deletes WhatsAppMessage rows where "from" starts with "+" that are
-  // duplicates of rows stored without "+" — these were created by the old
-  // automation code and caused phantom duplicate chat entries.
+  // Normalizes all WhatsAppMessage.from values to digits-only format,
+  // eliminating duplicate chat entries caused by mixed phone formats.
   @Get('automation-cleanup-chats')
   async cleanupDuplicateChats(@Req() req: any) {
     try {
@@ -561,27 +560,54 @@ export class MetaLeadsController {
       const client = await (this.automationCronService as any).tenantPrisma
         .getTenantClientReady(tenantId, dbUrl);
 
-      // Find all messages where "from" starts with "+"
+      // 1. Delete messages where "from" starts with "+" (duplicates from old automation)
       const withPlus = await client.whatsAppMessage.findMany({
         where: { from: { startsWith: '+' } },
         select: { id: true, from: true, messageId: true },
       });
 
-      if (withPlus.length === 0) {
-        return { ok: true, deleted: 0, message: 'No duplicate + prefix chats found' };
+      let deleted = 0;
+      if (withPlus.length > 0) {
+        await client.whatsAppMessage.deleteMany({
+          where: { id: { in: withPlus.map((m: any) => m.id) } },
+        });
+        deleted = withPlus.length;
       }
 
-      const idsToDelete = withPlus.map((m: any) => m.id);
-
-      await client.whatsAppMessage.deleteMany({
-        where: { id: { in: idsToDelete } },
+      // 2. Find any other non-standard formats (double country code like 91919...)
+      const allMessages = await client.whatsAppMessage.findMany({
+        select: { id: true, from: true },
       });
+
+      const toFix: { id: number; normalized: string }[] = [];
+      for (const msg of allMessages) {
+        const digits = String(msg.from || '').replace(/\D/g, '');
+        // Fix double country code: 91919XXXXXXX → 919XXXXXXX
+        let normalized = digits;
+        if (digits.length === 14 && digits.startsWith('9191')) {
+          normalized = digits.slice(2); // strip extra 91
+        }
+        if (normalized !== msg.from) {
+          toFix.push({ id: msg.id, normalized });
+        }
+      }
+
+      let normalized = 0;
+      for (const fix of toFix) {
+        try {
+          await client.whatsAppMessage.update({
+            where: { id: fix.id },
+            data: { from: fix.normalized, to: fix.normalized },
+          });
+          normalized++;
+        } catch { /* skip if unique constraint hit */ }
+      }
 
       return {
         ok: true,
-        deleted: idsToDelete.length,
-        phones: [...new Set(withPlus.map((m: any) => m.from))],
-        message: `Deleted ${idsToDelete.length} duplicate message(s) with + prefix phones. Duplicate chats are now removed.`,
+        deletedPlusPrefix: deleted,
+        normalizedDoubleCountryCode: normalized,
+        message: `Cleaned up ${deleted} + prefix message(s) and normalized ${normalized} double-country-code message(s). Refresh the chat page.`,
       };
     } catch (error) {
       return { ok: false, error: error.message || String(error) };

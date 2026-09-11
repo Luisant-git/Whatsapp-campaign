@@ -566,9 +566,9 @@ const MetaLeadsAutomation = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, fontSize: 14, color: '#475569', lineHeight: 1.7 }}>
               {[
                 [<RefreshCw size={14} />, 'Background Execution', 'Automations run every minute in the background. You do not need to keep this page open.'],
-                [<Timer size={14} />, 'Absolute Wait Times', 'Wait time is counted from when the contact was created. If Step 1 is "5 min" and Step 2 is "15 min", the second message sends 15 min after creation — not 10 min after Step 1.'],
+                [<Timer size={14} />, 'Relative Wait Times', 'Each step\'s wait time is counted from when the previous step was sent — not from when the contact was created. If Step 1 is "5 min" and Step 2 is "5 min", the second message sends 5 minutes after Step 1 is delivered.'],
                 [<ClipboardList size={14} />, 'Viewing Logs', 'Check the Run Automation Logs page to see delivery status, failures, and which contacts received each step.'],
-                [<ShieldAlert size={14} />, 'Failed Sends', 'If a template fails (e.g. invalid number), the contact still advances to the next step so they are never stuck.'],
+                [<ShieldAlert size={14} />, 'Failed Sends', 'If a message fails to send (e.g. invalid number or template error), the contact stays at that step and the system retries automatically on the next cron tick.'],
               ].map(([icon, title, desc]) => (
                 <div key={title} style={{ background: '#f8fafc', borderRadius: 8, padding: '12px 14px' }}>
                   <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>{icon}{title}</div>

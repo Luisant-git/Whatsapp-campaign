@@ -299,6 +299,7 @@ const RunAutomationLogs = () => {
                   {activeTab === 'META_LEADS' && <th>Step</th>}
                   <th>Template</th>
                   <th>Status</th>
+                  <th>Error Reason</th>
                   <th>Sent At</th>
                 </tr>
               </thead>
@@ -317,10 +318,25 @@ const RunAutomationLogs = () => {
                       <span className={badgeClass(r.status)}>
                         {r.status || "unknown"}
                       </span>
-                      {r.status === 'failed' && r.error && (
-                        <div className="error-reason" title={r.error}>
+                    </td>
+                    <td>
+                      {r.status === 'failed' && r.error ? (
+                        <div style={{
+                          maxWidth: 320,
+                          fontSize: 12,
+                          color: '#b91c1c',
+                          background: '#fef2f2',
+                          border: '1px solid #fecaca',
+                          borderRadius: 6,
+                          padding: '5px 8px',
+                          lineHeight: 1.5,
+                          wordBreak: 'break-word',
+                          whiteSpace: 'pre-wrap',
+                        }}>
                           {r.error}
                         </div>
+                      ) : (
+                        <span style={{ color: '#94a3b8', fontSize: 12 }}>—</span>
                       )}
                     </td>
                     <td>{r.sentAt ? new Date(r.sentAt).toLocaleString() : "-"}</td>
@@ -328,7 +344,7 @@ const RunAutomationLogs = () => {
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan="8" style={{ padding: 16, color: "#64748b", textAlign: 'center' }}>
+                    <td colSpan="9" style={{ padding: 16, color: "#64748b", textAlign: 'center' }}>
                       No logs found for the selected filters.
                     </td>
                   </tr>

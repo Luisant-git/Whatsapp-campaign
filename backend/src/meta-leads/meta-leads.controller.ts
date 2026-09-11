@@ -509,9 +509,6 @@ export class MetaLeadsController {
 
   // ── Reset automation progress for a group ────────────────────────────────
   // GET /meta-leads/automation-reset-group?groupId=5
-  // Resets lastAutomationStep=0 and clears automationSentAt for every contact
-  // in the group, so the sequence will run from the beginning on the next tick.
-  // Use this to recover contacts that were skipped due to old bugs.
   @Get('automation-reset-group')
   async resetGroupAutomation(@Req() req: any, @Query('groupId') groupId: string) {
     try {
@@ -525,18 +522,18 @@ export class MetaLeadsController {
       if (isNaN(gid)) return { ok: false, error: 'groupId must be a number' };
 
       // Count contacts before reset
-      const before = await client.contact.count({
-        where: { groupId: gid },
-      });
+      const before = await client.contact.count({ where: { groupId: gid } });
 
       // Reset step counter and clear sent timestamp
       const updated = await client.contact.updateMany({
         where: { groupId: gid },
-        data: {
-          lastAutomationStep: 0,
-          isAutomationSent: false,
-          automationSentAt: null,
-        },
+        data: { lastAutomationStep: 0, isAutomationSent: false, automationSentAt: null },
+      });
+
+      // Read back to confirm
+      const contacts = await client.contact.findMany({
+        where: { groupId: gid },
+        select: { id: true, name: true, phone: true, lastAutomationStep: true, automationSentAt: true, createdAt: true },
       });
 
       return {
@@ -544,8 +541,34 @@ export class MetaLeadsController {
         groupId: gid,
         contactsInGroup: before,
         contactsReset: updated.count,
-        message: `Reset ${updated.count} contact(s) in group ${gid}. The automation will retry from Step 1 on the next cron tick (within 1 minute).`,
+        contactsAfterReset: contacts,
+        message: `Reset ${updated.count} contact(s). Run automation-run-now to fire immediately.`,
       };
+    } catch (error) {
+      return { ok: false, error: error.message || String(error) };
+    }
+  }
+
+  // ── Inspect group contacts raw state ─────────────────────────────────────
+  // GET /meta-leads/automation-inspect-group?groupId=5
+  @Get('automation-inspect-group')
+  async inspectGroupContacts(@Req() req: any, @Query('groupId') groupId: string) {
+    try {
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
+      const client = await (this.automationCronService as any).tenantPrisma
+        .getTenantClientReady(tenantId, dbUrl);
+      const gid = parseInt(groupId);
+      const contacts = await client.contact.findMany({
+        where: { groupId: gid },
+        select: { id: true, name: true, phone: true, lastAutomationStep: true, isAutomationSent: true, automationSentAt: true, createdAt: true },
+      });
+      const logs = await client.contactAutomationLog.findMany({
+        where: { contact: { groupId: gid } },
+        orderBy: { sentAt: 'desc' },
+        take: 20,
+        select: { id: true, contactId: true, stepIndex: true, status: true, error: true, sentAt: true, templateName: true },
+      });
+      return { ok: true, contacts, recentLogs: logs };
     } catch (error) {
       return { ok: false, error: error.message || String(error) };
     }

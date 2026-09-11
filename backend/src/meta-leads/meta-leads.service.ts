@@ -8,7 +8,7 @@ export class MetaLeadsService {
   private readonly logger = new Logger(MetaLeadsService.name);
   private centralPrisma = new CentralPrismaClient();
 
-  constructor(private prisma: TenantPrismaService) {}
+  constructor(private prisma: TenantPrismaService) { }
 
   private async getClient(tenantId: string, dbUrl?: string) {
     const url = dbUrl || process.env.TENANT_DATABASE_URL || '';
@@ -93,26 +93,26 @@ export class MetaLeadsService {
     try {
       const url = `https://graph.facebook.com/v25.0/${formId}`;
       const response = await axios.get(url, {
-        params: { 
+        params: {
           access_token: accessToken,
           fields: 'id,name,page_id,status,leads_count,lead_gen_export_csv_url'
         },
       });
-      
+
       this.logger.log(`Form Info for ${formId}:`, JSON.stringify(response.data));
-      
+
       // Also try to get the total count directly
       const leadsCountUrl = `https://graph.facebook.com/v25.0/${formId}/leads`;
       const leadsResponse = await axios.get(leadsCountUrl, {
-        params: { 
+        params: {
           access_token: accessToken,
           summary: true,
           limit: 0
         },
       });
-      
+
       this.logger.log(`Leads summary:`, JSON.stringify(leadsResponse.data));
-      
+
       return response;
     } catch (error) {
       this.logger.error('Failed to get form info:', error);
@@ -130,14 +130,14 @@ export class MetaLeadsService {
     this.logger.log(`DB URL: ${dbUrl ? dbUrl.replace(/:[^:@]+@/, ':****@') : 'NOT PROVIDED'}`);
     this.logger.log(`Page ID: ${pageId}`);
     this.logger.log(`Form ID: ${formId}`);
-    
+
     try {
       let allLeads: any[] = [];
       let formNameMap = new Map<string, string>();
 
       if (formId && formId !== 'all') {
         this.logger.log(`Syncing leads from single form: ${formId}`);
-        
+
         // Get form name
         try {
           const formResponse = await axios.get(`https://graph.facebook.com/v25.0/${formId}`, {
@@ -147,22 +147,22 @@ export class MetaLeadsService {
         } catch (e) {
           this.logger.warn(`Could not fetch form name for ${formId}`);
         }
-        
+
         allLeads = await this.fetchLeadsFromForm(formId, accessToken);
       } else {
         this.logger.log(`Fetching all forms from page: ${pageId}`);
-        
+
         // Fetch ALL forms with pagination
         let formsUrl: string | null = `https://graph.facebook.com/v25.0/${pageId}/leadgen_forms?access_token=${accessToken}&limit=100&fields=id,name`;
         let allForms: any[] = [];
-        
+
         while (formsUrl) {
           const { data: formsData } = await axios.get(formsUrl);
           const forms = formsData.data || [];
           allForms.push(...forms);
           formsUrl = formsData.paging?.next || null;
         }
-        
+
         this.logger.log(`Found ${allForms.length} forms on this page`);
 
         // Build form name map
@@ -177,18 +177,18 @@ export class MetaLeadsService {
           this.logger.log(`Got ${formLeads.length} leads from form ${form.id}`);
         }
       }
-      
+
       this.logger.log(`✅ Total leads fetched from Meta API: ${allLeads.length}`);
       this.logger.log(`Form name map has ${formNameMap.size} entries:`, Array.from(formNameMap.entries()));
-      
+
       // Log sample lead for debugging
       if (allLeads.length > 0) {
         this.logger.log('Sample lead from Meta API:', JSON.stringify(allLeads[0], null, 2));
       }
-      
+
       if (allLeads.length === 0) {
-        return { 
-          success: true, 
+        return {
+          success: true,
           count: 0,
           message: 'No leads found. The forms may not have any submissions yet.'
         };
@@ -253,32 +253,32 @@ export class MetaLeadsService {
       if (failedLeads.length > 0) {
         this.logger.warn(`⚠️ Failed to save ${failedLeads.length} leads:`, failedLeads);
       }
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         count: savedLeads.length,
         failed: failedLeads.length,
-        message: failedLeads.length > 0 
-          ? `Saved ${savedLeads.length} leads, ${failedLeads.length} failed` 
+        message: failedLeads.length > 0
+          ? `Saved ${savedLeads.length} leads, ${failedLeads.length} failed`
           : undefined,
         firstError: failedLeads.length > 0 ? failedLeads[0].error : undefined
       };
     } catch (error) {
       this.logger.error('Failed to sync leads:', error);
-      
+
       if (error.response?.data?.error) {
         const metaError = error.response.data.error;
         let errorMessage = metaError.message;
-        
+
         if (metaError.code === 100) {
           errorMessage += ' - This usually means: 1) The Form ID is incorrect, 2) Your access token lacks required permissions (leads_retrieval), or 3) The form doesn\'t belong to your Page.';
         } else if (metaError.code === 190) {
           errorMessage += ' - Your access token has expired or is invalid. Please generate a new token.';
         }
-        
+
         throw new Error(errorMessage);
       }
-      
+
       const errorMessage = error.message || 'Failed to sync leads from Facebook';
       const details = 'Common issues: 1) Invalid Form ID, 2) Missing permissions (leads_retrieval, pages_manage_metadata), 3) Form not linked to Page ID, 4) Expired access token';
       throw new Error(`${errorMessage}\n\n${details}`);
@@ -295,18 +295,18 @@ export class MetaLeadsService {
     while (url) {
       pageCount++;
       this.logger.log(`Fetching page ${pageCount} from: ${url.substring(0, 100)}...`);
-      
+
       try {
         const response = await axios.get(url);
         const data = response.data;
         const leads = data.data || [];
-        
+
         this.logger.log(`Page ${pageCount}: Got ${leads.length} leads`);
         allLeads.push(...leads);
-        
+
         // Get next page URL
         url = data.paging?.next || null;
-        
+
         if (url) {
           this.logger.log(`More pages available, continuing...`);
         } else {
@@ -354,18 +354,18 @@ export class MetaLeadsService {
 
   private parseLeadFields(fieldData: any[]) {
     const parsed: any = { status: 'Intake', customFields: {} };
-    
+
     this.logger.log('=== PARSING LEAD FIELDS ===');
     this.logger.log('Raw field data:', JSON.stringify(fieldData, null, 2));
-    
+
     fieldData.forEach(field => {
       const name = field.name.toLowerCase();
       const values = field.values || [];
-      
+
       this.logger.log(`Processing field: "${field.name}"`);
       this.logger.log(`  - Values array:`, values);
       this.logger.log(`  - First value:`, values[0]);
-      
+
       if (name === 'full_name' || (name.includes('name') && !name.includes('company'))) {
         parsed.name = values[0];
       } else if (name.includes('email')) {
@@ -373,16 +373,16 @@ export class MetaLeadsService {
       } else if ((name.includes('phone') || name.includes('mobile')) && !name.includes('verified')) {
         // Only process phone fields that are NOT the "verified" field
         // Meta returns: phone_number (actual number) and phone_number_verified (true/false)
-        
+
         this.logger.log(`  - PHONE FIELD DETECTED`);
         this.logger.log(`  - Values:`, JSON.stringify(values));
-        
+
         const phoneValue = values[0];
-        
+
         if (phoneValue && typeof phoneValue === 'string') {
           // Remove all non-digit characters to get clean phone number
           const cleanPhone = phoneValue.replace(/\D/g, '');
-          
+
           // Check if it's a valid phone number (at least 10 digits)
           if (cleanPhone.length >= 10) {
             parsed.phone = cleanPhone;
@@ -422,7 +422,7 @@ export class MetaLeadsService {
         try {
           const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
           const client = await this.getClient(tenant.id.toString(), dbUrl);
-          
+
           const metaConfig = await client.metaConfig.findFirst({
             where: { isActive: true },
           });
@@ -482,7 +482,7 @@ export class MetaLeadsService {
   async resolveAppSecretForWebhook(body: any): Promise<string | null> {
     try {
       if (body?.object !== 'page') return null;
-      
+
       const entries = body.entry || [];
       for (const entry of entries) {
         const changes = entry?.changes || [];
@@ -501,11 +501,11 @@ export class MetaLeadsService {
 
             const dbUrl = `postgresql://${matchedTenant.dbUser}:${matchedTenant.dbPassword}@${matchedTenant.dbHost}:${matchedTenant.dbPort}/${matchedTenant.dbName}`;
             const client = await this.getClient(matchedTenant.id.toString(), dbUrl);
-            
+
             const masterConfig = await client.masterConfig.findFirst({
               where: { isActive: true }
             });
-            
+
             if (masterConfig?.appSecret) {
               return masterConfig.appSecret;
             }
@@ -532,7 +532,7 @@ export class MetaLeadsService {
             const pageId = change.value.page_id;
 
             this.logger.log(`Received Meta Lead: ${leadgenId}`);
-            
+
             const mapping = await this.resolveTenantMapping(pageId);
 
             if (!mapping) {
@@ -551,7 +551,7 @@ export class MetaLeadsService {
 
             const matchedDbUrl = `postgresql://${matchedTenant.dbUser}:${matchedTenant.dbPassword}@${matchedTenant.dbHost}:${matchedTenant.dbPort}/${matchedTenant.dbName}`;
             const client = await this.getClient(matchedTenant.id.toString(), matchedDbUrl);
-            
+
             const matchedMetaConfig = await client.metaConfig.findFirst({
               where: { isActive: true, pageId }
             });
@@ -582,7 +582,7 @@ export class MetaLeadsService {
 
             // 1. Parse Field Data
             const fieldData = this.parseLeadFields(leadData.field_data);
-            
+
             // 2. Fetch Form Name
             let campaignName = matchedMetaConfig.name || null;
             try {
@@ -665,7 +665,7 @@ export class MetaLeadsService {
           Object.keys(row).forEach(key => {
             const lowerKey = key.toLowerCase().trim();
             const value = row[key]?.toString().trim();
-            
+
             if (!value) return;
 
             if (lowerKey.includes('name') || lowerKey === 'full_name') {
@@ -686,7 +686,7 @@ export class MetaLeadsService {
                 if (!isNaN(parsedDate.getTime())) {
                   leadData.createdTime = parsedDate;
                 }
-              } catch (e) {}
+              } catch (e) { }
             } else if (lowerKey.includes('id') && !lowerKey.includes('form') && !lowerKey.includes('page')) {
               leadData.leadId = value;
             } else {
@@ -748,11 +748,11 @@ export class MetaLeadsService {
       }
 
       this.logger.log(`✅ CSV Import complete: ${savedLeads.length} imported, ${skipped} skipped`);
-      return { 
-        success: true, 
-        count: savedLeads.length, 
+      return {
+        success: true,
+        count: savedLeads.length,
         skipped,
-        message: `Successfully imported ${savedLeads.length} leads${skipped > 0 ? `, skipped ${skipped} invalid rows` : ''}` 
+        message: `Successfully imported ${savedLeads.length} leads${skipped > 0 ? `, skipped ${skipped} invalid rows` : ''}`
       };
     } catch (error) {
       this.logger.error('CSV import failed:', error);
@@ -769,7 +769,7 @@ export class MetaLeadsService {
 
   async saveAutomationRule(data: { templateName: string, delayMinutes?: number, delayValue: number, delayUnit: string, isActive: boolean, id?: number, targetType?: string, campaignName?: string, groupId?: number }, tenantId: string, dbUrl?: string) {
     const client = await this.getClient(tenantId, dbUrl);
-    
+
     let delayMinutes = 0;
     if (data.delayUnit === 'minutes') delayMinutes = data.delayValue;
     else if (data.delayUnit === 'hours') delayMinutes = data.delayValue * 60;
@@ -814,49 +814,40 @@ export class MetaLeadsService {
   async getAutomationLogs(tenantId: string, page: number, limit: number, status: string, dbUrl?: string) {
     const client = await this.getClient(tenantId, dbUrl);
     const skip = (page - 1) * limit;
-    
+
     const where: any = {};
     if (status && status !== 'all') {
       where.status = status;
     }
 
-    // Fetch enough rows from each table to cover the requested page after merging
-    const fetchEach = skip + limit;
-
+    // To correctly paginate a merged+sorted result from two tables we must
+    // fetch ALL matching rows from both, merge-sort by sentAt desc, then slice.
+    // Fetching only (skip+limit) rows from each table causes rows from the
+    // "slower" table to be missed on later pages.
     const [metaLogs, contactLogs, totalMeta, totalContact] = await Promise.all([
       client.metaLeadAutomationLog.findMany({
         where,
-        take: fetchEach,
         orderBy: { sentAt: 'desc' },
-        include: {
-          metaLead: {
-            select: { name: true, phone: true }
-          }
-        }
+        include: { metaLead: { select: { name: true, phone: true } } },
       }),
       client.contactAutomationLog.findMany({
         where,
-        take: fetchEach,
         orderBy: { sentAt: 'desc' },
-        include: {
-          contact: {
-            select: { name: true, phone: true }
-          }
-        }
+        include: { contact: { select: { name: true, phone: true } } },
       }),
       client.metaLeadAutomationLog.count({ where }),
-      client.contactAutomationLog.count({ where })
+      client.contactAutomationLog.count({ where }),
     ]);
 
     const combined = [
       ...metaLogs.map(log => ({ ...log, type: 'meta_lead' })),
-      ...contactLogs.map(log => ({ ...log, type: 'contact_group' }))
+      ...contactLogs.map(log => ({ ...log, type: 'contact_group' })),
     ];
 
     combined.sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime());
 
-    const data = combined.slice(skip, skip + limit);
     const total = totalMeta + totalContact;
+    const data = combined.slice(skip, skip + limit);
 
     return {
       data,
@@ -864,14 +855,14 @@ export class MetaLeadsService {
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit)
-      }
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
   async getAutomationLogsTotal(tenantId: string, status: string, dbUrl?: string) {
     const client = await this.getClient(tenantId, dbUrl);
-    
+
     const where: any = {};
     if (status && status !== 'all') {
       where.status = status;
@@ -881,7 +872,7 @@ export class MetaLeadsService {
       client.metaLeadAutomationLog.count({ where }),
       client.contactAutomationLog.count({ where })
     ]);
-    
+
     return { total: totalMeta + totalContact };
   }
 
@@ -889,11 +880,11 @@ export class MetaLeadsService {
     const client = await this.getClient(tenantId, dbUrl);
     let total = 0;
     let completed = 0;
-    
+
     if (targetType === 'contact_group') {
       const gid = parseInt(groupId);
       if (isNaN(gid)) return { total: 0, completed: 0, percentage: 0 };
-      
+
       total = await client.contact.count({
         where: { groupId: gid }
       });
@@ -903,14 +894,14 @@ export class MetaLeadsService {
     } else {
       const whereClause: any = { phone: { not: null } };
       if (targetType === 'meta_campaign' && campaignName) {
-         whereClause.campaignName = campaignName;
+        whereClause.campaignName = campaignName;
       }
       total = await client.metaLead.count({ where: whereClause });
       completed = await client.metaLead.count({
         where: { ...whereClause, lastAutomationStep: { gte: totalSteps } }
       });
     }
-    
+
     return { total, completed, percentage: total > 0 ? Math.round((completed / total) * 100) : 0 };
   }
 
@@ -923,7 +914,7 @@ export class MetaLeadsService {
       where.campaignName = null;
       where.groupId = null;
     }
-    
+
     await client.metaLeadAutomation.updateMany({
       where,
       data: { isActive }

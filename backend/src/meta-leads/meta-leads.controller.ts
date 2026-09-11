@@ -1,12 +1,16 @@
 import { Controller, Get, Post, Patch, Body, Param, Query, Req, UseInterceptors, UploadedFile, Delete, UnauthorizedException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MetaLeadsService } from './meta-leads.service';
+import { MetaLeadsAutomationCronService } from './meta-leads-automation-cron.service';
 import csv from 'csv-parser';
 import * as crypto from 'crypto';
 
 @Controller('meta-leads')
 export class MetaLeadsController {
-  constructor(private readonly metaLeadsService: MetaLeadsService) {}
+  constructor(
+    private readonly metaLeadsService: MetaLeadsService,
+    private readonly automationCronService: MetaLeadsAutomationCronService,
+  ) { }
 
   private async getTenantContext(req: any): Promise<{ tenantId: string; dbUrl: string }> {
     // Try tenantContext from middleware first
@@ -16,7 +20,7 @@ export class MetaLeadsController {
         dbUrl: req.tenantContext.dbUrl
       };
     }
-    
+
     // Fallback: manually resolve tenant from header
     const tenantHeader = req.headers['x-tenant-id'];
     if (!tenantHeader) {
@@ -26,16 +30,16 @@ export class MetaLeadsController {
     // Import CentralPrismaService to look up tenant
     const { CentralPrismaService } = require('../central-prisma.service');
     const centralPrisma = new CentralPrismaService();
-    
+
     const tenant = await centralPrisma.executeWithRetry((prisma) =>
       prisma.tenant.findFirst({
-        where: { 
+        where: {
           OR: [
-            { email: { contains: tenantHeader, mode: 'insensitive' } }, 
+            { email: { contains: tenantHeader, mode: 'insensitive' } },
             { dbName: tenantHeader },
             { id: isNaN(Number(tenantHeader)) ? undefined : Number(tenantHeader) }
-          ], 
-          isActive: true 
+          ],
+          isActive: true
         },
       })
     );
@@ -210,10 +214,10 @@ export class MetaLeadsController {
   @Post('webhook')
   async handleWebhook(@Req() req: any, @Body() body: any) {
     const signature = req.headers['x-hub-signature-256'];
-    
+
     // Resolve dynamic App Secret from DB (if available for this tenant)
     let appSecret = await this.metaLeadsService.resolveAppSecretForWebhook(body);
-    
+
     // Fallback to global ENV secret
     if (!appSecret) {
       appSecret = process.env.META_APP_SECRET || null;
@@ -235,7 +239,7 @@ export class MetaLeadsController {
     console.log(`Webhook arrived. req.rawBody exists? ${!!req.rawBody}`);
 
     const expectedSignature = 'sha256=' + crypto.createHmac('sha256', appSecret).update(req.rawBody || JSON.stringify(body)).digest('hex');
-    
+
     // Use timingSafeEqual to prevent timing attacks
     const sigBuffer = Buffer.from(signature as string, 'utf8');
     const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
@@ -294,7 +298,7 @@ export class MetaLeadsController {
   ) {
     try {
       const { tenantId, dbUrl } = await this.getTenantContext(req);
-      
+
       if (!file) {
         return { error: true, message: 'No file uploaded' };
       }
@@ -302,10 +306,10 @@ export class MetaLeadsController {
       // Parse CSV
       const csvData: any[] = [];
       const Readable = require('stream').Readable;
-      
+
       return new Promise((resolve, reject) => {
         const stream = Readable.from(file.buffer.toString());
-        
+
         stream
           .pipe(csv())
           .on('data', (row: any) => {
@@ -466,6 +470,20 @@ export class MetaLeadsController {
         error: true,
         message: error.message || 'Failed to fetch automation logs total'
       };
+    }
+  }
+
+  // ── Manual trigger / debug endpoint ──────────────────────────────────────
+  // Call GET /meta-leads/automation-run-now to fire the cron for your tenant
+  // immediately and get a full diagnostic trace back in the response.
+  @Get('automation-run-now')
+  async runAutomationNow(@Req() req: any) {
+    try {
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
+      const result = await this.automationCronService.runForTenant(tenantId, dbUrl);
+      return { ok: true, ...result };
+    } catch (error) {
+      return { ok: false, error: error.message || String(error) };
     }
   }
 }

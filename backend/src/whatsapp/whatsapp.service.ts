@@ -206,7 +206,7 @@ export class WhatsappService {
 
       // Only handle stop/yes labels if NOT from a button click
       const isButtonClick = message.type === 'button' || (message.type === 'interactive' && message.interactive?.type === 'button_reply');
-      
+
       if (!isManuallyEdited && !isButtonClick) {
         if (lowerText === 'stop') {
           // Add Stop label
@@ -528,8 +528,8 @@ export class WhatsappService {
       await this.prisma.whatsAppMessage.create({
         data: {
           messageId: response.data.messages[0].id,
-          to,
-          from: to,
+          to: this.formatPhoneNumber(to),
+          from: this.formatPhoneNumber(to),
           message: `Interactive buttons: ${text}`,
           direction: 'outgoing',
           status: 'sent',
@@ -572,8 +572,8 @@ export class WhatsappService {
       await this.prisma.whatsAppMessage.create({
         data: {
           messageId: response.data.messages[0].id,
-          to,
-          from: to,
+          to: this.formatPhoneNumber(to),
+          from: this.formatPhoneNumber(to),
           message,
           direction: 'outgoing',
           status: 'sent',
@@ -615,8 +615,8 @@ export class WhatsappService {
       await this.prisma.whatsAppMessage.create({
         data: {
           messageId: response.data.messages[0].id,
-          to,
-          from: to,
+          to: this.formatPhoneNumber(to),
+          from: this.formatPhoneNumber(to),
           message: caption || `${mediaType} file`,
           mediaType,
           mediaUrl,
@@ -639,12 +639,12 @@ export class WhatsappService {
         where: { messageId },
         data: { status }
       });
-  
+
       await this.prisma.campaignMessage.updateMany({
         where: { messageId },
         data: { status }
       });
-  
+
       this.logger.log(`Message ${messageId} status updated to ${status}`);
       return { messageId, status };
     } catch (error) {
@@ -737,7 +737,7 @@ export class WhatsappService {
           console.log(`  ❌ Tenant ${tenant.id}: No matching phone_number_id`);
         }
       }
-      
+
       console.log(`\n📊 TOTAL USERS FOUND: ${userIds.length}`);
       console.log(`User IDs: ${userIds.join(', ') || 'NONE'}`);
       return userIds;
@@ -913,17 +913,17 @@ export class WhatsappService {
   ) {
     page = Math.max(1, Number(page) || 1);
     limit = Math.max(1, Number(limit) || 20);
-  
+
     let allowedPhones: string[] | undefined;
-  
+
     if (userType === 'subuser') {
       const assignments = await this.prisma.chatAssignment.findMany({
         where: { subUserId: userId },
         select: { phone: true },
       });
-  
+
       allowedPhones = assignments.map((a) => a.phone);
-  
+
       if (allowedPhones.length === 0) {
         return {
           data: [],
@@ -931,7 +931,7 @@ export class WhatsappService {
         };
       }
     }
-  
+
     // -----------------------------
     // CASE 1: selected phone => return all messages for that phone
     // -----------------------------
@@ -940,22 +940,22 @@ export class WhatsappService {
         allowedPhones
           ? { AND: [{ from: phoneNumber }, { from: { in: allowedPhones } }] }
           : { from: phoneNumber };
-  
+
       const messages = await this.prisma.whatsAppMessage.findMany({
         where: whereCondition,
         orderBy: { createdAt: 'asc' },
       });
-  
+
       const uniquePhoneNumberIds = [
         ...new Set(messages.map((m) => m.phoneNumberId).filter(Boolean)),
       ] as string[];
-  
+
       const uniquePhones = [
         ...new Set(
           messages.map((m) => this.formatPhoneNumber(m.from)).filter(Boolean),
         ),
       ] as string[];
-  
+
       const [masterConfigs, settings, contacts] = await Promise.all([
         this.prisma.masterConfig.findMany({
           where: { phoneNumberId: { in: uniquePhoneNumberIds } },
@@ -970,21 +970,21 @@ export class WhatsappService {
           select: { name: true, phone: true, phoneNumberId: true },
         }),
       ]);
-  
+
       const masterConfigMap = new Map(
         masterConfigs.map((item) => [item.phoneNumberId, item]),
       );
-  
+
       const settingsMap = new Map(
         settings.map((item) => [item.phoneNumberId, item]),
       );
-  
+
       const contactMap = new Map<string, { name: string | null }>();
-  
+
       contacts.forEach((contact) => {
         const keyWithPhoneNumberId = `${contact.phone}_${contact.phoneNumberId || ''}`;
         const keyWithoutPhoneNumberId = `${contact.phone}_`;
-  
+
         if (!contactMap.has(keyWithPhoneNumberId)) {
           contactMap.set(keyWithPhoneNumberId, { name: contact.name });
         }
@@ -992,10 +992,10 @@ export class WhatsappService {
           contactMap.set(keyWithoutPhoneNumberId, { name: contact.name });
         }
       });
-  
+
       const enrichedMessages = messages.map((msg) => {
         let displayPhoneNumber: string | null = null;
-  
+
         if (msg.phoneNumberId) {
           const masterConfig = masterConfigMap.get(msg.phoneNumberId);
           if (masterConfig) {
@@ -1005,15 +1005,15 @@ export class WhatsappService {
             displayPhoneNumber = setting?.name || msg.phoneNumberId || null;
           }
         }
-  
+
         const normalizedFrom = this.formatPhoneNumber(msg.from);
-  
+
         const contact =
           contactMap.get(`${normalizedFrom}_${msg.phoneNumberId || ''}`) ||
           contactMap.get(`${normalizedFrom}_`);
-  
+
         const contactName = contact?.name || null;
-  
+
         return {
           ...msg,
           displayPhoneNumber,
@@ -1023,7 +1023,7 @@ export class WhatsappService {
           customerName: contactName || msg.profileName || msg.from,
         };
       });
-  
+
       return {
         data: enrichedMessages,
         meta: {
@@ -1034,7 +1034,7 @@ export class WhatsappService {
         },
       };
     }
-  
+
     // CASE 2: no phone => return paginated unique chats using DB-level DISTINCT
     const params: any[] = [(page - 1) * limit, limit];
     let allowedPhonesParamIdx = -1;
@@ -1044,7 +1044,7 @@ export class WhatsappService {
       params.push(allowedPhones);
       allowedPhonesParamIdx = params.length;
     }
-    
+
     if (searchQuery) {
       params.push(`%${searchQuery}%`);
       searchParamIdx = params.length;
@@ -1104,17 +1104,17 @@ export class WhatsappService {
     ]);
 
     const total = Number(countResult[0]?.count || 0);
-  
+
     const uniquePhoneNumberIds = [
       ...new Set(uniqueChats.map((m) => m.phoneNumberId).filter(Boolean)),
     ] as string[];
-  
+
     const uniquePhones = [
       ...new Set(
         uniqueChats.map((m) => this.formatPhoneNumber(m.from)).filter(Boolean),
       ),
     ] as string[];
-  
+
     const [masterConfigs, settings, contacts] = await Promise.all([
       this.prisma.masterConfig.findMany({
         where: { phoneNumberId: { in: uniquePhoneNumberIds } },
@@ -1129,21 +1129,21 @@ export class WhatsappService {
         select: { name: true, phone: true, phoneNumberId: true },
       }),
     ]);
-  
+
     const masterConfigMap = new Map(
       masterConfigs.map((item) => [item.phoneNumberId, item]),
     );
-  
+
     const settingsMap = new Map(
       settings.map((item) => [item.phoneNumberId, item]),
     );
-  
+
     const contactMap = new Map<string, { name: string | null }>();
-  
+
     contacts.forEach((contact) => {
       const keyWithPhoneNumberId = `${contact.phone}_${contact.phoneNumberId || ''}`;
       const keyWithoutPhoneNumberId = `${contact.phone}_`;
-  
+
       if (!contactMap.has(keyWithPhoneNumberId)) {
         contactMap.set(keyWithPhoneNumberId, { name: contact.name });
       }
@@ -1151,10 +1151,10 @@ export class WhatsappService {
         contactMap.set(keyWithoutPhoneNumberId, { name: contact.name });
       }
     });
-  
+
     const enrichedChats = uniqueChats.map((msg) => {
       let displayPhoneNumber: string | null = null;
-  
+
       if (msg.phoneNumberId) {
         const masterConfig = masterConfigMap.get(msg.phoneNumberId);
         if (masterConfig) {
@@ -1164,15 +1164,15 @@ export class WhatsappService {
           displayPhoneNumber = setting?.name || msg.phoneNumberId || null;
         }
       }
-  
+
       const normalizedFrom = this.formatPhoneNumber(msg.from);
-  
+
       const contact =
         contactMap.get(`${normalizedFrom}_${msg.phoneNumberId || ''}`) ||
         contactMap.get(`${normalizedFrom}_`);
-  
+
       const contactName = contact?.name || null;
-  
+
       return {
         id: msg.id,
         from: msg.from,
@@ -1193,7 +1193,7 @@ export class WhatsappService {
         customerName: contactName || msg.profileName || msg.from,
       };
     });
-  
+
     return {
       data: enrichedChats,
       meta: {
@@ -1205,8 +1205,8 @@ export class WhatsappService {
     };
   }
   async handleIncomingMessageWithoutContext(
-    message: any, 
-    phoneNumberId: string, 
+    message: any,
+    phoneNumberId: string,
     profileName?: string | null,
     userId?: string,
     parentUserId?: string,
@@ -1441,10 +1441,10 @@ export class WhatsappService {
   // }
 
   private async processMessageForTenant(
-    message: any, 
-    phoneNumberId: string, 
-    tenantId: number, 
-    settingsId: number, 
+    message: any,
+    phoneNumberId: string,
+    tenantId: number,
+    settingsId: number,
     profileName?: string | null,
     userId?: string,
     parentUserId?: string,
@@ -1678,7 +1678,7 @@ export class WhatsappService {
     if (globalGrievanceSessions.has(from)) {
       this.logger.log(`[Grievance Debug] Found active session for ${from}`);
       const session = globalGrievanceSessions.get(from)!;
-      
+
       // Expire session if older than 1 hour
       if (Date.now() - session.timestamp > 3600000) {
         globalGrievanceSessions.delete(from);
@@ -1768,7 +1768,7 @@ export class WhatsappService {
               return;
             }
           }
-          
+
           if (text && (text.includes('சமர்ப்பி') || text.toLowerCase().includes('submit') || text.toLowerCase().includes('skip'))) {
             try {
               await axios.post('https://complaintsapp.api.luisant.cloud/webhook/whatsapp', {
@@ -1813,7 +1813,7 @@ export class WhatsappService {
 
     if (text) {
       const lowerText = text.toLowerCase().trim();
-      
+
       // Get current step FIRST before any processing
       let currentStep;
       try {
@@ -1822,7 +1822,7 @@ export class WhatsappService {
       } catch (error) {
         this.logger.error('Error getting step:', error.message);
       }
- 
+
       // PRIORITY 0: Check Meta Catalog responses FIRST (before ecommerce checkout)
       if (currentStep === 'confirm_details' || currentStep === 'awaiting_payment_method') {
         this.logger.log(`[Priority 0] Checking Meta Catalog for step: ${currentStep}, text: ${text}`);
@@ -1844,11 +1844,11 @@ export class WhatsappService {
           }
         }
       }
-      
+
       // Check if user clicked Meta Catalog buttons but session expired
-      const isMetaCatalogButton = 
-        text === 'Use My Details' || 
-        text === 'Update Details' || 
+      const isMetaCatalogButton =
+        text === 'Use My Details' ||
+        text === 'Update Details' ||
         text === 'Order for Someone' ||
         text === 'Pay Online' ||
         text === 'Cash on Delivery' ||
@@ -1857,7 +1857,7 @@ export class WhatsappService {
         lowerText === 'someone_else' ||
         lowerText === 'payment_razorpay' ||
         lowerText === 'payment_cod';
-      
+
       if (isMetaCatalogButton && !currentStep) {
         this.logger.log('⏱️ Meta Catalog button clicked but no session - sending expired message');
         await this.sendMessageDirect(
@@ -1869,7 +1869,7 @@ export class WhatsappService {
         );
         return;
       }
- 
+
       // PRIORITY 1: Ecommerce checkout flow
       if (this.isEcommerceCheckoutStep(currentStep)) {
         this.logger.log(`🛒 Ecommerce checkout step detected: ${currentStep}`);
@@ -1899,7 +1899,7 @@ export class WhatsappService {
         this.logger.log('⛔ Campaigns-only number - ignoring incoming message');
         return;
       }
- 
+
       // 🔥 Check if user is in Meta Catalog order flow and wants to exit
       // This is now handled in Priority 0, so we can remove this duplicate check
 
@@ -1936,7 +1936,7 @@ export class WhatsappService {
             tenantClient
           );
         }
-      ,
+        ,
 
         async (to, title, msg, buttonText, menuItems) => {
 
@@ -1952,7 +1952,7 @@ export class WhatsappService {
 
         }
 
-        ).catch(e => {
+      ).catch(e => {
         this.logger.error('Quick Reply error:', e);
         return false;
       });
@@ -2186,7 +2186,7 @@ export class WhatsappService {
             tenantClient
           );
         }
-      ,
+        ,
 
         async (to, title, msg, buttonText, menuItems) => {
 
@@ -2202,7 +2202,7 @@ export class WhatsappService {
 
         }
 
-        ).catch(e => {
+      ).catch(e => {
         this.logger.error('Session error:', e);
         return false;
       });
@@ -2239,7 +2239,7 @@ export class WhatsappService {
           const errorCode = error.code;
           const errorTitle = error.title || error.message;
           const errorDetail = error.error_data?.details;
-          
+
           // Build user-friendly error message based on error code
           if (errorCode === 131026) {
             errorMessage = 'Number not registered on WhatsApp or message cannot be delivered';
@@ -2268,7 +2268,7 @@ export class WhatsappService {
               errorMessage += ` - ${errorDetail}`;
             }
           }
-          
+
           this.logger.log(`Webhook error captured: Code ${errorCode} - ${errorMessage}`);
         }
 
@@ -2282,7 +2282,7 @@ export class WhatsappService {
         if (errorMessage) {
           campaignUpdateData.error = errorMessage;
         }
-        
+
         await tenantClient.campaignMessage.updateMany({
           where: { messageId },
           data: campaignUpdateData
@@ -2327,8 +2327,8 @@ export class WhatsappService {
       await tenantClient.whatsAppMessage.create({
         data: {
           messageId: response.data.messages[0].id,
-          to,
-          from: to,
+          to: this.formatPhoneNumber(to),
+          from: this.formatPhoneNumber(to),
           message,
           direction: 'outgoing',
           status: 'sent',
@@ -2372,8 +2372,8 @@ export class WhatsappService {
       await tenantClient.whatsAppMessage.create({
         data: {
           messageId: response.data.messages[0].id,
-          to,
-          from: to,
+          to: this.formatPhoneNumber(to),
+          from: this.formatPhoneNumber(to),
           message: caption || `${mediaType} file`,
           mediaType,
           mediaUrl,
@@ -2394,7 +2394,7 @@ export class WhatsappService {
     try {
       // Convert all buttons to simple text format
       const buttonTexts = buttons.map(btn => typeof btn === 'string' ? btn : btn.text || btn);
-      
+
       // Create interactive reply buttons (max 3)
       const interactiveButtons = buttonTexts.slice(0, 3).map((buttonText, index) => ({
         type: 'reply',
@@ -2438,8 +2438,8 @@ export class WhatsappService {
       await tenantClient.whatsAppMessage.create({
         data: {
           messageId: response.data.messages[0].id,
-          to,
-          from: to,
+          to: this.formatPhoneNumber(to),
+          from: this.formatPhoneNumber(to),
           message: `Interactive buttons: ${title} - ${text}`,
           direction: 'outgoing',
           status: 'sent',
@@ -2501,8 +2501,8 @@ export class WhatsappService {
       await tenantClient.whatsAppMessage.create({
         data: {
           messageId: response.data.messages[0].id,
-          to,
-          from: to,
+          to: this.formatPhoneNumber(to),
+          from: this.formatPhoneNumber(to),
           message: `Interactive list: ${title} - ${text}`,
           direction: 'outgoing',
           status: 'sent',
@@ -2585,8 +2585,8 @@ export class WhatsappService {
         await this.prisma.whatsAppMessage.create({
           data: {
             messageId: response.data.messages[0].id,
-            to: phoneNumber,
-            from: phoneNumber,
+            to: this.formatPhoneNumber(phoneNumber),
+            from: this.formatPhoneNumber(phoneNumber),
             message: `Template ${templateName} sent${buttonsStr}`,
             direction: 'outgoing',
             status: 'sent',
@@ -2728,7 +2728,7 @@ export class WhatsappService {
         results.push({ phoneNumber: formattedPhone, success: true, messageId: response.data.messages[0].id });
       } catch (error) {
         const errorMsg = this.getErrorMessage(error);
-        
+
         // CRITICAL DEBUG: Log what we're about to return
         this.logger.error(`=== ERROR CAPTURE DEBUG ===`);
         this.logger.error(`Contact phone: ${contact.phone}`);
@@ -2737,7 +2737,7 @@ export class WhatsappService {
         this.logger.error(`Error message type: ${typeof errorMsg}`);
         this.logger.error(`Error message length: ${errorMsg?.length}`);
         this.logger.error(`===========================`);
-        
+
         // Log detailed error information
         this.logger.error(`Failed to send to ${contact.phone}:`, {
           error: errorMsg,
@@ -2747,7 +2747,7 @@ export class WhatsappService {
           errorSubcode: error.response?.data?.error?.error_subcode,
           fullError: JSON.stringify(error.response?.data)
         });
-        
+
         results.push({ phoneNumber: formattedPhone, success: false, error: errorMsg });
       }
     }
@@ -2817,8 +2817,8 @@ export class WhatsappService {
 
     const normalizedProfileName =
       profileName &&
-      !['null', 'undefined', 'unknown'].includes(profileName.trim().toLowerCase()) &&
-      profileName.trim() !== formattedPhone
+        !['null', 'undefined', 'unknown'].includes(profileName.trim().toLowerCase()) &&
+        profileName.trim() !== formattedPhone
         ? profileName.trim()
         : '';
 
@@ -2865,7 +2865,7 @@ export class WhatsappService {
 
     if (error.response?.data?.error) {
       const apiError = error.response.data.error;
-      
+
       // Common Meta WhatsApp API error codes
       const errorCodeMap: { [key: number]: string } = {
         100: 'Invalid parameter',
@@ -2886,32 +2886,32 @@ export class WhatsappService {
         136000: 'Template name does not exist',
         136001: 'Template language not supported'
       };
-      
+
       if (apiError.code && errorCodeMap[apiError.code]) {
         const baseMessage = errorCodeMap[apiError.code];
         const additionalInfo = apiError.error_user_msg || apiError.error_user_title || apiError.message;
         return additionalInfo ? `${baseMessage}: ${additionalInfo}` : baseMessage;
       }
-      
+
       // If error code not in map, return detailed error
       const errorDetails: string[] = [];
       if (apiError.code) errorDetails.push(`Code ${apiError.code}`);
       if (apiError.error_user_msg) errorDetails.push(apiError.error_user_msg);
       else if (apiError.error_user_title) errorDetails.push(apiError.error_user_title);
       else if (apiError.message) errorDetails.push(apiError.message);
-      
+
       return errorDetails.length > 0 ? errorDetails.join(': ') : 'WhatsApp API error';
     }
-    
+
     // Check for other error formats
     if (error.response?.data?.message) {
       return error.response.data.message;
     }
-    
+
     if (error.response?.statusText) {
       return `HTTP ${error.response.status}: ${error.response.statusText}`;
     }
-    
+
     return error.message || 'Failed to send message';
   }
 
@@ -2953,8 +2953,8 @@ export class WhatsappService {
       await this.prisma.whatsAppMessage.create({
         data: {
           messageId: response.data.messages[0].id,
-          to: phoneNumber,
-          from: phoneNumber,
+          to: this.formatPhoneNumber(phoneNumber),
+          from: this.formatPhoneNumber(phoneNumber),
           message: `Order ${order.id} confirmation sent`,
           direction: 'outgoing',
           status: 'sent',
@@ -3092,11 +3092,11 @@ export class WhatsappService {
         const templateRecord = await tenantClient.messageTemplate.findFirst({
           where: { name: templateName }
         });
-        
+
         if (templateRecord && templateRecord.components) {
           const components = JSON.parse(templateRecord.components);
           const bodyComponent = components.find((c: any) => c.type === 'BODY' || c.type === 'body');
-          
+
           if (bodyComponent && bodyComponent.text) {
             let formattedText = bodyComponent.text;
             // Replace {{1}}, {{2}} with actual parameters if provided
@@ -3109,22 +3109,22 @@ export class WhatsappService {
               // If parameters weren't provided, use the externally provided content as the body
               formattedText = templateContent;
             }
-            
+
             // Add header/footer if they exist
             const headerComponent = components.find((c: any) => c.type === 'HEADER' || c.type === 'header');
             if (headerComponent) {
               if (headerComponent.format === 'TEXT' && headerComponent.text) {
-                 messageText += `*${headerComponent.text}*\n`; // Bold formatting for text headers
+                messageText += `*${headerComponent.text}*\n`; // Bold formatting for text headers
               } else if (headerComponent.format && ['DOCUMENT', 'IMAGE', 'VIDEO'].includes(headerComponent.format.toUpperCase())) {
-                 finalMediaType = headerComponent.format.toLowerCase();
+                finalMediaType = headerComponent.format.toLowerCase();
               }
             }
-            
+
             messageText += formattedText;
 
             const footerComponent = components.find((c: any) => c.type === 'FOOTER' || c.type === 'footer');
             if (footerComponent && footerComponent.text) {
-              messageText += `\n${footerComponent.text}`; 
+              messageText += `\n${footerComponent.text}`;
             }
 
             const buttonsComponent = components.find((c: any) => c.type === 'BUTTONS' || c.type === 'buttons');
@@ -3158,12 +3158,12 @@ export class WhatsappService {
 
     // Process Media if present
     if (mediaId) {
-       if (!finalMediaType) finalMediaType = 'document'; // Fallback if template wasn't parsed
-       try {
-         finalMediaUrl = await this.downloadMedia(mediaId, tenantId);
-       } catch (error) {
-         this.logger.error(`Failed to download mediaId ${mediaId} for tenant ${tenantId}`, error);
-       }
+      if (!finalMediaType) finalMediaType = 'document'; // Fallback if template wasn't parsed
+      try {
+        finalMediaUrl = await this.downloadMedia(mediaId, tenantId);
+      } catch (error) {
+        this.logger.error(`Failed to download mediaId ${mediaId} for tenant ${tenantId}`, error);
+      }
     }
 
     // Fallback if we couldn't resolve the template
@@ -3174,7 +3174,7 @@ export class WhatsappService {
       if (templateLanguage) messageText += `\nLanguage: ${templateLanguage}`;
       if (templateContent) messageText += `\n\n${templateContent}`;
     }
-    
+
     // Always process explicit buttons if provided, regardless of whether the template was resolved
     if (body.templateButtons && Array.isArray(body.templateButtons)) {
       body.templateButtons.forEach((btn: any) => {

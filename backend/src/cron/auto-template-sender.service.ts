@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { PrismaClient as TenantPrismaClient } from '@prisma/client-tenant';
+import { normalizePhone } from '../utils/phone.util';
 
 export type MinimalSettings = {
   phoneNumberId: string;
@@ -148,11 +149,14 @@ export class AutoTemplateSenderService {
       const safeId =
         messageId || `auto_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
+      // Normalize phone: strip non-digits, add 91 prefix for 10-digit Indian numbers
+      const normalizedTo = normalizePhone(to);
+
       await tenantClient.whatsAppMessage.create({
         data: {
           messageId: safeId,
-          to,
-          from: to,
+          to: normalizedTo,
+          from: normalizedTo,
           message: logMessage,
           direction: 'outgoing',
           status: 'sent',
@@ -193,11 +197,13 @@ export class AutoTemplateSenderService {
             messageId2 ||
             `auto_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
+          const normalizedTo2 = normalizePhone(to);
+
           await tenantClient.whatsAppMessage.create({
             data: {
               messageId: safeId2,
-              to,
-              from: to,
+              to: normalizedTo2,
+              from: normalizedTo2,
               message: logMessage,
               direction: 'outgoing',
               status: 'sent',

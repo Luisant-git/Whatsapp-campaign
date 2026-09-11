@@ -9,7 +9,7 @@ export class FlowAppointmentService {
     private tenantPrisma: TenantPrismaService,
     private centralPrisma: CentralPrismaService,
     private ownerNotification: OwnerNotificationService,
-  ) {}
+  ) { }
 
   async saveOrder(data: any, userId: number) {
     const prisma = await this.getTenantClient(userId);
@@ -49,15 +49,15 @@ export class FlowAppointmentService {
       console.log('🔍 Raw flow data received:', JSON.stringify(data, null, 2));
       console.log('🔍 Flow token:', flowToken);
       console.log('📞 Phone number:', phoneNumber);
-      
+
       // Extract data from nested structure if needed
       let appointmentData = data;
       if (data.screen_data) {
         appointmentData = data.screen_data;
       }
-      
+
       console.log('📋 Processed appointment data:', JSON.stringify(appointmentData, null, 2));
-      
+
       const appointmentRecord = {
         department: appointmentData.department || appointmentData.selected_department || '',
         location: appointmentData.location || appointmentData.selected_location || '',
@@ -68,9 +68,9 @@ export class FlowAppointmentService {
         phone: appointmentData.phone || appointmentData.phone_number || phoneNumber || '',
         moreDetails: appointmentData.moreDetails || appointmentData.more_details || appointmentData.additional_details || appointmentData.details || null,
       };
-      
+
       console.log('💾 Appointment record to save:', JSON.stringify(appointmentRecord, null, 2));
-      
+
       // Extract tenant ID from flow token
       let targetTenantId: number | null = null;
       if (flowToken) {
@@ -80,17 +80,17 @@ export class FlowAppointmentService {
           console.log(`🎯 Flow token indicates tenant ID: ${targetTenantId}`);
         }
       }
-      
+
       // Save to target tenant database only
       if (targetTenantId) {
-        const tenant = await this.centralPrisma.tenant.findUnique({ 
-          where: { id: targetTenantId, isActive: true } 
+        const tenant = await this.centralPrisma.tenant.findUnique({
+          where: { id: targetTenantId, isActive: true }
         });
-        
+
         if (tenant) {
           const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
           const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-          
+
           const savedAppointment = await (tenantClient as any).flowAppointment.create({
             data: {
               ...appointmentRecord,
@@ -99,7 +99,7 @@ export class FlowAppointmentService {
           });
           console.log(`✅ Flow appointment saved to tenant ${tenant.id} (${tenant.name})`);
           console.log('📋 Saved appointment:', JSON.stringify(savedAppointment, null, 2));
-          
+
           // Send customer confirmation first (priority)
           if (appointmentRecord.phone) {
             const settings = await (tenantClient as any).whatsAppSettings.findFirst();
@@ -110,13 +110,13 @@ export class FlowAppointmentService {
                 settings.phoneNumberId,
                 tenantClient
               );
-              
+
               // Send notification to business owner (after customer confirmation)
               try {
                 console.log('🔔 Attempting to send owner notification...');
                 const user = await this.centralPrisma.tenant.findUnique({ where: { id: targetTenantId } });
                 console.log('👤 User data:', JSON.stringify({ id: user?.id, phoneNumber: user?.phoneNumber }, null, 2));
-                
+
                 if (user?.phoneNumber) {
                   console.log(`📞 Sending notification to owner: ${user.phoneNumber}`);
                   await this.ownerNotification.notifyAppointmentBooking(
@@ -155,11 +155,11 @@ export class FlowAppointmentService {
       console.log('📋 Flow response received - processing appointment');
       console.log('Raw responseData:', JSON.stringify(responseData, null, 2));
       console.log('Phone number:', phoneNumber);
-      
+
       // Extract flow token to get tenant ID
       const flowToken = responseData.flow_token;
       let targetTenantId: number | null = null;
-      
+
       if (flowToken) {
         const tokenParts = flowToken.split('_');
         if (tokenParts.length >= 3) {
@@ -167,49 +167,49 @@ export class FlowAppointmentService {
           console.log(`🎯 Flow token indicates tenant ID: ${targetTenantId}`);
         }
       }
-      
+
       // Send confirmation message when flow is completed
       if (responseData.appointment_id || responseData.message) {
         console.log('✅ Appointment flow completed - sending confirmation message');
-        
+
         const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
         console.log(`📊 Found ${tenants.length} active tenants`);
-        
+
         // First try target tenant
         for (const tenant of tenants) {
           if (targetTenantId && tenant.id !== targetTenantId) continue;
-          
+
           console.log(`🔍 Checking target tenant ${tenant.id} (${tenant.name})`);
-          
+
           const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
           const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-          
+
           let settings = await (tenantClient as any).whatsAppSettings.findFirst({
             where: { phoneNumberId }
           });
-          
+
           if (!settings) {
             settings = await (tenantClient as any).whatsAppSettings.findFirst();
           }
-          
+
           if (settings) {
             console.log(`✅ Using settings from target tenant ${tenant.id}`);
-            
+
             // Send customer confirmation first (priority)
             await this.sendConfirmationMessage(phoneNumber, settings.accessToken, settings.phoneNumberId, tenantClient);
-            
+
             // Send owner notification after customer confirmation
             try {
               console.log('🔔 Sending owner notification for completed appointment...');
               const user = await this.centralPrisma.tenant.findUnique({ where: { id: tenant.id } });
               console.log('👤 Owner data:', JSON.stringify({ id: user?.id, phoneNumber: user?.phoneNumber }, null, 2));
-              
+
               if (user?.phoneNumber) {
                 const lastAppointment = await (tenantClient as any).flowAppointment.findFirst({
                   where: { phone: phoneNumber, tenantId: tenant.id },
                   orderBy: { createdAt: 'desc' }
                 });
-                
+
                 if (lastAppointment) {
                   console.log(`📞 Sending notification to owner: ${user.phoneNumber}`);
                   await this.ownerNotification.notifyAppointmentBooking(
@@ -228,51 +228,51 @@ export class FlowAppointmentService {
             } catch (ownerNotifError) {
               console.error('❌ Owner notification failed (customer already notified):', ownerNotifError.message);
             }
-            
+
             return;
           }
         }
-        
+
         // Fallback: try any tenant with settings
         console.log('⚠️ Target tenant has no settings, checking all tenants...');
         for (const tenant of tenants) {
           console.log(`🔍 Checking tenant ${tenant.id} (${tenant.name})`);
-          
+
           const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
           const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-          
+
           let settings = await (tenantClient as any).whatsAppSettings.findFirst({
             where: { phoneNumberId }
           });
-          
+
           if (!settings) {
             settings = await (tenantClient as any).whatsAppSettings.findFirst();
           }
-          
+
           if (settings) {
             console.log(`✅ Using settings from tenant ${tenant.id}`);
-            
+
             // Send customer confirmation first (priority)
             await this.sendConfirmationMessage(phoneNumber, settings.accessToken, settings.phoneNumberId, tenantClient);
-            
+
             // Send owner notification after customer confirmation
             if (targetTenantId) {
               try {
                 console.log('🔔 Sending owner notification for target tenant...');
                 const targetUser = await this.centralPrisma.tenant.findUnique({ where: { id: targetTenantId } });
                 console.log('👤 Target owner data:', JSON.stringify({ id: targetUser?.id, phoneNumber: targetUser?.phoneNumber }, null, 2));
-                
+
                 if (targetUser?.phoneNumber) {
                   const targetDbUrl = `postgresql://${targetUser.dbUser}:${targetUser.dbPassword}@${targetUser.dbHost}:${targetUser.dbPort}/${targetUser.dbName}`;
                   const targetTenantClient = this.tenantPrisma.getTenantClient(targetTenantId.toString(), targetDbUrl);
-                  
+
                   const lastAppointment = await (targetTenantClient as any).flowAppointment.findFirst({
                     where: { phone: phoneNumber, tenantId: targetTenantId },
                     orderBy: { createdAt: 'desc' }
                   });
-                  
+
                   console.log('📋 Found appointment in target tenant:', lastAppointment ? 'Yes' : 'No');
-                  
+
                   if (lastAppointment) {
                     console.log(`📞 Sending notification to target owner: ${targetUser.phoneNumber}`);
                     await this.ownerNotification.notifyAppointmentBooking(
@@ -288,30 +288,30 @@ export class FlowAppointmentService {
                 console.error('❌ Owner notification failed (customer already notified):', notifError.message);
               }
             }
-            
+
             return;
           }
         }
-        
+
         console.log('❌ No settings found in any tenant');
       }
-      
+
       // Only save if we have actual appointment data (not just flow completion)
       if (!responseData.department && !responseData.name && !responseData.date) {
         console.log('⚠️ No appointment data in webhook response - skipping save');
         return;
       }
-      
+
       // Save to target tenant database only
       if (targetTenantId) {
-        const tenant = await this.centralPrisma.tenant.findUnique({ 
-          where: { id: targetTenantId, isActive: true } 
+        const tenant = await this.centralPrisma.tenant.findUnique({
+          where: { id: targetTenantId, isActive: true }
         });
-        
+
         if (tenant) {
           const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
           const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-          
+
           await (tenantClient as any).flowAppointment.create({
             data: {
               department: responseData.department || '',
@@ -329,7 +329,7 @@ export class FlowAppointmentService {
           return;
         }
       }
-      
+
       console.error('❌ No valid target tenant found for webhook appointment');
     } catch (error) {
       console.error('Error saving flow appointment from webhook:', error);
@@ -341,12 +341,12 @@ export class FlowAppointmentService {
       console.log('📤 Attempting to send confirmation message...');
       console.log('📞 To:', phoneNumber);
       console.log('🔑 Phone Number ID:', phoneNumberId);
-      
+
       const axios = require('axios');
-      
+
       // Simple confirmation message
       const confirmationMessage = 'Thank you for your enquiry! 😊 Our team will contact you shortly.';
-      
+
       const response = await axios.post(
         `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
         {
@@ -371,7 +371,7 @@ export class FlowAppointmentService {
         data: {
           messageId: response.data.messages[0].id,
           to: phoneNumber,
-          from: phoneNumberId,
+          from: phoneNumber,
           message: confirmationMessage,
           direction: 'outgoing',
           status: 'sent',
@@ -391,43 +391,43 @@ export class FlowAppointmentService {
 
   async getAppointments(userId: number) {
     console.log('🔍 Getting appointments for user/tenant ID:', userId);
-    
+
     try {
       const prisma = await this.getTenantClient(userId);
       const appointments = await (prisma as any).flowAppointment.findMany({
         where: { tenantId: userId },
         orderBy: { createdAt: 'desc' },
       });
-      
+
       // Filter out empty appointments
-      const validAppointments = appointments.filter(apt => 
+      const validAppointments = appointments.filter(apt =>
         apt.department || apt.location || apt.date || apt.time || apt.name || apt.email
       );
-      
+
       console.log(`📋 Found ${appointments.length} total appointments, ${validAppointments.length} valid appointments for tenant ${userId}`);
       return validAppointments;
     } catch (error) {
       console.error('❌ Error getting appointments for tenant', userId, ':', error.message);
-      
+
       // Fallback: try to get appointments from all tenants if user tenant fails
       console.log('🔄 Trying to get appointments from all active tenants...');
       const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
-      
+
       for (const tenant of tenants) {
         try {
           const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
           const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-          
+
           const appointments = await (tenantClient as any).flowAppointment.findMany({
             where: { tenantId: tenant.id },
             orderBy: { createdAt: 'desc' },
           });
-          
+
           // Filter out empty appointments
-          const validAppointments = appointments.filter(apt => 
+          const validAppointments = appointments.filter(apt =>
             apt.department || apt.location || apt.date || apt.time || apt.name || apt.email
           );
-          
+
           if (validAppointments.length > 0) {
             console.log(`✅ Found ${validAppointments.length} valid appointments in tenant ${tenant.id} (${tenant.name})`);
             return validAppointments;
@@ -436,25 +436,25 @@ export class FlowAppointmentService {
           console.log(`⚠️ No appointments in tenant ${tenant.id}:`, tenantError.message);
         }
       }
-      
+
       return [];
     }
   }
-  
+
   async deleteAppointment(appointmentId: number, userId: number) {
     const prisma = await this.getTenantClient(userId);
     return (prisma as any).flowAppointment.delete({
-      where: { 
+      where: {
         id: appointmentId,
         tenantId: userId
       }
     });
   }
-  
+
   async updateAppointmentStatus(appointmentId: number, status: string, remarks: string, userId: number) {
     const prisma = await this.getTenantClient(userId);
     return (prisma as any).flowAppointment.update({
-      where: { 
+      where: {
         id: appointmentId,
         tenantId: userId
       },
@@ -465,32 +465,32 @@ export class FlowAppointmentService {
       }
     });
   }
-  
+
   async markAppointmentFinished(appointmentId: number, remarks: string, userId: number) {
     return this.updateAppointmentStatus(appointmentId, 'finished', remarks, userId);
   }
-  
+
   async getDepartments() {
     try {
       console.log('🔍 Getting departments from database...');
       const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
       console.log(`📊 Found ${tenants.length} active tenants`);
-      
+
       if (tenants.length > 0) {
         const tenant = tenants[0];
         console.log(`🏢 Using tenant: ${tenant.name} (ID: ${tenant.id})`);
-        
+
         const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
         const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-        
+
         const departments = await (tenantClient as any).flowDepartment.findMany({
           where: { isActive: true }
         });
-        
+
         console.log(`📋 Found ${departments.length} departments:`, departments);
         return departments.map(d => ({ id: d.name, title: d.title }));
       }
-      
+
       console.log('⚠️ No active tenants found, returning empty array');
       return [];
     } catch (error) {
@@ -498,68 +498,68 @@ export class FlowAppointmentService {
       return [];
     }
   }
-  
+
   async getLocations() {
     const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
     if (tenants.length > 0) {
       const tenant = tenants[0];
       const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
       const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-      
+
       const locations = await (tenantClient as any).flowLocation.findMany({
         where: { isActive: true }
       });
-      
+
       return locations.map(l => ({ id: l.name, title: l.title }));
     }
     return [];
   }
-  
+
   async getTimeSlots() {
     const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
     if (tenants.length > 0) {
       const tenant = tenants[0];
       const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
       const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-      
+
       const timeSlots = await (tenantClient as any).flowTimeSlot.findMany();
-      
-      return timeSlots.map(t => ({ 
-        id: t.time, 
+
+      return timeSlots.map(t => ({
+        id: t.time,
         title: t.title,
         ...(t.isEnabled === false && { enabled: false })
       }));
     }
     return [];
   }
-  
+
   async getDepartmentTitle(name: string): Promise<string> {
     const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
     if (tenants.length > 0) {
       const tenant = tenants[0];
       const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
       const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-      
+
       const dept = await (tenantClient as any).flowDepartment.findFirst({
         where: { name }
       });
-      
+
       return dept?.title || name;
     }
     return name;
   }
-  
+
   async getLocationTitle(name: string): Promise<string> {
     const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
     if (tenants.length > 0) {
       const tenant = tenants[0];
       const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
       const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-      
+
       const loc = await (tenantClient as any).flowLocation.findFirst({
         where: { name }
       });
-      
+
       return loc?.title || name;
     }
     return name;
@@ -632,7 +632,7 @@ export class FlowAppointmentService {
 
       // Try to find user in contacts
       const contact = await (tenantClient as any).contact.findFirst({
-        where: { 
+        where: {
           OR: [
             { phone: phoneNumber },
             { phone: phoneNumber.replace(/^\+/, '') }, // Try without +
@@ -652,7 +652,7 @@ export class FlowAppointmentService {
 
       // Try to find in previous flow appointments
       const previousAppointment = await (tenantClient as any).flowAppointment.findFirst({
-        where: { 
+        where: {
           phone: phoneNumber,
           tenantId: tenantId
         },
@@ -676,9 +676,9 @@ export class FlowAppointmentService {
   }
 
   // Generate available dates
-  private generateAvailableDates(days: number): Array<{id: string, title: string}> {
-    const dates: Array<{id: string, title: string}> = [];
-    
+  private generateAvailableDates(days: number): Array<{ id: string, title: string }> {
+    const dates: Array<{ id: string, title: string }> = [];
+
     // Use IST timezone (UTC+5:30)
     const now = new Date();
     const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
@@ -687,29 +687,29 @@ export class FlowAppointmentService {
     const currentMinute = istTime.getUTCMinutes();
     const lastDemoHour = 17; // Last demo time slot is 5:30 PM (17:30)
     const lastDemoMinute = 30;
-    
+
     // If current time is past last demo slot (5:30 PM), start from tomorrow
     const isPastLastSlot = currentHour > lastDemoHour || (currentHour === lastDemoHour && currentMinute >= lastDemoMinute);
     const startDay = isPastLastSlot ? 1 : 0;
-    
+
     for (let i = startDay; i < days + startDay; i++) {
       const date = new Date(istTime);
       date.setDate(istTime.getUTCDate() + i);
-      
+
       const dateStr = date.toISOString().split('T')[0];
-      const dateTitle = date.toLocaleDateString('en-US', { 
-        weekday: 'short', 
-        month: 'short', 
-        day: '2-digit', 
-        year: 'numeric' 
+      const dateTitle = date.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric'
       });
-      
+
       dates.push({
         id: dateStr,
         title: dateTitle
       });
     }
-    
+
     return dates;
   }
 
@@ -732,24 +732,24 @@ export class FlowAppointmentService {
     };
   }
 
-  private generateTimeSlots(selectedDate?: string): Array<{id: string, title: string}> {
-    const slots: Array<{id: string, title: string}> = [];
+  private generateTimeSlots(selectedDate?: string): Array<{ id: string, title: string }> {
+    const slots: Array<{ id: string, title: string }> = [];
     const startHour = 11;
     const endHour = 18;
-    
+
     const now = new Date();
     const istOffset = 5.5 * 60 * 60 * 1000;
     const istTime = new Date(now.getTime() + istOffset);
-    
+
     const today = istTime.toISOString().split('T')[0];
     const currentHour = istTime.getUTCHours();
     const currentMinute = istTime.getUTCMinutes();
     const isToday = selectedDate === today;
-    
+
     for (let hour = startHour; hour < endHour; hour++) {
       const hour12 = hour > 12 ? hour - 12 : hour;
       const period = hour >= 12 ? 'PM' : 'AM';
-      
+
       if (isToday && (hour < currentHour || (hour === currentHour && currentMinute >= 0))) {
         // Skip :00 slot if it's in the past
       } else {
@@ -758,7 +758,7 @@ export class FlowAppointmentService {
           title: `${hour12}:00 ${period}`
         });
       }
-      
+
       if (isToday && (hour < currentHour || (hour === currentHour && currentMinute >= 30))) {
         // Skip :30 slot if it's in the past
       } else {
@@ -768,7 +768,7 @@ export class FlowAppointmentService {
         });
       }
     }
-    
+
     return slots;
   }
 
@@ -788,7 +788,7 @@ export class FlowAppointmentService {
           ]
         }
       });
-      
+
       console.log(`🧹 Cleaned up ${result.count} empty appointment records for tenant ${userId}`);
       return result.count;
     } catch (error) {

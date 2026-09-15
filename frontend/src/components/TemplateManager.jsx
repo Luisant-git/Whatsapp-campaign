@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Clock,
   ChevronRight,
+  ChevronLeft,
   ChevronDown,
   Trash2,
   Image as ImageIcon,
@@ -97,11 +98,9 @@ const TemplateManager = () => {
   const [activePopoverId, setActivePopoverId] = useState(null);
   const [capabilities, setCapabilities] = useState({ carousel: { supported: false, reason: null } });
   
-  // Drag to scroll refs for Carousel live preview
+  // Carousel scroll refs
   const carouselRef = useRef(null);
-  const isDragging = useRef(false);
-  const startX = useRef(0);
-  const scrollLeft = useRef(0);
+  const builderCarouselRef = useRef(null);
   
   const [isCarouselFullscreen, setIsCarouselFullscreen] = useState(false);
 
@@ -1151,68 +1150,87 @@ const TemplateManager = () => {
             .wa-carousel-wrapper {
               -ms-overflow-style: none;
               scrollbar-width: none;
-              scroll-snap-type: x mandatory;
-              -webkit-overflow-scrolling: touch;
+              scroll-behavior: smooth;
             }
-            .wa-carousel-wrapper.dragging {
-              scroll-snap-type: none;
-              cursor: grabbing !important;
+            .carousel-nav-btn {
+              position: absolute;
+              top: 50%;
+              transform: translateY(-50%);
+              width: 28px;
+              height: 28px;
+              border-radius: 50%;
+              background: white;
+              border: 1px solid #e0e0e0;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              cursor: pointer;
+              z-index: 10;
+              color: #54656f;
             }
-            .wa-carousel-wrapper > div.wa-bubble {
-              scroll-snap-align: center;
+            .carousel-nav-btn:hover {
+              background: #f0f2f5;
             }
           `}</style>
-          <div 
-            className="wa-carousel-wrapper" 
-            ref={carouselRef}
-            onMouseDown={(e) => {
-              isDragging.current = true;
-              if (carouselRef.current) carouselRef.current.classList.add('dragging');
-              startX.current = e.pageX - carouselRef.current.offsetLeft;
-              scrollLeft.current = carouselRef.current.scrollLeft;
-            }}
-            onMouseLeave={() => { 
-              isDragging.current = false; 
-              if (carouselRef.current) carouselRef.current.classList.remove('dragging');
-            }}
-            onMouseUp={() => { 
-              isDragging.current = false; 
-              if (carouselRef.current) carouselRef.current.classList.remove('dragging');
-            }}
-            onMouseMove={(e) => {
-              if (!isDragging.current) return;
-              e.preventDefault();
-              const x = e.pageX - carouselRef.current.offsetLeft;
-              const walk = (x - startX.current) * 1.2; // Smoother multiplier
-              carouselRef.current.scrollLeft = scrollLeft.current - walk;
-            }}
-            style={{ display: 'flex', overflowX: 'auto', gap: '8px', paddingBottom: '8px', maxWidth: '300px', cursor: 'grab' }}
-          >
-          {formData.carouselCards?.map((card, index) => (
-            <div key={card.id || index} className="wa-bubble" style={{ minWidth: '220px', flexShrink: 0 }}>
-              {card.components.find(c => c.type === 'HEADER')?.example?.header_handle?.[0] ? (
-                <img 
-                  src={card.components.find(c => c.type === 'HEADER').example.header_handle[0]} 
-                  alt={`Card ${index + 1}`}
-                  style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '6px 6px 0 0', marginBottom: '8px' }}
-                />
-              ) : (
-                <div style={{ width: '100%', height: '120px', background: '#e0e0e0', borderRadius: '6px 6px 0 0', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <ImageIcon size={32} color="#8d949e" />
+          <div style={{ position: 'relative', width: '100%', maxWidth: '300px' }}>
+            {formData.carouselCards?.length > 1 && (
+              <button 
+                className="carousel-nav-btn" 
+                style={{ left: '-12px' }}
+                onClick={() => {
+                  if (carouselRef.current) carouselRef.current.scrollBy({ left: -240, behavior: 'smooth' });
+                }}
+              >
+                <ChevronLeft size={16} />
+              </button>
+            )}
+            
+            <div 
+              className="wa-carousel-wrapper" 
+              ref={carouselRef}
+              style={{ display: 'flex', overflowX: 'auto', gap: '8px', paddingBottom: '8px', width: '100%' }}
+            >
+            {formData.carouselCards?.map((card, index) => (
+              <div key={card.id || index} className="wa-bubble" style={{ minWidth: '220px', flexShrink: 0 }}>
+                {card.components.find(c => c.type === 'HEADER')?.example?.header_handle?.[0] ? (
+                  <img 
+                    src={card.components.find(c => c.type === 'HEADER').example.header_handle[0]} 
+                    alt={`Card ${index + 1}`}
+                    style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '6px 6px 0 0', marginBottom: '8px' }}
+                  />
+                ) : (
+                  <div style={{ width: '100%', height: '120px', background: '#e0e0e0', borderRadius: '6px 6px 0 0', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <ImageIcon size={32} color="#8d949e" />
+                  </div>
+                )}
+                <div className="wa-body" style={{ fontSize: '14px', whiteSpace: 'pre-wrap', marginBottom: '8px', padding: '0 8px' }}>
+                  <span dangerouslySetInnerHTML={{ __html: formatBody(card.components.find(c => c.type === 'BODY')?.text || 'Body text') }} />
                 </div>
-              )}
-              <div className="wa-body" style={{ fontSize: '14px', whiteSpace: 'pre-wrap', marginBottom: '8px', padding: '0 8px' }}>
-                <span dangerouslySetInnerHTML={{ __html: formatBody(card.components.find(c => c.type === 'BODY')?.text || 'Body text') }} />
+                {card.components.find(c => c.type === 'BUTTONS')?.buttons?.map((btn, btnIdx) => (
+                  <div key={btnIdx} className="wa-btn" style={{ borderTop: '1px solid #f0f2f5', padding: '10px 0', textAlign: 'center', color: '#00a884', fontWeight: 600, fontSize: '14px' }}>
+                    {btn.type === 'URL' && <ExternalLink size={14} style={{ marginRight: '6px', verticalAlign: 'text-bottom' }} />}
+                    {btn.type === 'PHONE_NUMBER' && <Smartphone size={14} style={{ marginRight: '6px', verticalAlign: 'text-bottom' }} />}
+                    {btn.type === 'COPY_CODE' && <Copy size={14} style={{ marginRight: '6px', verticalAlign: 'text-bottom' }} />}
+                    {btn.text || (btn.type === 'COPY_CODE' ? 'Copy Code' : 'Button')}
+                  </div>
+                ))}
               </div>
-              {card.components.find(c => c.type === 'BUTTONS')?.buttons?.map((btn, btnIdx) => (
-                <div key={btnIdx} className="wa-btn" style={{ borderTop: '1px solid #f0f2f5', padding: '10px 0', textAlign: 'center', color: '#00a884', fontWeight: 600, fontSize: '14px' }}>
-                  {btn.type === 'URL' && <ExternalLink size={14} style={{ marginRight: '6px', verticalAlign: 'text-bottom' }} />}
-                  {btn.text || 'Button'}
-                </div>
-              ))}
+            ))}
             </div>
-          ))}
-        </div>
+
+            {formData.carouselCards?.length > 1 && (
+              <button 
+                className="carousel-nav-btn" 
+                style={{ right: '-12px' }}
+                onClick={() => {
+                  if (carouselRef.current) carouselRef.current.scrollBy({ left: 240, behavior: 'smooth' });
+                }}
+              >
+                <ChevronRight size={16} />
+              </button>
+            )}
+          </div>
         </>
       );
     }
@@ -3352,9 +3370,38 @@ const TemplateManager = () => {
                         Add up to 10 cards. Each card must have the same format.
                       </div>
                       
-                      <div style={{ display: 'flex', overflowX: 'auto', gap: '16px', paddingBottom: '16px' }}>
-                        {formData.carouselCards?.map((card, index) => (
-                           <div key={card.id} style={{ 
+                      <div style={{ position: 'relative' }}>
+                        {formData.carouselCards?.length > 1 && (
+                          <button 
+                            className="carousel-nav-btn" 
+                            style={{ left: '-16px', width: 36, height: 36 }}
+                            onClick={() => {
+                              if (builderCarouselRef.current) builderCarouselRef.current.scrollBy({ left: -300, behavior: 'smooth' });
+                            }}
+                          >
+                            <ChevronLeft size={20} />
+                          </button>
+                        )}
+                        
+                        <div 
+                          ref={builderCarouselRef}
+                          style={{ 
+                            display: 'flex', 
+                            overflowX: 'auto', 
+                            gap: '16px', 
+                            paddingBottom: '16px',
+                            scrollBehavior: 'smooth',
+                            scrollbarWidth: 'none',
+                            msOverflowStyle: 'none'
+                          }}
+                        >
+                          <style>{`
+                            div::-webkit-scrollbar {
+                              display: none;
+                            }
+                          `}</style>
+                          {formData.carouselCards?.map((card, index) => (
+                             <div key={card.id} style={{ 
                              minWidth: isCarouselFullscreen ? '450px' : '280px', 
                              border: '1px solid #e0e0e0', 
                              borderRadius: '8px', 
@@ -3428,7 +3475,21 @@ const TemplateManager = () => {
                                     />
                                   </label>
                                   {card.components.find(c => c.type === 'HEADER')?.example?.header_handle?.[0] && (
-                                    <CheckCircle2 size={16} color="#008069" style={{ flexShrink: 0 }} title="Image attached" />
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#e7f3ef', padding: '4px 8px', borderRadius: '4px' }}>
+                                      <CheckCircle2 size={14} color="#008069" title="Image attached" />
+                                      <button 
+                                        style={{ background: 'none', border: 'none', padding: 0, color: '#008069', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                        onClick={() => {
+                                          const newCards = [...formData.carouselCards];
+                                          const headerComp = newCards[index].components.find(c => c.type === 'HEADER');
+                                          if (headerComp) headerComp.example = { header_handle: [] };
+                                          setFormData({ ...formData, carouselCards: newCards });
+                                        }}
+                                        title="Remove image"
+                                      >
+                                        <X size={14} />
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
                               </div>
@@ -3577,7 +3638,7 @@ const TemplateManager = () => {
                         {formData.carouselCards?.length < 10 && (
                           <div 
                             style={{ 
-                              minWidth: '280px', 
+                              minWidth: isCarouselFullscreen ? '450px' : '280px', 
                               border: '2px dashed #dddfe2', 
                               borderRadius: '8px', 
                               display: 'flex', 
@@ -3605,8 +3666,22 @@ const TemplateManager = () => {
                               <div style={{ fontWeight: 600 }}>Add Card</div>
                             </div>
                           </div>
+                          </div>
                         )}
                       </div>
+                      
+                      {formData.carouselCards?.length > 1 && (
+                        <button 
+                          className="carousel-nav-btn" 
+                          style={{ right: '-16px', width: 36, height: 36 }}
+                          onClick={() => {
+                            if (builderCarouselRef.current) builderCarouselRef.current.scrollBy({ left: 300, behavior: 'smooth' });
+                          }}
+                        >
+                          <ChevronRight size={20} />
+                        </button>
+                      )}
+                    </div>
                     </div>
                   </div>
                 )}

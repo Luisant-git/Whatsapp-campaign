@@ -2183,6 +2183,7 @@ const TemplateManager = () => {
                   <select 
                     className="select-field"
                     value={formData.category}
+                    disabled={formData.templateType === 'CAROUSEL'}
                     onChange={(e) => {
                       const newCategory = e.target.value;
                       const components = Array.isArray(formData.components) ? formData.components : [];
@@ -2217,6 +2218,11 @@ const TemplateManager = () => {
                   >
                     {categories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
+                  {formData.templateType === 'CAROUSEL' && (
+                    <div style={{fontSize: 12, color: '#0052cc', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4}}>
+                      <AlertCircle size={14} /> WhatsApp only allows Carousels for Marketing templates.
+                    </div>
+                  )}
                 </div>
 
                 {/* Template Type Selection */}
@@ -2242,7 +2248,7 @@ const TemplateManager = () => {
                       className={`type-card ${formData.templateType === 'CAROUSEL' ? 'active' : ''} ${!capabilities?.carousel?.supported ? 'disabled' : ''}`}
                       onClick={() => {
                         if (capabilities?.carousel?.supported) {
-                          setFormData({ ...formData, templateType: 'CAROUSEL' });
+                          setFormData({ ...formData, templateType: 'CAROUSEL', category: 'MARKETING' });
                         }
                       }}
                       style={{

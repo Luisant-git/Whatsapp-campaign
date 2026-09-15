@@ -3113,7 +3113,7 @@ const TemplateManager = () => {
                 </div>
 
                 {/* Variable Samples Section */}
-                {getAllVariables().length > 0 && formData.templateType !== 'CAROUSEL' && (
+                {getAllVariables().length > 0 && (
                   <div className="component-box">
                     <div style={{marginBottom: 16}}>
                       <label style={{fontWeight: 700, display: 'block', marginBottom: 8}}>Variable samples</label>

@@ -20,7 +20,7 @@ export class MetaCarouselBuilderService {
     };
 
     const rootBody = createTemplateDto.components.find((c: any) => c.type === 'BODY');
-    if (rootBody) {
+    if (rootBody && rootBody.text && rootBody.text.trim()) {
       const processedRootBody = { ...rootBody };
       if (processedRootBody.text && processedRootBody.text.includes('{{')) {
         const variableCount = (processedRootBody.text.match(/{{\d+}}/g) || []).length;

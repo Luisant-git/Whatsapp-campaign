@@ -824,15 +824,16 @@ const TemplateManager = () => {
   };
 
   const buildCarouselPayload = (data) => {
-    // Convert carouselCards into the CAROUSEL component structure the backend expects
     const carouselComponent = {
       type: 'CAROUSEL',
       cards: data.carouselCards.map(card => ({
         components: card.components
       }))
     };
+    const rootBody = (data.components || []).find(c => c.type === 'BODY');
+    // Root body is optional for carousel templates
     return [
-      ...(data.components || []).filter(c => c.type === 'BODY'),
+      ...(rootBody && rootBody.text && rootBody.text.trim() ? [rootBody] : []),
       carouselComponent
     ];
   };
@@ -2940,7 +2941,9 @@ const TemplateManager = () => {
                   <React.Fragment>
                     <div className="component-box">
                   <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 8}}>
-                    <label style={{fontWeight: 700}}>{formData.templateType === 'CAROUSEL' ? 'Carousel Message' : 'Body'}</label>
+                    <label style={{fontWeight: 700}}>
+                      {formData.templateType === 'CAROUSEL' ? 'Carousel Message (Optional)' : 'Body'}
+                    </label>
                     {getCharCount((Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'BODY')?.text || '', 1024)}
                   </div>
                   <textarea 
@@ -3097,7 +3100,7 @@ const TemplateManager = () => {
                 </div>
 
                 {/* Variable Samples Section */}
-                {getAllVariables().length > 0 && (
+                {getAllVariables().length > 0 && formData.templateType !== 'CAROUSEL' && (
                   <div className="component-box">
                     <div style={{marginBottom: 16}}>
                       <label style={{fontWeight: 700, display: 'block', marginBottom: 8}}>Variable samples</label>

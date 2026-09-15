@@ -2607,8 +2607,11 @@ export class WhatsappService {
     const { phoneNumberId, accessToken, apiUrl } = await this.getPhoneCredentials('campaigns', userId);
     const language = 'en';
 
-    // Fetch template ONCE before the loop
-    const dbTemplate = await this.prisma.messageTemplate.findFirst({
+    // Fetch template from tenant DB using userId to get tenant context
+    const tenantDbUrl = await this.getTenantDbUrl(userId);
+    const tenantClient = this.tenantPrisma.getTenantClient(userId.toString(), tenantDbUrl);
+
+    const dbTemplate = await tenantClient.messageTemplate.findFirst({
       where: { name: templateName },
       orderBy: { updatedAt: 'desc' },
     });
@@ -2687,7 +2690,7 @@ export class WhatsappService {
 
     // Fetch all contact data in one query before the loop
     const allFormattedPhones = contacts.map(c => this.formatPhoneNumber(c.phone));
-    const allContactData = await this.prisma.contact.findMany({
+    const allContactData = await tenantClient.contact.findMany({
       where: { phone: { in: allFormattedPhones } },
     });
     const contactDataMap = new Map(allContactData.map(c => [c.phone, c]));
@@ -2804,7 +2807,7 @@ export class WhatsappService {
 
     if (messagesToCreate.length > 0) {
       try {
-        await this.prisma.whatsAppMessage.createMany({
+        await tenantClient.whatsAppMessage.createMany({
           data: messagesToCreate,
           skipDuplicates: true
         });

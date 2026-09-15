@@ -42,12 +42,12 @@ export class MetaCarouselBuilderService {
             card.components.map(async (comp: any) => {
               if (comp.type === 'HEADER' && ['IMAGE', 'VIDEO'].includes(comp.format)) {
                 if (comp.example && comp.example.header_handle && comp.example.header_handle.length > 0) {
-                  const localPath = comp.example.header_handle[0];
-                  // If it's already an uploaded handle from Meta, it won't be a local path, but assuming we upload here:
-                  let assetHandle = localPath;
-                  if (!localPath.startsWith('h_')) {
-                    // Upload media to Meta and get the asset handle
-                    assetHandle = await uploadMediaFn(localPath);
+                  const mediaPath = comp.example.header_handle[0];
+                  // If it's already a Meta asset handle or a full URL, upload it to get a Meta handle
+                  let assetHandle = mediaPath;
+                  if (!mediaPath.startsWith('h_')) {
+                    // It's a local path or public URL — upload to Meta to get asset handle
+                    assetHandle = await uploadMediaFn(mediaPath);
                   }
                   return {
                     type: 'HEADER',

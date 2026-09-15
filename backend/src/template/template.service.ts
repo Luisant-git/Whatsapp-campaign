@@ -1739,11 +1739,13 @@ export class TemplateService {
   private async uploadTemplateMedia(masterConfig: any, localPath: string): Promise<string> {
     const fs = require('fs');
     const path = require('path');
+    const https = require('https');
+    const http = require('http');
+    const os = require('os');
 
     try {
       console.log('Uploading media for template creation, localPath:', localPath);
 
-      // Validate that appId exists
       if (!masterConfig.appId) {
         throw new BadRequestException(
           'Meta App ID is not configured. Please add appId to your Master Config. ' +
@@ -1751,28 +1753,45 @@ export class TemplateService {
         );
       }
 
-      // Convert local path to full file path
-      const fullPath = localPath.startsWith('/uploads/')
-        ? path.join(process.cwd(), 'uploads', path.basename(localPath))
-        : localPath;
+      let fullPath: string;
+      let tempFile = false;
+
+      if (localPath.startsWith('http://') || localPath.startsWith('https://')) {
+        // Download the public URL to a temp file
+        console.log('Detected public URL, downloading to temp file...');
+        const ext = path.extname(new URL(localPath).pathname) || '.jpg';
+        fullPath = path.join(os.tmpdir(), `carousel_upload_${Date.now()}${ext}`);
+        await new Promise<void>((resolve, reject) => {
+          const protocol = localPath.startsWith('https') ? https : http;
+          const file = fs.createWriteStream(fullPath);
+          protocol.get(localPath, (res) => {
+            res.pipe(file);
+            file.on('finish', () => { file.close(); resolve(); });
+          }).on('error', (err) => {
+            fs.unlink(fullPath, () => {});
+            reject(err);
+          });
+        });
+        tempFile = true;
+        console.log('Downloaded to temp file:', fullPath);
+      } else {
+        fullPath = localPath.startsWith('/uploads/')
+          ? path.join(process.cwd(), 'uploads', path.basename(localPath))
+          : localPath;
+      }
 
       console.log('Full file path:', fullPath);
 
-      // Check if file exists
       if (!fs.existsSync(fullPath)) {
-        console.error('File not found:', fullPath);
         throw new BadRequestException(`Media file not found: ${fullPath}`);
       }
 
       const fileStats = fs.statSync(fullPath);
       const fileBuffer = fs.readFileSync(fullPath);
       const mimeType = this.getMimeType(fullPath);
-      console.log('File size:', fileStats.size, 'bytes');
-      console.log('MIME type:', mimeType);
-      console.log('App ID:', masterConfig.appId);
+      console.log('File size:', fileStats.size, 'bytes, MIME:', mimeType);
 
-      // Step 1: Create upload session using APP ID (not WABA ID)
-      console.log('Step 1: Creating upload session with App ID...');
+      // Step 1: Create upload session
       const sessionResponse = await axios.post(
         `https://graph.facebook.com/v21.0/${masterConfig.appId}/uploads`,
         {
@@ -1789,10 +1808,9 @@ export class TemplateService {
       );
 
       const uploadSessionId = sessionResponse.data.id;
-      console.log('Upload session created, ID:', uploadSessionId);
+      console.log('Upload session created:', uploadSessionId);
 
-      // Step 2: Upload file data to the session
-      console.log('Step 2: Uploading file data to session...');
+      // Step 2: Upload file data
       const uploadResponse = await axios.post(
         `https://graph.facebook.com/v21.0/${uploadSessionId}`,
         fileBuffer,
@@ -1805,28 +1823,21 @@ export class TemplateService {
         }
       );
 
-      // Step 3: Extract the handle (h) from response
       const assetHandle = uploadResponse.data.h;
-
       if (!assetHandle) {
-        console.error('No handle returned from upload. Response:', uploadResponse.data);
         throw new BadRequestException('Upload succeeded but no asset handle was returned');
       }
+
+      // Cleanup temp file
+      if (tempFile) fs.unlink(fullPath, () => {});
 
       console.log('Asset handle retrieved:', assetHandle);
       return assetHandle;
 
     } catch (error) {
-      console.error('Template media upload error:');
-      console.error('Error message:', error.message);
-      console.error('Response data:', error.response?.data);
-      console.error('Response status:', error.response?.status);
-      console.error('Request URL:', error.config?.url);
-
-      // Provide helpful error message
+      console.error('Template media upload error:', error.response?.data || error.message);
       const errorMsg = error.response?.data?.error?.message || error.message;
       const errorDetails = error.response?.data?.error?.error_user_title || '';
-
       throw new BadRequestException(
         `Template media upload failed: ${errorMsg}${errorDetails ? ' - ' + errorDetails : ''}. ` +
         `Make sure: 1) Your access token has 'whatsapp_business_management' permission, ` +

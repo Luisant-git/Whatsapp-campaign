@@ -29,30 +29,46 @@ export class CarouselValidatorService {
       throw new BadRequestException('Carousel templates cannot exceed 10 cards.');
     }
 
+    const card1 = cards[0];
+    const header1 = card1.components?.find((c: any) => c.type === 'HEADER');
+    const hasBody1 = !!card1.components?.find((c: any) => c.type === 'BODY');
+    const buttons1 = card1.components?.find((c: any) => c.type === 'BUTTONS')?.buttons || [];
+    
+    if (!header1 || !header1.format || !['IMAGE', 'VIDEO'].includes(header1.format)) {
+      throw new BadRequestException(`Card 1 must have a valid media HEADER (IMAGE or VIDEO).`);
+    }
+
     cards.forEach((card, index) => {
       if (!card.components || !Array.isArray(card.components)) {
         throw new BadRequestException(`Card at index ${index} must contain components.`);
       }
 
       const header = card.components.find((c: any) => c.type === 'HEADER');
-      if (!header || !header.format || !['IMAGE', 'VIDEO'].includes(header.format)) {
-        throw new BadRequestException(`Card at index ${index} must have a valid media HEADER (IMAGE or VIDEO).`);
+      if (!header || header.format !== header1.format) {
+        throw new BadRequestException(`Card at index ${index} must have a HEADER format of ${header1.format} to match Card 1.`);
       }
 
-      // Check if image is present
       if (!header.example || !header.example.header_handle) {
         throw new BadRequestException(`Card at index ${index} must have a media handle uploaded.`);
       }
 
       const body = card.components.find((c: any) => c.type === 'BODY');
-      if (!body || !body.text) {
-        throw new BadRequestException(`Card at index ${index} must have a BODY component with text.`);
+      if (hasBody1 && (!body || !body.text)) {
+        throw new BadRequestException(`Card at index ${index} must have a BODY component with text to match Card 1.`);
       }
 
-      const buttons = card.components.find((c: any) => c.type === 'BUTTONS');
-      if (buttons && buttons.buttons && buttons.buttons.length > 2) {
-        throw new BadRequestException(`Card at index ${index} cannot have more than 2 buttons.`);
+      const buttonsComp = card.components.find((c: any) => c.type === 'BUTTONS');
+      const buttons = buttonsComp?.buttons || [];
+
+      if (buttons.length !== buttons1.length) {
+        throw new BadRequestException(`Card at index ${index} must have exactly ${buttons1.length} buttons to match Card 1.`);
       }
+
+      buttons.forEach((btn: any, btnIndex: number) => {
+        if (btn.type !== buttons1[btnIndex].type) {
+          throw new BadRequestException(`Card at index ${index} button ${btnIndex + 1} must be of type ${buttons1[btnIndex].type} to match Card 1.`);
+        }
+      });
     });
   }
 }

@@ -97,6 +97,7 @@ const TemplateManager = () => {
   const [categoryMismatchModal, setCategoryMismatchModal] = useState({ open: false, selectedCategory: 'MARKETING' });
   const [activePopoverId, setActivePopoverId] = useState(null);
   const [capabilities, setCapabilities] = useState({ carousel: { supported: false, reason: null } });
+  const [structureConfirmModal, setStructureConfirmModal] = useState({ open: false, pendingChange: null, message: '' });
   
   // Carousel scroll refs
   const carouselRef = useRef(null);
@@ -457,6 +458,67 @@ const TemplateManager = () => {
       validityPeriod: 10
     });
     setOpenDialog(true);
+  };
+
+  const applyCard1Structure = (newCard1, cardsToSync) => {
+    const headerFormat = newCard1.components.find(c => c.type === 'HEADER')?.format || 'IMAGE';
+    const hasBody = !!newCard1.components.find(c => c.type === 'BODY');
+    const buttonsComp = newCard1.components.find(c => c.type === 'BUTTONS');
+    const buttonTypes = buttonsComp?.buttons?.map(b => b.type) || [];
+
+    const syncedCards = [newCard1];
+
+    for (let i = 1; i < cardsToSync.length; i++) {
+      const card = cardsToSync[i];
+      const newComponents = [];
+
+      const oldHeader = card.components.find(c => c.type === 'HEADER');
+      const newHeader = { type: 'HEADER', format: headerFormat, example: { header_handle: [] } };
+      if (oldHeader && oldHeader.format === headerFormat && oldHeader.example?.header_handle) {
+        newHeader.example = oldHeader.example;
+      }
+      newComponents.push(newHeader);
+
+      if (hasBody) {
+        const oldBody = card.components.find(c => c.type === 'BODY');
+        newComponents.push(oldBody ? { ...oldBody } : { type: 'BODY', text: '' });
+      }
+
+      if (buttonTypes.length > 0) {
+        const oldButtonsComp = card.components.find(c => c.type === 'BUTTONS');
+        const oldButtons = oldButtonsComp?.buttons || [];
+        
+        const newButtons = buttonTypes.map((type, idx) => {
+          if (idx < oldButtons.length && oldButtons[idx].type === type) {
+            return { ...oldButtons[idx] };
+          }
+          return { type, text: type === 'COPY_CODE' ? undefined : '', example: type === 'COPY_CODE' ? '' : undefined };
+        });
+        
+        newComponents.push({ type: 'BUTTONS', buttons: newButtons });
+      }
+
+      syncedCards.push({ ...card, components: newComponents });
+    }
+
+    return syncedCards;
+  };
+
+  const handleCard1StructureChange = (changeFn, isDestructive, destructiveMessage) => {
+    const newCards = [...formData.carouselCards];
+    const newCard1 = changeFn({ ...newCards[0], components: JSON.parse(JSON.stringify(newCards[0].components)) });
+    
+    if (isDestructive && newCards.length > 1) {
+      setStructureConfirmModal({ 
+        open: true, 
+        message: destructiveMessage,
+        pendingChange: () => {
+          setFormData(prev => ({ ...prev, carouselCards: applyCard1Structure(newCard1, prev.carouselCards) }));
+        }
+      });
+    } else {
+      setFormData(prev => ({ ...prev, carouselCards: applyCard1Structure(newCard1, prev.carouselCards) }));
+    }
   };
 
   const validateTemplate = () => {
@@ -2609,10 +2671,9 @@ const TemplateManager = () => {
                   </div>
                 )}
 
-                {/* Show regular template content only for non-authentication templates and default templates */}
+                {/* Header Section (DEFAULT Only) */}
                 {formData.category !== 'AUTHENTICATION' && formData.templateType === 'DEFAULT' && (
                   <React.Fragment>
-                    {/* Header Section */}
                     <div className="component-box">
                       <div style={{marginBottom: 16}}>
                         <label style={{fontWeight: 700, display: 'block', marginBottom: 8}}>Header type</label>
@@ -2854,11 +2915,15 @@ const TemplateManager = () => {
                         </div>
                       )}
                     </div>
+                  </React.Fragment>
+                )}
 
-                {/* Body */}
-                <div className="component-box">
+                {/* Body Section (DEFAULT & CAROUSEL) */}
+                {formData.category !== 'AUTHENTICATION' && (formData.templateType === 'DEFAULT' || formData.templateType === 'CAROUSEL') && (
+                  <React.Fragment>
+                    <div className="component-box">
                   <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 8}}>
-                    <label style={{fontWeight: 700}}>Body</label>
+                    <label style={{fontWeight: 700}}>{formData.templateType === 'CAROUSEL' ? 'Carousel Message' : 'Body'}</label>
                     {getCharCount((Array.isArray(formData.components) ? formData.components : []).find(c => c.type === 'BODY')?.text || '', 1024)}
                   </div>
                   <textarea 
@@ -3070,10 +3135,14 @@ const TemplateManager = () => {
                       );
                     })}
                   </div>
+                    )}
+                  </React.Fragment>
                 )}
 
-                {/* Footer */}
-                <div className="component-box">
+                {/* Footer and Buttons Section (DEFAULT Only) */}
+                {formData.category !== 'AUTHENTICATION' && formData.templateType === 'DEFAULT' && (
+                  <React.Fragment>
+                    <div className="component-box">
                   <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 8}}>
                     <label style={{fontWeight: 700}}>Footer (Optional)</label>
                     <div style={{display: 'flex', alignItems: 'center'}}>
@@ -3356,21 +3425,56 @@ const TemplateManager = () => {
                              background: '#f9fafb',
                              flex: isCarouselFullscreen ? '0 0 auto' : 'none'
                            }}>
-                              <div style={{ fontWeight: 600, marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
-                                <span>Card {index + 1}</span>
-                                {formData.carouselCards.length > 2 && (
-                                  <button onClick={() => {
-                                    const newCards = [...formData.carouselCards];
-                                    newCards.splice(index, 1);
-                                    setFormData({ ...formData, carouselCards: newCards });
-                                  }} style={{ background: 'none', border: 'none', color: '#fa3e3e', cursor: 'pointer' }}>
-                                    <Trash2 size={14} />
-                                  </button>
+                              <div style={{ fontWeight: 600, marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <span>Card {index + 1}</span>
+                                  {formData.carouselCards.length > 2 && (
+                                    <button onClick={() => {
+                                      const newCards = [...formData.carouselCards];
+                                      newCards.splice(index, 1);
+                                      setFormData({ ...formData, carouselCards: newCards });
+                                    }} style={{ background: 'none', border: 'none', color: '#fa3e3e', cursor: 'pointer' }}>
+                                      <Trash2 size={14} />
+                                    </button>
+                                  )}
+                                </div>
+                                {index === 0 ? (
+                                  <div style={{ fontSize: 11, color: '#008069' }}>Card format: This format will be used for all cards.</div>
+                                ) : (
+                                  <div style={{ fontSize: 11, color: '#8d949e', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <Lock size={12} /> Same format as Card 1
+                                  </div>
                                 )}
                               </div>
-                              {/* Header image input mock */}
+                              {/* Header input */}
                               <div style={{ marginBottom: isCarouselFullscreen ? '16px' : '12px' }}>
-                                <label style={{ fontSize: isCarouselFullscreen ? '14px' : '12px', fontWeight: 600 }}>Header Image URL</label>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                  <label style={{ fontSize: isCarouselFullscreen ? '14px' : '12px', fontWeight: 600 }}>Media</label>
+                                  {index === 0 ? (
+                                    <select 
+                                      className="select-field" 
+                                      style={{ fontSize: 11, padding: '2px 6px', height: 'auto', width: 'auto' }}
+                                      value={card.components.find(c => c.type === 'HEADER')?.format || 'IMAGE'}
+                                      onChange={(e) => {
+                                        handleCard1StructureChange((card1) => {
+                                           const header = card1.components.find(c => c.type === 'HEADER');
+                                           if (header) {
+                                             header.format = e.target.value;
+                                             header.example = { header_handle: [] };
+                                           }
+                                           return card1;
+                                        }, true, `Changing media to ${e.target.value} will remove uploaded media from all other cards.`);
+                                      }}
+                                    >
+                                      <option value="IMAGE">Image</option>
+                                      <option value="VIDEO">Video</option>
+                                    </select>
+                                  ) : (
+                                     <span style={{ fontSize: 11, color: '#606770', background: '#e3f2fd', padding: '2px 6px', borderRadius: 4 }}>
+                                       {card.components.find(c => c.type === 'HEADER')?.format || 'IMAGE'}
+                                     </span>
+                                  )}
+                                </div>
                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                   <input type="text" className="input-field" placeholder="https://..." style={{flex: 1}}
                                     value={card.components.find(c => c.type === 'HEADER')?.example?.header_handle?.[0] || ''}
@@ -3460,20 +3564,21 @@ const TemplateManager = () => {
                               <div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                                   <label style={{ fontSize: isCarouselFullscreen ? '14px' : '12px', fontWeight: 600 }}>Buttons (Max 2)</label>
-                                  {(card.components.find(c => c.type === 'BUTTONS')?.buttons?.length || 0) < 2 && (
+                                  {index === 0 && (card.components.find(c => c.type === 'BUTTONS')?.buttons?.length || 0) < 2 && (
                                     <button 
                                       className="btn-secondary" 
                                       style={{ fontSize: isCarouselFullscreen ? 12 : 10, padding: isCarouselFullscreen ? '4px 10px' : '2px 6px' }}
                                       onClick={() => {
-                                        const newCards = [...formData.carouselCards];
-                                        let btnComp = newCards[index].components.find(c => c.type === 'BUTTONS');
-                                        if(!btnComp) {
-                                          btnComp = { type: 'BUTTONS', buttons: [] };
-                                          newCards[index].components.push(btnComp);
-                                        }
-                                        if(!btnComp.buttons) btnComp.buttons = [];
-                                        btnComp.buttons.push({ type: 'QUICK_REPLY', text: '' });
-                                        setFormData({ ...formData, carouselCards: newCards });
+                                        handleCard1StructureChange((card1) => {
+                                          let btnComp = card1.components.find(c => c.type === 'BUTTONS');
+                                          if(!btnComp) {
+                                            btnComp = { type: 'BUTTONS', buttons: [] };
+                                            card1.components.push(btnComp);
+                                          }
+                                          if(!btnComp.buttons) btnComp.buttons = [];
+                                          btnComp.buttons.push({ type: 'QUICK_REPLY', text: '' });
+                                          return card1;
+                                        }, false, '');
                                       }}
                                     >
                                       + Add
@@ -3484,33 +3589,46 @@ const TemplateManager = () => {
                                   {card.components.find(c => c.type === 'BUTTONS')?.buttons?.map((btn, btnIdx) => (
                                     <div key={btnIdx} style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#fff', padding: '8px', borderRadius: '4px', border: '1px solid #e5e7eb' }}>
                                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
-                                        <select 
-                                          className="select-field" 
-                                          style={{ flex: 1, padding: isCarouselFullscreen ? '8px' : '4px 8px', fontSize: isCarouselFullscreen ? '14px' : '12px', marginBottom: '4px' }}
-                                          value={btn.type}
-                                          onChange={(e) => {
-                                            const newCards = [...formData.carouselCards];
-                                            const btnComp = newCards[index].components.find(c => c.type === 'BUTTONS');
-                                            btnComp.buttons[btnIdx].type = e.target.value;
-                                            setFormData({ ...formData, carouselCards: newCards });
-                                          }}
-                                        >
-                                          <option value="QUICK_REPLY">Quick Reply</option>
-                                          <option value="URL">Call to Action (Link)</option>
-                                          <option value="PHONE_NUMBER">Call to Action (Phone)</option>
-                                          <option value="COPY_CODE">Copy Offer Code</option>
-                                        </select>
-                                        <button 
-                                          style={{ background: 'none', border: 'none', color: '#fa3e3e', cursor: 'pointer', padding: '4px' }}
-                                          onClick={() => {
-                                            const newCards = [...formData.carouselCards];
-                                            const btnComp = newCards[index].components.find(c => c.type === 'BUTTONS');
-                                            btnComp.buttons.splice(btnIdx, 1);
-                                            setFormData({ ...formData, carouselCards: newCards });
-                                          }}
-                                        >
-                                          <X size={14} />
-                                        </button>
+                                        {index === 0 ? (
+                                          <select 
+                                            className="select-field" 
+                                            style={{ flex: 1, padding: isCarouselFullscreen ? '8px' : '4px 8px', fontSize: isCarouselFullscreen ? '14px' : '12px', marginBottom: '4px' }}
+                                            value={btn.type}
+                                            onChange={(e) => {
+                                              handleCard1StructureChange((card1) => {
+                                                const btnComp = card1.components.find(c => c.type === 'BUTTONS');
+                                                btnComp.buttons[btnIdx].type = e.target.value;
+                                                return card1;
+                                              }, true, `Changing button type to ${e.target.value} will reset button data across all cards.`);
+                                            }}
+                                          >
+                                            <option value="QUICK_REPLY">Quick Reply</option>
+                                            <option value="URL">Call to Action (Link)</option>
+                                            <option value="PHONE_NUMBER">Call to Action (Phone)</option>
+                                            <option value="COPY_CODE">Copy Offer Code</option>
+                                          </select>
+                                        ) : (
+                                          <div style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#1c1e21', padding: '4px 0' }}>
+                                            {btn.type === 'QUICK_REPLY' && 'Quick Reply'}
+                                            {btn.type === 'URL' && 'Call to Action (Link)'}
+                                            {btn.type === 'PHONE_NUMBER' && 'Call to Action (Phone)'}
+                                            {btn.type === 'COPY_CODE' && 'Copy Offer Code'}
+                                          </div>
+                                        )}
+                                        {index === 0 && (
+                                          <button 
+                                            style={{ background: 'none', border: 'none', color: '#fa3e3e', cursor: 'pointer', padding: '4px' }}
+                                            onClick={() => {
+                                              handleCard1StructureChange((card1) => {
+                                                const btnComp = card1.components.find(c => c.type === 'BUTTONS');
+                                                btnComp.buttons.splice(btnIdx, 1);
+                                                return card1;
+                                              }, true, 'Removing this button will remove it from all carousel cards.');
+                                            }}
+                                          >
+                                            <X size={14} />
+                                          </button>
+                                        )}
                                       </div>
                                       {btn.type !== 'COPY_CODE' ? (
                                         <input 
@@ -3638,6 +3756,34 @@ const TemplateManager = () => {
                   <AlertCircle size={14} style={{display: 'inline', marginRight: 4, verticalAlign: 'middle'}} />
                   Previews are for illustrative purposes and may vary slightly in the actual application.
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Structure Confirmation Modal */}
+      {structureConfirmModal.open && (
+        <div className="modal-overlay" style={{zIndex: 10000}}>
+          <div className="modal-content" style={{maxWidth: 400}}>
+            <div className="modal-header">
+              <h2 className="modal-title">Change card structure?</h2>
+              <button className="btn-close" onClick={() => setStructureConfirmModal({ open: false, pendingChange: null, message: '' })}><X size={20} /></button>
+            </div>
+            <div className="modal-body">
+              <div style={{color: '#606770', fontSize: 14, marginBottom: 20}}>
+                {structureConfirmModal.message}
+              </div>
+              <div style={{display: 'flex', justifyContent: 'flex-end', gap: 12}}>
+                <button className="btn-secondary" onClick={() => setStructureConfirmModal({ open: false, pendingChange: null, message: '' })}>
+                  Cancel
+                </button>
+                <button className="btn-primary" onClick={() => {
+                  if (structureConfirmModal.pendingChange) structureConfirmModal.pendingChange();
+                  setStructureConfirmModal({ open: false, pendingChange: null, message: '' });
+                }}>
+                  Apply to all cards
+                </button>
               </div>
             </div>
           </div>

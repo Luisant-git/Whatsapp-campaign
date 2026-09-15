@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Search, 
   Plus, 
@@ -23,6 +23,8 @@ import {
   Settings as SettingsIcon,
   CheckCircle2,
   Copy,
+  Maximize2,
+  Minimize2,
   MapPin
 } from 'lucide-react';
 import '../styles/TemplateManager.css';
@@ -81,6 +83,14 @@ const TemplateManager = () => {
   const [activePopoverId, setActivePopoverId] = useState(null);
   const [capabilities, setCapabilities] = useState({ carousel: { supported: false, reason: null } });
   
+  // Drag to scroll refs for Carousel live preview
+  const carouselRef = useRef(null);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const scrollLeft = useRef(0);
+  
+  const [isCarouselFullscreen, setIsCarouselFullscreen] = useState(false);
+
   const [formData, setFormData] = useState({
     name: '',
     templateType: 'DEFAULT',
@@ -1128,7 +1138,25 @@ const TemplateManager = () => {
               scrollbar-width: none;
             }
           `}</style>
-          <div className="wa-carousel-wrapper" style={{ display: 'flex', overflowX: 'auto', gap: '8px', paddingBottom: '8px', maxWidth: '300px' }}>
+          <div 
+            className="wa-carousel-wrapper" 
+            ref={carouselRef}
+            onMouseDown={(e) => {
+              isDragging.current = true;
+              startX.current = e.pageX - carouselRef.current.offsetLeft;
+              scrollLeft.current = carouselRef.current.scrollLeft;
+            }}
+            onMouseLeave={() => { isDragging.current = false; }}
+            onMouseUp={() => { isDragging.current = false; }}
+            onMouseMove={(e) => {
+              if (!isDragging.current) return;
+              e.preventDefault();
+              const x = e.pageX - carouselRef.current.offsetLeft;
+              const walk = (x - startX.current) * 2;
+              carouselRef.current.scrollLeft = scrollLeft.current - walk;
+            }}
+            style={{ display: 'flex', overflowX: 'auto', gap: '8px', paddingBottom: '8px', maxWidth: '300px', cursor: 'grab' }}
+          >
           {formData.carouselCards?.map((card, index) => (
             <div key={card.id || index} className="wa-bubble" style={{ minWidth: '220px', flexShrink: 0 }}>
               {card.components.find(c => c.type === 'HEADER')?.example?.header_handle?.[0] ? (
@@ -3239,15 +3267,38 @@ const TemplateManager = () => {
 
                 {/* Carousel Builder */}
                 {formData.category !== 'AUTHENTICATION' && formData.templateType === 'CAROUSEL' && (
-                  <div className="carousel-builder">
-                    <div className="component-box">
+                  <div className={`carousel-builder ${isCarouselFullscreen ? 'fullscreen-mode' : ''}`}>
+                    {isCarouselFullscreen && (
+                      <style>{`
+                        .carousel-builder.fullscreen-mode {
+                          position: fixed;
+                          top: 0;
+                          left: 0;
+                          width: 100vw;
+                          height: 100vh;
+                          background: #fff;
+                          z-index: 9999;
+                          padding: 40px;
+                          overflow-y: auto;
+                        }
+                      `}</style>
+                    )}
+                    <div className="component-box" style={isCarouselFullscreen ? { maxWidth: 1200, margin: '0 auto', border: 'none', boxShadow: 'none' } : {}}>
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8}}>
-                        <label style={{fontWeight: 700}}>Carousel Cards</label>
-                        {formData.carouselCards?.length < 10 && (
+                        <label style={{fontWeight: 700, fontSize: isCarouselFullscreen ? 24 : 14}}>Carousel Cards</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
                           <button 
                             className="btn-secondary"
                             style={{fontSize: 12, padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px'}}
-                            onClick={() => {
+                            onClick={() => setIsCarouselFullscreen(!isCarouselFullscreen)}
+                          >
+                            {isCarouselFullscreen ? <><Minimize2 size={14} /> Exit Fullscreen</> : <><Maximize2 size={14} /> Fullscreen Editor</>}
+                          </button>
+                          {formData.carouselCards?.length < 10 && (
+                            <button 
+                              className="btn-secondary"
+                              style={{fontSize: 12, padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px'}}
+                              onClick={() => {
                               const newCards = [...(formData.carouselCards || [])];
                               const nextId = Math.max(...newCards.map(c => c.id || 0), 0) + 1;
                               newCards.push({
@@ -3263,7 +3314,8 @@ const TemplateManager = () => {
                           >
                             <Plus size={14} /> Add Card
                           </button>
-                        )}
+                          )}
+                        </div>
                       </div>
                       <div style={{fontSize: 12, color: '#606770', marginBottom: 16}}>
                         Add up to 10 cards. Each card must have the same format.
@@ -3293,17 +3345,55 @@ const TemplateManager = () => {
                               {/* Header image input mock */}
                               <div style={{ marginBottom: '12px' }}>
                                 <label style={{ fontSize: '12px', fontWeight: 600 }}>Header Image URL</label>
-                                <input type="text" className="input-field" placeholder="https://..." 
-                                  value={card.components.find(c => c.type === 'HEADER')?.example?.header_handle?.[0] || ''}
-                                  onChange={(e) => {
-                                    const newCards = [...formData.carouselCards];
-                                    const headerComp = newCards[index].components.find(c => c.type === 'HEADER');
-                                    if(headerComp) {
-                                      headerComp.example = { header_handle: [e.target.value] };
-                                    }
-                                    setFormData({ ...formData, carouselCards: newCards });
-                                  }}
-                                />
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                  <input type="text" className="input-field" placeholder="https://..." style={{flex: 1}}
+                                    value={card.components.find(c => c.type === 'HEADER')?.example?.header_handle?.[0] || ''}
+                                    onChange={(e) => {
+                                      const newCards = [...formData.carouselCards];
+                                      const headerComp = newCards[index].components.find(c => c.type === 'HEADER');
+                                      if(headerComp) {
+                                        headerComp.example = { header_handle: [e.target.value] };
+                                      }
+                                      setFormData({ ...formData, carouselCards: newCards });
+                                    }}
+                                  />
+                                  <label className="btn-secondary" style={{fontSize: 12, padding: '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center'}}>
+                                    <ImageIcon size={14} style={{marginRight: 4}}/>
+                                    Upload
+                                    <input type="file" style={{display: 'none'}} accept="image/jpeg,image/png,image/jpg"
+                                      onChange={async (e) => {
+                                        const file = e.target.files[0];
+                                        if(!file) return;
+                                        if (file.size > 16 * 1024 * 1024) {
+                                          alert('File size exceeds 16MB limit');
+                                          return;
+                                        }
+                                        const uploadFormData = new FormData();
+                                        uploadFormData.append('file', file);
+                                        try {
+                                          const response = await fetch(`${API_BASE_URL}/upload`, { 
+                                            method: 'POST', 
+                                            credentials: 'include',
+                                            body: uploadFormData 
+                                          });
+                                          if (response.ok) {
+                                            const result = await response.json();
+                                            const newCards = [...formData.carouselCards];
+                                            const headerComp = newCards[index].components.find(c => c.type === 'HEADER');
+                                            if(headerComp) {
+                                              headerComp.example = { header_handle: [result.fileUrl || result.filename] };
+                                            }
+                                            setFormData({ ...formData, carouselCards: newCards });
+                                          } else {
+                                            alert('Upload failed');
+                                          }
+                                        } catch (err) {
+                                          alert('Upload error');
+                                        }
+                                      }}
+                                    />
+                                  </label>
+                                </div>
                               </div>
                               {/* Body text */}
                               <div style={{ marginBottom: '12px' }}>

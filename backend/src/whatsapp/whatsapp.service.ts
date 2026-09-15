@@ -2633,9 +2633,12 @@ export class WhatsappService {
     }
 
     const actualTemplateName = dbTemplate.name;
-    const templateComponents = dbTemplate?.components
-      ? (typeof dbTemplate.components === 'string' ? JSON.parse(dbTemplate.components as string) : dbTemplate.components as any[])
+    const rawComponents = dbTemplate?.components
+      ? (typeof dbTemplate.components === 'string' ? JSON.parse(dbTemplate.components as string) : dbTemplate.components)
       : [];
+    const templateComponents: any[] = Array.isArray(rawComponents)
+      ? rawComponents
+      : (rawComponents?.components || []);
     const headerComponent = templateComponents.find((c: any) => c.type === 'HEADER');
     const bodyComponent = templateComponents.find((c: any) => c.type === 'BODY');
     const templateBodyVariables: string[] = bodyComponent?.text?.match(/{{\d+}}/g) || [];

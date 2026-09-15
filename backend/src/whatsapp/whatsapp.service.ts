@@ -2639,9 +2639,11 @@ export class WhatsappService {
     const templateComponents: any[] = Array.isArray(rawComponents)
       ? rawComponents
       : (rawComponents?.components || []);
+    const isCarouselTemplate = !Array.isArray(rawComponents) && rawComponents?.templateType === 'CAROUSEL';
     const headerComponent = templateComponents.find((c: any) => c.type === 'HEADER');
     const bodyComponent = templateComponents.find((c: any) => c.type === 'BODY');
-    const templateBodyVariables: string[] = bodyComponent?.text?.match(/{{\d+}}/g) || [];
+    // Carousel templates have no body variables — cards handle their own content
+    const templateBodyVariables: string[] = isCarouselTemplate ? [] : (bodyComponent?.text?.match(/{{\d+}}/g) || []);
 
     const buttonsStr = this.extractTemplateButtonsStr(templateComponents);
 

@@ -27,8 +27,7 @@ export class TemplateComponentDto {
   text?: string;
 
   @IsOptional()
-  @IsArray()
-  example?: any[];
+  example?: any;
 
   @IsOptional()
   @IsArray()

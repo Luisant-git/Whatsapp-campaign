@@ -2646,6 +2646,7 @@ export class WhatsappService {
     const templateBodyVariables: string[] = isCarouselTemplate ? [] : (bodyComponent?.text?.match(/{{\d+}}/g) || []);
 
     // Pre-build carousel components once (same for every contact)
+    // For carousel templates, only send variable parameters — headers are baked into the approved template
     let carouselComponents: any[] | null = null;
     if (isCarouselTemplate) {
       const carouselComp = templateComponents.find((c: any) => c.type === 'CAROUSEL');
@@ -2653,12 +2654,8 @@ export class WhatsappService {
         const cards = carouselComp.cards.map((card: any, cardIndex: number) => {
           const cardComps: any[] = [];
           for (const comp of (card.components || [])) {
-            if (comp.type === 'HEADER') {
-              const handle = comp.example?.header_handle?.[0];
-              if (handle) {
-                cardComps.push({ type: 'header', parameters: [{ type: 'image', image: { id: handle } }] });
-              }
-            } else if (comp.type === 'BODY') {
+            // HEADER: never send parameters — images are baked into the approved template
+            if (comp.type === 'BODY') {
               const vars = comp.text?.match(/{{\d+}}/g) || [];
               if (vars.length > 0) {
                 cardComps.push({ type: 'body', parameters: vars.map((_: string, i: number) => ({ type: 'text', text: `Sample ${i + 1}` })) });
@@ -2671,9 +2668,16 @@ export class WhatsappService {
               });
             }
           }
-          return { card_index: cardIndex, components: cardComps };
-        });
-        carouselComponents = [{ type: 'carousel', cards }];
+          // Only include this card if it has variable parameters to fill
+          if (cardComps.length > 0) {
+            return { card_index: cardIndex, components: cardComps };
+          }
+          return null;
+        }).filter(Boolean);
+        // Only send carousel component if any card has variable parameters
+        if (cards.length > 0) {
+          carouselComponents = [{ type: 'carousel', cards }];
+        }
         this.logger.log(`Carousel components built: ${JSON.stringify(carouselComponents)}`);
       }
     }

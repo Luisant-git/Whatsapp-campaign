@@ -3682,7 +3682,8 @@ const TemplateManager = () => {
                       )}
                     </div>
                   </div>
-                )}
+                </div>
+              )}
 
               </div>
 

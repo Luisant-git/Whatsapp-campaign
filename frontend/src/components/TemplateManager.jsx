@@ -1249,11 +1249,12 @@ const TemplateManager = () => {
                   <img 
                     src={card.components.find(c => c.type === 'HEADER').example.header_handle[0]} 
                     alt={`Card ${index + 1}`}
-                    style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '6px 6px 0 0', marginBottom: '8px' }}
+                    style={{ width: '100%', height: '220px', objectFit: 'cover', borderRadius: '6px 6px 0 0', marginBottom: '8px' }}
                   />
                 ) : (
-                  <div style={{ width: '100%', height: '120px', background: '#e0e0e0', borderRadius: '6px 6px 0 0', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: '100%', height: '220px', background: '#e0e0e0', borderRadius: '6px 6px 0 0', marginBottom: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                     <ImageIcon size={32} color="#8d949e" />
+                    <span style={{fontSize: 10, color: '#8d949e'}}>800×800px</span>
                   </div>
                 )}
                 <div className="wa-body" style={{ fontSize: '14px', whiteSpace: 'pre-wrap', marginBottom: '8px', padding: '0 8px' }}>
@@ -3576,6 +3577,7 @@ const TemplateManager = () => {
                                     </div>
                                   )}
                                 </div>
+                                <div style={{fontSize: 11, color: '#8d949e', marginTop: 4}}>📐 1:1 square • 800×800px min • 5MB max • JPG/PNG</div>
                               </div>
                               {/* Body text */}
                               <div style={{ marginBottom: isCarouselFullscreen ? '16px' : '12px' }}>

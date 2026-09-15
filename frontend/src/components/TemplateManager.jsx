@@ -26,7 +26,8 @@ import {
   Copy,
   Maximize2,
   Minimize2,
-  MapPin
+  MapPin,
+  Lock
 } from 'lucide-react';
 import '../styles/TemplateManager.css';
 import { API_BASE_URL } from '../api/config';

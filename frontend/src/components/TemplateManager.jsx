@@ -3355,11 +3355,12 @@ const TemplateManager = () => {
                       <div style={{ display: 'flex', overflowX: 'auto', gap: '16px', paddingBottom: '16px' }}>
                         {formData.carouselCards?.map((card, index) => (
                            <div key={card.id} style={{ 
-                             minWidth: '280px', 
+                             minWidth: isCarouselFullscreen ? '450px' : '280px', 
                              border: '1px solid #e0e0e0', 
                              borderRadius: '8px', 
-                             padding: '16px',
-                             background: '#f9fafb' 
+                             padding: isCarouselFullscreen ? '24px' : '16px',
+                             background: '#f9fafb',
+                             flex: isCarouselFullscreen ? '0 0 auto' : 'none'
                            }}>
                               <div style={{ fontWeight: 600, marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
                                 <span>Card {index + 1}</span>
@@ -3374,8 +3375,8 @@ const TemplateManager = () => {
                                 )}
                               </div>
                               {/* Header image input mock */}
-                              <div style={{ marginBottom: '12px' }}>
-                                <label style={{ fontSize: '12px', fontWeight: 600 }}>Header Image URL</label>
+                              <div style={{ marginBottom: isCarouselFullscreen ? '16px' : '12px' }}>
+                                <label style={{ fontSize: isCarouselFullscreen ? '14px' : '12px', fontWeight: 600 }}>Header Image URL</label>
                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                   <input type="text" className="input-field" placeholder="https://..." style={{flex: 1}}
                                     value={card.components.find(c => c.type === 'HEADER')?.example?.header_handle?.[0] || ''}
@@ -3388,8 +3389,8 @@ const TemplateManager = () => {
                                       setFormData({ ...formData, carouselCards: newCards });
                                     }}
                                   />
-                                  <label className="btn-secondary" style={{fontSize: 12, padding: '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center'}}>
-                                    <ImageIcon size={14} style={{marginRight: 4}}/>
+                                  <label className="btn-secondary" style={{fontSize: isCarouselFullscreen ? 14 : 12, padding: isCarouselFullscreen ? '6px 12px' : '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center'}}>
+                                    <ImageIcon size={isCarouselFullscreen ? 16 : 14} style={{marginRight: 4}}/>
                                     Upload
                                     <input type="file" style={{display: 'none'}} accept="image/jpeg,image/png,image/jpg"
                                       onChange={async (e) => {
@@ -3432,9 +3433,9 @@ const TemplateManager = () => {
                                 </div>
                               </div>
                               {/* Body text */}
-                              <div style={{ marginBottom: '12px' }}>
-                                <label style={{ fontSize: '12px', fontWeight: 600 }}>Body Text (Max 160 chars)</label>
-                                <textarea className="textarea-field" style={{ minHeight: '80px' }} maxLength={160}
+                              <div style={{ marginBottom: isCarouselFullscreen ? '16px' : '12px' }}>
+                                <label style={{ fontSize: isCarouselFullscreen ? '14px' : '12px', fontWeight: 600 }}>Body Text (Max 160 chars)</label>
+                                <textarea className="textarea-field" style={{ minHeight: isCarouselFullscreen ? '120px' : '80px', fontSize: isCarouselFullscreen ? '14px' : '13px' }} maxLength={160}
                                   value={card.components.find(c => c.type === 'BODY')?.text || ''}
                                   onChange={(e) => {
                                     const newCards = [...formData.carouselCards];
@@ -3450,11 +3451,11 @@ const TemplateManager = () => {
                               {/* Buttons */}
                               <div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                  <label style={{ fontSize: '12px', fontWeight: 600 }}>Buttons (Max 2)</label>
+                                  <label style={{ fontSize: isCarouselFullscreen ? '14px' : '12px', fontWeight: 600 }}>Buttons (Max 2)</label>
                                   {(card.components.find(c => c.type === 'BUTTONS')?.buttons?.length || 0) < 2 && (
                                     <button 
                                       className="btn-secondary" 
-                                      style={{ fontSize: 10, padding: '2px 6px' }}
+                                      style={{ fontSize: isCarouselFullscreen ? 12 : 10, padding: isCarouselFullscreen ? '4px 10px' : '2px 6px' }}
                                       onClick={() => {
                                         const newCards = [...formData.carouselCards];
                                         let btnComp = newCards[index].components.find(c => c.type === 'BUTTONS');
@@ -3477,7 +3478,7 @@ const TemplateManager = () => {
                                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
                                         <select 
                                           className="select-field" 
-                                          style={{ flex: 1, padding: '4px 8px', fontSize: '12px', marginBottom: '4px' }}
+                                          style={{ flex: 1, padding: isCarouselFullscreen ? '8px' : '4px 8px', fontSize: isCarouselFullscreen ? '14px' : '12px', marginBottom: '4px' }}
                                           value={btn.type}
                                           onChange={(e) => {
                                             const newCards = [...formData.carouselCards];
@@ -3507,7 +3508,7 @@ const TemplateManager = () => {
                                         <input 
                                           type="text" 
                                           className="input-field" 
-                                          style={{ padding: '6px', fontSize: '12px' }}
+                                          style={{ padding: isCarouselFullscreen ? '10px' : '6px', fontSize: isCarouselFullscreen ? '14px' : '12px' }}
                                           placeholder="Button text..." 
                                           maxLength={20}
                                           value={btn.text || ''}

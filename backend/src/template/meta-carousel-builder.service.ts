@@ -32,6 +32,9 @@ export class MetaCarouselBuilderService {
         };
       }
       metaPayload.components.push(processedRootBody);
+    } else {
+      // Meta requires a root BODY component even for carousel templates
+      metaPayload.components.push({ type: 'BODY', text: ' ' });
     }
 
     const carouselComponent = createTemplateDto.components.find((c: any) => c.type === 'CAROUSEL');

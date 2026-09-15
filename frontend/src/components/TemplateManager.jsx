@@ -1152,32 +1152,12 @@ const TemplateManager = () => {
               scrollbar-width: none;
               scroll-behavior: smooth;
             }
-            .carousel-nav-btn {
-              position: absolute;
-              top: 50%;
-              transform: translateY(-50%);
-              width: 28px;
-              height: 28px;
-              border-radius: 50%;
-              background: white;
-              border: 1px solid #e0e0e0;
-              box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              cursor: pointer;
-              z-index: 10;
-              color: #54656f;
-            }
-            .carousel-nav-btn:hover {
-              background: #f0f2f5;
-            }
           `}</style>
           <div style={{ position: 'relative', width: '100%', maxWidth: '300px' }}>
             {formData.carouselCards?.length > 1 && (
               <button 
-                className="carousel-nav-btn" 
-                style={{ left: '-12px' }}
+                className="carousel-nav-btn small" 
+                style={{ left: '-6px' }}
                 onClick={() => {
                   if (carouselRef.current) carouselRef.current.scrollBy({ left: -240, behavior: 'smooth' });
                 }}
@@ -1221,8 +1201,8 @@ const TemplateManager = () => {
 
             {formData.carouselCards?.length > 1 && (
               <button 
-                className="carousel-nav-btn" 
-                style={{ right: '-12px' }}
+                className="carousel-nav-btn small" 
+                style={{ right: '-6px' }}
                 onClick={() => {
                   if (carouselRef.current) carouselRef.current.scrollBy({ left: 240, behavior: 'smooth' });
                 }}
@@ -3374,7 +3354,7 @@ const TemplateManager = () => {
                         {formData.carouselCards?.length > 1 && (
                           <button 
                             className="carousel-nav-btn" 
-                            style={{ left: '-16px', width: 36, height: 36 }}
+                            style={{ left: '8px' }}
                             onClick={() => {
                               if (builderCarouselRef.current) builderCarouselRef.current.scrollBy({ left: -300, behavior: 'smooth' });
                             }}
@@ -3672,7 +3652,7 @@ const TemplateManager = () => {
                       {formData.carouselCards?.length > 1 && (
                         <button 
                           className="carousel-nav-btn" 
-                          style={{ right: '-16px', width: 36, height: 36 }}
+                          style={{ right: '8px' }}
                           onClick={() => {
                             if (builderCarouselRef.current) builderCarouselRef.current.scrollBy({ left: 300, behavior: 'smooth' });
                           }}

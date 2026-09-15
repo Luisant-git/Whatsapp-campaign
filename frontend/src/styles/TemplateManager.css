@@ -127,6 +127,42 @@
   background: #f9fafb;
 }
 
+.template-status-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Carousel Navigation Buttons */
+.carousel-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: white;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 99;
+  color: #54656f;
+  transition: all 0.2s;
+}
+
+.carousel-nav-btn:hover {
+  background: #f0f2f5;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+}
+
+.carousel-nav-btn.small {
+  width: 28px;
+  height: 28px;
+}
+
 .template-name-cell {
   display: flex;
   flex-direction: column;

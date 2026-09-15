@@ -2607,20 +2607,20 @@ export class WhatsappService {
     const { phoneNumberId, accessToken, apiUrl } = await this.getPhoneCredentials('campaigns', userId);
     const language = 'en';
 
-    // Fetch template ONCE before the loop (was queried 3x per contact)
+    // Fetch template ONCE before the loop
     const dbTemplate = await this.prisma.messageTemplate.findFirst({
       where: { name: templateName },
       orderBy: { updatedAt: 'desc' },
     });
-    this.logger.log(`📋 Template lookup: "${templateName}" → found: ${dbTemplate?.name}, status: ${dbTemplate?.status}, components type: ${typeof dbTemplate?.components}`);
+    this.logger.log(`📋 Template lookup: "${templateName}" → found: ${dbTemplate?.name || 'NULL'}, status: ${dbTemplate?.status}`);
 
     // Validate template exists and is approved before sending
     if (!dbTemplate) {
-      this.logger.error(`Template "${templateName}" not found in local database. Please sync templates first.`);
+      this.logger.error(`Template "${templateName}" not found in local database. Please click Sync Status in Template Manager.`);
       return contacts.map(c => ({
         phoneNumber: this.formatPhoneNumber(c.phone),
         success: false,
-        error: `Template "${templateName}" not found. Please sync templates from Meta or use a valid template name.`
+        error: `Template "${templateName}" not found in local database. Please go to Template Manager and click "Sync Status" to sync from Meta, then try again.`
       }));
     }
 

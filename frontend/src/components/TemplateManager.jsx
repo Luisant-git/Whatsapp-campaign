@@ -63,6 +63,20 @@ const formatDateTime = (dateString) => {
   return `${yyyy}-${mm}-${dd} ${hh}:${min}:${sec} ${ampm}`;
 };
 
+const getFullMediaUrl = (fileUrl) => {
+  if (!fileUrl) return '';
+  if (fileUrl.startsWith('http')) return fileUrl;
+  
+  let base = API_BASE_URL;
+  if (!base.startsWith('http')) {
+    base = window.location.origin + (base.startsWith('/') ? '' : '/') + base;
+  }
+  // Ensure we strip trailing slashes or /api paths to get the correct root
+  base = base.replace(/\/api\/?$/, '');
+  
+  return base + (fileUrl.startsWith('/') ? '' : '/') + fileUrl;
+};
+
 const TemplateManager = () => {
   const [templates, setTemplates] = useState([]);
   const [templateLibrary, setTemplateLibrary] = useState(null);
@@ -960,8 +974,9 @@ const TemplateManager = () => {
         const components = Array.isArray(formData.components) ? formData.components : [];
         const headerIndex = components.findIndex(c => c.type === 'HEADER');
         if (headerIndex !== -1) {
+          const fullUrl = result.fileUrl ? getFullMediaUrl(result.fileUrl) : result.filename;
           updateComponent(headerIndex, 'example', { 
-            header_handle: [result.fileUrl || result.filename] 
+            header_handle: [fullUrl] 
           });
         }
         
@@ -1136,6 +1151,15 @@ const TemplateManager = () => {
             .wa-carousel-wrapper {
               -ms-overflow-style: none;
               scrollbar-width: none;
+              scroll-snap-type: x mandatory;
+              -webkit-overflow-scrolling: touch;
+            }
+            .wa-carousel-wrapper.dragging {
+              scroll-snap-type: none;
+              cursor: grabbing !important;
+            }
+            .wa-carousel-wrapper > div.wa-bubble {
+              scroll-snap-align: center;
             }
           `}</style>
           <div 
@@ -1143,16 +1167,23 @@ const TemplateManager = () => {
             ref={carouselRef}
             onMouseDown={(e) => {
               isDragging.current = true;
+              if (carouselRef.current) carouselRef.current.classList.add('dragging');
               startX.current = e.pageX - carouselRef.current.offsetLeft;
               scrollLeft.current = carouselRef.current.scrollLeft;
             }}
-            onMouseLeave={() => { isDragging.current = false; }}
-            onMouseUp={() => { isDragging.current = false; }}
+            onMouseLeave={() => { 
+              isDragging.current = false; 
+              if (carouselRef.current) carouselRef.current.classList.remove('dragging');
+            }}
+            onMouseUp={() => { 
+              isDragging.current = false; 
+              if (carouselRef.current) carouselRef.current.classList.remove('dragging');
+            }}
             onMouseMove={(e) => {
               if (!isDragging.current) return;
               e.preventDefault();
               const x = e.pageX - carouselRef.current.offsetLeft;
-              const walk = (x - startX.current) * 2;
+              const walk = (x - startX.current) * 1.2; // Smoother multiplier
               carouselRef.current.scrollLeft = scrollLeft.current - walk;
             }}
             style={{ display: 'flex', overflowX: 'auto', gap: '8px', paddingBottom: '8px', maxWidth: '300px', cursor: 'grab' }}
@@ -3378,10 +3409,12 @@ const TemplateManager = () => {
                                           });
                                           if (response.ok) {
                                             const result = await response.json();
+                                            const fullUrl = result.fileUrl ? getFullMediaUrl(result.fileUrl) : result.filename;
+                                            
                                             const newCards = [...formData.carouselCards];
                                             const headerComp = newCards[index].components.find(c => c.type === 'HEADER');
                                             if(headerComp) {
-                                              headerComp.example = { header_handle: [result.fileUrl || result.filename] };
+                                              headerComp.example = { header_handle: [fullUrl] };
                                             }
                                             setFormData({ ...formData, carouselCards: newCards });
                                           } else {
@@ -3393,6 +3426,9 @@ const TemplateManager = () => {
                                       }}
                                     />
                                   </label>
+                                  {card.components.find(c => c.type === 'HEADER')?.example?.header_handle?.[0] && (
+                                    <CheckCircle2 size={16} color="#008069" style={{ flexShrink: 0 }} title="Image attached" />
+                                  )}
                                 </div>
                               </div>
                               {/* Body text */}

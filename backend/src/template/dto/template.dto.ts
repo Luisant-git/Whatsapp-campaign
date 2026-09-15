@@ -15,7 +15,7 @@ export enum TemplateStatus {
 }
 
 export class TemplateComponentDto {
-  @IsEnum(['HEADER', 'BODY', 'FOOTER', 'BUTTONS'])
+  @IsEnum(['HEADER', 'BODY', 'FOOTER', 'BUTTONS', 'CAROUSEL'])
   type: string;
 
   @IsOptional()
@@ -33,6 +33,10 @@ export class TemplateComponentDto {
   @IsOptional()
   @IsArray()
   buttons?: any[];
+
+  @IsOptional()
+  @IsArray()
+  cards?: any[];
 }
 
 export class CreateTemplateDto {
@@ -45,6 +49,14 @@ export class CreateTemplateDto {
 
   @IsString()
   language: string;
+
+  @IsOptional()
+  @IsString()
+  templateType?: string;
+
+  @IsOptional()
+  @IsArray()
+  carouselCards?: any[];
 
   @IsArray()
   @ValidateNested({ each: true })
@@ -107,6 +119,14 @@ export class UpdateTemplateDto {
   @IsOptional()
   @IsString()
   language?: string;
+
+  @IsOptional()
+  @IsString()
+  templateType?: string;
+
+  @IsOptional()
+  @IsArray()
+  carouselCards?: any[];
 
   @IsOptional()
   @IsArray()

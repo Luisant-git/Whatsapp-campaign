@@ -79,10 +79,11 @@ const TemplateManager = () => {
   const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [categoryMismatchModal, setCategoryMismatchModal] = useState({ open: false, selectedCategory: 'MARKETING' });
   const [activePopoverId, setActivePopoverId] = useState(null);
-
+  const [capabilities, setCapabilities] = useState({ carousel: { supported: false, reason: null } });
   
   const [formData, setFormData] = useState({
     name: '',
+    templateType: 'DEFAULT',
     category: 'MARKETING',
     language: 'en',
     headerType: 'NONE', // NONE, TEXT, IMAGE, VIDEO, DOCUMENT
@@ -99,7 +100,11 @@ const TemplateManager = () => {
     addExpiryTime: false,
     codeExpiryMinutes: 10,
     customValidityPeriod: false,
-    validityPeriod: 10
+    validityPeriod: 10,
+    carouselCards: [
+      { id: 1, components: [{ type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } }, { type: 'BODY', text: '' }, { type: 'BUTTONS', buttons: [] }] },
+      { id: 2, components: [{ type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } }, { type: 'BODY', text: '' }, { type: 'BUTTONS', buttons: [] }] }
+    ]
   });
 
   const categories = [
@@ -225,7 +230,22 @@ const TemplateManager = () => {
   useEffect(() => {
     fetchTemplates();
     fetchTemplateLibrary();
+    fetchCapabilities();
   }, []);
+
+  const fetchCapabilities = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/templates/capabilities`, {
+        credentials: "include"
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCapabilities(data);
+      }
+    } catch (error) {
+      console.error('Error fetching capabilities:', error);
+    }
+  };
 
   const fetchTemplates = async () => {
     try {
@@ -263,6 +283,7 @@ const TemplateManager = () => {
     setShowValidationErrors(false);
     setFormData({
       name: '',
+      templateType: 'DEFAULT',
       category: 'MARKETING',
       language: 'en',
       headerType: 'NONE',
@@ -277,7 +298,11 @@ const TemplateManager = () => {
       addExpiryTime: false,
       codeExpiryMinutes: 10,
       customValidityPeriod: false,
-      validityPeriod: 10
+      validityPeriod: 10,
+      carouselCards: [
+        { id: 1, components: [{ type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } }, { type: 'BODY', text: '' }, { type: 'BUTTONS', buttons: [] }] },
+        { id: 2, components: [{ type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } }, { type: 'BODY', text: '' }, { type: 'BUTTONS', buttons: [] }] }
+      ]
     });
     setOpenDialog(true);
   };
@@ -296,10 +321,29 @@ const TemplateManager = () => {
     
     // Parse components if it's a JSON string
     let components;
+    let templateType = 'DEFAULT';
+    let carouselCards = [
+      { id: 1, components: [{ type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } }, { type: 'BODY', text: '' }, { type: 'BUTTONS', buttons: [] }] },
+      { id: 2, components: [{ type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } }, { type: 'BODY', text: '' }, { type: 'BUTTONS', buttons: [] }] }
+    ];
+
     try {
-      components = typeof template.components === 'string' 
+      const parsed = typeof template.components === 'string' 
         ? JSON.parse(template.components) 
         : template.components || [{ type: 'BODY', text: '' }];
+        
+      if (parsed && !Array.isArray(parsed) && parsed.templateType) {
+        templateType = parsed.templateType;
+        components = parsed.components;
+        if (templateType === 'CAROUSEL') {
+           const carouselComp = components.find(c => c.type === 'CAROUSEL');
+           if (carouselComp && carouselComp.cards) {
+             carouselCards = carouselComp.cards.map((c, i) => ({ id: i + 1, ...c }));
+           }
+        }
+      } else {
+        components = parsed;
+      }
     } catch (error) {
       components = [{ type: 'BODY', text: '' }];
     }
@@ -360,10 +404,12 @@ const TemplateManager = () => {
     
     setFormData({
       name: template.name,
+      templateType,
       category: template.category,
       language: template.language,
       headerType,
       components,
+      carouselCards,
       sampleValues: (() => {
         try {
           // Parse sampleValues if it's a JSON string
@@ -391,13 +437,31 @@ const TemplateManager = () => {
   };
 
   const validateTemplate = () => {
-    const components = Array.isArray(formData.components) ? formData.components : [];
-    const bodyComponent = components.find(c => c.type === 'BODY');
-    const headerComponent = components.find(c => c.type === 'HEADER');
-    
     if (!formData.name || formData.name.trim() === '') {
       return 'Template name is required';
     }
+
+    if (formData.templateType === 'CAROUSEL') {
+      if (!formData.carouselCards || formData.carouselCards.length < 2) {
+        return 'Carousel templates must have at least 2 cards';
+      }
+      if (formData.carouselCards.length > 10) {
+        return 'Carousel templates can have a maximum of 10 cards';
+      }
+      // Simple validation for cards
+      for (let i = 0; i < formData.carouselCards.length; i++) {
+        const card = formData.carouselCards[i];
+        const bodyText = card.components.find(c => c.type === 'BODY')?.text;
+        if (!bodyText || bodyText.trim() === '') {
+          return `Card ${i + 1} must have body text`;
+        }
+      }
+      return null;
+    }
+
+    const components = Array.isArray(formData.components) ? formData.components : [];
+    const bodyComponent = components.find(c => c.type === 'BODY');
+    const headerComponent = components.find(c => c.type === 'HEADER');
     
     // Special validation for Authentication templates
     if (formData.category === 'AUTHENTICATION') {
@@ -1051,6 +1115,37 @@ const TemplateManager = () => {
       }
       return footer?.text || '';
     };
+
+    if (formData.templateType === 'CAROUSEL') {
+      return (
+        <div className="wa-carousel-wrapper" style={{ display: 'flex', overflowX: 'auto', gap: '8px', paddingBottom: '8px', maxWidth: '300px' }}>
+          {formData.carouselCards?.map((card, index) => (
+            <div key={card.id || index} className="wa-bubble" style={{ minWidth: '220px', flexShrink: 0 }}>
+              {card.components.find(c => c.type === 'HEADER')?.example?.header_handle?.[0] ? (
+                <img 
+                  src={card.components.find(c => c.type === 'HEADER').example.header_handle[0]} 
+                  alt={`Card ${index + 1}`}
+                  style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '6px 6px 0 0', marginBottom: '8px' }}
+                />
+              ) : (
+                <div style={{ width: '100%', height: '120px', background: '#e0e0e0', borderRadius: '6px 6px 0 0', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ImageIcon size={32} color="#8d949e" />
+                </div>
+              )}
+              <div className="wa-body" style={{ fontSize: '14px', whiteSpace: 'pre-wrap', marginBottom: '8px', padding: '0 8px' }}>
+                <span dangerouslySetInnerHTML={{ __html: formatBody(card.components.find(c => c.type === 'BODY')?.text || 'Body text') }} />
+              </div>
+              {card.components.find(c => c.type === 'BUTTONS')?.buttons?.map((btn, btnIdx) => (
+                <div key={btnIdx} className="wa-btn" style={{ borderTop: '1px solid #f0f2f5', padding: '10px 0', textAlign: 'center', color: '#00a884', fontWeight: 600, fontSize: '14px' }}>
+                  {btn.type === 'URL' && <ExternalLink size={14} style={{ marginRight: '6px', verticalAlign: 'text-bottom' }} />}
+                  {btn.text || 'Button'}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      );
+    }
 
     return (
       <div className="wa-bubble-wrapper">
@@ -2089,6 +2184,56 @@ const TemplateManager = () => {
                   </select>
                 </div>
 
+                {/* Template Type Selection */}
+                <div className="field-group mb-4">
+                  <label className="d-block mb-2 fw-medium text-dark">Template Type</label>
+                  <div className="d-flex gap-3" style={{ display: 'flex', gap: '16px' }}>
+                    <div 
+                      className={`type-card ${formData.templateType === 'DEFAULT' ? 'active' : ''}`}
+                      onClick={() => setFormData({ ...formData, templateType: 'DEFAULT' })}
+                      style={{
+                        flex: 1, padding: '15px', border: formData.templateType === 'DEFAULT' ? '2px solid #0052cc' : '1px solid #e0e0e0',
+                        borderRadius: '8px', cursor: 'pointer', backgroundColor: formData.templateType === 'DEFAULT' ? '#f0f5ff' : 'white'
+                      }}
+                    >
+                      <div className="d-flex align-items-center mb-2" style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                        <span className="material-icons me-2" style={{ color: formData.templateType === 'DEFAULT' ? '#0052cc' : '#666', marginRight: '8px' }}><Layout size={18} /></span>
+                        <h6 className="m-0 fw-semibold" style={{ color: formData.templateType === 'DEFAULT' ? '#0052cc' : '#333', margin: 0 }}>Default</h6>
+                      </div>
+                      <p className="m-0 text-muted small" style={{ margin: 0, fontSize: '12px', color: '#666' }}>Standard WhatsApp message with text, media, and buttons.</p>
+                    </div>
+                    
+                    <div 
+                      className={`type-card ${formData.templateType === 'CAROUSEL' ? 'active' : ''} ${!capabilities?.carousel?.supported ? 'disabled' : ''}`}
+                      onClick={() => {
+                        if (capabilities?.carousel?.supported) {
+                          setFormData({ ...formData, templateType: 'CAROUSEL' });
+                        }
+                      }}
+                      style={{
+                        flex: 1, padding: '15px', border: formData.templateType === 'CAROUSEL' ? '2px solid #0052cc' : '1px solid #e0e0e0',
+                        borderRadius: '8px', cursor: capabilities?.carousel?.supported ? 'pointer' : 'not-allowed', 
+                        backgroundColor: formData.templateType === 'CAROUSEL' ? '#f0f5ff' : (capabilities?.carousel?.supported ? 'white' : '#f5f5f5'),
+                        opacity: capabilities?.carousel?.supported ? 1 : 0.6
+                      }}
+                      title={!capabilities?.carousel?.supported ? capabilities?.carousel?.reason || "Carousel not supported" : ""}
+                    >
+                      <div className="d-flex align-items-center mb-2" style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                        <span className="material-icons me-2" style={{ color: formData.templateType === 'CAROUSEL' ? '#0052cc' : '#666', marginRight: '8px' }}><Copy size={18} /></span>
+                        <h6 className="m-0 fw-semibold" style={{ color: formData.templateType === 'CAROUSEL' ? '#0052cc' : '#333', margin: 0 }}>Carousel</h6>
+                        {!capabilities?.carousel?.supported && (
+                          <span className="badge bg-secondary ms-2" style={{ fontSize: '0.65rem', background: '#e0e0e0', color: '#333', padding: '2px 6px', borderRadius: '4px', marginLeft: '8px' }}>Unavailable</span>
+                        )}
+                      </div>
+                      <p className="m-0 text-muted small" style={{ margin: 0, fontSize: '12px', color: '#666' }}>
+                        {!capabilities?.carousel?.supported 
+                          ? capabilities?.carousel?.reason || 'Not available for this WhatsApp Business Account.' 
+                          : 'Swipeable message with multiple cards.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="field-group">
                   <label>Select language</label>
                   <select 
@@ -2423,8 +2568,8 @@ const TemplateManager = () => {
                   </div>
                 )}
 
-                {/* Show regular template content only for non-authentication templates */}
-                {formData.category !== 'AUTHENTICATION' && (
+                {/* Show regular template content only for non-authentication templates and default templates */}
+                {formData.category !== 'AUTHENTICATION' && formData.templateType === 'DEFAULT' && (
                   <React.Fragment>
                     {/* Header Section */}
                     <div className="component-box">
@@ -3079,6 +3224,127 @@ const TemplateManager = () => {
                   )}
                 </div>
                   </React.Fragment>
+                )}
+
+                {/* Carousel Builder */}
+                {formData.category !== 'AUTHENTICATION' && formData.templateType === 'CAROUSEL' && (
+                  <div className="carousel-builder">
+                    <div className="component-box">
+                      <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 8}}>
+                        <label style={{fontWeight: 700}}>Carousel Cards</label>
+                      </div>
+                      <div style={{fontSize: 12, color: '#606770', marginBottom: 16}}>
+                        Add up to 10 cards. Each card must have the same format.
+                      </div>
+                      
+                      <div style={{ display: 'flex', overflowX: 'auto', gap: '16px', paddingBottom: '16px' }}>
+                        {formData.carouselCards?.map((card, index) => (
+                           <div key={card.id} style={{ 
+                             minWidth: '280px', 
+                             border: '1px solid #e0e0e0', 
+                             borderRadius: '8px', 
+                             padding: '16px',
+                             background: '#f9fafb' 
+                           }}>
+                              <div style={{ fontWeight: 600, marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Card {index + 1}</span>
+                                {formData.carouselCards.length > 2 && (
+                                  <button onClick={() => {
+                                    const newCards = [...formData.carouselCards];
+                                    newCards.splice(index, 1);
+                                    setFormData({ ...formData, carouselCards: newCards });
+                                  }} style={{ background: 'none', border: 'none', color: '#fa3e3e', cursor: 'pointer' }}>
+                                    <Trash2 size={14} />
+                                  </button>
+                                )}
+                              </div>
+                              {/* Header image input mock */}
+                              <div style={{ marginBottom: '12px' }}>
+                                <label style={{ fontSize: '12px', fontWeight: 600 }}>Header Image URL</label>
+                                <input type="text" className="input-field" placeholder="https://..." 
+                                  value={card.components.find(c => c.type === 'HEADER')?.example?.header_handle?.[0] || ''}
+                                  onChange={(e) => {
+                                    const newCards = [...formData.carouselCards];
+                                    const headerComp = newCards[index].components.find(c => c.type === 'HEADER');
+                                    if(headerComp) {
+                                      headerComp.example = { header_handle: [e.target.value] };
+                                    }
+                                    setFormData({ ...formData, carouselCards: newCards });
+                                  }}
+                                />
+                              </div>
+                              {/* Body text */}
+                              <div style={{ marginBottom: '12px' }}>
+                                <label style={{ fontSize: '12px', fontWeight: 600 }}>Body Text (Max 160 chars)</label>
+                                <textarea className="textarea-field" style={{ minHeight: '80px' }} maxLength={160}
+                                  value={card.components.find(c => c.type === 'BODY')?.text || ''}
+                                  onChange={(e) => {
+                                    const newCards = [...formData.carouselCards];
+                                    const bodyComp = newCards[index].components.find(c => c.type === 'BODY');
+                                    if(bodyComp) bodyComp.text = e.target.value;
+                                    setFormData({ ...formData, carouselCards: newCards });
+                                  }}
+                                />
+                                <div style={{fontSize: 10, color: '#8d949e', textAlign: 'right', marginTop: 4}}>
+                                  {card.components.find(c => c.type === 'BODY')?.text?.length || 0}/160
+                                </div>
+                              </div>
+                              {/* Quick Reply Button */}
+                              <div>
+                                <label style={{ fontSize: '12px', fontWeight: 600 }}>Button (Quick Reply)</label>
+                                <input type="text" className="input-field" placeholder="Button Text" maxLength={20}
+                                  value={card.components.find(c => c.type === 'BUTTONS')?.buttons?.[0]?.text || ''}
+                                  onChange={(e) => {
+                                    const newCards = [...formData.carouselCards];
+                                    let btnComp = newCards[index].components.find(c => c.type === 'BUTTONS');
+                                    if(!btnComp) {
+                                      btnComp = { type: 'BUTTONS', buttons: [{ type: 'QUICK_REPLY', text: '' }] };
+                                      newCards[index].components.push(btnComp);
+                                    }
+                                    if(!btnComp.buttons) btnComp.buttons = [{ type: 'QUICK_REPLY', text: '' }];
+                                    if(btnComp.buttons.length === 0) btnComp.buttons.push({ type: 'QUICK_REPLY', text: '' });
+                                    btnComp.buttons[0].text = e.target.value;
+                                    setFormData({ ...formData, carouselCards: newCards });
+                                  }}
+                                />
+                              </div>
+                           </div>
+                        ))}
+                        {formData.carouselCards?.length < 10 && (
+                          <div 
+                            style={{ 
+                              minWidth: '280px', 
+                              border: '2px dashed #dddfe2', 
+                              borderRadius: '8px', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              background: 'transparent'
+                            }}
+                            onClick={() => {
+                              const newCards = [...(formData.carouselCards || [])];
+                              const nextId = Math.max(...newCards.map(c => c.id || 0), 0) + 1;
+                              newCards.push({
+                                id: nextId,
+                                components: [
+                                  { type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } },
+                                  { type: 'BODY', text: '' },
+                                  { type: 'BUTTONS', buttons: [{ type: 'QUICK_REPLY', text: '' }] }
+                                ]
+                              });
+                              setFormData({ ...formData, carouselCards: newCards });
+                            }}
+                          >
+                            <div style={{ textAlign: 'center', color: '#008069' }}>
+                              <Plus size={24} style={{ marginBottom: '8px' }} />
+                              <div style={{ fontWeight: 600 }}>Add Card</div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 )}
 
               </div>

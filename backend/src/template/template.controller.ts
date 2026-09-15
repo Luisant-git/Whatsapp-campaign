@@ -40,6 +40,11 @@ export class TemplateController {
     return this.templateService.getTemplates(session.tenantId, status, category);
   }
 
+  @Get('capabilities')
+  async getCapabilities(@Session() session: any) {
+    return this.templateService.getCapabilities(session.tenantId);
+  }
+
   @Get('library')
   async getTemplateLibrary(@Query('category') category?: string) {
     if (category) {

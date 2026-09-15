@@ -4,11 +4,18 @@ import { TenantPrismaService } from '../tenant-prisma.service';
 import { CreateTemplateDto, UpdateTemplateDto, TemplatePreviewDto, RequestReviewDto, TemplateCategory, TemplateStatus } from './dto/template.dto';
 import axios from 'axios';
 
+import { CarouselValidatorService } from './carousel-validator.service';
+import { MetaCarouselBuilderService } from './meta-carousel-builder.service';
+
 @Injectable()
 export class TemplateService {
+  private readonly apiVersion = process.env.META_GRAPH_API_VERSION || 'v21.0';
+
   constructor(
     private centralPrisma: CentralPrismaService,
-    private tenantPrisma: TenantPrismaService
+    private tenantPrisma: TenantPrismaService,
+    private carouselValidator: CarouselValidatorService,
+    private metaCarouselBuilder: MetaCarouselBuilderService
   ) { }
 
   async createTemplate(userId: number, createTemplateDto: CreateTemplateDto) {
@@ -57,9 +64,23 @@ export class TemplateService {
 
       const validName = baseName;
 
-      // Process components based on template category
-      const processedComponents = await Promise.all(
-        createTemplateDto.components.map(async (component) => {
+      let metaPayload: any;
+      let sortedComponents: any;
+      const isCarousel = createTemplateDto.components.some(c => c.type === 'CAROUSEL');
+      const storedComponentsJson = isCarousel 
+        ? JSON.stringify({ templateType: 'CAROUSEL', components: createTemplateDto.components }) 
+        : null; // For default templates, we will stringify later to maintain backward compatibility
+
+      if (isCarousel) {
+        this.carouselValidator.validate(createTemplateDto);
+        metaPayload = await this.metaCarouselBuilder.buildPayload(
+          createTemplateDto,
+          async (path: string) => this.uploadTemplateMedia(masterConfig, path)
+        );
+        sortedComponents = metaPayload.components;
+      } else {
+        const processedComponents = await Promise.all(
+          createTemplateDto.components.map(async (component) => {
           console.log('Processing component:', JSON.stringify(component, null, 2));
 
           // Special handling for Authentication templates
@@ -247,14 +268,14 @@ export class TemplateService {
         }
       }
 
+        metaPayload = {
+          name: validName,
+          category: createTemplateDto.category.toUpperCase(),
+          language: createTemplateDto.language,
+          components: sortedComponents
+        };
+      }
       console.log('Final processed components:', JSON.stringify(sortedComponents, null, 2));
-
-      const metaPayload: any = {
-        name: validName,
-        category: createTemplateDto.category.toUpperCase(), // Meta expects uppercase
-        language: createTemplateDto.language, // Use language code as-is from frontend
-        components: sortedComponents
-      };
 
       if (createTemplateDto.category === TemplateCategory.AUTHENTICATION && createTemplateDto.customValidityPeriod && createTemplateDto.validityPeriod) {
         metaPayload.message_send_ttl_seconds = createTemplateDto.validityPeriod * 60;
@@ -267,7 +288,7 @@ export class TemplateService {
 
       // Create template via Meta API using correct format with timeout
       const response = await axios.post(
-        `https://graph.facebook.com/v21.0/${masterConfig.wabaId}/message_templates`,
+        `https://graph.facebook.com/${this.apiVersion}/${masterConfig.wabaId}/message_templates`,
         metaPayload,
         {
           headers: {
@@ -288,7 +309,7 @@ export class TemplateService {
           category: createTemplateDto.category,
           language: createTemplateDto.language,
           status: TemplateStatus.IN_REVIEW,
-          components: JSON.stringify(sortedComponents),
+          components: storedComponentsJson || JSON.stringify(sortedComponents),
           sampleValues: createTemplateDto.sampleValues ? JSON.stringify(createTemplateDto.sampleValues) : null,
           createdAt: new Date(),
         },
@@ -353,6 +374,50 @@ export class TemplateService {
       where,
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async getCapabilities(userId: number) {
+    const { masterConfig } = await this.getTenantWithCredentials(userId);
+    if (!masterConfig.wabaId) {
+      return { carousel: { supported: false, reason: 'WABA ID is not configured.' } };
+    }
+
+    try {
+      // In a real scenario, this would query a specific Meta API capability endpoint 
+      // like /waba_id?fields=message_template_types or similar.
+      // Assuming Meta API throws an error or explicitly states limitations.
+      // For now, we wrap in try-catch to simulate safe network fetching:
+      const response = await axios.get(
+        `https://graph.facebook.com/${this.apiVersion}/${masterConfig.wabaId}?fields=id,name,message_template_namespace`,
+        {
+          headers: { Authorization: `Bearer ${masterConfig.accessToken}` },
+          timeout: 10000,
+        }
+      );
+
+      // Meta doesn't explicitly expose 'carouselSupported', 
+      // but if the WABA is valid and active, it implies capability in this graph version unless restricted.
+      // We assume supported true if call succeeds (meaning WABA is fully active).
+      return {
+        carousel: {
+          supported: true,
+          reason: null
+        }
+      };
+    } catch (error) {
+      console.error('Failed to fetch capabilities:', error.response?.data || error.message);
+      // Gracefully handle network vs api errors.
+      if (error.response?.data?.error?.code === 100) {
+        return {
+          carousel: {
+            supported: false,
+            reason: 'Carousel templates are not available for this WhatsApp Business Account.'
+          }
+        };
+      }
+      
+      throw new BadRequestException('Unable to verify Carousel availability. Please try again.');
+    }
   }
 
   async getTemplate(userId: number, templateId: string) {

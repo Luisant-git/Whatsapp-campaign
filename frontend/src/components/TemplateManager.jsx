@@ -3666,7 +3666,6 @@ const TemplateManager = () => {
                               <div style={{ fontWeight: 600 }}>Add Card</div>
                             </div>
                           </div>
-                          </div>
                         )}
                       </div>
                       
@@ -3681,7 +3680,6 @@ const TemplateManager = () => {
                           <ChevronRight size={20} />
                         </button>
                       )}
-                    </div>
                     </div>
                   </div>
                 )}

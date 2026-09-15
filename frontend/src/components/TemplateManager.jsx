@@ -1148,24 +1148,10 @@ const TemplateManager = () => {
               display: none;
             }
             .wa-carousel-wrapper {
-              -ms-overflow-style: none;
-              scrollbar-width: none;
               scroll-behavior: smooth;
             }
           `}</style>
           <div style={{ position: 'relative', width: '100%', maxWidth: '300px' }}>
-            {formData.carouselCards?.length > 1 && (
-              <button 
-                className="carousel-nav-btn small" 
-                style={{ left: '-6px' }}
-                onClick={() => {
-                  if (carouselRef.current) carouselRef.current.scrollBy({ left: -240, behavior: 'smooth' });
-                }}
-              >
-                <ChevronLeft size={16} />
-              </button>
-            )}
-            
             <div 
               className="wa-carousel-wrapper" 
               ref={carouselRef}
@@ -1198,18 +1184,7 @@ const TemplateManager = () => {
               </div>
             ))}
             </div>
-
-            {formData.carouselCards?.length > 1 && (
-              <button 
-                className="carousel-nav-btn small" 
-                style={{ right: '-6px' }}
-                onClick={() => {
-                  if (carouselRef.current) carouselRef.current.scrollBy({ left: 240, behavior: 'smooth' });
-                }}
-              >
-                <ChevronRight size={16} />
-              </button>
-            )}
+            </div>
           </div>
         </>
       );
@@ -3315,18 +3290,31 @@ const TemplateManager = () => {
                     <div className="component-box" style={isCarouselFullscreen ? { maxWidth: 1200, margin: '0 auto', border: 'none', boxShadow: 'none' } : {}}>
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8}}>
                         <label style={{fontWeight: 700, fontSize: isCarouselFullscreen ? 24 : 14}}>Carousel Cards</label>
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={{ display: 'flex', gap: '12px' }}>
                           <button 
-                            className="btn-secondary"
-                            style={{fontSize: 12, padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px'}}
+                            className="btn-primary"
+                            style={{
+                              backgroundColor: isCarouselFullscreen ? '#f44336' : '#2196f3',
+                              fontSize: isCarouselFullscreen ? 16 : 14, 
+                              padding: isCarouselFullscreen ? '8px 16px' : '6px 12px', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '6px'
+                            }}
                             onClick={() => setIsCarouselFullscreen(!isCarouselFullscreen)}
                           >
-                            {isCarouselFullscreen ? <><Minimize2 size={14} /> Exit Fullscreen</> : <><Maximize2 size={14} /> Fullscreen Editor</>}
+                            {isCarouselFullscreen ? <><Minimize2 size={18} /> Exit Fullscreen</> : <><Maximize2 size={16} /> Fullscreen Editor</>}
                           </button>
                           {formData.carouselCards?.length < 10 && (
                             <button 
-                              className="btn-secondary"
-                              style={{fontSize: 12, padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px'}}
+                              className="btn-primary"
+                              style={{
+                                fontSize: isCarouselFullscreen ? 16 : 14, 
+                                padding: isCarouselFullscreen ? '8px 16px' : '6px 12px', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '6px'
+                              }}
                               onClick={() => {
                               const newCards = [...(formData.carouselCards || [])];
                               const nextId = Math.max(...newCards.map(c => c.id || 0), 0) + 1;
@@ -3341,7 +3329,7 @@ const TemplateManager = () => {
                               setFormData({ ...formData, carouselCards: newCards });
                             }}
                           >
-                            <Plus size={14} /> Add Card
+                            <Plus size={isCarouselFullscreen ? 18 : 16} /> Add Card
                           </button>
                           )}
                         </div>
@@ -3351,18 +3339,6 @@ const TemplateManager = () => {
                       </div>
                       
                       <div style={{ position: 'relative' }}>
-                        {formData.carouselCards?.length > 1 && (
-                          <button 
-                            className="carousel-nav-btn" 
-                            style={{ left: '8px' }}
-                            onClick={() => {
-                              if (builderCarouselRef.current) builderCarouselRef.current.scrollBy({ left: -300, behavior: 'smooth' });
-                            }}
-                          >
-                            <ChevronLeft size={20} />
-                          </button>
-                        )}
-                        
                         <div 
                           ref={builderCarouselRef}
                           style={{ 
@@ -3370,16 +3346,9 @@ const TemplateManager = () => {
                             overflowX: 'auto', 
                             gap: '16px', 
                             paddingBottom: '16px',
-                            scrollBehavior: 'smooth',
-                            scrollbarWidth: 'none',
-                            msOverflowStyle: 'none'
+                            scrollBehavior: 'smooth'
                           }}
                         >
-                          <style>{`
-                            div::-webkit-scrollbar {
-                              display: none;
-                            }
-                          `}</style>
                           {formData.carouselCards?.map((card, index) => (
                              <div key={card.id} style={{ 
                              minWidth: isCarouselFullscreen ? '450px' : '280px', 
@@ -3642,24 +3611,12 @@ const TemplateManager = () => {
                             }}
                           >
                             <div style={{ textAlign: 'center', color: '#008069' }}>
-                              <Plus size={24} style={{ marginBottom: '8px' }} />
-                              <div style={{ fontWeight: 600 }}>Add Card</div>
+                              <Plus size={28} style={{ marginBottom: '8px' }} />
+                              <div style={{ fontWeight: 600, fontSize: isCarouselFullscreen ? '16px' : '14px' }}>Add Card</div>
                             </div>
                           </div>
                         )}
                       </div>
-                      
-                      {formData.carouselCards?.length > 1 && (
-                        <button 
-                          className="carousel-nav-btn" 
-                          style={{ right: '8px' }}
-                          onClick={() => {
-                            if (builderCarouselRef.current) builderCarouselRef.current.scrollBy({ left: 300, behavior: 'smooth' });
-                          }}
-                        >
-                          <ChevronRight size={20} />
-                        </button>
-                      )}
                     </div>
                   </div>
                 </div>

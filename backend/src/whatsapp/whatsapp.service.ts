@@ -2609,9 +2609,10 @@ export class WhatsappService {
 
     // Fetch template ONCE before the loop (was queried 3x per contact)
     const dbTemplate = await this.prisma.messageTemplate.findFirst({
-      where: { OR: [{ name: templateName }, { name: { startsWith: templateName + '_v' } }] },
+      where: { name: templateName },
       orderBy: { updatedAt: 'desc' },
     });
+    this.logger.log(`📋 Template lookup: "${templateName}" → found: ${dbTemplate?.name}, status: ${dbTemplate?.status}, components type: ${typeof dbTemplate?.components}`);
 
     // Validate template exists and is approved before sending
     if (!dbTemplate) {
@@ -2744,11 +2745,13 @@ export class WhatsappService {
           to: formattedPhone,
           type: 'template',
           template: {
-            name: actualTemplateName, // Use the actual template name
+            name: actualTemplateName,
             language: { code: language },
             ...(components.length > 0 && { components })
           }
         };
+
+        this.logger.log(`🚀 Sending to Meta: ${JSON.stringify(requestBody)}`);
 
         const response = await axios.post(
           `${apiUrl}/${phoneNumberId}/messages`,

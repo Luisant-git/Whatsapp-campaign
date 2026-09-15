@@ -2645,6 +2645,39 @@ export class WhatsappService {
     // Carousel templates have no body variables — cards handle their own content
     const templateBodyVariables: string[] = isCarouselTemplate ? [] : (bodyComponent?.text?.match(/{{\d+}}/g) || []);
 
+    // Pre-build carousel components once (same for every contact)
+    let carouselComponents: any[] | null = null;
+    if (isCarouselTemplate) {
+      const carouselComp = templateComponents.find((c: any) => c.type === 'CAROUSEL');
+      if (carouselComp?.cards) {
+        const cards = carouselComp.cards.map((card: any, cardIndex: number) => {
+          const cardComps: any[] = [];
+          for (const comp of (card.components || [])) {
+            if (comp.type === 'HEADER') {
+              const handle = comp.example?.header_handle?.[0];
+              if (handle) {
+                cardComps.push({ type: 'header', parameters: [{ type: 'image', image: { id: handle } }] });
+              }
+            } else if (comp.type === 'BODY') {
+              const vars = comp.text?.match(/{{\d+}}/g) || [];
+              if (vars.length > 0) {
+                cardComps.push({ type: 'body', parameters: vars.map((_: string, i: number) => ({ type: 'text', text: `Sample ${i + 1}` })) });
+              }
+            } else if (comp.type === 'BUTTONS') {
+              (comp.buttons || []).forEach((btn: any, btnIndex: number) => {
+                if (btn.type === 'URL' && btn.url?.includes('{{')) {
+                  cardComps.push({ type: 'button', sub_type: 'url', index: btnIndex, parameters: [{ type: 'text', text: '' }] });
+                }
+              });
+            }
+          }
+          return { card_index: cardIndex, components: cardComps };
+        });
+        carouselComponents = [{ type: 'carousel', cards }];
+        this.logger.log(`Carousel components built: ${JSON.stringify(carouselComponents)}`);
+      }
+    }
+
     const buttonsStr = this.extractTemplateButtonsStr(templateComponents);
 
     // Fetch all contact data in one query before the loop
@@ -2671,30 +2704,35 @@ export class WhatsappService {
 
         const components: any[] = [];
 
-        // Use pre-fetched template + contact data — zero DB queries inside loop
-        if (headerImageUrl && headerImageUrl.trim() !== '' && headerImageUrl.startsWith('http')) {
-          let headerFormat = headerComponent?.format || 'IMAGE';
-          if (!headerComponent) {
-            const isVideo = /\.(mp4|avi|mov)$/i.test(headerImageUrl);
-            const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i.test(headerImageUrl);
-            headerFormat = isDocument ? 'DOCUMENT' : isVideo ? 'VIDEO' : 'IMAGE';
+        if (isCarouselTemplate) {
+          // Carousel: send the pre-built carousel card components
+          if (carouselComponents) components.push(...carouselComponents);
+        } else {
+          // Non-carousel: header image + body variables
+          if (headerImageUrl && headerImageUrl.trim() !== '' && headerImageUrl.startsWith('http')) {
+            let headerFormat = headerComponent?.format || 'IMAGE';
+            if (!headerComponent) {
+              const isVideo = /\.(mp4|avi|mov)$/i.test(headerImageUrl);
+              const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i.test(headerImageUrl);
+              headerFormat = isDocument ? 'DOCUMENT' : isVideo ? 'VIDEO' : 'IMAGE';
+            }
+            const mediaType = headerFormat.toLowerCase();
+            components.push({ type: 'header', parameters: [{ type: mediaType, [mediaType]: { link: headerImageUrl } }] });
           }
-          const mediaType = headerFormat.toLowerCase();
-          components.push({ type: 'header', parameters: [{ type: mediaType, [mediaType]: { link: headerImageUrl } }] });
-        }
 
-        const fullContact = contactDataMap.get(formattedPhone);
+          const fullContact = contactDataMap.get(formattedPhone);
 
-        if (templateBodyVariables.length > 0) {
-          const varFields = ['name', 'variable2', 'variable3', 'variable4', 'variable5', 'variable6'];
-          const bodyParameters = templateBodyVariables.map((_: string, i: number) => {
-            const field = varFields[i];
-            const value = i === 0
-              ? (fullContact?.name || contact.name || 'Customer')
-              : (fullContact?.[field as keyof typeof fullContact] || '');
-            return { type: 'text', text: value || ' ' };
-          });
-          components.push({ type: 'body', parameters: bodyParameters });
+          if (templateBodyVariables.length > 0) {
+            const varFields = ['name', 'variable2', 'variable3', 'variable4', 'variable5', 'variable6'];
+            const bodyParameters = templateBodyVariables.map((_: string, i: number) => {
+              const field = varFields[i];
+              const value = i === 0
+                ? (fullContact?.name || contact.name || 'Customer')
+                : (fullContact?.[field as keyof typeof fullContact] || '');
+              return { type: 'text', text: value || ' ' };
+            });
+            components.push({ type: 'body', parameters: bodyParameters });
+          }
         }
 
         const requestBody = {

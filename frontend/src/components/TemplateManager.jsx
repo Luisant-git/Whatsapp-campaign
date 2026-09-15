@@ -823,12 +823,29 @@ const TemplateManager = () => {
     return null;
   };
 
+  const buildCarouselPayload = (data) => {
+    // Convert carouselCards into the CAROUSEL component structure the backend expects
+    const carouselComponent = {
+      type: 'CAROUSEL',
+      cards: data.carouselCards.map(card => ({
+        components: card.components
+      }))
+    };
+    return [
+      ...(data.components || []).filter(c => c.type === 'BODY'),
+      carouselComponent
+    ];
+  };
+
   const handleSubmitTemplate = async (categoryOverride = null) => {
     setShowValidationErrors(true);
     
     let payloadToSubmit = formData;
+    if (formData.templateType === 'CAROUSEL') {
+      payloadToSubmit = { ...formData, components: buildCarouselPayload(formData) };
+    }
     if (categoryOverride) {
-      payloadToSubmit = { ...formData, category: categoryOverride };
+      payloadToSubmit = { ...payloadToSubmit, category: categoryOverride };
     } else {
       const validationError = validateTemplate();
       if (validationError === 'CATEGORY_MISMATCH') {
@@ -839,7 +856,6 @@ const TemplateManager = () => {
         return;
       }
     }
-    
     setValidationError(null);
     setLoading(true);
     try {

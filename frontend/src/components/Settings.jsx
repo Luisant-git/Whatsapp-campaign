@@ -1026,6 +1026,25 @@ const Settings = ({ onNavigate }) => {
                 )}
               </div>
 
+              {/* Carousel info banner */}
+              {(() => {
+                const selTemplate = selectedTemplates.find(t => t.language === currentSettings.language) || selectedTemplates[0];
+                if (!selTemplate) return null;
+                let comps = selTemplate.components;
+                if (typeof comps === 'string') { try { comps = JSON.parse(comps); } catch { comps = []; } }
+                const isCarousel = !Array.isArray(comps) && comps?.templateType === 'CAROUSEL';
+                if (!isCarousel) return null;
+                return (
+                  <div style={{ background: '#e7f3ef', border: '1px solid #b7dfcf', borderRadius: 8, padding: '12px 16px', marginBottom: 8, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 20 }}>🎠</span>
+                    <div style={{ fontSize: 13, color: '#1c5c3e', lineHeight: 1.5 }}>
+                      <strong>Carousel template — no image upload needed.</strong><br />
+                      The card images are already stored inside the approved template on Meta. Just save this configuration and run your campaign.
+                    </div>
+                  </div>
+                );
+              })()}
+
               {requiresMediaHeader && (
                 <div className="form-group">
                   <label>Header Media (Required)</label>

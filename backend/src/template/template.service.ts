@@ -1590,6 +1590,8 @@ export class TemplateService {
   }
 
   private validateMarketingTemplate(template: CreateTemplateDto | TemplatePreviewDto) {
+    const isCarousel = template.components.some((c: any) => c.type === 'CAROUSEL');
+    if (isCarousel) return; // Carousel cards have their own body text
     const bodyComponent = template.components.find(c => c.type === 'BODY');
     if (!bodyComponent?.text) {
       throw new BadRequestException('Marketing templates must have body text');

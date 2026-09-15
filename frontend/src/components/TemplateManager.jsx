@@ -1143,14 +1143,7 @@ const TemplateManager = () => {
     if (formData.templateType === 'CAROUSEL') {
       return (
         <>
-          <style>{`
-            .wa-carousel-wrapper::-webkit-scrollbar {
-              display: none;
-            }
-            .wa-carousel-wrapper {
-              scroll-behavior: smooth;
-            }
-          `}</style>
+
           <div style={{ position: 'relative', width: '100%', maxWidth: '300px' }}>
             <div 
               className="wa-carousel-wrapper" 

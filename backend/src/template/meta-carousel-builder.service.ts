@@ -74,42 +74,28 @@ export class MetaCarouselBuilderService {
               }
 
               if (comp.type === 'BUTTONS' && comp.buttons) {
-                const processedButtons = comp.buttons.map((button: any) => {
-                  if (button.type === 'URL') {
-                    return {
-                      type: 'URL',
-                      text: button.text || 'Visit Website',
-                      url: button.url || 'https://example.com'
-                    };
-                  }
-                  if (button.type === 'PHONE_NUMBER') {
-                    if (!button.phone_number) {
-                      throw new BadRequestException('Phone number is required for PHONE_NUMBER button type');
+                const processedButtons = comp.buttons
+                  .map((button: any) => {
+                    if (button.type === 'URL') {
+                      if (!button.text || !button.text.trim()) throw new BadRequestException('URL button must have text');
+                      if (!button.url || !button.url.trim()) throw new BadRequestException('URL button must have a URL');
+                      return { type: 'URL', text: button.text.trim(), url: button.url.trim() };
                     }
-                    const phoneNumber = button.phone_number.startsWith('+')
-                      ? button.phone_number
-                      : `+${button.phone_number}`;
-                    return {
-                      type: 'PHONE_NUMBER',
-                      text: button.text || 'Call Us',
-                      phone_number: phoneNumber
-                    };
-                  }
-                  if (button.type === 'COPY_CODE') {
-                    return {
-                      type: 'COPY_CODE',
-                      example: button.example || 'OFFER'
-                    };
-                  }
-                  return {
-                    type: 'QUICK_REPLY',
-                    text: button.text || 'Reply'
-                  };
-                });
-                return {
-                  ...comp,
-                  buttons: processedButtons
-                };
+                    if (button.type === 'PHONE_NUMBER') {
+                      if (!button.text || !button.text.trim()) throw new BadRequestException('Phone button must have text');
+                      if (!button.phone_number) throw new BadRequestException('Phone number is required for PHONE_NUMBER button type');
+                      const phoneNumber = button.phone_number.startsWith('+') ? button.phone_number : `+${button.phone_number}`;
+                      return { type: 'PHONE_NUMBER', text: button.text.trim(), phone_number: phoneNumber };
+                    }
+                    // COPY_CODE not supported in carousel — skip
+                    if (button.type === 'COPY_CODE') return null;
+                    // QUICK_REPLY
+                    if (!button.text || !button.text.trim()) throw new BadRequestException('Quick reply button must have text');
+                    return { type: 'QUICK_REPLY', text: button.text.trim() };
+                  })
+                  .filter(Boolean);
+                if (processedButtons.length === 0) return null; // drop empty BUTTONS component
+                return { ...comp, buttons: processedButtons };
               }
 
               return comp;
@@ -118,9 +104,9 @@ export class MetaCarouselBuilderService {
 
           // Reorder card components: HEADER, BODY, BUTTONS
           const order = ['HEADER', 'BODY', 'BUTTONS'];
-          const sortedCardComponents = processedCardComponents.sort(
-            (a, b) => order.indexOf(a.type) - order.indexOf(b.type)
-          );
+          const sortedCardComponents = processedCardComponents
+            .filter(Boolean)
+            .sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type));
 
           return {
             components: sortedCardComponents

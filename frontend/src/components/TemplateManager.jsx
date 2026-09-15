@@ -541,6 +541,19 @@ const TemplateManager = () => {
         if (!bodyText || bodyText.trim() === '') {
           return `Card ${i + 1} must have body text`;
         }
+        const buttons = card.components.find(c => c.type === 'BUTTONS')?.buttons || [];
+        for (let j = 0; j < buttons.length; j++) {
+          const btn = buttons[j];
+          if (btn.type !== 'COPY_CODE' && (!btn.text || !btn.text.trim())) {
+            return `Card ${i + 1}, Button ${j + 1} must have button text`;
+          }
+          if (btn.type === 'URL' && (!btn.url || !btn.url.trim())) {
+            return `Card ${i + 1}, Button ${j + 1} (URL) must have a URL`;
+          }
+          if (btn.type === 'PHONE_NUMBER' && (!btn.phone_number || !btn.phone_number.trim())) {
+            return `Card ${i + 1}, Button ${j + 1} must have a phone number`;
+          }
+        }
       }
       return null;
     }
@@ -3625,7 +3638,6 @@ const TemplateManager = () => {
                                             <option value="QUICK_REPLY">Quick Reply</option>
                                             <option value="URL">Call to Action (Link)</option>
                                             <option value="PHONE_NUMBER">Call to Action (Phone)</option>
-                                            <option value="COPY_CODE">Copy Offer Code</option>
                                           </select>
                                         ) : (
                                           <div style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#1c1e21', padding: '4px 0' }}>

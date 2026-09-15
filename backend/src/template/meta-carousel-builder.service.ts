@@ -60,15 +60,13 @@ export class MetaCarouselBuilderService {
                 return { type: 'HEADER', format: comp.format };
               }
 
-              if (comp.type === 'BODY' && comp.text && comp.text.includes('{{')) {
-                // Card body variables are not supported by Meta yet, but if they were:
-                const variableCount = (comp.text.match(/{{\d+}}/g) || []).length;
-                return {
-                  ...comp,
-                  example: {
-                    body_text: [[...Array(variableCount).fill(0).map((_, i) => `Sample ${i + 1}`)]]
-                  }
-                };
+              if (comp.type === 'BODY') {
+                const bodyObj: any = { type: 'BODY', text: comp.text };
+                if (comp.text && comp.text.includes('{{')) {
+                  const variableCount = (comp.text.match(/{{\d+}}/g) || []).length;
+                  bodyObj.example = { body_text: [Array(variableCount).fill(0).map((_, i) => `Sample ${i + 1}`)] };
+                }
+                return bodyObj;
               }
 
               if (comp.type === 'BUTTONS' && comp.buttons) {
@@ -92,8 +90,8 @@ export class MetaCarouselBuilderService {
                     return { type: 'QUICK_REPLY', text: button.text.trim() };
                   })
                   .filter(Boolean);
-                if (processedButtons.length === 0) return null; // drop empty BUTTONS component
-                return { ...comp, buttons: processedButtons };
+                if (processedButtons.length === 0) return null;
+                return { type: 'BUTTONS', buttons: processedButtons };
               }
 
               return comp;
@@ -118,6 +116,7 @@ export class MetaCarouselBuilderService {
       });
     }
 
+    console.log('Carousel Meta payload:', JSON.stringify(metaPayload, null, 2));
     return metaPayload;
   }
 }

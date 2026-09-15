@@ -222,7 +222,7 @@ export class TemplateService {
 
       // Reorder components: HEADER, BODY, FOOTER, BUTTONS (Meta requires this order)
       const order = ['HEADER', 'BODY', 'FOOTER', 'BUTTONS'];
-      const sortedComponents = processedComponents.sort(
+      sortedComponents = processedComponents.sort(
         (a, b) => order.indexOf(a.type) - order.indexOf(b.type)
       );
 

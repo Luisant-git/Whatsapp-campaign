@@ -92,6 +92,12 @@ export class MetaCarouselBuilderService {
                       phone_number: phoneNumber
                     };
                   }
+                  if (button.type === 'COPY_CODE') {
+                    return {
+                      type: 'COPY_CODE',
+                      example: button.example || 'OFFER'
+                    };
+                  }
                   return {
                     type: 'QUICK_REPLY',
                     text: button.text || 'Reply'

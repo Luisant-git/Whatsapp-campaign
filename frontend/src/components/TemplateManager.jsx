@@ -1118,7 +1118,17 @@ const TemplateManager = () => {
 
     if (formData.templateType === 'CAROUSEL') {
       return (
-        <div className="wa-carousel-wrapper" style={{ display: 'flex', overflowX: 'auto', gap: '8px', paddingBottom: '8px', maxWidth: '300px' }}>
+        <>
+          <style>{`
+            .wa-carousel-wrapper::-webkit-scrollbar {
+              display: none;
+            }
+            .wa-carousel-wrapper {
+              -ms-overflow-style: none;
+              scrollbar-width: none;
+            }
+          `}</style>
+          <div className="wa-carousel-wrapper" style={{ display: 'flex', overflowX: 'auto', gap: '8px', paddingBottom: '8px', maxWidth: '300px' }}>
           {formData.carouselCards?.map((card, index) => (
             <div key={card.id || index} className="wa-bubble" style={{ minWidth: '220px', flexShrink: 0 }}>
               {card.components.find(c => c.type === 'HEADER')?.example?.header_handle?.[0] ? (
@@ -1144,6 +1154,7 @@ const TemplateManager = () => {
             </div>
           ))}
         </div>
+        </>
       );
     }
 
@@ -3230,8 +3241,29 @@ const TemplateManager = () => {
                 {formData.category !== 'AUTHENTICATION' && formData.templateType === 'CAROUSEL' && (
                   <div className="carousel-builder">
                     <div className="component-box">
-                      <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 8}}>
+                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8}}>
                         <label style={{fontWeight: 700}}>Carousel Cards</label>
+                        {formData.carouselCards?.length < 10 && (
+                          <button 
+                            className="btn-secondary"
+                            style={{fontSize: 12, padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px'}}
+                            onClick={() => {
+                              const newCards = [...(formData.carouselCards || [])];
+                              const nextId = Math.max(...newCards.map(c => c.id || 0), 0) + 1;
+                              newCards.push({
+                                id: nextId,
+                                components: [
+                                  { type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } },
+                                  { type: 'BODY', text: '' },
+                                  { type: 'BUTTONS', buttons: [{ type: 'QUICK_REPLY', text: '' }] }
+                                ]
+                              });
+                              setFormData({ ...formData, carouselCards: newCards });
+                            }}
+                          >
+                            <Plus size={14} /> Add Card
+                          </button>
+                        )}
                       </div>
                       <div style={{fontSize: 12, color: '#606770', marginBottom: 16}}>
                         Add up to 10 cards. Each card must have the same format.
@@ -3289,24 +3321,129 @@ const TemplateManager = () => {
                                   {card.components.find(c => c.type === 'BODY')?.text?.length || 0}/160
                                 </div>
                               </div>
-                              {/* Quick Reply Button */}
+                              {/* Buttons */}
                               <div>
-                                <label style={{ fontSize: '12px', fontWeight: 600 }}>Button (Quick Reply)</label>
-                                <input type="text" className="input-field" placeholder="Button Text" maxLength={20}
-                                  value={card.components.find(c => c.type === 'BUTTONS')?.buttons?.[0]?.text || ''}
-                                  onChange={(e) => {
-                                    const newCards = [...formData.carouselCards];
-                                    let btnComp = newCards[index].components.find(c => c.type === 'BUTTONS');
-                                    if(!btnComp) {
-                                      btnComp = { type: 'BUTTONS', buttons: [{ type: 'QUICK_REPLY', text: '' }] };
-                                      newCards[index].components.push(btnComp);
-                                    }
-                                    if(!btnComp.buttons) btnComp.buttons = [{ type: 'QUICK_REPLY', text: '' }];
-                                    if(btnComp.buttons.length === 0) btnComp.buttons.push({ type: 'QUICK_REPLY', text: '' });
-                                    btnComp.buttons[0].text = e.target.value;
-                                    setFormData({ ...formData, carouselCards: newCards });
-                                  }}
-                                />
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                  <label style={{ fontSize: '12px', fontWeight: 600 }}>Buttons (Max 2)</label>
+                                  {(card.components.find(c => c.type === 'BUTTONS')?.buttons?.length || 0) < 2 && (
+                                    <button 
+                                      className="btn-secondary" 
+                                      style={{ fontSize: 10, padding: '2px 6px' }}
+                                      onClick={() => {
+                                        const newCards = [...formData.carouselCards];
+                                        let btnComp = newCards[index].components.find(c => c.type === 'BUTTONS');
+                                        if(!btnComp) {
+                                          btnComp = { type: 'BUTTONS', buttons: [] };
+                                          newCards[index].components.push(btnComp);
+                                        }
+                                        if(!btnComp.buttons) btnComp.buttons = [];
+                                        btnComp.buttons.push({ type: 'QUICK_REPLY', text: '' });
+                                        setFormData({ ...formData, carouselCards: newCards });
+                                      }}
+                                    >
+                                      + Add
+                                    </button>
+                                  )}
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                  {card.components.find(c => c.type === 'BUTTONS')?.buttons?.map((btn, btnIdx) => (
+                                    <div key={btnIdx} style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#fff', padding: '8px', borderRadius: '4px', border: '1px solid #e5e7eb' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                                        <select 
+                                          className="select-field" 
+                                          style={{ flex: 1, padding: '4px 8px', fontSize: '12px', marginBottom: '4px' }}
+                                          value={btn.type}
+                                          onChange={(e) => {
+                                            const newCards = [...formData.carouselCards];
+                                            const btnComp = newCards[index].components.find(c => c.type === 'BUTTONS');
+                                            btnComp.buttons[btnIdx].type = e.target.value;
+                                            setFormData({ ...formData, carouselCards: newCards });
+                                          }}
+                                        >
+                                          <option value="QUICK_REPLY">Quick Reply</option>
+                                          <option value="URL">Call to Action (Link)</option>
+                                          <option value="PHONE_NUMBER">Call to Action (Phone)</option>
+                                          <option value="COPY_CODE">Copy Offer Code</option>
+                                        </select>
+                                        <button 
+                                          style={{ background: 'none', border: 'none', color: '#fa3e3e', cursor: 'pointer', padding: '4px' }}
+                                          onClick={() => {
+                                            const newCards = [...formData.carouselCards];
+                                            const btnComp = newCards[index].components.find(c => c.type === 'BUTTONS');
+                                            btnComp.buttons.splice(btnIdx, 1);
+                                            setFormData({ ...formData, carouselCards: newCards });
+                                          }}
+                                        >
+                                          <X size={14} />
+                                        </button>
+                                      </div>
+                                      {btn.type !== 'COPY_CODE' ? (
+                                        <input 
+                                          type="text" 
+                                          className="input-field" 
+                                          style={{ padding: '6px', fontSize: '12px' }}
+                                          placeholder="Button text..." 
+                                          maxLength={20}
+                                          value={btn.text || ''}
+                                          onChange={(e) => {
+                                            const newCards = [...formData.carouselCards];
+                                            const btnComp = newCards[index].components.find(c => c.type === 'BUTTONS');
+                                            btnComp.buttons[btnIdx].text = e.target.value;
+                                            setFormData({ ...formData, carouselCards: newCards });
+                                          }}
+                                        />
+                                      ) : (
+                                        <input 
+                                          type="text" 
+                                          className="input-field" 
+                                          style={{ padding: '6px', fontSize: '12px' }}
+                                          placeholder="Offer code (e.g. 25OFF)" 
+                                          maxLength={15}
+                                          value={btn.example || ''}
+                                          onChange={(e) => {
+                                            const newCards = [...formData.carouselCards];
+                                            const btnComp = newCards[index].components.find(c => c.type === 'BUTTONS');
+                                            btnComp.buttons[btnIdx].example = e.target.value;
+                                            setFormData({ ...formData, carouselCards: newCards });
+                                          }}
+                                        />
+                                      )}
+                                      {btn.type === 'URL' && (
+                                        <input 
+                                          type="url" 
+                                          className="input-field" 
+                                          style={{ padding: '6px', fontSize: '12px' }}
+                                          placeholder="https://example.com" 
+                                          value={btn.url || ''}
+                                          onChange={(e) => {
+                                            const newCards = [...formData.carouselCards];
+                                            const btnComp = newCards[index].components.find(c => c.type === 'BUTTONS');
+                                            btnComp.buttons[btnIdx].url = e.target.value;
+                                            setFormData({ ...formData, carouselCards: newCards });
+                                          }}
+                                        />
+                                      )}
+                                      {btn.type === 'PHONE_NUMBER' && (
+                                        <input 
+                                          type="tel" 
+                                          className="input-field" 
+                                          style={{ padding: '6px', fontSize: '12px' }}
+                                          placeholder="+1234567890" 
+                                          value={btn.phone_number || ''}
+                                          onChange={(e) => {
+                                            const newCards = [...formData.carouselCards];
+                                            const btnComp = newCards[index].components.find(c => c.type === 'BUTTONS');
+                                            btnComp.buttons[btnIdx].phone_number = e.target.value;
+                                            setFormData({ ...formData, carouselCards: newCards });
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                  ))}
+                                  {(card.components.find(c => c.type === 'BUTTONS')?.buttons?.length || 0) === 0 && (
+                                    <div style={{ fontSize: '11px', color: '#8d949e', fontStyle: 'italic' }}>No buttons added.</div>
+                                  )}
+                                </div>
                               </div>
                            </div>
                         ))}

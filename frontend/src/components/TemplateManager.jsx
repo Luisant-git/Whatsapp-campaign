@@ -3465,18 +3465,28 @@ const TemplateManager = () => {
                                 gap: '6px'
                               }}
                               onClick={() => {
-                              const newCards = [...(formData.carouselCards || [])];
-                              const nextId = Math.max(...newCards.map(c => c.id || 0), 0) + 1;
-                              newCards.push({
-                                id: nextId,
-                                components: [
-                                  { type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } },
-                                  { type: 'BODY', text: '' },
-                                  { type: 'BUTTONS', buttons: [{ type: 'QUICK_REPLY', text: '' }] }
-                                ]
-                              });
-                              setFormData({ ...formData, carouselCards: newCards });
-                            }}
+                                const newCards = [...(formData.carouselCards || [])];
+                                const nextId = Math.max(...newCards.map(c => c.id || 0), 0) + 1;
+                                const card1 = newCards[0];
+                                const card1HeaderFormat = card1?.components?.find(c => c.type === 'HEADER')?.format || 'IMAGE';
+                                const card1Buttons = card1?.components?.find(c => c.type === 'BUTTONS')?.buttons || [];
+                                const newCardButtons = card1Buttons.map(b => ({
+                                  type: b.type,
+                                  text: '',
+                                  ...(b.type === 'URL' ? { url: '' } : {}),
+                                  ...(b.type === 'PHONE_NUMBER' ? { phone_number: '' } : {})
+                                }));
+
+                                newCards.push({
+                                  id: nextId,
+                                  components: [
+                                    { type: 'HEADER', format: card1HeaderFormat, example: { header_handle: [] } },
+                                    { type: 'BODY', text: '' },
+                                    { type: 'BUTTONS', buttons: newCardButtons }
+                                  ]
+                                });
+                                setFormData({ ...formData, carouselCards: newCards });
+                              }}
                           >
                             <Plus size={isCarouselFullscreen ? 18 : 16} /> Add Card
                           </button>
@@ -3629,8 +3639,11 @@ const TemplateManager = () => {
                               </div>
                               {/* Body text */}
                               <div style={{ marginBottom: isCarouselFullscreen ? '16px' : '12px' }}>
-                                <label style={{ fontSize: isCarouselFullscreen ? '14px' : '12px', fontWeight: 600 }}>Body Text (Max 160 chars)</label>
+                                <label style={{ fontSize: isCarouselFullscreen ? '14px' : '12px', fontWeight: 600 }}>
+                                  Body Text (Max 160 chars) <span style={{ color: '#8d949e', fontWeight: 400, fontSize: 11 }}>• Optional</span>
+                                </label>
                                 <textarea className="textarea-field" style={{ minHeight: isCarouselFullscreen ? '120px' : '80px', fontSize: isCarouselFullscreen ? '14px' : '13px' }} maxLength={160}
+                                  placeholder="Card body text (optional)..."
                                   value={card.components.find(c => c.type === 'BODY')?.text || ''}
                                   onChange={(e) => {
                                     const newCards = [...formData.carouselCards];
@@ -3646,7 +3659,9 @@ const TemplateManager = () => {
                               {/* Buttons */}
                               <div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                  <label style={{ fontSize: isCarouselFullscreen ? '14px' : '12px', fontWeight: 600 }}>Buttons (Max 2)</label>
+                                  <label style={{ fontSize: isCarouselFullscreen ? '14px' : '12px', fontWeight: 600 }}>
+                                    Buttons (Max 2) <span style={{ color: '#8d949e', fontWeight: 400, fontSize: 11 }}>• Optional</span>
+                                  </label>
                                   {index === 0 && (card.components.find(c => c.type === 'BUTTONS')?.buttons?.length || 0) < 2 && (
                                     <button 
                                       className="btn-secondary" 
@@ -3797,12 +3812,22 @@ const TemplateManager = () => {
                             onClick={() => {
                               const newCards = [...(formData.carouselCards || [])];
                               const nextId = Math.max(...newCards.map(c => c.id || 0), 0) + 1;
+                              const card1 = newCards[0];
+                              const card1HeaderFormat = card1?.components?.find(c => c.type === 'HEADER')?.format || 'IMAGE';
+                              const card1Buttons = card1?.components?.find(c => c.type === 'BUTTONS')?.buttons || [];
+                              const newCardButtons = card1Buttons.map(b => ({
+                                type: b.type,
+                                text: '',
+                                ...(b.type === 'URL' ? { url: '' } : {}),
+                                ...(b.type === 'PHONE_NUMBER' ? { phone_number: '' } : {})
+                              }));
+
                               newCards.push({
                                 id: nextId,
                                 components: [
-                                  { type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } },
+                                  { type: 'HEADER', format: card1HeaderFormat, example: { header_handle: [] } },
                                   { type: 'BODY', text: '' },
-                                  { type: 'BUTTONS', buttons: [{ type: 'QUICK_REPLY', text: '' }] }
+                                  { type: 'BUTTONS', buttons: newCardButtons }
                                 ]
                               });
                               setFormData({ ...formData, carouselCards: newCards });

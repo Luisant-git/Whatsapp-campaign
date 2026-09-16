@@ -2605,7 +2605,6 @@ export class WhatsappService {
 
   async sendBulkTemplateMessageWithNames(contacts: Array<{ name: string; phone: string }>, templateName: string, userId: number, settingsId?: number, headerImageUrl?: string) {
     const { phoneNumberId, accessToken, apiUrl } = await this.getPhoneCredentials('campaigns', userId);
-    const language = 'en';
 
     // Fetch template from tenant DB using userId to get tenant context
     const tenantDbUrl = await this.getTenantDbUrl(userId);
@@ -2637,13 +2636,16 @@ export class WhatsappService {
     }
 
     const actualTemplateName = dbTemplate.name;
+    const language = dbTemplate.language || 'en';
     const rawComponents = dbTemplate?.components
       ? (typeof dbTemplate.components === 'string' ? JSON.parse(dbTemplate.components as string) : dbTemplate.components)
       : [];
     const templateComponents: any[] = Array.isArray(rawComponents)
       ? rawComponents
       : (rawComponents?.components || []);
-    const isCarouselTemplate = !Array.isArray(rawComponents) && rawComponents?.templateType === 'CAROUSEL';
+    const isCarouselTemplate =
+      (!Array.isArray(rawComponents) && rawComponents?.templateType === 'CAROUSEL') ||
+      (Array.isArray(templateComponents) && templateComponents.some((c: any) => c.type === 'CAROUSEL'));
     const headerComponent = templateComponents.find((c: any) => c.type === 'HEADER');
     const bodyComponent = templateComponents.find((c: any) => c.type === 'BODY');
     // Carousel templates have no body variables — cards handle their own content

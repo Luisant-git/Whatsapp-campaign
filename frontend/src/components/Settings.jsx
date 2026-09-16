@@ -1032,7 +1032,10 @@ const Settings = ({ onNavigate }) => {
                 if (!selTemplate) return null;
                 let comps = selTemplate.components;
                 if (typeof comps === 'string') { try { comps = JSON.parse(comps); } catch { comps = []; } }
-                const isCarousel = !Array.isArray(comps) && comps?.templateType === 'CAROUSEL';
+                const isCarousel =
+                  (!Array.isArray(comps) && comps?.templateType === 'CAROUSEL') ||
+                  (Array.isArray(comps) && comps.some(c => c.type === 'CAROUSEL')) ||
+                  (comps?.components && Array.isArray(comps.components) && comps.components.some(c => c.type === 'CAROUSEL'));
                 if (!isCarousel) return null;
                 return (
                   <div style={{ background: '#e7f3ef', border: '1px solid #b7dfcf', borderRadius: 8, padding: '12px 16px', marginBottom: 8, display: 'flex', gap: 10, alignItems: 'flex-start' }}>

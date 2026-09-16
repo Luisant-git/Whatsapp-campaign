@@ -56,9 +56,15 @@ export class CarouselValidatorService {
       if (hasBody1 && (!body || !body.text)) {
         throw new BadRequestException(`Card at index ${index} must have a BODY component with text to match Card 1.`);
       }
+      if (body?.text && body.text.length > 160) {
+        throw new BadRequestException(`Card at index ${index} body text exceeds maximum limit of 160 characters.`);
+      }
 
       const buttonsComp = card.components.find((c: any) => c.type === 'BUTTONS');
       const buttons = buttonsComp?.buttons || [];
+      if (buttons.length > 2) {
+        throw new BadRequestException(`Card at index ${index} cannot have more than 2 buttons.`);
+      }
 
       if (buttons.length !== buttons1.length) {
         throw new BadRequestException(`Card at index ${index} must have exactly ${buttons1.length} buttons to match Card 1.`);

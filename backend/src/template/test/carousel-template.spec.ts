@@ -31,7 +31,8 @@ describe('CarouselValidatorService', () => {
           {
             components: [
               { type: 'HEADER', format: 'IMAGE', example: { header_handle: ['handle2'] } },
-              { type: 'BODY', text: 'Item 2' }
+              { type: 'BODY', text: 'Item 2' },
+              { type: 'BUTTONS', buttons: [{ type: 'QUICK_REPLY', text: 'Buy' }] }
             ]
           }
         ]

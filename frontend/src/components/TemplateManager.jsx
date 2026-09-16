@@ -534,14 +534,29 @@ const TemplateManager = () => {
       if (formData.carouselCards.length > 10) {
         return 'Carousel templates can have a maximum of 10 cards';
       }
-      // Simple validation for cards
+      // Validation for cards
       for (let i = 0; i < formData.carouselCards.length; i++) {
         const card = formData.carouselCards[i];
-        const bodyText = card.components.find(c => c.type === 'BODY')?.text;
-        if (!bodyText || bodyText.trim() === '') {
-          return `Card ${i + 1} must have body text`;
+        
+        // Media (Header) - Required
+        const headerComp = card.components.find(c => c.type === 'HEADER');
+        const headerUrl = headerComp?.example?.header_handle?.[0];
+        if (!headerUrl || !headerUrl.trim()) {
+          return `Card ${i + 1} must have a media image or video uploaded/specified`;
         }
+
+        // Body Text - Optional (Max 160 chars)
+        const bodyText = card.components.find(c => c.type === 'BODY')?.text;
+        if (bodyText && bodyText.length > 160) {
+          return `Card ${i + 1} body text exceeds the maximum allowed 160 characters`;
+        }
+
+        // Buttons - Optional (Max 2)
         const buttons = card.components.find(c => c.type === 'BUTTONS')?.buttons || [];
+        if (buttons.length > 2) {
+          return `Card ${i + 1} cannot have more than 2 buttons`;
+        }
+
         for (let j = 0; j < buttons.length; j++) {
           const btn = buttons[j];
           if (btn.type !== 'COPY_CODE' && (!btn.text || !btn.text.trim())) {
@@ -839,9 +854,42 @@ const TemplateManager = () => {
   const buildCarouselPayload = (data) => {
     const carouselComponent = {
       type: 'CAROUSEL',
-      cards: data.carouselCards.map(card => ({
-        components: card.components
-      }))
+      cards: data.carouselCards.map(card => {
+        const cleanComponents = [];
+
+        // Header (Media) - Required
+        const header = card.components.find(c => c.type === 'HEADER');
+        if (header) {
+          cleanComponents.push(header);
+        }
+
+        // Body - Optional (only include if text is non-empty)
+        const body = card.components.find(c => c.type === 'BODY');
+        if (body && body.text && body.text.trim() !== '') {
+          cleanComponents.push({ type: 'BODY', text: body.text });
+        }
+
+        // Buttons - Optional (only include if buttons array is non-empty)
+        const buttonsComp = card.components.find(c => c.type === 'BUTTONS');
+        if (buttonsComp && Array.isArray(buttonsComp.buttons) && buttonsComp.buttons.length > 0) {
+          const validBtns = buttonsComp.buttons.filter(btn => btn && btn.type);
+          if (validBtns.length > 0) {
+            cleanComponents.push({
+              type: 'BUTTONS',
+              buttons: validBtns.map(b => {
+                const btnObj = { type: b.type };
+                if (b.text) btnObj.text = b.text;
+                if (b.url) btnObj.url = b.url;
+                if (b.phone_number) btnObj.phone_number = b.phone_number;
+                if (b.example) btnObj.example = b.example;
+                return btnObj;
+              })
+            });
+          }
+        }
+
+        return { components: cleanComponents };
+      })
     };
     const rootBody = (data.components || []).find(c => c.type === 'BODY');
     // Root body is optional for carousel templates

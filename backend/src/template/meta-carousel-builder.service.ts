@@ -61,8 +61,11 @@ export class MetaCarouselBuilderService {
               }
 
               if (comp.type === 'BODY') {
+                if (!comp.text || !comp.text.trim()) {
+                  return null;
+                }
                 const bodyObj: any = { type: 'BODY', text: comp.text };
-                if (comp.text && comp.text.includes('{{')) {
+                if (comp.text.includes('{{')) {
                   const variableCount = (comp.text.match(/{{\d+}}/g) || []).length;
                   bodyObj.example = { body_text: [Array(variableCount).fill(0).map((_, i) => `Sample ${i + 1}`)] };
                 }

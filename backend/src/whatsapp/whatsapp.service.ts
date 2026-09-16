@@ -2648,11 +2648,9 @@ export class WhatsappService {
       (Array.isArray(templateComponents) && templateComponents.some((c: any) => c.type === 'CAROUSEL'));
     const headerComponent = templateComponents.find((c: any) => c.type === 'HEADER');
     const bodyComponent = templateComponents.find((c: any) => c.type === 'BODY');
-    // Carousel templates have no body variables — cards handle their own content
-    const templateBodyVariables: string[] = isCarouselTemplate ? [] : (bodyComponent?.text?.match(/{{\d+}}/g) || []);
+    const templateBodyVariables: string[] = bodyComponent?.text?.match(/{{\d+}}/g) || [];
 
     // Pre-build carousel components once (same for every contact)
-    // For carousel templates, only send variable parameters — headers are baked into the approved template
     let carouselComponents: any[] | null = null;
     if (isCarouselTemplate) {
       const carouselComp = templateComponents.find((c: any) => c.type === 'CAROUSEL');
@@ -2660,8 +2658,19 @@ export class WhatsappService {
         const cards = carouselComp.cards.map((card: any, cardIndex: number) => {
           const cardComps: any[] = [];
           for (const comp of (card.components || [])) {
-            // HEADER: never send parameters — images are baked into the approved template
-            if (comp.type === 'BODY') {
+            if (comp.type === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(comp.format)) {
+              let mediaUrl = headerImageUrl;
+              if (comp.example?.header_handle?.[0] && comp.example.header_handle[0].startsWith('http')) {
+                mediaUrl = comp.example.header_handle[0];
+              }
+              if (!mediaUrl || !mediaUrl.startsWith('http')) {
+                mediaUrl = headerImageUrl || '';
+              }
+              if (mediaUrl && mediaUrl.startsWith('http')) {
+                const mediaType = comp.format.toLowerCase();
+                cardComps.push({ type: 'header', parameters: [{ type: mediaType, [mediaType]: { link: mediaUrl } }] });
+              }
+            } else if (comp.type === 'BODY') {
               const vars = comp.text?.match(/{{\d+}}/g) || [];
               if (vars.length > 0) {
                 cardComps.push({ type: 'body', parameters: vars.map((_: string, i: number) => ({ type: 'text', text: `Sample ${i + 1}` })) });
@@ -2713,9 +2722,23 @@ export class WhatsappService {
         this.logger.log(`Sending campaign message to ${formattedPhone} with template ${templateName}`);
 
         const components: any[] = [];
+        const fullContact = contactDataMap.get(formattedPhone);
 
         if (isCarouselTemplate) {
-          // Carousel: send the pre-built carousel card components
+          // Carousel: root body variables (if root body has {{1}}, {{2}}...)
+          if (templateBodyVariables.length > 0) {
+            const varFields = ['name', 'variable2', 'variable3', 'variable4', 'variable5', 'variable6'];
+            const bodyParameters = templateBodyVariables.map((_: string, i: number) => {
+              const field = varFields[i];
+              const value = i === 0
+                ? (fullContact?.name || contact.name || 'Customer')
+                : (fullContact?.[field as keyof typeof fullContact] || '');
+              return { type: 'text', text: value || ' ' };
+            });
+            components.push({ type: 'body', parameters: bodyParameters });
+          }
+
+          // Carousel: card components
           if (carouselComponents) components.push(...carouselComponents);
         } else {
           // Non-carousel: header image + body variables
@@ -2729,8 +2752,6 @@ export class WhatsappService {
             const mediaType = headerFormat.toLowerCase();
             components.push({ type: 'header', parameters: [{ type: mediaType, [mediaType]: { link: headerImageUrl } }] });
           }
-
-          const fullContact = contactDataMap.get(formattedPhone);
 
           if (templateBodyVariables.length > 0) {
             const varFields = ['name', 'variable2', 'variable3', 'variable4', 'variable5', 'variable6'];

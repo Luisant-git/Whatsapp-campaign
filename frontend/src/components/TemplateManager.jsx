@@ -1305,9 +1305,11 @@ const TemplateManager = () => {
                     <span style={{fontSize: 10, color: '#8d949e'}}>800×800px</span>
                   </div>
                 )}
-                <div className="wa-body" style={{ fontSize: '14px', whiteSpace: 'pre-wrap', marginBottom: '8px', padding: '0 8px' }}>
-                  <span dangerouslySetInnerHTML={{ __html: formatBody(card.components.find(c => c.type === 'BODY')?.text || 'Body text') }} />
-                </div>
+                {card.components.find(c => c.type === 'BODY')?.text && (
+                  <div className="wa-body" style={{ fontSize: '14px', whiteSpace: 'pre-wrap', marginBottom: '8px', padding: '0 8px' }}>
+                    <span dangerouslySetInnerHTML={{ __html: formatBody(card.components.find(c => c.type === 'BODY').text) }} />
+                  </div>
+                )}
                 {card.components.find(c => c.type === 'BUTTONS')?.buttons?.map((btn, btnIdx) => (
                   <div key={btnIdx} className="wa-btn" style={{ borderTop: '1px solid #f0f2f5', padding: '10px 0', textAlign: 'center', color: '#00a884', fontWeight: 600, fontSize: '14px' }}>
                     {btn.type === 'URL' && <ExternalLink size={14} style={{ marginRight: '6px', verticalAlign: 'text-bottom' }} />}

@@ -127,8 +127,8 @@ const TemplateManager = () => {
     customValidityPeriod: false,
     validityPeriod: 10,
     carouselCards: [
-      { id: 1, components: [{ type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } }, { type: 'BODY', text: '' }, { type: 'BUTTONS', buttons: [] }] },
-      { id: 2, components: [{ type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } }, { type: 'BODY', text: '' }, { type: 'BUTTONS', buttons: [] }] }
+      { id: 1, components: [{ type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } }, { type: 'BODY', text: '' }, { type: 'BUTTONS', buttons: [{ type: 'QUICK_REPLY', text: '' }] }] },
+      { id: 2, components: [{ type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } }, { type: 'BODY', text: '' }, { type: 'BUTTONS', buttons: [{ type: 'QUICK_REPLY', text: '' }] }] }
     ]
   });
 
@@ -325,8 +325,8 @@ const TemplateManager = () => {
       customValidityPeriod: false,
       validityPeriod: 10,
       carouselCards: [
-        { id: 1, components: [{ type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } }, { type: 'BODY', text: '' }, { type: 'BUTTONS', buttons: [] }] },
-        { id: 2, components: [{ type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } }, { type: 'BODY', text: '' }, { type: 'BUTTONS', buttons: [] }] }
+        { id: 1, components: [{ type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } }, { type: 'BODY', text: '' }, { type: 'BUTTONS', buttons: [{ type: 'QUICK_REPLY', text: '' }] }] },
+        { id: 2, components: [{ type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } }, { type: 'BODY', text: '' }, { type: 'BUTTONS', buttons: [{ type: 'QUICK_REPLY', text: '' }] }] }
       ]
     });
     setOpenDialog(true);
@@ -348,8 +348,8 @@ const TemplateManager = () => {
     let components;
     let templateType = 'DEFAULT';
     let carouselCards = [
-      { id: 1, components: [{ type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } }, { type: 'BODY', text: '' }, { type: 'BUTTONS', buttons: [] }] },
-      { id: 2, components: [{ type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } }, { type: 'BODY', text: '' }, { type: 'BUTTONS', buttons: [] }] }
+      { id: 1, components: [{ type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } }, { type: 'BODY', text: '' }, { type: 'BUTTONS', buttons: [{ type: 'QUICK_REPLY', text: '' }] }] },
+      { id: 2, components: [{ type: 'HEADER', format: 'IMAGE', example: { header_handle: [] } }, { type: 'BODY', text: '' }, { type: 'BUTTONS', buttons: [{ type: 'QUICK_REPLY', text: '' }] }] }
     ];
 
     try {
@@ -551,8 +551,11 @@ const TemplateManager = () => {
           return `Card ${i + 1} body text exceeds the maximum allowed 160 characters`;
         }
 
-        // Buttons - Optional (Max 2)
+        // Buttons - Required (Min 1, Max 2)
         const buttons = card.components.find(c => c.type === 'BUTTONS')?.buttons || [];
+        if (buttons.length === 0) {
+          return `All carousel cards should have at least one button. Card ${i + 1} is missing a button.`;
+        }
         if (buttons.length > 2) {
           return `Card ${i + 1} cannot have more than 2 buttons`;
         }

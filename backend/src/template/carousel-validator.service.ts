@@ -62,6 +62,9 @@ export class CarouselValidatorService {
 
       const buttonsComp = card.components.find((c: any) => c.type === 'BUTTONS');
       const buttons = buttonsComp?.buttons || [];
+      if (buttons.length === 0) {
+        throw new BadRequestException(`All carousel cards should have at least one button.`);
+      }
       if (buttons.length > 2) {
         throw new BadRequestException(`Card at index ${index} cannot have more than 2 buttons.`);
       }

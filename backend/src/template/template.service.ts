@@ -1029,15 +1029,33 @@ export class TemplateService {
           updateData.rejectionReason = reason;
         }
 
-        await tenantClient.messageTemplate.updateMany({
+        const existing = await tenantClient.messageTemplate.findFirst({
           where: {
             OR: [
               { templateId: metaTemplate.id },
               { name: metaTemplate.name, language: metaTemplate.language }
             ]
-          },
-          data: updateData,
+          }
         });
+
+        if (existing) {
+          await tenantClient.messageTemplate.update({
+            where: { id: existing.id },
+            data: updateData,
+          });
+        } else {
+          await tenantClient.messageTemplate.create({
+            data: {
+              templateId: metaTemplate.id,
+              name: metaTemplate.name,
+              language: metaTemplate.language || 'en',
+              category: metaTemplate.category?.toUpperCase() || 'UTILITY',
+              status,
+              components: JSON.stringify(metaTemplate.components || []),
+              rejectionReason: reason || null,
+            }
+          });
+        }
       }
 
       return {

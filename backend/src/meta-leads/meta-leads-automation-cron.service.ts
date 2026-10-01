@@ -255,10 +255,10 @@ export class MetaLeadsAutomationCronService {
             const failCount = sendResults.filter(r => !r.success).length;
             log(`  Step ${i + 1} result: ${sentCount} sent, ${failCount} failed`);
 
-            // Write logs and advance only successful contacts
+            // Write logs and advance ALL attempted contacts to prevent infinite retry loops on failure
             const stepAdvancedAt = new Date();
             const successIds = new Set(sendResults.filter(r => r.success).map(r => r.id));
-            const successRecordIds = recordIds.filter(id => successIds.has(id));
+            const processedRecordIds = recordIds;
 
             if (isContact) {
               await client.contactAutomationLog.createMany({
@@ -273,12 +273,12 @@ export class MetaLeadsAutomationCronService {
                   };
                 }),
               });
-              if (successRecordIds.length > 0) {
+              if (processedRecordIds.length > 0) {
                 await client.contact.updateMany({
-                  where: { id: { in: successRecordIds } },
+                  where: { id: { in: processedRecordIds } },
                   data: { isAutomationSent: true, automationSentAt: stepAdvancedAt, lastAutomationStep: i + 1 },
                 });
-                log(`  Advanced ${successRecordIds.length} contact(s) to step ${i + 1}`);
+                log(`  Advanced ${processedRecordIds.length} contact(s) to step ${i + 1}`);
               }
 
               // Save a WhatsAppMessage record for every successful contact send so
@@ -329,12 +329,12 @@ export class MetaLeadsAutomationCronService {
                   };
                 }),
               });
-              if (successRecordIds.length > 0) {
+              if (processedRecordIds.length > 0) {
                 await client.metaLead.updateMany({
-                  where: { id: { in: successRecordIds } },
+                  where: { id: { in: processedRecordIds } },
                   data: { isAutomationSent: true, automationSentAt: stepAdvancedAt, lastAutomationStep: i + 1 },
                 });
-                log(`  Advanced ${successRecordIds.length} lead(s) to step ${i + 1}`);
+                log(`  Advanced ${processedRecordIds.length} lead(s) to step ${i + 1}`);
               }
 
               // Save chat messages for leads too (matched by phone in the chat list)
@@ -369,7 +369,7 @@ export class MetaLeadsAutomationCronService {
 
             // Update in-memory records for subsequent steps this tick
             for (const record of pendingRecords) {
-              if (successIds.has(record.id)) {
+              if (recordIds.includes(record.id)) {
                 record.lastAutomationStep = i + 1;
                 record.automationSentAt = stepAdvancedAt;
               }

@@ -63,7 +63,7 @@ const PipelineProgress = ({ targetType, campaignName, groupId, totalSteps }) => 
       } catch {}
     };
     fetch();
-    const iv = setInterval(fetch, 60000);
+    const iv = setInterval(fetch, 5000);
     return () => { active = false; clearInterval(iv); };
   }, [targetType, campaignName, groupId, totalSteps]);
 

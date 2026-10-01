@@ -214,8 +214,10 @@ const MetaLeadsAutomation = () => {
 
   const fetchTemplates = async () => {
     try {
-      const { data } = await axios.get(`${API_BASE_URL}/templates`, { headers: getHeaders(), withCredentials: true });
-      setTemplates(data.templates || data || []);
+      const { data } = await axios.get(`${API_BASE_URL}/settings/all`, { headers: getHeaders(), withCredentials: true });
+      // Map configured settings to template objects and remove duplicates
+      const uniqueTemplates = [...new Set((data || []).map(s => s.templateName).filter(Boolean))];
+      setTemplates(uniqueTemplates.map(name => ({ name })));
     } catch {}
   };
 

@@ -554,6 +554,25 @@ const MetaLeadsAutomation = () => {
                       </span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {group.targetType === 'contact_group' && (
+                        <button
+                          onClick={async () => {
+                            if (!window.confirm('This will restart the entire sequence from Step 1 for ALL contacts in this group. Are you sure?')) return;
+                            try {
+                              const { data } = await axios.get(`${API_BASE_URL}/meta-leads/automation-reset-group?groupId=${group.groupId}`, { headers: getHeaders(), withCredentials: true });
+                              if (data.ok) toast(`Successfully reset ${data.contactsReset} contacts. They will start receiving messages again in 1 minute.`, 'success');
+                              else toast(data.error || 'Failed to reset sequence', 'error');
+                              // Force re-fetch of progress by slightly changing key or just relying on polling
+                            } catch (err) {
+                              toast('Failed to reset sequence', 'error');
+                            }
+                          }}
+                          style={{ background: 'none', border: '1px solid rgba(0,0,0,0.1)', padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                          title="Restart this sequence from Step 1 for all contacts in the group"
+                        >
+                          <RefreshCw size={11} /> Restart
+                        </button>
+                      )}
                       <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         {group.rules.every(r => r.isActive) ? '● RUNNING' : '⏸ PAUSED'}
                       </span>

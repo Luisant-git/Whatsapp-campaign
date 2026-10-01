@@ -530,6 +530,11 @@ export class MetaLeadsController {
         data: { lastAutomationStep: 0, isAutomationSent: false, automationSentAt: null },
       });
 
+      // Clear old automation logs for this group so the UI progress bar resets to 0%
+      await client.contactAutomationLog.deleteMany({
+        where: { contact: { groupId: gid } }
+      });
+
       // Read back to confirm
       const contacts = await client.contact.findMany({
         where: { groupId: gid },

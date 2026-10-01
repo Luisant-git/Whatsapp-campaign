@@ -423,34 +423,40 @@ const MetaLeadsAutomation = () => {
                   </select>
 
                   {formData.targetType === 'meta_campaign' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 150, overflowY: 'auto', border: `1px solid ${formData.campaignNames.length === 0 ? '#f97316' : '#cbd5e1'}`, borderRadius: 8, padding: 10, background: '#f8fafc' }}>
-                      <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 4 }}>Select campaigns (multiple allowed):</div>
-                      {campaigns.length === 0 && <div style={{ fontSize: 13, color: '#94a3b8' }}>No campaigns found</div>}
-                      {campaigns.map(c => (
-                        <label key={c} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer' }}>
-                          <input type="checkbox" checked={formData.campaignNames?.includes(c)} onChange={e => {
-                            if (e.target.checked) setFormData(f => ({ ...f, campaignNames: [...(f.campaignNames || []), c] }));
-                            else setFormData(f => ({ ...f, campaignNames: (f.campaignNames || []).filter(name => name !== c) }));
-                          }} style={{ width: 16, height: 16, accentColor: '#4f46e5' }} />
-                          {c}
-                        </label>
-                      ))}
+                    <div className="form-input" style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 180, overflowY: 'auto', padding: 8, borderColor: formData.campaignNames.length === 0 ? '#f97316' : '#e5e7eb' }}>
+                      <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, padding: '4px 8px' }}>Select campaigns (multiple allowed):</div>
+                      {campaigns.length === 0 && <div style={{ fontSize: 13, color: '#94a3b8', padding: '8px' }}>No campaigns found</div>}
+                      {campaigns.map(c => {
+                        const isSelected = formData.campaignNames?.includes(c);
+                        return (
+                          <label key={c} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, cursor: 'pointer', padding: '8px 12px', background: isSelected ? '#f0fdf4' : 'transparent', border: isSelected ? '1px solid #25d366' : '1px solid transparent', borderRadius: 6, transition: 'all 0.2s ease' }}>
+                            <input type="checkbox" checked={isSelected} onChange={e => {
+                              if (e.target.checked) setFormData(f => ({ ...f, campaignNames: [...(f.campaignNames || []), c] }));
+                              else setFormData(f => ({ ...f, campaignNames: (f.campaignNames || []).filter(name => name !== c) }));
+                            }} style={{ width: 16, height: 16, accentColor: '#25d366', cursor: 'pointer' }} />
+                            <span style={{ fontWeight: isSelected ? 600 : 400, color: '#374151' }}>{c}</span>
+                          </label>
+                        );
+                      })}
                     </div>
                   )}
 
                   {formData.targetType === 'contact_group' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 150, overflowY: 'auto', border: `1px solid ${formData.groupIds.length === 0 ? '#f97316' : '#cbd5e1'}`, borderRadius: 8, padding: 10, background: '#f8fafc' }}>
-                      <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 4 }}>Select groups (multiple allowed):</div>
-                      {contactGroups.length === 0 && <div style={{ fontSize: 13, color: '#94a3b8' }}>No groups found</div>}
-                      {contactGroups.map(g => (
-                        <label key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer' }}>
-                          <input type="checkbox" checked={formData.groupIds?.includes(g.id)} onChange={e => {
-                            if (e.target.checked) setFormData(f => ({ ...f, groupIds: [...(f.groupIds || []), g.id] }));
-                            else setFormData(f => ({ ...f, groupIds: (f.groupIds || []).filter(id => id !== g.id) }));
-                          }} style={{ width: 16, height: 16, accentColor: '#4f46e5' }} />
-                          {g.name}
-                        </label>
-                      ))}
+                    <div className="form-input" style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 180, overflowY: 'auto', padding: 8, borderColor: formData.groupIds.length === 0 ? '#f97316' : '#e5e7eb' }}>
+                      <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, padding: '4px 8px' }}>Select groups (multiple allowed):</div>
+                      {contactGroups.length === 0 && <div style={{ fontSize: 13, color: '#94a3b8', padding: '8px' }}>No groups found</div>}
+                      {contactGroups.map(g => {
+                        const isSelected = formData.groupIds?.includes(g.id);
+                        return (
+                          <label key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, cursor: 'pointer', padding: '8px 12px', background: isSelected ? '#f0fdf4' : 'transparent', border: isSelected ? '1px solid #25d366' : '1px solid transparent', borderRadius: 6, transition: 'all 0.2s ease' }}>
+                            <input type="checkbox" checked={isSelected} onChange={e => {
+                              if (e.target.checked) setFormData(f => ({ ...f, groupIds: [...(f.groupIds || []), g.id] }));
+                              else setFormData(f => ({ ...f, groupIds: (f.groupIds || []).filter(id => id !== g.id) }));
+                            }} style={{ width: 16, height: 16, accentColor: '#25d366', cursor: 'pointer' }} />
+                            <span style={{ fontWeight: isSelected ? 600 : 400, color: '#374151' }}>{g.name}</span>
+                          </label>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

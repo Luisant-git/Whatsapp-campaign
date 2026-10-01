@@ -131,12 +131,12 @@ const LiveActivityModal = ({ onClose }) => {
 
         <div style={{ padding: 24, overflowY: 'auto', flex: 1, background: '#fff' }}>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 200, color: '#94a3b8' }}>
                <div className="loading-spinner" style={{ borderColor: '#cbd5e1', borderTopColor: '#4f46e5', width: 24, height: 24, marginBottom: 12 }} />
                <div style={{ fontSize: 14 }}>Fetching live logs...</div>
             </div>
           ) : logs.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 200, color: '#94a3b8' }}>
               <Bot size={48} style={{ opacity: 0.3, marginBottom: 16 }} />
               <div style={{ fontSize: 14, fontWeight: 500 }}>No recent sending activity.</div>
             </div>
@@ -150,7 +150,7 @@ const LiveActivityModal = ({ onClose }) => {
                    <div style={{ flex: 1 }}>
                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                        <span style={{ fontWeight: 600, fontSize: 15, color: '#0f172a' }}>{log.metaLead?.name || log.contact?.name || log.metaLead?.phone || log.contact?.phone || 'Unknown Contact'}</span>
-                       <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>{new Date(log.sentAt).toLocaleTimeString()}</span>
+                       <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>{new Date(log.sentAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                      </div>
                      <div style={{ fontSize: 13, color: '#475569', marginBottom: 4 }}>
                        Step {log.stepIndex}: Template <strong>{log.templateName}</strong>

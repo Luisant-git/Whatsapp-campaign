@@ -38,20 +38,20 @@ export class CronService {
         if (c.dob) {
           const dobMD = getIstMonthDay(new Date(c.dob));
           if (dobMD.month === reminderMD.month && dobMD.day === reminderMD.day) {
-            console.log(`DOB reminder (+7) → ${c.name}`);
+            // console.log(`DOB reminder (+7) → ${c.name}`);
           }
           if (dobMD.month === todayMD.month && dobMD.day === todayMD.day) {
-            console.log(`DOB today → ${c.name}`);
+            // console.log(`DOB today → ${c.name}`);
           }
         }
 
         if (c.anniversary) {
           const annMD = getIstMonthDay(new Date(c.anniversary));
           if (annMD.month === reminderMD.month && annMD.day === reminderMD.day) {
-            console.log(`ANN reminder (+7) → ${c.name}`);
+            // console.log(`ANN reminder (+7) → ${c.name}`);
           }
           if (annMD.month === todayMD.month && annMD.day === todayMD.day) {
-            console.log(`ANN today → ${c.name}`);
+            // console.log(`ANN today → ${c.name}`);
           }
         }
       }

@@ -82,6 +82,95 @@ const PipelineProgress = ({ targetType, campaignName, groupId, totalSteps }) => 
   );
 };
 
+// ── Live Activity Modal ────────────────────────────────────────────────────
+const LiveActivityModal = ({ onClose }) => {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const getHeaders = () => ({ 'x-tenant-id': localStorage.getItem('tenantId'), 'Content-Type': 'application/json' });
+
+  useEffect(() => {
+    let active = true;
+    const fetchLogs = async () => {
+      try {
+        const { data } = await axios.get(`${API_BASE_URL}/meta-leads/automation-logs`, {
+          params: { page: 1, limit: 15 },
+          headers: getHeaders(),
+          withCredentials: true,
+        });
+        if (active) {
+          setLogs(data?.data || []);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (active) setLoading(false);
+      }
+    };
+    fetchLogs();
+    const iv = setInterval(fetchLogs, 5000);
+    return () => { active = false; clearInterval(iv); };
+  }, []);
+
+  return (
+    <div className="modal-overlay" style={{ zIndex: 10000 }} onClick={onClose}>
+      <div className="modal-content" style={{ maxWidth: 600, padding: 0, overflow: 'hidden', background: '#fff', display: 'flex', flexDirection: 'column', maxHeight: '80vh', width: '100%', margin: '0 20px' }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 38, height: 38, borderRadius: 10, background: '#e0e7ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Zap size={20} />
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#0f172a' }}>Live Sending Activity</h3>
+              <div style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', animation: 'pulse 2s infinite', display: 'inline-block' }} /> Auto-updating every 5s
+              </div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 24, color: '#94a3b8', cursor: 'pointer', lineHeight: 1, padding: 0 }}>✕</button>
+        </div>
+
+        <div style={{ padding: 24, overflowY: 'auto', flex: 1, background: '#fff' }}>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>
+               <div className="loading-spinner" style={{ borderColor: '#cbd5e1', borderTopColor: '#4f46e5', width: 24, height: 24, marginBottom: 12 }} />
+               <div style={{ fontSize: 14 }}>Fetching live logs...</div>
+            </div>
+          ) : logs.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>
+              <Bot size={48} style={{ opacity: 0.3, marginBottom: 16 }} />
+              <div style={{ fontSize: 14, fontWeight: 500 }}>No recent sending activity.</div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {logs.map((log) => (
+                <div key={log.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: 16, border: '1px solid #f1f5f9', borderRadius: 10, background: '#f8fafc', animation: 'slideIn 0.3s ease' }}>
+                   <div style={{ marginTop: 2 }}>
+                     {log.status === 'sent' ? <CheckCircle size={20} color="#16a34a" /> : <XCircle size={20} color="#dc2626" />}
+                   </div>
+                   <div style={{ flex: 1 }}>
+                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                       <span style={{ fontWeight: 600, fontSize: 15, color: '#0f172a' }}>{log.metaLead?.name || log.contact?.name || log.metaLead?.phone || log.contact?.phone || 'Unknown Contact'}</span>
+                       <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>{new Date(log.sentAt).toLocaleTimeString()}</span>
+                     </div>
+                     <div style={{ fontSize: 13, color: '#475569', marginBottom: 4 }}>
+                       Step {log.stepIndex}: Template <strong>{log.templateName}</strong>
+                     </div>
+                     {log.status === 'failed' && log.error && (
+                       <div style={{ fontSize: 12, color: '#b91c1c', background: '#fef2f2', padding: '8px 10px', borderRadius: 8, border: '1px solid #fecaca', marginTop: 8, wordBreak: 'break-word', lineHeight: 1.5 }}>
+                         {log.error}
+                       </div>
+                     )}
+                   </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Main Component ─────────────────────────────────────────────────────────
 const MetaLeadsAutomation = () => {
   const { toasts, add: toast, remove: removeToast } = useToast();
@@ -94,6 +183,7 @@ const MetaLeadsAutomation = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingRuleId, setDeletingRuleId] = useState(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showActivityModal, setShowActivityModal] = useState(false);
   const [newRuleId, setNewRuleId] = useState(null); // for highlight animation
   const [newRuleGroupKey, setNewRuleGroupKey] = useState(null); // hide progress for new sequence
 
@@ -266,12 +356,20 @@ const MetaLeadsAutomation = () => {
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 4px 0', color: '#0f172a' }}>Campaign Automation</h1>
           <p style={{ margin: 0, color: '#64748b', fontSize: 14 }}>Automatically send WhatsApp sequences to leads or contacts after a set delay.</p>
         </div>
-        <button
-          onClick={() => setShowHelpModal(true)}
-          style={{ padding: '9px 16px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: 8, color: '#334155', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, fontSize: 14 }}
-        >
-          <HelpCircle size={16} color="#64748b" /> How it works
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={() => setShowActivityModal(true)}
+            style={{ padding: '9px 16px', background: '#4f46e5', border: '1px solid #4338ca', borderRadius: 8, color: '#fff', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, fontSize: 14, boxShadow: '0 2px 4px rgba(79,70,229,0.2)' }}
+          >
+            <Zap size={16} color="#fff" /> Live Activity
+          </button>
+          <button
+            onClick={() => setShowHelpModal(true)}
+            style={{ padding: '9px 16px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: 8, color: '#334155', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, fontSize: 14 }}
+          >
+            <HelpCircle size={16} color="#64748b" /> How it works
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 28, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -584,7 +682,12 @@ const MetaLeadsAutomation = () => {
         </div>
       )}
 
-      <style>{`@keyframes slideIn { from { transform: translateX(60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
+      {/* ── Live Activity Modal ── */}
+      {showActivityModal && (
+        <LiveActivityModal onClose={() => setShowActivityModal(false)} />
+      )}
+
+      <style>{`@keyframes slideIn { from { transform: translateX(60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } } @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }`}</style>
     </div>
   );
 };

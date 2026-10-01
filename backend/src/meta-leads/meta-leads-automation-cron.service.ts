@@ -8,6 +8,8 @@ import axios from 'axios';
 export class MetaLeadsAutomationCronService {
   private readonly logger = new Logger(MetaLeadsAutomationCronService.name);
 
+  private isRunning = false;
+
   constructor(
     private centralPrisma: CentralPrismaService,
     private tenantPrisma: TenantPrismaService,
@@ -15,6 +17,11 @@ export class MetaLeadsAutomationCronService {
 
   @Cron(CronExpression.EVERY_MINUTE)
   async handleMetaLeadsAutomation() {
+    if (this.isRunning) {
+      this.logger.debug('Cron already running, skipping this minute...');
+      return;
+    }
+    this.isRunning = true;
     this.logger.debug('Running Meta Leads Automation Cron Job');
     try {
       const activeTenants = await this.centralPrisma.executeWithRetry((prisma) =>
@@ -28,6 +35,8 @@ export class MetaLeadsAutomationCronService {
       }
     } catch (error) {
       this.logger.error('Failed to run meta leads automation cron', error);
+    } finally {
+      this.isRunning = false;
     }
   }
 
@@ -38,7 +47,7 @@ export class MetaLeadsAutomationCronService {
   async runForTenant(tenantId: string, dbUrl: string): Promise<{ trace: string[] }> {
     const trace: string[] = [];
     const log = (msg: string) => {
-      this.logger.log(`[Tenant ${tenantId}] ${msg}`);
+      this.logger.debug(`[Tenant ${tenantId}] ${msg}`);
       trace.push(msg);
     };
     const warn = (msg: string) => {

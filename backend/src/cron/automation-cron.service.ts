@@ -28,6 +28,7 @@ function getIstMonthDay(date = new Date()) {
 @Injectable()
 export class AutomationCronService {
   private readonly logger = new Logger(AutomationCronService.name);
+  private isRunningRunDailyAutomation = false;
 
   constructor(
     private centralPrisma: CentralPrismaService,
@@ -110,9 +111,15 @@ export class AutomationCronService {
     timeZone: 'Asia/Kolkata',
   })
   async runDailyAutomation() {
-    const tenants = await this.centralPrisma.tenant.findMany({
-      where: { isActive: true },
-    });
+    if (this.isRunningRunDailyAutomation) {
+      this.logger.debug('runDailyAutomation is already running, skipping this minute...');
+      return;
+    }
+    this.isRunningRunDailyAutomation = true;
+    try {
+      const tenants = await this.centralPrisma.tenant.findMany({
+        where: { isActive: true },
+      });
   
     for (const tenant of tenants) {
       const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
@@ -122,6 +129,9 @@ export class AutomationCronService {
       );
   
       await this.runForTenant(tenantClient, tenant.id, tenant.dbName);
+    }
+    } finally {
+      this.isRunningRunDailyAutomation = false;
     }
   }
 

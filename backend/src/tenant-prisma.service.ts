@@ -46,7 +46,11 @@ export class TenantPrismaService implements OnModuleDestroy {
     // 🔥 Global error recovery per tenant
     client.$on('error', async (e) => {
       this.logger.error(`🔥 Prisma error (tenant ${tenantId}):`, e);
-      await this.reconnectTenant(tenantId, dbUrl);
+      try {
+        await this.reconnectTenant(tenantId, dbUrl);
+      } catch (err) {
+        this.logger.error(`❌ Failed to recover tenant ${tenantId} connection in error handler:`, err);
+      }
     });
 
     return client;

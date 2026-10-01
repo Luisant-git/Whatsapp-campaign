@@ -188,7 +188,7 @@ const MetaLeadsAutomation = () => {
   const [newRuleGroupKey, setNewRuleGroupKey] = useState(null); // hide progress for new sequence
 
   const [formData, setFormData] = useState({
-    targetType: 'all', campaignName: '', groupId: '',
+    targetType: 'all', campaignNames: [], groupIds: [],
     templateName: '', delayValue: 5, delayUnit: 'minutes', isActive: true,
   });
 
@@ -235,12 +235,11 @@ const MetaLeadsAutomation = () => {
     } catch {}
   };
 
-  // ── Validation ─────────────────────────────────────────────────────────
   const formValid =
     formData.templateName &&
     parseInt(formData.delayValue) >= 0 &&
-    (formData.targetType !== 'meta_campaign' || formData.campaignName) &&
-    (formData.targetType !== 'contact_group' || formData.groupId);
+    (formData.targetType !== 'meta_campaign' || formData.campaignNames.length > 0) &&
+    (formData.targetType !== 'contact_group' || formData.groupIds.length > 0);
 
   // ── Submit ──────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
@@ -248,30 +247,49 @@ const MetaLeadsAutomation = () => {
     if (!formValid) return;
     setIsSubmitting(true);
     try {
-      const payload = {
-        targetType: formData.targetType,
-        campaignName: formData.targetType === 'meta_campaign' ? formData.campaignName : null,
-        groupId: formData.targetType === 'contact_group' ? parseInt(formData.groupId, 10) : null,
+      const payloads = [];
+      const basePayload = {
         templateName: formData.templateName,
         delayValue: parseInt(formData.delayValue, 10),
         delayUnit: formData.delayUnit,
         isActive: true,
       };
-      const { data } = await axios.post(`${API_BASE_URL}/meta-leads/automation-rules`, payload, { headers: getHeaders(), withCredentials: true });
-      if (data && !data.error) {
-        toast('Automation rule created successfully!', 'success');
-        setNewRuleId(data.id);
+
+      if (formData.targetType === 'all') {
+        payloads.push({ ...basePayload, targetType: 'all', campaignName: null, groupId: null });
+      } else if (formData.targetType === 'meta_campaign') {
+        for (const name of formData.campaignNames) {
+          payloads.push({ ...basePayload, targetType: 'meta_campaign', campaignName: name, groupId: null });
+        }
+      } else if (formData.targetType === 'contact_group') {
+        for (const id of formData.groupIds) {
+          payloads.push({ ...basePayload, targetType: 'contact_group', campaignName: null, groupId: parseInt(id, 10) });
+        }
+      }
+
+      let lastId = null;
+      let lastGroupKey = null;
+      for (const payload of payloads) {
+        const { data } = await axios.post(`${API_BASE_URL}/meta-leads/automation-rules`, payload, { headers: getHeaders(), withCredentials: true });
+        if (data && !data.error) {
+          lastId = data.id;
+          lastGroupKey = `${payload.targetType}_${payload.campaignName}_${payload.groupId}`;
+        } else {
+          toast(data.message || 'Failed to save rule', 'error');
+        }
+      }
+      
+      if (lastId) {
+        toast(`Successfully created ${payloads.length} automation rule(s)!`, 'success');
+        setNewRuleId(lastId);
         setTimeout(() => setNewRuleId(null), 2500);
-        const groupKey = `${payload.targetType}_${payload.campaignName}_${payload.groupId}`;
-        setNewRuleGroupKey(groupKey);
+        setNewRuleGroupKey(lastGroupKey);
         setTimeout(() => setNewRuleGroupKey(null), 30000);
         setFormData(f => ({ ...f, templateName: '', delayValue: 5, delayUnit: 'minutes' }));
         fetchRules();
-      } else {
-        toast(data.message || 'Failed to save rule', 'error');
       }
     } catch (err) {
-      toast(err.response?.data?.message || 'Failed to save automation rule', 'error');
+      toast(err.response?.data?.message || 'Failed to save automation rule(s)', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -396,7 +414,7 @@ const MetaLeadsAutomation = () => {
                   <select
                     className="form-input"
                     value={formData.targetType}
-                    onChange={e => setFormData(f => ({ ...f, targetType: e.target.value, campaignName: '', groupId: '' }))}
+                    onChange={e => setFormData(f => ({ ...f, targetType: e.target.value, campaignNames: [], groupIds: [] }))}
                     style={{ minHeight: 42, borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14 }}
                   >
                     <option value="all">Global (All New Records)</option>
@@ -405,29 +423,35 @@ const MetaLeadsAutomation = () => {
                   </select>
 
                   {formData.targetType === 'meta_campaign' && (
-                    <select
-                      className="form-input"
-                      value={formData.campaignName}
-                      onChange={e => setFormData(f => ({ ...f, campaignName: e.target.value }))}
-                      style={{ minHeight: 42, borderRadius: 8, border: `1px solid ${!formData.campaignName ? '#f97316' : '#cbd5e1'}`, fontSize: 14 }}
-                      required
-                    >
-                      <option value="">— Select a Campaign —</option>
-                      {campaigns.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 150, overflowY: 'auto', border: `1px solid ${formData.campaignNames.length === 0 ? '#f97316' : '#cbd5e1'}`, borderRadius: 8, padding: 10, background: '#f8fafc' }}>
+                      <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 4 }}>Select campaigns (multiple allowed):</div>
+                      {campaigns.length === 0 && <div style={{ fontSize: 13, color: '#94a3b8' }}>No campaigns found</div>}
+                      {campaigns.map(c => (
+                        <label key={c} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer' }}>
+                          <input type="checkbox" checked={formData.campaignNames?.includes(c)} onChange={e => {
+                            if (e.target.checked) setFormData(f => ({ ...f, campaignNames: [...(f.campaignNames || []), c] }));
+                            else setFormData(f => ({ ...f, campaignNames: (f.campaignNames || []).filter(name => name !== c) }));
+                          }} style={{ width: 16, height: 16, accentColor: '#4f46e5' }} />
+                          {c}
+                        </label>
+                      ))}
+                    </div>
                   )}
 
                   {formData.targetType === 'contact_group' && (
-                    <select
-                      className="form-input"
-                      value={formData.groupId}
-                      onChange={e => setFormData(f => ({ ...f, groupId: e.target.value }))}
-                      style={{ minHeight: 42, borderRadius: 8, border: `1px solid ${!formData.groupId ? '#f97316' : '#cbd5e1'}`, fontSize: 14 }}
-                      required
-                    >
-                      <option value="">— Select a Group —</option>
-                      {contactGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                    </select>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 150, overflowY: 'auto', border: `1px solid ${formData.groupIds.length === 0 ? '#f97316' : '#cbd5e1'}`, borderRadius: 8, padding: 10, background: '#f8fafc' }}>
+                      <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 4 }}>Select groups (multiple allowed):</div>
+                      {contactGroups.length === 0 && <div style={{ fontSize: 13, color: '#94a3b8' }}>No groups found</div>}
+                      {contactGroups.map(g => (
+                        <label key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer' }}>
+                          <input type="checkbox" checked={formData.groupIds?.includes(g.id)} onChange={e => {
+                            if (e.target.checked) setFormData(f => ({ ...f, groupIds: [...(f.groupIds || []), g.id] }));
+                            else setFormData(f => ({ ...f, groupIds: (f.groupIds || []).filter(id => id !== g.id) }));
+                          }} style={{ width: 16, height: 16, accentColor: '#4f46e5' }} />
+                          {g.name}
+                        </label>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>

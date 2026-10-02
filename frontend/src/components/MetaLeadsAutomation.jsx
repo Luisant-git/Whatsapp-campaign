@@ -633,8 +633,8 @@ const MetaLeadsAutomation = () => {
                       const groupKey = `${group.targetType}_${group.campaignName}_${group.groupId}`;
                       const gProgress = groupProgressMap[groupKey];
                       const stepIndex = i + 1;
-                      const completedCount = gProgress?.stepCounts?.[stepIndex] || 0;
                       const totalCount = gProgress?.total || 0;
+                      const completedCount = Math.min(gProgress?.stepCounts?.[stepIndex] || 0, totalCount);
                       const isComplete = totalCount > 0 && completedCount >= totalCount;
 
                       return (

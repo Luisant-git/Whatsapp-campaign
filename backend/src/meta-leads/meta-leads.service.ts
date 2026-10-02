@@ -960,11 +960,10 @@ export class MetaLeadsService {
       completed = contactSentLogs.length;
 
       const allStepsLogs = await client.contactAutomationLog.groupBy({
-        by: ['stepIndex'],
-        where: { status: 'sent', contact: { groupId: gid } },
-        _count: { _all: true },
+        by: ['contactId', 'stepIndex'],
+        where: { status: 'sent', contact: { groupId: gid } }
       });
-      allStepsLogs.forEach(s => { stepCountsMap[s.stepIndex] = s._count._all; });
+      allStepsLogs.forEach(s => { stepCountsMap[s.stepIndex] = (stepCountsMap[s.stepIndex] || 0) + 1; });
 
     } else {
       const whereClause: any = { phone: { not: null } };
@@ -981,11 +980,10 @@ export class MetaLeadsService {
       completed = leadSentLogs.length;
 
       const allStepsLogs = await client.metaLeadAutomationLog.groupBy({
-        by: ['stepIndex'],
-        where: { status: 'sent', metaLead: whereClause },
-        _count: { _all: true },
+        by: ['metaLeadId', 'stepIndex'],
+        where: { status: 'sent', metaLead: whereClause }
       });
-      allStepsLogs.forEach(s => { stepCountsMap[s.stepIndex] = s._count._all; });
+      allStepsLogs.forEach(s => { stepCountsMap[s.stepIndex] = (stepCountsMap[s.stepIndex] || 0) + 1; });
     }
 
     return { total, completed, percentage: total > 0 ? Math.round((completed / total) * 100) : 0, stepCounts: stepCountsMap };

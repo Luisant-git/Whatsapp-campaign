@@ -894,7 +894,7 @@ export class MetaLeadsService {
       distinct: ['campaignName']
     });
 
-    const summaries = [];
+    const summaries: any[] = [];
     for (const rule of activeRules) {
       if (!rule.campaignName) continue;
       const sentCount = await client.metaLeadAutomationLog.count({

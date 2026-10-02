@@ -47,7 +47,7 @@ function delayLabel(value, unit) {
 }
 
 // ── PipelineProgress ───────────────────────────────────────────────────────
-const PipelineProgress = ({ targetType, campaignName, groupId, totalSteps }) => {
+const PipelineProgress = ({ targetType, campaignName, groupId, totalSteps, onProgress }) => {
   const [progress, setProgress] = useState(null);
   const getHeaders = () => ({ 'x-tenant-id': localStorage.getItem('tenantId'), 'Content-Type': 'application/json' });
 
@@ -59,13 +59,16 @@ const PipelineProgress = ({ targetType, campaignName, groupId, totalSteps }) => 
           params: { targetType, campaignName: campaignName || '', groupId: groupId || '', totalSteps },
           headers: getHeaders(), withCredentials: true,
         });
-        if (active) setProgress(data);
+        if (active) {
+          setProgress(data);
+          if (onProgress) onProgress(data);
+        }
       } catch {}
     };
     fetch();
     const iv = setInterval(fetch, 5000);
     return () => { active = false; clearInterval(iv); };
-  }, [targetType, campaignName, groupId, totalSteps]);
+  }, [targetType, campaignName, groupId, totalSteps, onProgress]);
 
   if (!progress || progress.error) return null;
 
@@ -186,6 +189,7 @@ const MetaLeadsAutomation = () => {
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [newRuleId, setNewRuleId] = useState(null); // for highlight animation
   const [newRuleGroupKey, setNewRuleGroupKey] = useState(null); // hide progress for new sequence
+  const [groupProgressMap, setGroupProgressMap] = useState({}); // track step completions
 
   const [formData, setFormData] = useState({
     targetType: 'all', campaignNames: [], groupIds: [],
@@ -618,32 +622,50 @@ const MetaLeadsAutomation = () => {
                   {/* Steps */}
                   <div style={{ padding: '12px 16px' }}>
                     {newRuleGroupKey !== `${group.targetType}_${group.campaignName}_${group.groupId}` && (
-                      <PipelineProgress targetType={group.targetType} campaignName={group.campaignName} groupId={group.groupId} totalSteps={group.rules.length} />
+                      <PipelineProgress 
+                        targetType={group.targetType} campaignName={group.campaignName} groupId={group.groupId} totalSteps={group.rules.length} 
+                        onProgress={data => setGroupProgressMap(p => ({ ...p, [`${group.targetType}_${group.campaignName}_${group.groupId}`]: data }))} 
+                      />
                     )}
                     <div style={{ height: 12 }} />
 
-                    {group.rules.map((rule, i) => (
+                    {group.rules.map((rule, i) => {
+                      const groupKey = `${group.targetType}_${group.campaignName}_${group.groupId}`;
+                      const gProgress = groupProgressMap[groupKey];
+                      const stepIndex = i + 1;
+                      const completedCount = gProgress?.stepCounts?.[stepIndex] || 0;
+                      const totalCount = gProgress?.total || 0;
+                      const isComplete = totalCount > 0 && completedCount >= totalCount;
+
+                      return (
                       <div key={rule.id} style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
                         {/* Timeline dot */}
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: rule.isActive ? '#3b82f6' : '#cbd5e1', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-                            {i + 1}
+                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: isComplete ? '#22c55e' : rule.isActive ? '#3b82f6' : '#cbd5e1', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                            {isComplete ? <CheckCircle size={12} /> : i + 1}
                           </div>
                           {i < group.rules.length - 1 && <div style={{ width: 2, flex: 1, background: '#e2e8f0', margin: '2px 0' }} />}
                         </div>
 
                         {/* Step card */}
                         <div style={{
-                          flex: 1, border: `1px solid ${rule.id === newRuleId ? '#25D366' : '#e2e8f0'}`,
+                          flex: 1, border: `1px solid ${rule.id === newRuleId ? '#25D366' : isComplete ? '#bbf7d0' : '#e2e8f0'}`,
                           borderRadius: 8, padding: '9px 12px',
-                          background: rule.id === newRuleId ? '#f0fdf4' : rule.isActive ? '#fff' : '#f8fafc',
+                          background: rule.id === newRuleId ? '#f0fdf4' : isComplete ? '#f0fdf4' : rule.isActive ? '#fff' : '#f8fafc',
                           opacity: rule.isActive ? 1 : 0.6,
                           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                           marginBottom: i < group.rules.length - 1 ? 8 : 0,
                           transition: 'border-color 0.4s, background 0.4s',
                         }}>
                           <div>
-                            <div style={{ fontWeight: 600, fontSize: 13, color: '#0f172a', marginBottom: 3 }}>{rule.templateName}</div>
+                            <div style={{ fontWeight: 600, fontSize: 13, color: '#0f172a', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
+                              {rule.templateName}
+                              {totalCount > 0 && (
+                                <span style={{ fontSize: 11, color: isComplete ? '#16a34a' : '#64748b', fontWeight: 500, background: isComplete ? '#dcfce7' : '#f1f5f9', padding: '2px 6px', borderRadius: 4 }}>
+                                  {completedCount}/{totalCount}
+                                </span>
+                              )}
+                            </div>
                             <div style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
                               <Clock size={11} />
                               Sends {delayLabel(rule.delayValue || rule.delayMinutes, rule.delayUnit || 'minutes')}
@@ -665,10 +687,10 @@ const MetaLeadsAutomation = () => {
                             >
                               <Trash2 size={15} />
                             </button>
-                          </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}

@@ -880,23 +880,27 @@ export class MetaLeadsService {
     const client = await this.getClient(tenantId, dbUrl);
     let total = 0;
     let completed = 0;
+    const stepCountsMap: Record<number, number> = {};
 
     if (targetType === 'contact_group') {
       const gid = parseInt(groupId);
-      if (isNaN(gid)) return { total: 0, completed: 0, percentage: 0 };
+      if (isNaN(gid)) return { total: 0, completed: 0, percentage: 0, stepCounts: {} };
 
       total = await client.contact.count({ where: { groupId: gid } });
 
-      // "Completed" = has a sent log entry for the final step.
-      // lastAutomationStep was unreliable: Meta can return HTTP 200 yet never
-      // deliver the message, so the counter advanced while nothing was received.
-      // Counting actual sent log rows is the ground truth.
       const contactSentLogs = await client.contactAutomationLog.groupBy({
         by: ['contactId'],
         where: { status: 'sent', stepIndex: totalSteps, contact: { groupId: gid } },
         _count: { contactId: true },
       });
       completed = contactSentLogs.length;
+
+      const allStepsLogs = await client.contactAutomationLog.groupBy({
+        by: ['stepIndex'],
+        where: { status: 'sent', contact: { groupId: gid } },
+        _count: { _all: true },
+      });
+      allStepsLogs.forEach(s => { stepCountsMap[s.stepIndex] = s._count._all; });
 
     } else {
       const whereClause: any = { phone: { not: null } };
@@ -905,16 +909,22 @@ export class MetaLeadsService {
       }
       total = await client.metaLead.count({ where: whereClause });
 
-      // Same logic for meta leads.
       const leadSentLogs = await client.metaLeadAutomationLog.groupBy({
         by: ['metaLeadId'],
         where: { status: 'sent', stepIndex: totalSteps, metaLead: whereClause },
         _count: { metaLeadId: true },
       });
       completed = leadSentLogs.length;
+
+      const allStepsLogs = await client.metaLeadAutomationLog.groupBy({
+        by: ['stepIndex'],
+        where: { status: 'sent', metaLead: whereClause },
+        _count: { _all: true },
+      });
+      allStepsLogs.forEach(s => { stepCountsMap[s.stepIndex] = s._count._all; });
     }
 
-    return { total, completed, percentage: total > 0 ? Math.round((completed / total) * 100) : 0 };
+    return { total, completed, percentage: total > 0 ? Math.round((completed / total) * 100) : 0, stepCounts: stepCountsMap };
   }
 
   async toggleAutomationSequence(tenantId: string, targetType: string, campaignName: string, groupId: string, isActive: boolean, dbUrl?: string) {

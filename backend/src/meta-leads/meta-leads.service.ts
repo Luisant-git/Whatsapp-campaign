@@ -876,6 +876,70 @@ export class MetaLeadsService {
     return { total: totalMeta + totalContact };
   }
 
+  async getAutomationLogsCampaignSummary(tenantId: string, dbUrl?: string) {
+    const client = await this.getClient(tenantId, dbUrl);
+    
+    // Group meta lead logs by campaign name
+    const rawMetaLogs = await client.metaLeadAutomationLog.groupBy({
+      by: ['status'],
+      where: { metaLead: { campaignName: { not: null } } },
+      _count: { _all: true }
+    });
+    
+    // For a real per-campaign breakdown, we need to join metaLead or fetch separately
+    // Since Prisma groupBy with relations isn't supported, we fetch distinct campaigns first:
+    const activeRules = await client.metaLeadAutomation.findMany({
+      where: { targetType: 'meta_campaign', isActive: true },
+      select: { campaignName: true },
+      distinct: ['campaignName']
+    });
+
+    const summaries = [];
+    for (const rule of activeRules) {
+      if (!rule.campaignName) continue;
+      const sentCount = await client.metaLeadAutomationLog.count({
+        where: { status: 'sent', metaLead: { campaignName: rule.campaignName } }
+      });
+      const failedCount = await client.metaLeadAutomationLog.count({
+        where: { status: 'failed', metaLead: { campaignName: rule.campaignName } }
+      });
+      summaries.push({
+        name: rule.campaignName,
+        type: 'Campaign',
+        sent: sentCount,
+        failed: failedCount,
+        total: sentCount + failedCount
+      });
+    }
+
+    // Do the same for contact groups
+    const activeGroupRules = await client.metaLeadAutomation.findMany({
+      where: { targetType: 'contact_group', isActive: true },
+      select: { groupId: true },
+      distinct: ['groupId']
+    });
+
+    for (const rule of activeGroupRules) {
+      if (!rule.groupId) continue;
+      const group = await client.group.findUnique({ where: { id: rule.groupId } });
+      const sentCount = await client.contactAutomationLog.count({
+        where: { status: 'sent', contact: { groupId: rule.groupId } }
+      });
+      const failedCount = await client.contactAutomationLog.count({
+        where: { status: 'failed', contact: { groupId: rule.groupId } }
+      });
+      summaries.push({
+        name: group?.name || `Group #${rule.groupId}`,
+        type: 'Contact Group',
+        sent: sentCount,
+        failed: failedCount,
+        total: sentCount + failedCount
+      });
+    }
+
+    return summaries.sort((a, b) => b.total - a.total);
+  }
+
   async getAutomationProgress(tenantId: string, targetType: string, campaignName: string, groupId: string, totalSteps: number, dbUrl?: string) {
     const client = await this.getClient(tenantId, dbUrl);
     let total = 0;

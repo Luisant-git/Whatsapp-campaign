@@ -13,3 +13,7 @@ export const getMetaLeadsAutomationLogsTotal = async (params) => {
   const res = await axios.get(`${API_BASE_URL}/meta-leads/automation-logs/total`, { params, headers: getHeaders(), withCredentials: true, signal: params?.signal });
   return res.data;
 };
+export const getMetaLeadsAutomationLogsCampaignSummary = async (params) => {
+  const res = await axios.get(`${API_BASE_URL}/meta-leads/automation-logs/campaign-summary`, { params, headers: getHeaders(), withCredentials: true, signal: params?.signal });
+  return res.data;
+};

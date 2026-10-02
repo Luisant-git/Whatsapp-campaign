@@ -9,7 +9,7 @@ import {
 
 import "../styles/RunAutomationLogs.scss";
 import { getRunAutomationLogs, getRunAutomationLogsTotal } from "../api/runDailyAutomationLogs";
-import { getMetaLeadsAutomationLogs, getMetaLeadsAutomationLogsTotal } from "../api/metaLeadsAutomationLogs";
+import { getMetaLeadsAutomationLogs, getMetaLeadsAutomationLogsTotal, getMetaLeadsAutomationLogsCampaignSummary } from "../api/metaLeadsAutomationLogs";
 
 const LIMIT_OPTIONS = [10, 20, 50, 100];
 
@@ -28,6 +28,7 @@ const RunAutomationLogs = () => {
 
   // ✅ OVERALL stats (not page-wise)
   const [overall, setOverall] = useState({ total: 0, sent: 0, failed: 0 });
+  const [campaignSummaries, setCampaignSummaries] = useState([]);
 
   // ----------------------------
   // TABLE LOGS (paginated)
@@ -110,10 +111,18 @@ const RunAutomationLogs = () => {
       }
 
       setOverall({ total: tTotal, sent: sTotal, failed: fTotal });
+
+      if (activeTab === 'META_LEADS') {
+        const summaries = await getMetaLeadsAutomationLogsCampaignSummary({ signal });
+        setCampaignSummaries(summaries || []);
+      } else {
+        setCampaignSummaries([]);
+      }
     } catch (e) {
       if (e?.name !== "AbortError") {
         console.error(e);
         setOverall({ total: 0, sent: 0, failed: 0 });
+        setCampaignSummaries([]);
       }
     }
   };
@@ -220,6 +229,39 @@ const RunAutomationLogs = () => {
             icon={<Percent size={20} />}
           />
         </div>
+
+        {/* ✅ CAMPAIGN SUMMARIES */}
+        {campaignSummaries.length > 0 && (
+          <div style={{ marginTop: 24, marginBottom: 24 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: '#1e293b', marginBottom: 12 }}>Campaign & Group Summaries</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+              {campaignSummaries.map((summary, idx) => (
+                <div key={idx} style={{ background: '#f8fafc', padding: 16, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                  <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4, letterSpacing: '0.5px' }}>
+                    {summary.type}
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={summary.name}>
+                    {summary.name}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <div style={{ color: '#64748b', fontSize: 12 }}>Total</div>
+                      <div style={{ fontWeight: 600, color: '#334155' }}>{summary.total}</div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <div style={{ color: '#16a34a', fontSize: 12 }}>Sent</div>
+                      <div style={{ fontWeight: 600, color: '#16a34a' }}>{summary.sent}</div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <div style={{ color: '#dc2626', fontSize: 12 }}>Failed</div>
+                      <div style={{ fontWeight: 600, color: '#dc2626' }}>{summary.failed}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* FILTERS + LIMIT */}
         <div className="results-filters" style={{ alignItems: "end" }}>

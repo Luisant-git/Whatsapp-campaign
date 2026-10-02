@@ -473,6 +473,19 @@ export class MetaLeadsController {
     }
   }
 
+  @Get('automation-logs/campaign-summary')
+  async getAutomationLogsCampaignSummary(@Req() req: any) {
+    try {
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
+      return await this.metaLeadsService.getAutomationLogsCampaignSummary(tenantId, dbUrl);
+    } catch (error) {
+      return {
+        error: true,
+        message: error.message || 'Failed to fetch campaign summary'
+      };
+    }
+  }
+
   // ── Manual trigger / debug endpoint ──────────────────────────────────────
   // Call GET /meta-leads/automation-run-now?tenantId=YOUR_TENANT_ID
   // This bypasses session auth — tenantId from the query param is used directly.

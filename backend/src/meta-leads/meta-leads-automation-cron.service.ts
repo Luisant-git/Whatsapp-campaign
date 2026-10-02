@@ -212,9 +212,15 @@ export class MetaLeadsAutomationCronService {
                   headerFormat = isDocument ? 'DOCUMENT' : isVideo ? 'VIDEO' : 'IMAGE';
                 }
                 log(`  Template has body variable: ${templateHasBodyVar}`);
+              } else {
+                log(`  Template "${templateName}" not found in DB! Using default fallback heuristics.`);
+                if (templateName === 'educate_add_value') {
+                  templateHasBodyVar = true;
+                  log(`  Fallback: Set body variable to true for ${templateName}`);
+                }
               }
-            } catch {
-              warn(`  Could not fetch template "${templateName}" from DB — using defaults (lang=en, no vars)`);
+            } catch (e) {
+              warn(`  Error fetching template "${templateName}" from DB — using defaults (lang=en, no vars)`);
             }
 
             // Send per-contact

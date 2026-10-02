@@ -216,25 +216,26 @@ export class MetaLeadsAutomationCronService {
                     }).filter(Boolean);
                     if (cards.length > 0) carouselComponents = [{ type: 'carousel', cards }];
                   }
-                } else {
-                  const body = comps.find((c: any) => String(c.type).toUpperCase() === 'BODY');
-                  if (body) {
-                    if (body.text && /\{\{\s*\d+\s*\}\}/.test(body.text)) {
-                      templateHasBodyVar = true;
-                    } else if (body.example && body.example.body_text && body.example.body_text.length > 0) {
-                      templateHasBodyVar = true;
-                    }
-                  }
-                  
-                  const header = comps.find((c: any) => String(c.type).toUpperCase() === 'HEADER');
-                  if (header?.format) {
-                    headerFormat = header.format;
-                  } else if (headerImageUrl) {
-                    const isVideo = /\.(mp4|avi|mov)$/i.test(headerImageUrl);
-                    const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i.test(headerImageUrl);
-                    headerFormat = isDocument ? 'DOCUMENT' : isVideo ? 'VIDEO' : 'IMAGE';
+                }
+                
+                const body = comps.find((c: any) => String(c.type).toUpperCase() === 'BODY');
+                if (body) {
+                  if (body.text && /\{\{\s*\d+\s*\}\}/.test(body.text)) {
+                    templateHasBodyVar = true;
+                  } else if (body.example && body.example.body_text && body.example.body_text.length > 0) {
+                    templateHasBodyVar = true;
                   }
                 }
+                
+                const header = comps.find((c: any) => String(c.type).toUpperCase() === 'HEADER');
+                if (header?.format) {
+                  headerFormat = header.format;
+                } else if (headerImageUrl) {
+                  const isVideo = /\.(mp4|avi|mov)$/i.test(headerImageUrl);
+                  const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i.test(headerImageUrl);
+                  headerFormat = isDocument ? 'DOCUMENT' : isVideo ? 'VIDEO' : 'IMAGE';
+                }
+                
                 log(`  Template isCarousel: ${isCarouselTemplate}, hasBodyVar: ${templateHasBodyVar}`);
               } else {
                 log(`  Template "${templateName}" not found in DB! Using default fallback heuristics.`);
@@ -244,17 +245,21 @@ export class MetaLeadsAutomationCronService {
             }
 
             // Fallback for tricky templates
-            if (templateName === 'educate_add_value' && !isCarouselTemplate) {
-               // If for some reason DB parsing failed or was empty, force it as a carousel with 2 cards.
-               isCarouselTemplate = true;
-               carouselComponents = [{
-                 type: 'carousel',
-                 cards: [
-                   { card_index: 0, components: [{ type: 'body', parameters: [{ type: 'text', text: 'Customer' }] }] },
-                   { card_index: 1, components: [{ type: 'body', parameters: [{ type: 'text', text: 'Customer' }] }] }
-                 ]
-               }];
-               log(`  Fallback: Forced carousel for ${templateName}`);
+            if (templateName === 'educate_add_value') {
+               if (!isCarouselTemplate) {
+                 // If for some reason DB parsing failed or was empty, force it as a carousel with 2 cards.
+                 isCarouselTemplate = true;
+                 carouselComponents = [{
+                   type: 'carousel',
+                   cards: [
+                     { card_index: 0, components: [{ type: 'body', parameters: [{ type: 'text', text: 'Customer' }] }] },
+                     { card_index: 1, components: [{ type: 'body', parameters: [{ type: 'text', text: 'Customer' }] }] }
+                   ]
+                 }];
+               }
+               // ALWAYS force the global body parameter since it expects 1
+               templateHasBodyVar = true;
+               log(`  Fallback: Forced carousel & body variable for ${templateName}`);
             }
 
             // Send per-contact
@@ -296,7 +301,9 @@ export class MetaLeadsAutomationCronService {
                     });
                   });
                   components.push(...clonedCarousel);
-                } else if (templateHasBodyVar) {
+                } 
+
+                if (templateHasBodyVar) {
                   components.push({
                     type: 'body',
                     parameters: [{ type: 'text', text: contact.name || 'Customer' }],

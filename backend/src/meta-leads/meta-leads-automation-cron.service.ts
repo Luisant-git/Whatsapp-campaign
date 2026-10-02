@@ -193,8 +193,15 @@ export class MetaLeadsAutomationCronService {
                 const comps = typeof dbTemplate.components === 'string'
                   ? JSON.parse(dbTemplate.components)
                   : dbTemplate.components;
-                const body = comps.find((c: any) => c.type === 'BODY');
-                templateHasBodyVar = body?.text ? /\{\{\d+\}\}/.test(body.text) : false;
+                const body = comps.find((c: any) => String(c.type).toUpperCase() === 'BODY');
+                templateHasBodyVar = false;
+                if (body) {
+                  if (body.text && /\{\{\s*\d+\s*\}\}/.test(body.text)) {
+                    templateHasBodyVar = true;
+                  } else if (body.example && body.example.body_text && body.example.body_text.length > 0) {
+                    templateHasBodyVar = true;
+                  }
+                }
                 
                 const header = comps.find((c: any) => c.type === 'HEADER');
                 if (header?.format) {

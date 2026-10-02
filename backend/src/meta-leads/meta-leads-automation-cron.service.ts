@@ -177,6 +177,8 @@ export class MetaLeadsAutomationCronService {
             let templateHasBodyVar = false;
             let headerFormat = 'IMAGE';
             let headerImageUrl: string | null = null;
+            let isCarouselTemplate = false;
+            let carouselComponents: any[] | null = null;
             try {
               const settings = await client.whatsAppSettings.findFirst({
                 where: { templateName },

@@ -175,7 +175,14 @@ export class MetaLeadsAutomationCronService {
             // Fetch template details
             let templateLanguage = 'en';
             let templateHasBodyVar = false;
+            let headerFormat = 'IMAGE';
+            let headerImageUrl: string | null = null;
             try {
+              const settings = await client.whatsAppSettings.findFirst({
+                where: { templateName },
+              });
+              headerImageUrl = settings?.headerImageUrl || null;
+
               const dbTemplate = await client.messageTemplate.findFirst({
                 where: { name: templateName },
                 select: { language: true, components: true },
@@ -188,6 +195,15 @@ export class MetaLeadsAutomationCronService {
                   : dbTemplate.components;
                 const body = comps.find((c: any) => c.type === 'BODY');
                 templateHasBodyVar = body?.text ? /\{\{\d+\}\}/.test(body.text) : false;
+                
+                const header = comps.find((c: any) => c.type === 'HEADER');
+                if (header?.format) {
+                  headerFormat = header.format;
+                } else if (headerImageUrl) {
+                  const isVideo = /\.(mp4|avi|mov)$/i.test(headerImageUrl);
+                  const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i.test(headerImageUrl);
+                  headerFormat = isDocument ? 'DOCUMENT' : isVideo ? 'VIDEO' : 'IMAGE';
+                }
                 log(`  Template has body variable: ${templateHasBodyVar}`);
               }
             } catch {
@@ -213,6 +229,14 @@ export class MetaLeadsAutomationCronService {
 
               try {
                 const components: any[] = [];
+                if (headerImageUrl && headerImageUrl.trim() !== '' && headerImageUrl.startsWith('http')) {
+                  const mediaType = headerFormat.toLowerCase();
+                  components.push({
+                    type: 'header',
+                    parameters: [{ type: mediaType, [mediaType]: { link: headerImageUrl } }],
+                  });
+                }
+
                 if (templateHasBodyVar && contact.name) {
                   components.push({
                     type: 'body',

@@ -246,7 +246,7 @@ const RunAutomationLogs = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <div style={{ color: '#64748b', fontSize: 12 }}>Total</div>
-                      <div style={{ fontWeight: 600, color: '#334155' }}>{summary.total}</div>
+                      <div style={{ fontWeight: 600, color: '#334155' }}>{summary.totalLeads || 0}</div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <div style={{ color: '#16a34a', fontSize: 12 }}>Sent</div>
@@ -257,6 +257,34 @@ const RunAutomationLogs = () => {
                       <div style={{ fontWeight: 600, color: '#dc2626' }}>{summary.failed}</div>
                     </div>
                   </div>
+
+                  {summary.steps && Object.keys(summary.steps).length > 0 && (
+                    <div style={{ marginTop: 16, borderTop: '1px solid #e2e8f0', paddingTop: 12 }}>
+                      <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 8, letterSpacing: '0.5px' }}>STEPS BREAKDOWN</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {Object.keys(summary.steps).sort((a,b)=>a-b).map(step => {
+                           const s = summary.steps[step];
+                           const stepTotal = summary.totalLeads || 0;
+                           const stepCompleted = Math.min(s.sent, stepTotal);
+                           const percentage = stepTotal > 0 ? Math.round((stepCompleted / stepTotal) * 100) : 0;
+                           
+                           return (
+                             <div key={step}>
+                               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                                 <span style={{ fontWeight: 600, color: '#475569' }}>Step {step}</span>
+                                 <span style={{ color: '#64748b', fontWeight: 500 }}>
+                                   <span style={{ color: '#16a34a' }}>{stepCompleted}</span> / {stepTotal}
+                                 </span>
+                               </div>
+                               <div style={{ height: 6, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
+                                 <div style={{ width: `${percentage}%`, height: '100%', background: percentage === 100 ? '#22c55e' : '#3b82f6', borderRadius: 3 }} />
+                               </div>
+                             </div>
+                           )
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

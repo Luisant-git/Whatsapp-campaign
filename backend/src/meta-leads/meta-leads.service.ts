@@ -879,15 +879,6 @@ export class MetaLeadsService {
   async getAutomationLogsCampaignSummary(tenantId: string, dbUrl?: string) {
     const client = await this.getClient(tenantId, dbUrl);
     
-    // Group meta lead logs by campaign name
-    const rawMetaLogs = await client.metaLeadAutomationLog.groupBy({
-      by: ['status'],
-      where: { metaLead: { campaignName: { not: null } } },
-      _count: { _all: true }
-    });
-    
-    // For a real per-campaign breakdown, we need to join metaLead or fetch separately
-    // Since Prisma groupBy with relations isn't supported, we fetch distinct campaigns first:
     const activeRules = await client.metaLeadAutomation.findMany({
       where: { targetType: 'meta_campaign', isActive: true },
       select: { campaignName: true },
@@ -897,22 +888,34 @@ export class MetaLeadsService {
     const summaries: any[] = [];
     for (const rule of activeRules) {
       if (!rule.campaignName) continue;
-      const sentCount = await client.metaLeadAutomationLog.count({
-        where: { status: 'sent', metaLead: { campaignName: rule.campaignName } }
+      
+      const totalLeads = await client.metaLead.count({ where: { campaignName: rule.campaignName } });
+
+      const stepLogs = await client.metaLeadAutomationLog.groupBy({
+        by: ['metaLeadId', 'stepIndex', 'status'],
+        where: { metaLead: { campaignName: rule.campaignName } }
       });
-      const failedCount = await client.metaLeadAutomationLog.count({
-        where: { status: 'failed', metaLead: { campaignName: rule.campaignName } }
-      });
+
+      const steps: Record<number, { sent: number, failed: number }> = {};
+      let totalSent = 0;
+      let totalFailed = 0;
+      for (const log of stepLogs) {
+        if (!steps[log.stepIndex]) steps[log.stepIndex] = { sent: 0, failed: 0 };
+        if (log.status === 'sent') { steps[log.stepIndex].sent++; totalSent++; }
+        if (log.status === 'failed') { steps[log.stepIndex].failed++; totalFailed++; }
+      }
+
       summaries.push({
         name: rule.campaignName,
         type: 'Campaign',
-        sent: sentCount,
-        failed: failedCount,
-        total: sentCount + failedCount
+        totalLeads,
+        sent: totalSent,
+        failed: totalFailed,
+        total: totalSent + totalFailed,
+        steps
       });
     }
 
-    // Do the same for contact groups
     const activeGroupRules = await client.metaLeadAutomation.findMany({
       where: { targetType: 'contact_group', isActive: true },
       select: { groupId: true },
@@ -922,18 +925,30 @@ export class MetaLeadsService {
     for (const rule of activeGroupRules) {
       if (!rule.groupId) continue;
       const group = await client.group.findUnique({ where: { id: rule.groupId } });
-      const sentCount = await client.contactAutomationLog.count({
-        where: { status: 'sent', contact: { groupId: rule.groupId } }
+      const totalLeads = await client.contact.count({ where: { groupId: rule.groupId } });
+
+      const stepLogs = await client.contactAutomationLog.groupBy({
+        by: ['contactId', 'stepIndex', 'status'],
+        where: { contact: { groupId: rule.groupId } }
       });
-      const failedCount = await client.contactAutomationLog.count({
-        where: { status: 'failed', contact: { groupId: rule.groupId } }
-      });
+
+      const steps: Record<number, { sent: number, failed: number }> = {};
+      let totalSent = 0;
+      let totalFailed = 0;
+      for (const log of stepLogs) {
+        if (!steps[log.stepIndex]) steps[log.stepIndex] = { sent: 0, failed: 0 };
+        if (log.status === 'sent') { steps[log.stepIndex].sent++; totalSent++; }
+        if (log.status === 'failed') { steps[log.stepIndex].failed++; totalFailed++; }
+      }
+
       summaries.push({
         name: group?.name || `Group #${rule.groupId}`,
         type: 'Contact Group',
-        sent: sentCount,
-        failed: failedCount,
-        total: sentCount + failedCount
+        totalLeads,
+        sent: totalSent,
+        failed: totalFailed,
+        total: totalSent + totalFailed,
+        steps
       });
     }
 

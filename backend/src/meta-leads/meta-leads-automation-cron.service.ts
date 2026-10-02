@@ -237,10 +237,10 @@ export class MetaLeadsAutomationCronService {
                   });
                 }
 
-                if (templateHasBodyVar && contact.name) {
+                if (templateHasBodyVar) {
                   components.push({
                     type: 'body',
-                    parameters: [{ type: 'text', text: contact.name }],
+                    parameters: [{ type: 'text', text: contact.name || 'Customer' }],
                   });
                 }
                 const metaResponse = await axios.post(apiUrl, {

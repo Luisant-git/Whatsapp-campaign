@@ -193,25 +193,47 @@ export class MetaLeadsAutomationCronService {
                 const comps = typeof dbTemplate.components === 'string'
                   ? JSON.parse(dbTemplate.components)
                   : dbTemplate.components;
-                const body = comps.find((c: any) => String(c.type).toUpperCase() === 'BODY');
-                templateHasBodyVar = false;
-                if (body) {
-                  if (body.text && /\{\{\s*\d+\s*\}\}/.test(body.text)) {
-                    templateHasBodyVar = true;
-                  } else if (body.example && body.example.body_text && body.example.body_text.length > 0) {
-                    templateHasBodyVar = true;
+
+                const isCarousel = comps.some((c: any) => String(c.type).toUpperCase() === 'CAROUSEL');
+                if (isCarousel) {
+                  isCarouselTemplate = true;
+                  const carouselComp = comps.find((c: any) => String(c.type).toUpperCase() === 'CAROUSEL');
+                  if (carouselComp?.cards) {
+                    const cards = carouselComp.cards.map((card: any, cardIndex: number) => {
+                      const cardComps: any[] = [];
+                      for (const comp of (card.components || [])) {
+                        if (String(comp.type).toUpperCase() === 'BODY') {
+                          const vars = comp.text?.match(/\{\{\s*\d+\s*\}\}/g) || [];
+                          if (vars.length > 0) {
+                            cardComps.push({ type: 'body', parameters: vars.map(() => ({ type: 'text', text: 'Customer' })) });
+                          }
+                        }
+                      }
+                      if (cardComps.length > 0) return { card_index: cardIndex, components: cardComps };
+                      return null;
+                    }).filter(Boolean);
+                    if (cards.length > 0) carouselComponents = [{ type: 'carousel', cards }];
+                  }
+                } else {
+                  const body = comps.find((c: any) => String(c.type).toUpperCase() === 'BODY');
+                  if (body) {
+                    if (body.text && /\{\{\s*\d+\s*\}\}/.test(body.text)) {
+                      templateHasBodyVar = true;
+                    } else if (body.example && body.example.body_text && body.example.body_text.length > 0) {
+                      templateHasBodyVar = true;
+                    }
+                  }
+                  
+                  const header = comps.find((c: any) => String(c.type).toUpperCase() === 'HEADER');
+                  if (header?.format) {
+                    headerFormat = header.format;
+                  } else if (headerImageUrl) {
+                    const isVideo = /\.(mp4|avi|mov)$/i.test(headerImageUrl);
+                    const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i.test(headerImageUrl);
+                    headerFormat = isDocument ? 'DOCUMENT' : isVideo ? 'VIDEO' : 'IMAGE';
                   }
                 }
-                
-                const header = comps.find((c: any) => c.type === 'HEADER');
-                if (header?.format) {
-                  headerFormat = header.format;
-                } else if (headerImageUrl) {
-                  const isVideo = /\.(mp4|avi|mov)$/i.test(headerImageUrl);
-                  const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i.test(headerImageUrl);
-                  headerFormat = isDocument ? 'DOCUMENT' : isVideo ? 'VIDEO' : 'IMAGE';
-                }
-                log(`  Template has body variable: ${templateHasBodyVar}`);
+                log(`  Template isCarousel: ${isCarouselTemplate}, hasBodyVar: ${templateHasBodyVar}`);
               } else {
                 log(`  Template "${templateName}" not found in DB! Using default fallback heuristics.`);
               }
@@ -219,17 +241,24 @@ export class MetaLeadsAutomationCronService {
               warn(`  Error fetching template "${templateName}" from DB — using defaults (lang=en, no vars)`);
             }
 
-            // Force override for known tricky templates that might be outdated in DB
-            if (templateName === 'educate_add_value') {
-              templateHasBodyVar = true;
-              log(`  Fallback: Forced body variable to true for ${templateName}`);
+            // Fallback for tricky templates
+            if (templateName === 'educate_add_value' && !isCarouselTemplate) {
+               // If for some reason DB parsing failed or was empty, force it as a carousel with 2 cards.
+               isCarouselTemplate = true;
+               carouselComponents = [{
+                 type: 'carousel',
+                 cards: [
+                   { card_index: 0, components: [{ type: 'body', parameters: [{ type: 'text', text: 'Customer' }] }] },
+                   { card_index: 1, components: [{ type: 'body', parameters: [{ type: 'text', text: 'Customer' }] }] }
+                 ]
+               }];
+               log(`  Fallback: Forced carousel for ${templateName}`);
             }
 
             // Send per-contact
             const sendResults: { id: number; success: boolean; wamid?: string; error?: string }[] = [];
 
             for (const contact of eligibleRecords) {
-              // Normalize to E.164 (+<digits>)
               const rawPhone = String(contact.phone || '').trim();
               const digitsOnly = rawPhone.replace(/\D/g, '');
               const toPhone = `+${digitsOnly}`;
@@ -240,11 +269,11 @@ export class MetaLeadsAutomationCronService {
                 continue;
               }
 
-              log(`  Sending to contact id=${contact.id} phone=${toPhone} (stored: "${rawPhone}")`);
+              log(`  Sending to contact id=${contact.id} phone=${toPhone}`);
 
               try {
                 const components: any[] = [];
-                if (headerImageUrl && headerImageUrl.trim() !== '' && headerImageUrl.startsWith('http')) {
+                if (!isCarouselTemplate && headerImageUrl && headerImageUrl.trim() !== '' && headerImageUrl.startsWith('http')) {
                   const mediaType = headerFormat.toLowerCase();
                   components.push({
                     type: 'header',
@@ -252,7 +281,20 @@ export class MetaLeadsAutomationCronService {
                   });
                 }
 
-                if (templateHasBodyVar) {
+                if (isCarouselTemplate && carouselComponents) {
+                  // If it's a carousel, inject the contact name dynamically per user
+                  const clonedCarousel = JSON.parse(JSON.stringify(carouselComponents));
+                  clonedCarousel[0].cards.forEach((card: any) => {
+                    card.components.forEach((comp: any) => {
+                      if (comp.type === 'body') {
+                        comp.parameters.forEach((param: any) => {
+                          if (param.type === 'text') param.text = contact.name || 'Customer';
+                        });
+                      }
+                    });
+                  });
+                  components.push(...clonedCarousel);
+                } else if (templateHasBodyVar) {
                   components.push({
                     type: 'body',
                     parameters: [{ type: 'text', text: contact.name || 'Customer' }],

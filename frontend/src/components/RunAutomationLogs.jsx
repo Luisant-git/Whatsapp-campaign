@@ -246,7 +246,7 @@ const RunAutomationLogs = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <div style={{ color: '#64748b', fontSize: 12 }}>Total</div>
-                      <div style={{ fontWeight: 600, color: '#334155' }}>{summary.totalLeads || 0}</div>
+                      <div style={{ fontWeight: 600, color: '#334155' }}>{summary.total}</div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <div style={{ color: '#16a34a', fontSize: 12 }}>Sent</div>

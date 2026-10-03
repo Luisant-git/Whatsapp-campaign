@@ -960,10 +960,11 @@ export class MetaLeadsService {
     let total = 0;
     let completed = 0;
     const stepCountsMap: Record<number, number> = {};
+    const errorCountsMap: Record<number, number> = {};
 
     if (targetType === 'contact_group') {
       const gid = parseInt(groupId);
-      if (isNaN(gid)) return { total: 0, completed: 0, percentage: 0, stepCounts: {} };
+      if (isNaN(gid)) return { total: 0, completed: 0, percentage: 0, stepCounts: {}, errorCounts: {} };
 
       total = await client.contact.count({ where: { groupId: gid } });
 
@@ -979,6 +980,12 @@ export class MetaLeadsService {
         where: { status: 'sent', contact: { groupId: gid } }
       });
       allStepsLogs.forEach(s => { stepCountsMap[s.stepIndex] = (stepCountsMap[s.stepIndex] || 0) + 1; });
+
+      const allErrorsLogs = await client.contactAutomationLog.groupBy({
+        by: ['contactId', 'stepIndex'],
+        where: { status: 'failed', contact: { groupId: gid } }
+      });
+      allErrorsLogs.forEach(s => { errorCountsMap[s.stepIndex] = (errorCountsMap[s.stepIndex] || 0) + 1; });
 
     } else {
       const whereClause: any = { phone: { not: null } };
@@ -999,9 +1006,15 @@ export class MetaLeadsService {
         where: { status: 'sent', metaLead: whereClause }
       });
       allStepsLogs.forEach(s => { stepCountsMap[s.stepIndex] = (stepCountsMap[s.stepIndex] || 0) + 1; });
+
+      const allErrorsLogs = await client.metaLeadAutomationLog.groupBy({
+        by: ['metaLeadId', 'stepIndex'],
+        where: { status: 'failed', metaLead: whereClause }
+      });
+      allErrorsLogs.forEach(s => { errorCountsMap[s.stepIndex] = (errorCountsMap[s.stepIndex] || 0) + 1; });
     }
 
-    return { total, completed, percentage: total > 0 ? Math.round((completed / total) * 100) : 0, stepCounts: stepCountsMap };
+    return { total, completed, percentage: total > 0 ? Math.round((completed / total) * 100) : 0, stepCounts: stepCountsMap, errorCounts: errorCountsMap };
   }
 
   async toggleAutomationSequence(tenantId: string, targetType: string, campaignName: string, groupId: string, isActive: boolean, dbUrl?: string) {

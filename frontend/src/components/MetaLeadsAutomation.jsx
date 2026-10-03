@@ -698,23 +698,25 @@ const MetaLeadsAutomation = () => {
                       const stepIndex = i + 1;
                       const totalCount = gProgress?.total || 0;
                       const completedCount = Math.min(gProgress?.stepCounts?.[stepIndex] || 0, totalCount);
+                      const errorCount = gProgress?.errorCounts?.[stepIndex] || 0;
                       const isComplete = totalCount > 0 && completedCount >= totalCount;
+                      const hasError = errorCount > 0;
 
                       return (
                       <div key={rule.id} style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
                         {/* Timeline dot */}
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: isComplete ? '#22c55e' : rule.isActive ? '#3b82f6' : '#cbd5e1', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-                            {isComplete ? <CheckCircle size={12} /> : i + 1}
+                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: hasError ? '#ef4444' : isComplete ? '#22c55e' : rule.isActive ? '#3b82f6' : '#cbd5e1', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                            {hasError ? '!' : isComplete ? <CheckCircle size={12} /> : i + 1}
                           </div>
                           {i < group.rules.length - 1 && <div style={{ width: 2, flex: 1, background: '#e2e8f0', margin: '2px 0' }} />}
                         </div>
 
                         {/* Step card */}
                         <div style={{
-                          flex: 1, border: `1px solid ${rule.id === newRuleId ? '#25D366' : isComplete ? '#bbf7d0' : '#e2e8f0'}`,
+                          flex: 1, border: `1px solid ${rule.id === newRuleId ? '#25D366' : hasError ? '#fca5a5' : isComplete ? '#bbf7d0' : '#e2e8f0'}`,
                           borderRadius: 8, padding: '9px 12px',
-                          background: rule.id === newRuleId ? '#f0fdf4' : isComplete ? '#f0fdf4' : rule.isActive ? '#fff' : '#f8fafc',
+                          background: rule.id === newRuleId ? '#f0fdf4' : hasError ? '#fef2f2' : isComplete ? '#f0fdf4' : rule.isActive ? '#fff' : '#f8fafc',
                           opacity: rule.isActive ? 1 : 0.6,
                           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                           marginBottom: i < group.rules.length - 1 ? 8 : 0,
@@ -733,6 +735,7 @@ const MetaLeadsAutomation = () => {
                               <Clock size={11} />
                               Sends {delayLabel(rule.delayValue || rule.delayMinutes, rule.delayUnit || 'minutes')}
                               {!rule.isActive && <span style={{ color: '#ef4444', fontWeight: 600, marginLeft: 4 }}>• Paused</span>}
+                              {hasError && <span style={{ color: '#ef4444', fontWeight: 600, marginLeft: 4, background: '#fee2e2', padding: '1px 6px', borderRadius: 4, fontSize: 10, letterSpacing: '0.3px', textTransform: 'uppercase' }}>⚠ {errorCount} Error{errorCount > 1 ? 's' : ''}</span>}
                             </div>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

@@ -543,6 +543,34 @@ export class MetaLeadsController {
     }
   }
 
+  // ── Safely resume stuck automation for a group ───────────────────────────
+  // GET /meta-leads/automation-resume-stuck?groupId=5
+  @Get('automation-resume-stuck')
+  async resumeStuckAutomation(@Req() req: any, @Query('groupId') groupId: string) {
+    try {
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
+      if (!groupId) return { ok: false, error: 'groupId query param is required' };
+
+      const client = await (this.automationCronService as any).tenantPrisma
+        .getTenantClientReady(tenantId, dbUrl);
+
+      const gid = parseInt(groupId);
+      if (isNaN(gid)) return { ok: false, error: 'groupId must be a number' };
+
+      // Reset step counter ONLY. Do not delete logs and do not touch createdAt.
+      // This will force the cron to re-evaluate all steps, and because of idempotency,
+      // it will skip already sent steps and ONLY send missing ones (like failed steps).
+      await client.contact.updateMany({
+        where: { groupId: gid },
+        data: { lastAutomationStep: 0 },
+      });
+
+      return { ok: true, message: 'Successfully resumed stuck automation. Missing steps will send within 1 minute.' };
+    } catch (error) {
+      return { ok: false, error: error.message || String(error) };
+    }
+  }
+
   // ── Reset automation progress for a group ────────────────────────────────
   // GET /meta-leads/automation-reset-group?groupId=5
   @Get('automation-reset-group')

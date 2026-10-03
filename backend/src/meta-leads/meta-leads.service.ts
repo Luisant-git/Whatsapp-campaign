@@ -1053,7 +1053,7 @@ export class MetaLeadsService {
         });
         
         await client.contact.updateMany({
-          where: { id: { in: contactIds }, lastAutomationStep: stepIndex },
+          where: { id: { in: contactIds } },
           data: { lastAutomationStep: stepIndex - 1 }
         });
         contactsRetried = contactIds.length;
@@ -1075,7 +1075,7 @@ export class MetaLeadsService {
         });
         
         await client.metaLead.updateMany({
-          where: { id: { in: leadIds }, lastAutomationStep: stepIndex },
+          where: { id: { in: leadIds } },
           data: { lastAutomationStep: stepIndex - 1 }
         });
         contactsRetried = leadIds.length;

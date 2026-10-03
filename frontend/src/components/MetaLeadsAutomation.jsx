@@ -673,6 +673,23 @@ const MetaLeadsAutomation = () => {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {group.targetType === 'contact_group' && (
+                        <>
+                          <button
+                            onClick={async () => {
+                              if (!window.confirm('This will force the system to securely re-evaluate this group and send any missing or stuck messages without duplicating already sent messages. Continue?')) return;
+                              try {
+                                const { data } = await axios.get(`${API_BASE_URL}/meta-leads/automation-resume-stuck?groupId=${group.groupId}`, { headers: getHeaders(), withCredentials: true });
+                                if (data.ok) toast('Successfully resumed stuck automation! Missing messages will send within 60 seconds.', 'success');
+                                else toast(data.error || 'Failed to resume sequence', 'error');
+                              } catch (err) {
+                                toast('Failed to resume sequence', 'error');
+                              }
+                            }}
+                            style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                            title="Force the system to send missing or stuck messages"
+                          >
+                            <RefreshCw size={11} /> Force Resume
+                          </button>
                         <button
                           onClick={async () => {
                             if (!window.confirm('This will restart the entire sequence from Step 1 for ALL contacts in this group. Are you sure?')) return;
@@ -690,6 +707,7 @@ const MetaLeadsAutomation = () => {
                         >
                           <RefreshCw size={11} /> Restart
                         </button>
+                        </>
                       )}
                       <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         {group.rules.every(r => r.isActive) ? '● RUNNING' : '⏸ PAUSED'}

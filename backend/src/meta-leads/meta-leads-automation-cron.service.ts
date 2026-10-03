@@ -217,7 +217,7 @@ export class MetaLeadsAutomationCronService {
               templateName,
               parseInt(tenantId),
               settings?.id,
-              settings?.headerImageUrl && settings.headerImageUrl.trim() !== '' ? settings.headerImageUrl : undefined
+              settings?.headerImageUrl?.trim() ? settings.headerImageUrl.trim() : undefined
             );
 
             // Map results back to original contact IDs based on phone
@@ -259,7 +259,8 @@ export class MetaLeadsAutomationCronService {
                   data: { isAutomationSent: true, automationSentAt: stepAdvancedAt, lastAutomationStep: i + 1 },
                 });
                 log(`  Advanced ${processedRecordIds.length} contact(s) to step ${i + 1}`);
-              } else {
+              }
+            } else {
               await client.metaLeadAutomationLog.createMany({
                 data: eligibleRecords.map((record: any) => {
                   const result = sendResults.find(r => r.id === record.id);
@@ -278,8 +279,6 @@ export class MetaLeadsAutomationCronService {
                   data: { isAutomationSent: true, automationSentAt: stepAdvancedAt, lastAutomationStep: i + 1 },
                 });
                 log(`  Advanced ${processedRecordIds.length} lead(s) to step ${i + 1}`);
-              }
-
               }
             }
 

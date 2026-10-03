@@ -68,7 +68,7 @@ const PipelineProgress = ({ targetType, campaignName, groupId, totalSteps, onPro
     fetch();
     const iv = setInterval(fetch, 5000);
     return () => { active = false; clearInterval(iv); };
-  }, [targetType, campaignName, groupId, totalSteps, onProgress]);
+  }, [targetType, campaignName, groupId, totalSteps]); // DO NOT include onProgress, it causes an infinite loop since it is passed inline
 
   if (!progress || progress.error) return null;
 

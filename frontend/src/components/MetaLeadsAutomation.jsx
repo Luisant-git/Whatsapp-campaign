@@ -220,6 +220,7 @@ const MetaLeadsAutomation = () => {
   const [showWipeModal, setShowWipeModal] = useState(false);
   const [wipeInputText, setWipeInputText] = useState('');
   const [isWiping, setIsWiping] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState(null);
   const [newRuleId, setNewRuleId] = useState(null); // for highlight animation
   const [newRuleGroupKey, setNewRuleGroupKey] = useState(null); // hide progress for new sequence
   const [groupProgressMap, setGroupProgressMap] = useState({}); // track step completions

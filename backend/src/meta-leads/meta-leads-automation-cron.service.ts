@@ -294,13 +294,11 @@ export class MetaLeadsAutomationCronService {
               }
             }
 
-            // Update in-memory records for subsequent steps this tick
-            for (const record of pendingRecords) {
-              if (recordIds.includes(record.id)) {
-                record.lastAutomationStep = i + 1;
-                record.automationSentAt = stepAdvancedAt;
-              }
-            }
+            // DO NOT update in-memory records here!
+            // By skipping in-memory updates, we ensure that a single contact
+            // can only advance ONE step per minute (cron tick).
+            // This acts as a critical throttle to prevent WhatsApp spam bans 
+            // when resuming paused sequences where all time delays have already been met.
           } catch (stepErr: any) {
             err(`  Outer error for step ${i + 1}: ${stepErr?.message || stepErr}`);
           }

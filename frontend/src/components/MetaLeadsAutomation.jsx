@@ -675,15 +675,22 @@ const MetaLeadsAutomation = () => {
                       {group.targetType === 'contact_group' && (
                         <>
                           <button
-                            onClick={async () => {
-                              if (!window.confirm('This will force the system to securely re-evaluate this group and send any missing or stuck messages without duplicating already sent messages. Continue?')) return;
-                              try {
-                                const { data } = await axios.get(`${API_BASE_URL}/meta-leads/automation-resume-stuck?groupId=${group.groupId}`, { headers: getHeaders(), withCredentials: true });
-                                if (data.ok) toast('Successfully resumed stuck automation! Missing messages will send within 60 seconds.', 'success');
-                                else toast(data.error || 'Failed to resume sequence', 'error');
-                              } catch (err) {
-                                toast('Failed to resume sequence', 'error');
-                              }
+                            onClick={() => {
+                              setConfirmDialog({
+                                title: 'Force Resume Sequence',
+                                message: 'This will securely re-evaluate this group and send any missing or stuck messages without duplicating already sent messages. Continue?',
+                                confirmText: 'Force Resume',
+                                isDanger: false,
+                                onConfirm: async () => {
+                                  try {
+                                    const { data } = await axios.get(`${API_BASE_URL}/meta-leads/automation-resume-stuck?groupId=${group.groupId}`, { headers: getHeaders(), withCredentials: true });
+                                    if (data.ok) toast('Successfully resumed stuck automation! Missing messages will send within 60 seconds.', 'success');
+                                    else toast(data.error || 'Failed to resume sequence', 'error');
+                                  } catch (err) {
+                                    toast('Failed to resume sequence', 'error');
+                                  }
+                                }
+                              });
                             }}
                             style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                             title="Force the system to send missing or stuck messages"
@@ -691,16 +698,22 @@ const MetaLeadsAutomation = () => {
                             <RefreshCw size={11} /> Force Resume
                           </button>
                         <button
-                          onClick={async () => {
-                            if (!window.confirm('This will restart the entire sequence from Step 1 for ALL contacts in this group. Are you sure?')) return;
-                            try {
-                              const { data } = await axios.get(`${API_BASE_URL}/meta-leads/automation-reset-group?groupId=${group.groupId}`, { headers: getHeaders(), withCredentials: true });
-                              if (data.ok) toast(`Successfully reset ${data.contactsReset} contacts. They will start receiving messages again in 1 minute.`, 'success');
-                              else toast(data.error || 'Failed to reset sequence', 'error');
-                              // Force re-fetch of progress by slightly changing key or just relying on polling
-                            } catch (err) {
-                              toast('Failed to reset sequence', 'error');
-                            }
+                          onClick={() => {
+                            setConfirmDialog({
+                              title: 'Restart Sequence',
+                              message: 'This will restart the entire sequence from Step 1 for ALL contacts in this group. They will receive all messages again. Are you absolutely sure?',
+                              confirmText: 'Restart',
+                              isDanger: true,
+                              onConfirm: async () => {
+                                try {
+                                  const { data } = await axios.get(`${API_BASE_URL}/meta-leads/automation-reset-group?groupId=${group.groupId}`, { headers: getHeaders(), withCredentials: true });
+                                  if (data.ok) toast(`Successfully reset ${data.contactsReset} contacts. They will start receiving messages again in 1 minute.`, 'success');
+                                  else toast(data.error || 'Failed to reset sequence', 'error');
+                                } catch (err) {
+                                  toast('Failed to reset sequence', 'error');
+                                }
+                              }
+                            });
                           }}
                           style={{ background: 'none', border: '1px solid rgba(0,0,0,0.1)', padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                           title="Restart this sequence from Step 1 for all contacts in the group"
@@ -910,6 +923,42 @@ const MetaLeadsAutomation = () => {
               >
                 {isWiping ? <div className="loading-spinner" style={{ width: 14, height: 14, borderTopColor: '#fff', borderWidth: 2 }} /> : <Trash2 size={16} />}
                 Wipe All Data
+              </button>
+            </div>
+          </div>
+        </div>
+        </div>
+      )}
+
+      {/* ── Generic Confirm Modal ── */}
+      {confirmDialog && (
+        <div className="modal-overlay" style={{ zIndex: 10001 }} onClick={() => setConfirmDialog(null)}>
+          <div className="modal-content" style={{ maxWidth: 440, padding: 0, overflow: 'hidden', background: '#fff', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: confirmDialog.isDanger ? '#fef2f2' : '#eff6ff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {confirmDialog.isDanger ? (
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fee2e2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ShieldAlert size={20} /></div>
+                ) : (
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: '#dbeafe', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Info size={20} /></div>
+                )}
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: confirmDialog.isDanger ? '#991b1b' : '#1e3a8a' }}>{confirmDialog.title}</h3>
+              </div>
+              <button onClick={() => setConfirmDialog(null)} style={{ background: 'none', border: 'none', fontSize: 22, color: confirmDialog.isDanger ? '#f87171' : '#93c5fd', cursor: 'pointer', lineHeight: 1 }}>✕</button>
+            </div>
+
+            <div style={{ padding: 24, fontSize: 14, color: '#334155', lineHeight: 1.6 }}>
+              {confirmDialog.message}
+            </div>
+
+            <div style={{ padding: '16px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => setConfirmDialog(null)} style={{ padding: '9px 16px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: 8, color: '#475569', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>
+                Cancel
+              </button>
+              <button
+                onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }}
+                style={{ padding: '9px 16px', background: confirmDialog.isDanger ? '#dc2626' : '#2563eb', border: 'none', borderRadius: 8, color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                {confirmDialog.confirmText}
               </button>
             </div>
           </div>

@@ -5,6 +5,8 @@ import { TenantPrismaService } from '../tenant-prisma.service';
 import axios from 'axios';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 
+import { ModuleRef, ContextIdFactory } from '@nestjs/core';
+
 @Injectable()
 export class MetaLeadsAutomationCronService {
   private readonly logger = new Logger(MetaLeadsAutomationCronService.name);
@@ -14,7 +16,7 @@ export class MetaLeadsAutomationCronService {
   constructor(
     private centralPrisma: CentralPrismaService,
     private tenantPrisma: TenantPrismaService,
-    private whatsappService: WhatsappService,
+    private moduleRef: ModuleRef,
   ) { }
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -60,6 +62,16 @@ export class MetaLeadsAutomationCronService {
       this.logger.error(`[Tenant ${tenantId}] ${msg}`);
       trace.push(`✗ ${msg}`);
     };
+
+    let whatsappService: WhatsappService;
+    try {
+      const contextId = ContextIdFactory.create();
+      this.moduleRef.registerRequestByContextId({ tenantContext: { tenantId, dbUrl } }, contextId);
+      whatsappService = await this.moduleRef.resolve(WhatsappService, contextId, { strict: false });
+    } catch (e) {
+      err(`Failed to resolve WhatsappService: ${e.message}`);
+      return { trace };
+    }
 
     try {
       const client = await this.tenantPrisma.getTenantClientReady(tenantId, dbUrl) as any;
@@ -212,7 +224,7 @@ export class MetaLeadsAutomationCronService {
             log(`  Calling sendBulkTemplateMessageWithNames for ${batchContacts.length} contacts...`);
             // IMPORTANT: whatsappService.sendBulkTemplateMessageWithNames ALREADY creates the WhatsAppMessage records in the DB
             // for the chat UI, so we don't need to do it here manually!
-            const bulkResults = await this.whatsappService.sendBulkTemplateMessageWithNames(
+            const bulkResults = await whatsappService.sendBulkTemplateMessageWithNames(
               batchContacts,
               templateName,
               parseInt(tenantId),

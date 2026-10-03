@@ -47,7 +47,7 @@ function delayLabel(value, unit) {
 }
 
 // ── PipelineProgress ───────────────────────────────────────────────────────
-const PipelineProgress = ({ targetType, campaignName, groupId, totalSteps, onProgress }) => {
+const PipelineProgress = ({ targetType, campaignName, groupId, totalSteps, isPaused, onProgress }) => {
   const [progress, setProgress] = useState(null);
   const getHeaders = () => ({ 'x-tenant-id': localStorage.getItem('tenantId'), 'Content-Type': 'application/json' });
 
@@ -80,18 +80,18 @@ const PipelineProgress = ({ targetType, campaignName, groupId, totalSteps, onPro
       const count = progress.stepCounts[i] || 0;
       if (count < progress.total) {
         if (i === 1) return (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#3b82f6' }}>
-            <div className="loading-spinner" style={{ width: 12, height: 12, borderWidth: 2, borderColor: 'rgba(59,130,246,0.3)', borderTopColor: '#3b82f6', display: 'inline-block' }} />
-            Processing Step 1...
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: isPaused ? '#64748b' : '#3b82f6' }}>
+            {isPaused ? <XCircle size={14} /> : <div className="loading-spinner" style={{ width: 12, height: 12, borderWidth: 2, borderColor: 'rgba(59,130,246,0.3)', borderTopColor: '#3b82f6', display: 'inline-block' }} />}
+            {isPaused ? 'Paused at Step 1' : 'Processing Step 1...'}
           </span>
         );
         return (
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ color: '#16a34a', display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle size={14} /> Step {i - 1} Complete</span>
             <span style={{ color: '#cbd5e1' }}>→</span>
-            <span style={{ color: '#3b82f6', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <div className="loading-spinner" style={{ width: 12, height: 12, borderWidth: 2, borderColor: 'rgba(59,130,246,0.3)', borderTopColor: '#3b82f6', display: 'inline-block' }} />
-              Processing Step {i}...
+            <span style={{ color: isPaused ? '#64748b' : '#3b82f6', display: 'flex', alignItems: 'center', gap: 4 }}>
+              {isPaused ? <XCircle size={14} /> : <div className="loading-spinner" style={{ width: 12, height: 12, borderWidth: 2, borderColor: 'rgba(59,130,246,0.3)', borderTopColor: '#3b82f6', display: 'inline-block' }} />}
+              {isPaused ? `Paused at Step ${i}` : `Processing Step ${i}...`}
             </span>
           </span>
         );
@@ -738,6 +738,7 @@ const MetaLeadsAutomation = () => {
                     {newRuleGroupKey !== `${group.targetType}_${group.campaignName}_${group.groupId}` && (
                       <PipelineProgress 
                         targetType={group.targetType} campaignName={group.campaignName} groupId={group.groupId} totalSteps={group.rules.length} 
+                        isPaused={!group.rules.every(r => r.isActive)}
                         onProgress={data => setGroupProgressMap(p => ({ ...p, [`${group.targetType}_${group.campaignName}_${group.groupId}`]: data }))} 
                       />
                     )}

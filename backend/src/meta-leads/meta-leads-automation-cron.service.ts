@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { CentralPrismaService } from '../central-prisma.service';
 import { TenantPrismaService } from '../tenant-prisma.service';
 import axios from 'axios';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 
 @Injectable()
 export class MetaLeadsAutomationCronService {
@@ -13,6 +14,7 @@ export class MetaLeadsAutomationCronService {
   constructor(
     private centralPrisma: CentralPrismaService,
     private tenantPrisma: TenantPrismaService,
+    private whatsappService: WhatsappService,
   ) { }
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -197,202 +199,38 @@ export class MetaLeadsAutomationCronService {
           try {
             const masterConfig = await client.masterConfig.findFirst({ where: { isActive: true } });
             if (!masterConfig) throw new Error('No active MasterConfig found for tenant');
-            log(`  MasterConfig found: phoneNumberId=${masterConfig.phoneNumberId}`);
+            const { phoneNumberId } = masterConfig;
 
-            const { phoneNumberId, accessToken } = masterConfig;
-            const apiUrl = `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`;
+            const settings = await client.whatsAppSettings.findFirst({ where: { templateName } });
 
-            // Fetch template details
-            let templateLanguage = 'en';
-            let templateHasBodyVar = false;
-            let headerFormat = 'IMAGE';
-            let headerImageUrl: string | null = null;
-            let isCarouselTemplate = false;
-            let carouselComponents: any[] | null = null;
-            let bodyVarCount = 0;
-            try {
-              const settings = await client.whatsAppSettings.findFirst({
-                where: { templateName },
-              });
-              headerImageUrl = settings?.headerImageUrl || null;
+            // Create payload for sendBulkTemplateMessageWithNames
+            const batchContacts = eligibleRecords.map((r: any) => ({
+              name: r.name || '',
+              phone: r.phone
+            }));
 
-              const dbTemplate = await client.messageTemplate.findFirst({
-                where: { name: templateName },
-                select: { language: true, components: true },
-              });
-              if (dbTemplate?.language) templateLanguage = dbTemplate.language;
-              log(`  Template "${templateName}" found in DB, language=${templateLanguage}`);
-              if (dbTemplate?.components) {
-                const comps = typeof dbTemplate.components === 'string'
-                  ? JSON.parse(dbTemplate.components)
-                  : dbTemplate.components;
+            log(`  Calling sendBulkTemplateMessageWithNames for ${batchContacts.length} contacts...`);
+            // IMPORTANT: whatsappService.sendBulkTemplateMessageWithNames ALREADY creates the WhatsAppMessage records in the DB
+            // for the chat UI, so we don't need to do it here manually!
+            const bulkResults = await this.whatsappService.sendBulkTemplateMessageWithNames(
+              batchContacts,
+              templateName,
+              parseInt(tenantId),
+              settings?.id,
+              settings?.headerImageUrl && settings.headerImageUrl.trim() !== '' ? settings.headerImageUrl : undefined
+            );
 
-                const isCarousel = comps.some((c: any) => String(c.type).toUpperCase() === 'CAROUSEL');
-                if (isCarousel) {
-                  isCarouselTemplate = true;
-                  const carouselComp = comps.find((c: any) => String(c.type).toUpperCase() === 'CAROUSEL');
-                  if (carouselComp?.cards) {
-                    const cards = carouselComp.cards.map((card: any, cardIndex: number) => {
-                      const cardComps: any[] = [];
-                      for (const comp of (card.components || [])) {
-                        if (String(comp.type).toUpperCase() === 'HEADER') {
-                          if (comp.format === 'IMAGE' || comp.format === 'VIDEO') {
-                            const mediaType = comp.format.toLowerCase();
-                            const fallbackMedia = mediaType === 'video' 
-                              ? 'https://www.w3schools.com/html/mov_bbb.mp4' 
-                              : 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80';
-                            cardComps.push({
-                              type: 'header',
-                              parameters: [{ type: mediaType, [mediaType]: { link: headerImageUrl || fallbackMedia } }]
-                            });
-                          }
-                        }
-                        if (String(comp.type).toUpperCase() === 'BODY') {
-                          const vars = comp.text?.match(/\{\{\s*\d+\s*\}\}/g) || [];
-                          if (vars.length > 0) {
-                            cardComps.push({ type: 'body', parameters: vars.map(() => ({ type: 'text', text: 'Customer' })) });
-                          }
-                        }
-                      }
-                      if (cardComps.length > 0) return { card_index: cardIndex, components: cardComps };
-                      return null;
-                    }).filter(Boolean);
-                    if (cards.length > 0) carouselComponents = [{ type: 'carousel', cards }];
-                  }
-                }
-                
-                const body = comps.find((c: any) => String(c.type).toUpperCase() === 'BODY');
-                if (body) {
-                  const vars = body.text?.match(/\{\{\s*\d+\s*\}\}/g) || [];
-                  if (vars.length > 0) {
-                    templateHasBodyVar = true;
-                    bodyVarCount = vars.length;
-                  } else if (body.example && body.example.body_text && body.example.body_text.length > 0) {
-                    templateHasBodyVar = true;
-                    bodyVarCount = 1;
-                  }
-                }
-                
-                const header = comps.find((c: any) => String(c.type).toUpperCase() === 'HEADER');
-                if (header?.format) {
-                  headerFormat = header.format;
-                } else if (headerImageUrl) {
-                  const isVideo = /\.(mp4|avi|mov)$/i.test(headerImageUrl);
-                  const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i.test(headerImageUrl);
-                  headerFormat = isDocument ? 'DOCUMENT' : isVideo ? 'VIDEO' : 'IMAGE';
-                }
-                
-                log(`  Template isCarousel: ${isCarouselTemplate}, hasBodyVar: ${templateHasBodyVar}`);
-              } else {
-                log(`  Template "${templateName}" not found in DB! Using default fallback heuristics.`);
-              }
-            } catch (e) {
-              warn(`  Error fetching template "${templateName}" from DB — using defaults (lang=en, no vars)`);
-            }
-
-            // Fallback for tricky templates
-            if (templateName === 'educate_add_value') {
-               if (!isCarouselTemplate) {
-                 // If for some reason DB parsing failed or was empty, force it as a carousel with 2 cards.
-                 isCarouselTemplate = true;
-                 carouselComponents = [{
-                   type: 'carousel',
-                   cards: [
-                     { card_index: 0, components: [{ type: 'header', parameters: [{ type: 'image', image: { link: headerImageUrl || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80' } }] }, { type: 'body', parameters: [{ type: 'text', text: 'Customer' }] }] },
-                     { card_index: 1, components: [{ type: 'header', parameters: [{ type: 'image', image: { link: headerImageUrl || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80' } }] }, { type: 'body', parameters: [{ type: 'text', text: 'Customer' }] }] }
-                   ]
-                 }];
-               }
-               // ALWAYS force the global body parameter since it expects 1
-               templateHasBodyVar = true;
-               log(`  Fallback: Forced carousel & body variable for ${templateName}`);
-            }
-
-            // Send per-contact
-            const sendResults: { id: number; success: boolean; wamid?: string; error?: string }[] = [];
-
-            for (const contact of eligibleRecords) {
-              const rawPhone = String(contact.phone || '').trim();
-              const digitsOnly = rawPhone.replace(/\D/g, '');
-              const toPhone = `+${digitsOnly}`;
-
-              if (!digitsOnly) {
-                sendResults.push({ id: contact.id, success: false, error: 'Empty phone number' });
-                warn(`  Skipping contact id=${contact.id} — empty phone`);
-                continue;
-              }
-
-              log(`  Sending to contact id=${contact.id} phone=${toPhone}`);
-
-              try {
-                const components: any[] = [];
-                if (!isCarouselTemplate && headerImageUrl && headerImageUrl.trim() !== '' && headerImageUrl.startsWith('http')) {
-                  const mediaType = headerFormat.toLowerCase();
-                  components.push({
-                    type: 'header',
-                    parameters: [{ type: mediaType, [mediaType]: { link: headerImageUrl } }],
-                  });
-                }
-
-                if (isCarouselTemplate && carouselComponents) {
-                  // If it's a carousel, inject the contact name dynamically per user
-                  const clonedCarousel = JSON.parse(JSON.stringify(carouselComponents));
-                  clonedCarousel[0].cards.forEach((card: any) => {
-                    card.components.forEach((comp: any) => {
-                      if (comp.type === 'body') {
-                        comp.parameters.forEach((param: any) => {
-                          if (param.type === 'text') param.text = contact.name || 'Customer';
-                        });
-                      }
-                    });
-                  });
-                  components.push(...clonedCarousel);
-                } 
-
-                if (templateHasBodyVar) {
-                  // Support templates with multiple variables by pushing the correct number of parameters
-                  const params: any[] = [];
-                  const count = typeof bodyVarCount !== 'undefined' && bodyVarCount > 0 ? bodyVarCount : 1;
-                  for (let v = 0; v < count; v++) {
-                    params.push({ type: 'text', text: contact.name || 'Customer' });
-                  }
-                  
-                  components.push({
-                    type: 'body',
-                    parameters: params,
-                  });
-                }
-                const metaResponse = await axios.post(apiUrl, {
-                  messaging_product: 'whatsapp',
-                  to: toPhone,
-                  type: 'template',
-                  template: {
-                    name: templateName,
-                    language: { code: templateLanguage },
-                    ...(components.length > 0 && { components }),
-                  },
-                }, {
-                  headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                });
-
-                const wamid = metaResponse.data?.messages?.[0]?.id;
-                if (!wamid) {
-                  const warning = `Meta returned no wamid — response: ${JSON.stringify(metaResponse.data)}`;
-                  warn(`  ${contact.phone}: ${warning}`);
-                  sendResults.push({ id: contact.id, success: true });
-                } else {
-                  log(`  ✓ Sent to ${toPhone} — wamid: ${wamid}`);
-                  sendResults.push({ id: contact.id, success: true, wamid });
-                }
-              } catch (sendErr: any) {
-                const metaErr = sendErr.response?.data?.error;
-                const errorMsg = metaErr
-                  ? `[${metaErr.code}] ${metaErr.message}${metaErr.error_data?.details ? ' — ' + metaErr.error_data.details : ''}`
-                  : sendErr.message || String(sendErr);
-                sendResults.push({ id: contact.id, success: false, error: errorMsg });
-                err(`  ✗ Failed for ${toPhone}: ${errorMsg}`);
-              }
-            }
+            // Map results back to original contact IDs based on phone
+            const sendResults = eligibleRecords.map((record: any) => {
+              const formattedPhone = String(record.phone || '').trim().replace(/\D/g, '');
+              const result = bulkResults.find(r => r.phoneNumber.replace(/\D/g, '').includes(formattedPhone) || formattedPhone.includes(r.phoneNumber.replace(/\D/g, '')));
+              return {
+                id: record.id,
+                success: result?.success || false,
+                wamid: (result as any)?.messageId,
+                error: result?.error || 'Failed to match result'
+              };
+            });
 
             const sentCount = sendResults.filter(r => r.success).length;
             const failCount = sendResults.filter(r => !r.success).length;
@@ -400,7 +238,6 @@ export class MetaLeadsAutomationCronService {
 
             // Write logs and advance ALL attempted contacts to prevent infinite retry loops on failure
             const stepAdvancedAt = new Date();
-            const successIds = new Set(sendResults.filter(r => r.success).map(r => r.id));
             const processedRecordIds = recordIds;
 
             if (isContact) {
@@ -422,44 +259,7 @@ export class MetaLeadsAutomationCronService {
                   data: { isAutomationSent: true, automationSentAt: stepAdvancedAt, lastAutomationStep: i + 1 },
                 });
                 log(`  Advanced ${processedRecordIds.length} contact(s) to step ${i + 1}`);
-              }
-
-              // Save a WhatsAppMessage record for every successful contact send so
-              // the template bubble appears in the WhatsApp chat page for that contact.
-              const successContacts = eligibleRecords.filter((r: any) => successIds.has(r.id));
-              if (successContacts.length > 0) {
-                const chatMessages = successContacts.map((contact: any) => {
-                  const rawPhone = String(contact.phone || '').trim();
-                  const digitsOnly = rawPhone.replace(/\D/g, '');
-                  const toPhone = `+${digitsOnly}`; // E.164 used only for Meta API call
-                  const sendResult = sendResults.find(r => r.id === contact.id);
-                  const messageId = sendResult?.wamid || `auto_${contact.id}_step${i + 1}_${Date.now()}`;
-                  return {
-                    messageId,
-                    // Use digitsOnly (no +) for from/to so this message is grouped
-                    // into the same chat thread as existing messages. The chat list
-                    // groups by "from" + "phoneNumberId" — if existing messages store
-                    // "919360999351" then we must store "919360999351" too, not
-                    // "+919360999351", otherwise a duplicate separate chat appears.
-                    to: digitsOnly,
-                    from: digitsOnly,
-                    message: `Template ${templateName} sent to ${contact.name || digitsOnly}`,
-                    direction: 'outgoing',
-                    status: 'sent',
-                    phoneNumberId: masterConfig.phoneNumberId,
-                  };
-                });
-                try {
-                  await client.whatsAppMessage.createMany({
-                    data: chatMessages,
-                    skipDuplicates: true,
-                  });
-                  log(`  Saved ${chatMessages.length} chat message(s) for template preview in chat`);
-                } catch (msgErr: any) {
-                  warn(`  Could not save chat messages: ${msgErr?.message}`);
-                }
-              }
-            } else {
+              } else {
               await client.metaLeadAutomationLog.createMany({
                 data: eligibleRecords.map((record: any) => {
                   const result = sendResults.find(r => r.id === record.id);
@@ -480,33 +280,6 @@ export class MetaLeadsAutomationCronService {
                 log(`  Advanced ${processedRecordIds.length} lead(s) to step ${i + 1}`);
               }
 
-              // Save chat messages for leads too (matched by phone in the chat list)
-              const successLeads = eligibleRecords.filter((r: any) => successIds.has(r.id));
-              if (successLeads.length > 0) {
-                const chatMessages = successLeads.map((lead: any) => {
-                  const rawPhone = String(lead.phone || '').trim();
-                  const digitsOnly = rawPhone.replace(/\D/g, '');
-                  const sendResult = sendResults.find(r => r.id === lead.id);
-                  const messageId = sendResult?.wamid || `auto_lead_${lead.id}_step${i + 1}_${Date.now()}`;
-                  return {
-                    messageId,
-                    to: digitsOnly,
-                    from: digitsOnly,
-                    message: `Template ${templateName} sent to ${lead.name || digitsOnly}`,
-                    direction: 'outgoing',
-                    status: 'sent',
-                    phoneNumberId: masterConfig.phoneNumberId,
-                  };
-                });
-                try {
-                  await client.whatsAppMessage.createMany({
-                    data: chatMessages,
-                    skipDuplicates: true,
-                  });
-                  log(`  Saved ${chatMessages.length} chat message(s) for template preview in chat`);
-                } catch (msgErr: any) {
-                  warn(`  Could not save chat messages: ${msgErr?.message}`);
-                }
               }
             }
 

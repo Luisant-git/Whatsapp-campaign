@@ -927,7 +927,6 @@ const MetaLeadsAutomation = () => {
             </div>
           </div>
         </div>
-        </div>
       )}
 
       {/* ── Generic Confirm Modal ── */}

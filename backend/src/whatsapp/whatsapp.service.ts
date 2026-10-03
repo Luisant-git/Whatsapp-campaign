@@ -600,7 +600,8 @@ export class WhatsappService {
       if (mediaType === 'document') {
         let filename = mediaUrl.split('/').pop() || 'Document.pdf';
         if (filename.includes('?')) filename = filename.split('?')[0];
-        mediaPayload.filename = decodeURIComponent(filename);
+        filename = decodeURIComponent(filename);
+        mediaPayload.filename = filename.replace(/-[0-9]+-[0-9]+(\.[a-zA-Z0-9]+)$/, '$1');
       }
 
       const response = await axios.post(
@@ -2357,7 +2358,8 @@ export class WhatsappService {
       if (mediaType === 'document') {
         let filename = mediaUrl.split('/').pop() || 'Document.pdf';
         if (filename.includes('?')) filename = filename.split('?')[0];
-        mediaPayload.filename = decodeURIComponent(filename);
+        filename = decodeURIComponent(filename);
+        mediaPayload.filename = filename.replace(/-[0-9]+-[0-9]+(\.[a-zA-Z0-9]+)$/, '$1');
       }
       const payload: any = {
         messaging_product: 'whatsapp',
@@ -2685,7 +2687,8 @@ export class WhatsappService {
                 if (mediaType === 'document') {
                   let filename = mediaUrl.split('/').pop() || 'Document.pdf';
                   if (filename.includes('?')) filename = filename.split('?')[0];
-                  mediaPayload.filename = decodeURIComponent(filename);
+                  filename = decodeURIComponent(filename);
+                  mediaPayload.filename = filename.replace(/-[0-9]+-[0-9]+(\.[a-zA-Z0-9]+)$/, '$1');
                 }
                 cardComps.push({ type: 'header', parameters: [{ type: mediaType, [mediaType]: mediaPayload }] });
               }
@@ -2773,7 +2776,8 @@ export class WhatsappService {
             if (mediaType === 'document') {
               let filename = headerImageUrl.split('/').pop() || 'Document.pdf';
               if (filename.includes('?')) filename = filename.split('?')[0];
-              mediaPayload.filename = decodeURIComponent(filename);
+              filename = decodeURIComponent(filename);
+              mediaPayload.filename = filename.replace(/-[0-9]+-[0-9]+(\.[a-zA-Z0-9]+)$/, '$1');
             }
             components.push({ type: 'header', parameters: [{ type: mediaType, [mediaType]: mediaPayload }] });
           }

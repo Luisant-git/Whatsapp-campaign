@@ -205,6 +205,18 @@ export class MetaLeadsAutomationCronService {
                     const cards = carouselComp.cards.map((card: any, cardIndex: number) => {
                       const cardComps: any[] = [];
                       for (const comp of (card.components || [])) {
+                        if (String(comp.type).toUpperCase() === 'HEADER') {
+                          if (comp.format === 'IMAGE' || comp.format === 'VIDEO') {
+                            const mediaType = comp.format.toLowerCase();
+                            const fallbackMedia = mediaType === 'video' 
+                              ? 'https://www.w3schools.com/html/mov_bbb.mp4' 
+                              : 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80';
+                            cardComps.push({
+                              type: 'header',
+                              parameters: [{ type: mediaType, [mediaType]: { link: headerImageUrl || fallbackMedia } }]
+                            });
+                          }
+                        }
                         if (String(comp.type).toUpperCase() === 'BODY') {
                           const vars = comp.text?.match(/\{\{\s*\d+\s*\}\}/g) || [];
                           if (vars.length > 0) {
@@ -256,8 +268,8 @@ export class MetaLeadsAutomationCronService {
                  carouselComponents = [{
                    type: 'carousel',
                    cards: [
-                     { card_index: 0, components: [{ type: 'body', parameters: [{ type: 'text', text: 'Customer' }] }] },
-                     { card_index: 1, components: [{ type: 'body', parameters: [{ type: 'text', text: 'Customer' }] }] }
+                     { card_index: 0, components: [{ type: 'header', parameters: [{ type: 'image', image: { link: headerImageUrl || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80' } }] }, { type: 'body', parameters: [{ type: 'text', text: 'Customer' }] }] },
+                     { card_index: 1, components: [{ type: 'header', parameters: [{ type: 'image', image: { link: headerImageUrl || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80' } }] }, { type: 'body', parameters: [{ type: 'text', text: 'Customer' }] }] }
                    ]
                  }];
                }

@@ -88,6 +88,7 @@ export class MetaLeadsAutomationCronService {
       for (const [key, sequenceRules] of targetSequences.entries()) {
         const firstRule = sequenceRules[0];
         const targetType = firstRule.targetType;
+        const earliestCreatedAt = new Date(Math.min(...sequenceRules.map(r => r.createdAt.getTime())));
         log(`--- Processing sequence [${key}] — ${sequenceRules.length} step(s), targetType=${targetType}`);
 
         let pendingRecords: any[] = [];
@@ -102,9 +103,11 @@ export class MetaLeadsAutomationCronService {
               phone: { not: '' },
               groupId: gid,
               lastAutomationStep: { lt: sequenceRules.length },
+              createdAt: { gte: earliestCreatedAt },
             },
+            take: 100, // Batch limit to prevent memory exhaustion
           });
-          log(`Found ${pendingRecords.length} pending contact(s) in group`);
+          log(`Found ${pendingRecords.length} pending contact(s) in group created after ${earliestCreatedAt.toISOString()}`);
 
           // Diagnostic: also count total in group regardless of step
           const totalInGroup = await client.contact.count({ where: { groupId: gid } });
@@ -118,12 +121,16 @@ export class MetaLeadsAutomationCronService {
           const whereClause: any = {
             phone: { not: null },
             lastAutomationStep: { lt: sequenceRules.length },
+            createdAt: { gte: earliestCreatedAt },
           };
           if (targetType === 'meta_campaign' && firstRule.campaignName) {
             whereClause.campaignName = firstRule.campaignName;
           }
-          pendingRecords = await client.metaLead.findMany({ where: whereClause });
-          log(`Found ${pendingRecords.length} pending lead(s)`);
+          pendingRecords = await client.metaLead.findMany({ 
+            where: whereClause,
+            take: 100 // Batch limit to prevent memory exhaustion
+          });
+          log(`Found ${pendingRecords.length} pending lead(s) created after ${earliestCreatedAt.toISOString()}`);
         }
 
         if (!pendingRecords.length) {
@@ -139,17 +146,10 @@ export class MetaLeadsAutomationCronService {
 
           const eligibleRecords = pendingRecords.filter(record => {
             if (record.lastAutomationStep !== i) return false;
-            // Step 0: measure delay from updatedAt, not createdAt.
-            // Using updatedAt means:
-            //   - For brand-new contacts: updatedAt ≈ createdAt, so delay is
-            //     counted from when they were added. ✓
-            //   - For reset contacts: updatedAt is the reset timestamp, so the
-            //     delay is counted from the reset, not from the original creation
-            //     date weeks/months ago. ✓
-            // Steps 1+: measure from automationSentAt (when previous step sent).
-            const baseTime = i === 0
-              ? record.updatedAt.getTime()
-              : (record.automationSentAt?.getTime() ?? record.updatedAt.getTime());
+            // Measure delay ABSOLUTELY from the time the lead was added,
+            // matching the UI text: "X mins after contact is added".
+            // We use createdAt so that updating the lead doesn't falsely reset the timer.
+            const baseTime = record.createdAt.getTime();
             const elapsed = now.getTime() - baseTime;
             const eligible = elapsed >= delayMs;
             log(`    Record id=${record.id} lastStep=${record.lastAutomationStep} elapsed=${Math.round(elapsed / 1000)}s needed=${Math.round(delayMs / 1000)}s → ${eligible ? 'ELIGIBLE' : 'NOT YET'}`);
@@ -179,6 +179,7 @@ export class MetaLeadsAutomationCronService {
             let headerImageUrl: string | null = null;
             let isCarouselTemplate = false;
             let carouselComponents: any[] | null = null;
+            let bodyVarCount = 0;
             try {
               const settings = await client.whatsAppSettings.findFirst({
                 where: { templateName },
@@ -220,10 +221,13 @@ export class MetaLeadsAutomationCronService {
                 
                 const body = comps.find((c: any) => String(c.type).toUpperCase() === 'BODY');
                 if (body) {
-                  if (body.text && /\{\{\s*\d+\s*\}\}/.test(body.text)) {
+                  const vars = body.text?.match(/\{\{\s*\d+\s*\}\}/g) || [];
+                  if (vars.length > 0) {
                     templateHasBodyVar = true;
+                    bodyVarCount = vars.length;
                   } else if (body.example && body.example.body_text && body.example.body_text.length > 0) {
                     templateHasBodyVar = true;
+                    bodyVarCount = 1;
                   }
                 }
                 
@@ -304,9 +308,16 @@ export class MetaLeadsAutomationCronService {
                 } 
 
                 if (templateHasBodyVar) {
+                  // Support templates with multiple variables by pushing the correct number of parameters
+                  const params: any[] = [];
+                  const count = typeof bodyVarCount !== 'undefined' && bodyVarCount > 0 ? bodyVarCount : 1;
+                  for (let v = 0; v < count; v++) {
+                    params.push({ type: 'text', text: contact.name || 'Customer' });
+                  }
+                  
                   components.push({
                     type: 'body',
-                    parameters: [{ type: 'text', text: contact.name || 'Customer' }],
+                    parameters: params,
                   });
                 }
                 const metaResponse = await axios.post(apiUrl, {

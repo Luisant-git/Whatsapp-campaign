@@ -382,6 +382,27 @@ const MetaLeadsAutomation = () => {
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button
+            onClick={async () => {
+              if (!window.confirm('🚨 DANGER: This will completely WIPE all automation sequences, delete all logs, and reset every single contact back to Step 1. Are you absolutely sure?')) return;
+              try {
+                const { data } = await axios.get(`${API_BASE_URL}/meta-leads/automation-reset-all`, { headers: getHeaders(), withCredentials: true });
+                if (data.ok) {
+                  toast(data.message || 'Successfully wiped all automations', 'success');
+                  fetchRules();
+                } else {
+                  toast(data.error || 'Failed to wipe automations', 'error');
+                }
+              } catch (err) {
+                toast('Failed to wipe automations', 'error');
+              }
+            }}
+            style={{ padding: '9px 16px', background: '#fff', border: '1px solid #fecaca', borderRadius: 8, color: '#dc2626', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, fontSize: 14, transition: 'all 0.2s ease' }}
+            onMouseOver={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.borderColor = '#f87171'; }}
+            onMouseOut={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#fecaca'; }}
+          >
+            <ShieldAlert size={16} /> Wipe All Data
+          </button>
+          <button
             onClick={() => setShowActivityModal(true)}
             style={{ padding: '9px 16px', background: '#4f46e5', border: '1px solid #4338ca', borderRadius: 8, color: '#fff', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, fontSize: 14, boxShadow: '0 2px 4px rgba(79,70,229,0.2)' }}
           >

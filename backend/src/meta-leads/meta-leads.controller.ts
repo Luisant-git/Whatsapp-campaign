@@ -631,4 +631,63 @@ export class MetaLeadsController {
       return { ok: false, error: error.message || String(error) };
     }
   }
+
+  // ── Reset all automation rules and logs ──────────────────────────────────
+  // GET /meta-leads/automation-reset-all
+  // Completely wipes all automation rules, logs, and resets lead states.
+  @Get('automation-reset-all')
+  async resetAllAutomation(@Req() req: any) {
+    try {
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
+      const client = await (this.metaLeadsService as any).getClient(tenantId, dbUrl);
+
+      let rulesDeleted = 0, metaLogsDeleted = 0, contactLogsDeleted = 0;
+      let metaLeadsReset = 0, contactsReset = 0;
+
+      try {
+        const res = await client.metaLeadAutomation.deleteMany({});
+        rulesDeleted = res.count;
+      } catch (e) { console.error('Error deleting rules:', e); }
+
+      try {
+        const res = await client.metaLeadAutomationLog.deleteMany({});
+        metaLogsDeleted = res.count;
+      } catch (e) { console.error('Error deleting meta logs:', e); }
+
+      try {
+        const res = await client.contactAutomationLog.deleteMany({});
+        contactLogsDeleted = res.count;
+      } catch (e) { console.error('Error deleting contact logs:', e); }
+
+      try {
+        const res = await client.metaLead.updateMany({
+          data: { lastAutomationStep: 0, isAutomationSent: false, automationSentAt: null }
+        });
+        metaLeadsReset = res.count;
+      } catch (e) { console.error('Error resetting meta leads:', e); }
+
+      try {
+        const res = await client.contact.updateMany({
+          data: { lastAutomationStep: 0, isAutomationSent: false, automationSentAt: null }
+        });
+        contactsReset = res.count;
+      } catch (e) { console.error('Error resetting contacts:', e); }
+
+      return {
+        ok: true,
+        message: 'Successfully reset all automation data for this workspace.',
+        deleted: {
+          rules: rulesDeleted,
+          metaLogs: metaLogsDeleted,
+          contactLogs: contactLogsDeleted
+        },
+        reset: {
+          metaLeads: metaLeadsReset,
+          contacts: contactsReset
+        }
+      };
+    } catch (error) {
+      return { ok: false, error: error.message || String(error) };
+    }
+  }
 }

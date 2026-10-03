@@ -217,6 +217,9 @@ const MetaLeadsAutomation = () => {
   const [deletingRuleId, setDeletingRuleId] = useState(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
+  const [showWipeModal, setShowWipeModal] = useState(false);
+  const [wipeInputText, setWipeInputText] = useState('');
+  const [isWiping, setIsWiping] = useState(false);
   const [newRuleId, setNewRuleId] = useState(null); // for highlight animation
   const [newRuleGroupKey, setNewRuleGroupKey] = useState(null); // hide progress for new sequence
   const [groupProgressMap, setGroupProgressMap] = useState({}); // track step completions
@@ -329,6 +332,25 @@ const MetaLeadsAutomation = () => {
     }
   };
 
+  const handleWipeAll = async () => {
+    if (wipeInputText.toLowerCase() !== 'delete') return;
+    setIsWiping(true);
+    try {
+      const { data } = await axios.get(`${API_BASE_URL}/meta-leads/automation-reset-all`, { headers: getHeaders(), withCredentials: true });
+      if (data.ok) {
+        toast(data.message || 'Successfully wiped all automations', 'success');
+        fetchRules();
+        setShowWipeModal(false);
+      } else {
+        toast(data.error || 'Failed to wipe automations', 'error');
+      }
+    } catch (err) {
+      toast('Failed to wipe automations', 'error');
+    } finally {
+      setIsWiping(false);
+    }
+  };
+
   // ── Delete ──────────────────────────────────────────────────────────────
   const confirmDelete = async () => {
     if (!deletingRuleId) return;
@@ -412,19 +434,9 @@ const MetaLeadsAutomation = () => {
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button
-            onClick={async () => {
-              if (!window.confirm('🚨 DANGER: This will completely WIPE all automation sequences, delete all logs, and reset every single contact back to Step 1. Are you absolutely sure?')) return;
-              try {
-                const { data } = await axios.get(`${API_BASE_URL}/meta-leads/automation-reset-all`, { headers: getHeaders(), withCredentials: true });
-                if (data.ok) {
-                  toast(data.message || 'Successfully wiped all automations', 'success');
-                  fetchRules();
-                } else {
-                  toast(data.error || 'Failed to wipe automations', 'error');
-                }
-              } catch (err) {
-                toast('Failed to wipe automations', 'error');
-              }
+            onClick={() => {
+              setWipeInputText('');
+              setShowWipeModal(true);
             }}
             style={{ padding: '9px 16px', background: '#fff', border: '1px solid #fecaca', borderRadius: 8, color: '#dc2626', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, fontSize: 14, transition: 'all 0.2s ease' }}
             onMouseOver={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.borderColor = '#f87171'; }}
@@ -803,6 +815,58 @@ const MetaLeadsAutomation = () => {
             <button onClick={() => setShowHelpModal(false)} style={{ width: '100%', padding: 12, marginTop: 20, borderRadius: 8, background: '#3b82f6', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: 15 }}>
               Got it!
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Wipe All Modal ── */}
+      {showWipeModal && (
+        <div className="modal-overlay" style={{ zIndex: 10000 }} onClick={() => setShowWipeModal(false)}>
+          <div className="modal-content" style={{ maxWidth: 440, padding: 0, overflow: 'hidden', background: '#fff', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fef2f2' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fee2e2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ShieldAlert size={20} />
+                </div>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#991b1b' }}>Danger Zone</h3>
+              </div>
+              <button onClick={() => setShowWipeModal(false)} style={{ background: 'none', border: 'none', fontSize: 22, color: '#f87171', cursor: 'pointer', lineHeight: 1 }}>✕</button>
+            </div>
+
+            <div style={{ padding: 24, fontSize: 14, color: '#334155', lineHeight: 1.6 }}>
+              <p style={{ margin: '0 0 16px 0' }}>
+                You are about to completely <strong>WIPE all automation sequences</strong>, delete all logs, and reset every single contact back to Step 1.
+              </p>
+              <p style={{ margin: '0 0 16px 0', color: '#dc2626', fontWeight: 600 }}>
+                This action cannot be undone!
+              </p>
+              
+              <label style={{ display: 'block', fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>
+                Type <span style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace' }}>delete</span> to confirm:
+              </label>
+              <input
+                type="text"
+                value={wipeInputText}
+                onChange={e => setWipeInputText(e.target.value)}
+                placeholder="delete"
+                style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 15, boxSizing: 'border-box' }}
+                autoFocus
+              />
+            </div>
+
+            <div style={{ padding: '16px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => setShowWipeModal(false)} style={{ padding: '9px 16px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: 8, color: '#475569', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>
+                Cancel
+              </button>
+              <button
+                onClick={handleWipeAll}
+                disabled={wipeInputText.toLowerCase() !== 'delete' || isWiping}
+                style={{ padding: '9px 16px', background: '#dc2626', border: 'none', borderRadius: 8, color: '#fff', fontWeight: 600, cursor: wipeInputText.toLowerCase() === 'delete' ? 'pointer' : 'not-allowed', fontSize: 14, opacity: wipeInputText.toLowerCase() !== 'delete' ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                {isWiping ? <div className="loading-spinner" style={{ width: 14, height: 14, borderTopColor: '#fff', borderWidth: 2 }} /> : <Trash2 size={16} />}
+                Wipe All Data
+              </button>
+            </div>
           </div>
         </div>
       )}

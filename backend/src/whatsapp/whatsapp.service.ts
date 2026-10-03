@@ -596,13 +596,20 @@ export class WhatsappService {
     try {
       const { phoneNumberId, accessToken, apiUrl } = await this.getPhoneCredentials('whatsappChat', userId);
 
+      const mediaPayload: any = { link: mediaUrl, caption };
+      if (mediaType === 'document') {
+        let filename = mediaUrl.split('/').pop() || 'Document.pdf';
+        if (filename.includes('?')) filename = filename.split('?')[0];
+        mediaPayload.filename = decodeURIComponent(filename);
+      }
+
       const response = await axios.post(
         `${apiUrl}/${phoneNumberId}/messages`,
         {
           messaging_product: 'whatsapp',
           to,
           type: mediaType,
-          [mediaType]: { link: mediaUrl, caption }
+          [mediaType]: mediaPayload
         },
         {
           headers: {
@@ -2346,10 +2353,16 @@ export class WhatsappService {
   async sendMediaMessageDirect(to: string, mediaUrl: string, mediaType: string, accessToken: string, phoneNumberId: string, tenantClient: any, caption?: string) {
     try {
       const isBSUID = /^[A-Z]{2}\.([A-Z]+\.)?[0-9]+$/.test(to);
+      const mediaPayload: any = { link: mediaUrl, caption };
+      if (mediaType === 'document') {
+        let filename = mediaUrl.split('/').pop() || 'Document.pdf';
+        if (filename.includes('?')) filename = filename.split('?')[0];
+        mediaPayload.filename = decodeURIComponent(filename);
+      }
       const payload: any = {
         messaging_product: 'whatsapp',
         type: mediaType,
-        [mediaType]: { link: mediaUrl, caption }
+        [mediaType]: mediaPayload
       };
 
       if (isBSUID) {
@@ -2668,7 +2681,13 @@ export class WhatsappService {
               }
               if (mediaUrl && mediaUrl.startsWith('http')) {
                 const mediaType = comp.format.toLowerCase();
-                cardComps.push({ type: 'header', parameters: [{ type: mediaType, [mediaType]: { link: mediaUrl } }] });
+                const mediaPayload: any = { link: mediaUrl };
+                if (mediaType === 'document') {
+                  let filename = mediaUrl.split('/').pop() || 'Document.pdf';
+                  if (filename.includes('?')) filename = filename.split('?')[0];
+                  mediaPayload.filename = decodeURIComponent(filename);
+                }
+                cardComps.push({ type: 'header', parameters: [{ type: mediaType, [mediaType]: mediaPayload }] });
               }
             } else if (comp.type === 'BODY') {
               const vars = comp.text?.match(/{{\d+}}/g) || [];
@@ -2750,7 +2769,13 @@ export class WhatsappService {
               headerFormat = isDocument ? 'DOCUMENT' : isVideo ? 'VIDEO' : 'IMAGE';
             }
             const mediaType = headerFormat.toLowerCase();
-            components.push({ type: 'header', parameters: [{ type: mediaType, [mediaType]: { link: headerImageUrl } }] });
+            const mediaPayload: any = { link: headerImageUrl };
+            if (mediaType === 'document') {
+              let filename = headerImageUrl.split('/').pop() || 'Document.pdf';
+              if (filename.includes('?')) filename = filename.split('?')[0];
+              mediaPayload.filename = decodeURIComponent(filename);
+            }
+            components.push({ type: 'header', parameters: [{ type: mediaType, [mediaType]: mediaPayload }] });
           }
 
           if (templateBodyVariables.length > 0) {

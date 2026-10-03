@@ -537,10 +537,13 @@ export class MetaLeadsController {
       // Count contacts before reset
       const before = await client.contact.count({ where: { groupId: gid } });
 
-      // Reset step counter and clear sent timestamp
+      // Reset step counter and clear sent timestamp.
+      // We MUST also update `createdAt: new Date()` because:
+      // 1. It bypasses the `createdAt >= earliestCreatedAt` historical filter.
+      // 2. The delay timer is absolute from `createdAt`, so bumping it makes the delays run properly from NOW.
       const updated = await client.contact.updateMany({
         where: { groupId: gid },
-        data: { lastAutomationStep: 0, isAutomationSent: false, automationSentAt: null },
+        data: { lastAutomationStep: 0, isAutomationSent: false, automationSentAt: null, createdAt: new Date() },
       });
 
       // Clear old automation logs for this group so the UI progress bar resets to 0%
@@ -661,14 +664,14 @@ export class MetaLeadsController {
 
       try {
         const res = await client.metaLead.updateMany({
-          data: { lastAutomationStep: 0, isAutomationSent: false, automationSentAt: null }
+          data: { lastAutomationStep: 0, isAutomationSent: false, automationSentAt: null, createdAt: new Date() }
         });
         metaLeadsReset = res.count;
       } catch (e) { console.error('Error resetting meta leads:', e); }
 
       try {
         const res = await client.contact.updateMany({
-          data: { lastAutomationStep: 0, isAutomationSent: false, automationSentAt: null }
+          data: { lastAutomationStep: 0, isAutomationSent: false, automationSentAt: null, createdAt: new Date() }
         });
         contactsReset = res.count;
       } catch (e) { console.error('Error resetting contacts:', e); }

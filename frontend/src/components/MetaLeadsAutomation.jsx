@@ -72,10 +72,40 @@ const PipelineProgress = ({ targetType, campaignName, groupId, totalSteps, onPro
 
   if (!progress || progress.error) return null;
 
+  const getStatusText = () => {
+    if (progress.total === 0) return <span>Waiting for contacts...</span>;
+    if (progress.completed >= progress.total) return <span style={{ color: '#16a34a', display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle size={14} /> All Steps Complete!</span>;
+
+    for (let i = 1; i <= totalSteps; i++) {
+      const count = progress.stepCounts[i] || 0;
+      if (count < progress.total) {
+        if (i === 1) return (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#3b82f6' }}>
+            <div className="loading-spinner" style={{ width: 12, height: 12, borderWidth: 2, borderColor: 'rgba(59,130,246,0.3)', borderTopColor: '#3b82f6', display: 'inline-block' }} />
+            Processing Step 1...
+          </span>
+        );
+        return (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ color: '#16a34a', display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle size={14} /> Step {i - 1} Complete</span>
+            <span style={{ color: '#cbd5e1' }}>→</span>
+            <span style={{ color: '#3b82f6', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div className="loading-spinner" style={{ width: 12, height: 12, borderWidth: 2, borderColor: 'rgba(59,130,246,0.3)', borderTopColor: '#3b82f6', display: 'inline-block' }} />
+              Processing Step {i}...
+            </span>
+          </span>
+        );
+      }
+    }
+    return <span>Processing...</span>;
+  };
+
   return (
     <div style={{ marginTop: 12, background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 12, color: '#475569', fontWeight: 600 }}>
-        <span>Overall Sequence Progress</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 12, color: '#475569', fontWeight: 600, alignItems: 'center' }}>
+        <div>
+          {getStatusText()}
+        </div>
         <span>{progress.percentage}% ({progress.completed} / {progress.total} Completed)</span>
       </div>
       <div style={{ height: 6, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>

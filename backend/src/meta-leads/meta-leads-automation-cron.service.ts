@@ -138,23 +138,53 @@ export class MetaLeadsAutomationCronService {
           continue;
         }
 
+        const pendingRecordIds = pendingRecords.map(r => r.id);
+        const allSentLogs = isContact 
+          ? await client.contactAutomationLog.findMany({ where: { contactId: { in: pendingRecordIds }, status: 'sent' }, select: { contactId: true, stepIndex: true } })
+          : await client.metaLeadAutomationLog.findMany({ where: { metaLeadId: { in: pendingRecordIds }, status: 'sent' }, select: { metaLeadId: true, stepIndex: true } });
+        
+        const sentLogsSet = new Set(allSentLogs.map((l: any) => `${l.contactId || l.metaLeadId}_${l.stepIndex}`));
+
         for (let i = 0; i < sequenceRules.length; i++) {
           const rule = sequenceRules[i];
           const templateName = rule.templateName;
           const delayMs = rule.delayMinutes * 60 * 1000;
           log(`  Step ${i + 1}: template="${templateName}", delay=${rule.delayMinutes}min (${delayMs}ms)`);
 
+          let recordsToAdvanceWithoutSending: any[] = [];
           const eligibleRecords = pendingRecords.filter(record => {
             if (record.lastAutomationStep !== i) return false;
-            // Measure delay ABSOLUTELY from the time the lead was added,
-            // matching the UI text: "X mins after contact is added".
-            // We use createdAt so that updating the lead doesn't falsely reset the timer.
+            
+            // IDEMPOTENCY CHECK: If they already have a 'sent' log for this step, just advance them!
+            // This enables "Retry Failed" by simply resetting lastAutomationStep backwards without duplicating later steps.
+            if (sentLogsSet.has(`${record.id}_${i + 1}`)) {
+              recordsToAdvanceWithoutSending.push(record.id);
+              return false;
+            }
+
+            // Measure delay ABSOLUTELY from the time the lead was added
             const baseTime = record.createdAt.getTime();
             const elapsed = now.getTime() - baseTime;
             const eligible = elapsed >= delayMs;
             log(`    Record id=${record.id} lastStep=${record.lastAutomationStep} elapsed=${Math.round(elapsed / 1000)}s needed=${Math.round(delayMs / 1000)}s → ${eligible ? 'ELIGIBLE' : 'NOT YET'}`);
             return eligible;
           });
+
+          if (recordsToAdvanceWithoutSending.length > 0) {
+            if (isContact) {
+              await client.contact.updateMany({ where: { id: { in: recordsToAdvanceWithoutSending } }, data: { lastAutomationStep: i + 1 } });
+            } else {
+              await client.metaLead.updateMany({ where: { id: { in: recordsToAdvanceWithoutSending } }, data: { lastAutomationStep: i + 1 } });
+            }
+            log(`  Idempotency: Fast-forwarded ${recordsToAdvanceWithoutSending.length} record(s) past step ${i + 1} because they already received it.`);
+            
+            // Update the pendingRecords array in memory so they process the NEXT step correctly on the NEXT cron run
+            for (const record of pendingRecords) {
+              if (recordsToAdvanceWithoutSending.includes(record.id)) {
+                record.lastAutomationStep = i + 1;
+              }
+            }
+          }
 
           if (!eligibleRecords.length) {
             warn(`  Step ${i + 1}: 0 eligible records — delay not met yet or all at wrong step`);

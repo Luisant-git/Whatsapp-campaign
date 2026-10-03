@@ -386,6 +386,25 @@ const MetaLeadsAutomation = () => {
     }
   };
 
+  const retryStep = async (group, stepIndex) => {
+    try {
+      const res = await axios.post(`${API_BASE_URL}/meta-leads/automation-retry-step`, {
+        targetType: group.targetType,
+        campaignName: group.campaignName,
+        groupId: group.groupId,
+        stepIndex
+      }, { headers: getHeaders(), withCredentials: true });
+      if (res.data.ok) {
+        toast(`Queued ${res.data.retriedCount} contacts for retry.`, 'success');
+        fetchRules();
+      } else {
+        toast(res.data.message || 'Retry failed', 'error');
+      }
+    } catch {
+      toast('Retry failed', 'error');
+    }
+  };
+
   // ── Group helpers ───────────────────────────────────────────────────────
   const getTargetLabel = (rule) => {
     if (rule.targetType === 'meta_campaign') return `Meta Campaign: ${rule.campaignName}`;
@@ -735,7 +754,12 @@ const MetaLeadsAutomation = () => {
                               <Clock size={11} />
                               Sends {delayLabel(rule.delayValue || rule.delayMinutes, rule.delayUnit || 'minutes')}
                               {!rule.isActive && <span style={{ color: '#ef4444', fontWeight: 600, marginLeft: 4 }}>• Paused</span>}
-                              {hasError && <span style={{ color: '#ef4444', fontWeight: 600, marginLeft: 4, background: '#fee2e2', padding: '1px 6px', borderRadius: 4, fontSize: 10, letterSpacing: '0.3px', textTransform: 'uppercase' }}>⚠ {errorCount} Error{errorCount > 1 ? 's' : ''}</span>}
+                              {hasError && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
+                                  <span style={{ color: '#ef4444', fontWeight: 600, background: '#fee2e2', padding: '1px 6px', borderRadius: 4, fontSize: 10, letterSpacing: '0.3px', textTransform: 'uppercase' }}>⚠ {errorCount} Error{errorCount > 1 ? 's' : ''}</span>
+                                  <button onClick={() => retryStep(group, stepIndex)} title="Retry failed messages for this step" style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>Retry</button>
+                                </div>
+                              )}
                             </div>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

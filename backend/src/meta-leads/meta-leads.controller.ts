@@ -433,6 +433,29 @@ export class MetaLeadsController {
     }
   }
 
+  @Post('automation-retry-step')
+  async retryAutomationStep(
+    @Req() req: any,
+    @Body('targetType') targetType: string,
+    @Body('campaignName') campaignName: string,
+    @Body('groupId') groupId: string,
+    @Body('stepIndex') stepIndex: number,
+  ) {
+    try {
+      const { tenantId, dbUrl } = await this.getTenantContext(req);
+      return await this.metaLeadsService.retryAutomationStep(
+        tenantId,
+        targetType,
+        campaignName,
+        groupId,
+        stepIndex,
+        dbUrl
+      );
+    } catch (error) {
+      return { error: true, message: error.message || 'Failed to retry step' };
+    }
+  }
+
   @Get('automation-logs')
   async getAutomationLogs(
     @Req() req: any,

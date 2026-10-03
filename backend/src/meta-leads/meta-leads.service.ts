@@ -1033,4 +1033,55 @@ export class MetaLeadsService {
     });
     return { success: true, isActive };
   }
+
+  async retryAutomationStep(tenantId: string, targetType: string, campaignName: string, groupId: string, stepIndex: number, dbUrl?: string) {
+    const client = await this.getClient(tenantId, dbUrl);
+    let contactsRetried = 0;
+
+    if (targetType === 'contact_group') {
+      const gid = parseInt(groupId);
+      if (isNaN(gid)) throw new Error('Invalid groupId');
+
+      const failedLogs = await client.contactAutomationLog.findMany({
+        where: { status: 'failed', stepIndex, contact: { groupId: gid } }
+      });
+      const contactIds = failedLogs.map(l => l.contactId);
+      
+      if (contactIds.length > 0) {
+        await client.contactAutomationLog.deleteMany({
+          where: { id: { in: failedLogs.map(l => l.id) } }
+        });
+        
+        await client.contact.updateMany({
+          where: { id: { in: contactIds }, lastAutomationStep: stepIndex },
+          data: { lastAutomationStep: stepIndex - 1 }
+        });
+        contactsRetried = contactIds.length;
+      }
+    } else {
+      const whereClause: any = { phone: { not: null } };
+      if (targetType === 'meta_campaign' && campaignName) {
+        whereClause.campaignName = campaignName;
+      }
+
+      const failedLogs = await client.metaLeadAutomationLog.findMany({
+        where: { status: 'failed', stepIndex, metaLead: whereClause }
+      });
+      const leadIds = failedLogs.map(l => l.metaLeadId);
+      
+      if (leadIds.length > 0) {
+        await client.metaLeadAutomationLog.deleteMany({
+          where: { id: { in: failedLogs.map(l => l.id) } }
+        });
+        
+        await client.metaLead.updateMany({
+          where: { id: { in: leadIds }, lastAutomationStep: stepIndex },
+          data: { lastAutomationStep: stepIndex - 1 }
+        });
+        contactsRetried = leadIds.length;
+      }
+    }
+
+    return { ok: true, retriedCount: contactsRetried };
+  }
 }

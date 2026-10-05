@@ -41,7 +41,7 @@ function useToast() {
 
 // ── Delay preview helper ───────────────────────────────────────────────────
 function delayLabel(value, unit) {
-  const v = parseInt(value) || 0;
+  const v = parseFloat(value) || 0;
   if (v === 0) return 'immediately after contact is added';
   return `${v} ${unit} after contact is added`;
 }

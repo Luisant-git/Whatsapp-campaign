@@ -558,8 +558,7 @@ async getMessages(
     storage: diskStorage({
       destination: './uploads',
       filename: (req, file, cb) => {
-        const uniqueName = `${Date.now()}-${file.originalname}`;
-        cb(null, uniqueName);
+        cb(null, file.originalname);
       }
     }),
     fileFilter: (req, file, cb) => {
@@ -619,8 +618,7 @@ async getMessages(
     storage: diskStorage({
       destination: './uploads',
       filename: (req, file, cb) => {
-        const uniqueName = `${Date.now()}-${file.originalname}`;
-        cb(null, uniqueName);
+        cb(null, file.originalname);
       }
     }),
     fileFilter: (req, file, cb) => {
@@ -670,8 +668,7 @@ async getMessages(
     storage: diskStorage({
       destination: './uploads',
       filename: (req, file, cb) => {
-        const uniqueName = `${Date.now()}-${file.originalname}`;
-        cb(null, uniqueName);
+        cb(null, file.originalname);
       }
     }),
     fileFilter: (req, file, cb) => {

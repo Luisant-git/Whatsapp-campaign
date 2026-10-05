@@ -19,11 +19,10 @@ export class UploadController {
       storage: diskStorage({
         destination: './uploads',
         filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
           const ext = extname(file.originalname);
           let baseName = file.originalname.replace(ext, '').replace(/[^a-zA-Z0-9_\-]/g, '_');
           if (!baseName) baseName = 'file';
-          cb(null, `${baseName}-${uniqueSuffix}${ext}`);
+          cb(null, `${baseName}${ext}`);
         },
       }),
       limits: {

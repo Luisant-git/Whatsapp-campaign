@@ -774,6 +774,8 @@ export class MetaLeadsService {
     if (data.delayUnit === 'minutes') delayMinutes = data.delayValue;
     else if (data.delayUnit === 'hours') delayMinutes = data.delayValue * 60;
     else if (data.delayUnit === 'days') delayMinutes = data.delayValue * 60 * 24;
+    
+    delayMinutes = Math.round(delayMinutes);
 
     if (data.id) {
       return client.metaLeadAutomation.update({

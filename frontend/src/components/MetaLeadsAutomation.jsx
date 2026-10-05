@@ -559,7 +559,7 @@ const MetaLeadsAutomation = () => {
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <input
-                    type="number" min="0"
+                    type="number" min="0" step="0.1"
                     className="form-input"
                     value={formData.delayValue}
                     onChange={e => setFormData(f => ({ ...f, delayValue: e.target.value }))}

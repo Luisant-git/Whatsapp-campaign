@@ -16,7 +16,7 @@ async function updateTenantDatabases() {
       
       try {
         process.env.TENANT_DATABASE_URL = dbUrl;
-        execSync('npx prisma db push --schema=./prisma/schema-tenant.prisma --skip-generate', {
+        execSync('npx prisma db push --schema=./prisma/schema-tenant.prisma --skip-generate --accept-data-loss', {
           stdio: 'inherit',
         });
         console.log(`✓ Successfully updated ${tenant.dbName}`);

@@ -648,7 +648,7 @@ model Grievance {
 model MetaLeadAutomation {
   id             Int      @id @default(autoincrement())
   templateName   String
-  delayValue     Int      @default(5)
+  delayValue     Float    @default(5)
   delayUnit      String   @default("minutes")
   delayMinutes   Int      @default(5)
   targetType     String   @default("all")

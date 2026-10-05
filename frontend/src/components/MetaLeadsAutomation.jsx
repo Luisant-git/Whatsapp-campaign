@@ -227,7 +227,7 @@ const MetaLeadsAutomation = () => {
 
   const [formData, setFormData] = useState({
     targetType: 'all', campaignNames: [], groupIds: [],
-    templateName: '', delayValue: 5, delayUnit: 'minutes', isActive: true,
+    templateName: '', delayValue: 5, delayUnit: 'minutes', isActive: false,
   });
 
   const getHeaders = () => ({
@@ -290,7 +290,7 @@ const MetaLeadsAutomation = () => {
         templateName: formData.templateName,
         delayValue: parseFloat(formData.delayValue),
         delayUnit: formData.delayUnit,
-        isActive: true,
+        isActive: false,
       };
 
       if (formData.targetType === 'all') {

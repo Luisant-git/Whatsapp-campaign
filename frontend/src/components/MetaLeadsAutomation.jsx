@@ -288,7 +288,7 @@ const MetaLeadsAutomation = () => {
       const payloads = [];
       const basePayload = {
         templateName: formData.templateName,
-        delayValue: parseInt(formData.delayValue, 10),
+        delayValue: parseFloat(formData.delayValue),
         delayUnit: formData.delayUnit,
         isActive: true,
       };

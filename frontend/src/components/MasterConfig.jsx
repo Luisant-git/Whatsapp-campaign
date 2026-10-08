@@ -182,6 +182,34 @@ const MasterConfig = () => {
     }
   };
 
+  const [disconnectingCentral, setDisconnectingCentral] = useState(false);
+
+  const handleDisconnectCentral = async () => {
+    if (!window.confirm("Are you sure you want to disconnect this Meta Account? This will pause all WhatsApp features for your platform.")) {
+      return;
+    }
+    setDisconnectingCentral(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/master-config/central-connection`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (response.ok) {
+        setCentralConnection(null);
+        showSuccess('Disconnected successfully.');
+        fetchMasterConfigs(); // Fetch legacy configs just in case
+      } else {
+        const errorData = await response.json();
+        showError(errorData.message || 'Failed to disconnect');
+      }
+    } catch (error) {
+      console.error("Failed to disconnect central connection:", error);
+      showError('Network error while disconnecting');
+    } finally {
+      setDisconnectingCentral(false);
+    }
+  };
+
   const fetchMasterConfigs = async () => {
     try {
       const data = await getMasterConfigs();
@@ -847,8 +875,12 @@ const MasterConfig = () => {
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
                     {syncingCentral ? 'Syncing...' : 'Sync with Meta'}
                   </button>
-                  <button style={{ padding: '8px 16px', fontSize: '14px', fontWeight: '600', borderRadius: '6px', cursor: 'pointer', background: '#fa383e', color: 'white', border: 'none', transition: 'background 0.2s' }}>
-                    Disconnect
+                  <button 
+                    onClick={handleDisconnectCentral}
+                    disabled={disconnectingCentral}
+                    style={{ padding: '8px 16px', fontSize: '14px', fontWeight: '600', borderRadius: '6px', cursor: disconnectingCentral ? 'not-allowed' : 'pointer', background: '#fa383e', color: 'white', border: 'none', transition: 'background 0.2s', opacity: disconnectingCentral ? 0.7 : 1 }}
+                  >
+                    {disconnectingCentral ? 'Disconnecting...' : 'Disconnect'}
                   </button>
                 </div>
               </div>

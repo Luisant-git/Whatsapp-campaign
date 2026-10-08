@@ -50,6 +50,13 @@ export class MasterConfigController {
     return this.masterConfigService.syncCentralConnection(tenantContext);
   }
 
+  @Delete('central-connection')
+  @ApiOperation({ summary: 'Disconnect Central Meta Connection' })
+  @ApiResponse({ status: 200, description: 'Central connection disconnected successfully' })
+  async disconnectCentralConnection(@TenantContext() tenantContext: TenantContextType) {
+    return this.masterConfigService.disconnectCentralConnection(tenantContext);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get master config by ID' })
   @ApiResponse({ status: 200, description: 'Master config retrieved successfully' })

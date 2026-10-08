@@ -306,6 +306,37 @@ export class MasterConfigService {
     return this.getCentralConnection(tenantContext);
   }
 
+  async disconnectCentralConnection(tenantContext: TenantContext) {
+    const tenantIdNum = parseInt(tenantContext.tenantId, 10);
+    if (isNaN(tenantIdNum)) {
+      throw new BadRequestException('Invalid tenant ID');
+    }
+
+    const connection = await this.centralPrisma.metaConnection.findFirst({
+      where: { tenantId: tenantIdNum }
+    });
+
+    if (!connection) {
+      return { success: true, message: 'Already disconnected' };
+    }
+
+    // Delete connection (Cascade will delete credentials and phone numbers)
+    await this.centralPrisma.metaConnection.delete({
+      where: { id: connection.id }
+    });
+
+    // Delete billing account too so it resets completely
+    try {
+      await this.centralPrisma.billingAccount.delete({
+        where: { tenantId: tenantIdNum }
+      });
+    } catch (e) {
+      // Ignore if it doesn't exist
+    }
+
+    return { success: true, message: 'Disconnected successfully' };
+  }
+
   async findAll(tenantContext: TenantContext) {
     const prisma = this.getPrisma(tenantContext);
     return prisma.masterConfig.findMany({

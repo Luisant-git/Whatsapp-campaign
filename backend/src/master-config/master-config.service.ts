@@ -139,6 +139,20 @@ export class MasterConfigService {
           }
         });
       }
+
+      // Initialize Billing Account for this connection
+      await this.centralPrisma.billingAccount.upsert({
+        where: { connectionId: metaConnection.id },
+        update: {
+          billingMode: 'CUSTOMER_META',
+          metaBillingStatus: 'ACTIVE'
+        },
+        create: {
+          connectionId: metaConnection.id,
+          billingMode: 'CUSTOMER_META',
+          metaBillingStatus: 'ACTIVE'
+        }
+      });
     }
 
     // 5. Fallback Write to Legacy MasterConfig (for temporary compatibility)

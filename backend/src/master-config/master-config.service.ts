@@ -2,10 +2,16 @@ import { Injectable, ConflictException, BadRequestException } from '@nestjs/comm
 import { TenantPrismaService } from '../tenant-prisma.service';
 import { TenantContext } from '../tenant/tenant.decorator';
 import { CreateMasterConfigDto, UpdateMasterConfigDto } from './dto/master-config.dto';
+import { CentralPrismaService } from '../central-prisma.service';
+import { MetaCredentialService, isCentralMetaCredentialEnabled } from '../meta-credential/meta-credential.service';
 
 @Injectable()
 export class MasterConfigService {
-  constructor(private tenantPrisma: TenantPrismaService) {}
+  constructor(
+    private tenantPrisma: TenantPrismaService,
+    private centralPrisma: CentralPrismaService,
+    private metaCredentialService: MetaCredentialService
+  ) {}
 
   private getPrisma(ctx: TenantContext) {
     return this.tenantPrisma.getTenantClient(ctx.tenantId, ctx.dbUrl);
@@ -60,25 +66,86 @@ export class MasterConfigService {
       throw new BadRequestException('Could not retrieve WABA ID. Please ensure you selected a Business Account during signup.');
     }
 
-    // 3. Fetch Phone Number ID associated with the WABA
-    let phoneNumberId = '';
+    // 3. Fetch Phone Numbers associated with the WABA
+    let phoneNumbers: any[] = [];
     const phoneResponse = await fetch(`https://graph.facebook.com/v20.0/${wabaId}/phone_numbers?access_token=${accessToken}`);
     if (phoneResponse.ok) {
       const phoneData = await phoneResponse.json();
       if (phoneData.data && phoneData.data.length > 0) {
-        phoneNumberId = phoneData.data[0].id;
+        phoneNumbers = phoneData.data;
       }
     }
 
-    if (!phoneNumberId) {
-      throw new BadRequestException('Could not retrieve a Phone Number ID. Ensure a phone number is linked to the selected Business Account.');
+    if (phoneNumbers.length === 0) {
+      throw new BadRequestException('Could not retrieve Phone Numbers. Ensure a phone number is linked to the selected Business Account.');
     }
 
-    // 4. Create master config in the database
+    const primaryPhoneNumberId = phoneNumbers[0].id;
+
+    // 4. Save to Central Database
+    const tenantIdNum = parseInt(tenantContext.tenantId, 10);
+    if (!isNaN(tenantIdNum)) {
+      // Create or update MetaConnection
+      const metaConnection = await this.centralPrisma.metaConnection.upsert({
+        where: {
+          tenantId_wabaId: { tenantId: tenantIdNum, wabaId }
+        },
+        update: {
+          connectionStatus: 'CONNECTED'
+        },
+        create: {
+          tenantId: tenantIdNum,
+          wabaId,
+          connectionStatus: 'CONNECTED'
+        }
+      });
+
+      // Encrypt and store credential
+      const encryptedToken = this.metaCredentialService.encrypt(accessToken);
+      await this.centralPrisma.metaCredential.upsert({
+        where: { connectionId: metaConnection.id },
+        update: {
+          accessTokenEncrypted: encryptedToken,
+          tokenType: 'SYSTEM_USER',
+          status: 'ACTIVE'
+        },
+        create: {
+          connectionId: metaConnection.id,
+          accessTokenEncrypted: encryptedToken,
+          tokenType: 'SYSTEM_USER',
+          status: 'ACTIVE'
+        }
+      });
+
+      // Store all phone numbers
+      for (const phone of phoneNumbers) {
+        await this.centralPrisma.metaPhoneNumber.upsert({
+          where: {
+            connectionId_phoneNumberId: { connectionId: metaConnection.id, phoneNumberId: phone.id }
+          },
+          update: {
+            displayNumber: phone.display_phone_number || null,
+            verifiedName: phone.verified_name || null,
+            qualityRating: phone.quality_rating || null,
+            status: 'ACTIVE'
+          },
+          create: {
+            connectionId: metaConnection.id,
+            phoneNumberId: phone.id,
+            displayNumber: phone.display_phone_number || null,
+            verifiedName: phone.verified_name || null,
+            qualityRating: phone.quality_rating || null,
+            status: 'ACTIVE'
+          }
+        });
+      }
+    }
+
+    // 5. Fallback Write to Legacy MasterConfig (for temporary compatibility)
     return prisma.masterConfig.create({
       data: {
-        name: `Meta Connect - ${phoneNumberId}`,
-        phoneNumberId,
+        name: `Meta Connect - ${primaryPhoneNumberId}`,
+        phoneNumberId: primaryPhoneNumberId,
         wabaId,
         appId,
         accessToken,
@@ -86,6 +153,143 @@ export class MasterConfigService {
         isActive: true,
       }
     });
+  }
+
+  async getCentralConnection(tenantContext: TenantContext) {
+    const tenantIdNum = parseInt(tenantContext.tenantId, 10);
+    if (isNaN(tenantIdNum)) {
+      return null;
+    }
+
+    const connection = await this.centralPrisma.metaConnection.findFirst({
+      where: { tenantId: tenantIdNum },
+      include: {
+        phoneNumbers: true,
+      },
+    });
+
+    if (!connection) {
+      return null;
+    }
+
+    const billingAccount = await this.centralPrisma.billingAccount.findUnique({
+      where: { tenantId: tenantIdNum },
+    });
+
+    return {
+      id: connection.id,
+      wabaId: connection.wabaId,
+      connectionStatus: connection.connectionStatus,
+      onboardingStatus: connection.onboardingStatus,
+      phoneNumbers: connection.phoneNumbers.map(p => ({
+        phoneNumberId: p.phoneNumberId,
+        displayNumber: p.displayNumber,
+        verifiedName: p.verifiedName,
+        qualityRating: p.qualityRating,
+        status: p.status,
+      })),
+      billingAccount: billingAccount ? {
+        billingMode: billingAccount.billingMode,
+        metaBillingStatus: billingAccount.metaBillingStatus,
+      } : null,
+    };
+  }
+
+  async syncCentralConnection(tenantContext: TenantContext) {
+    const tenantIdNum = parseInt(tenantContext.tenantId, 10);
+    if (isNaN(tenantIdNum)) {
+      throw new BadRequestException('Invalid tenant ID');
+    }
+
+    const connection = await this.centralPrisma.metaConnection.findFirst({
+      where: { tenantId: tenantIdNum },
+      include: {
+        credential: true,
+        phoneNumbers: true,
+      },
+    });
+
+    if (!connection) {
+      throw new BadRequestException('No central connection found');
+    }
+
+    if (!connection.credential || !connection.credential.accessTokenEncrypted) {
+      // Missing credentials, mark as disconnected
+      await this.centralPrisma.metaConnection.update({
+        where: { id: connection.id },
+        data: { connectionStatus: 'DISCONNECTED' }
+      });
+      return this.getCentralConnection(tenantContext);
+    }
+
+    let accessToken: string;
+    try {
+      accessToken = this.metaCredentialService.decrypt(connection.credential.accessTokenEncrypted);
+    } catch (e) {
+      await this.centralPrisma.metaConnection.update({
+        where: { id: connection.id },
+        data: { connectionStatus: 'DISCONNECTED' }
+      });
+      return this.getCentralConnection(tenantContext);
+    }
+
+    // Fetch from Meta
+    const phoneResponse = await fetch(`https://graph.facebook.com/v20.0/${connection.wabaId}/phone_numbers?access_token=${accessToken}`);
+    
+    if (!phoneResponse.ok) {
+      // Token is likely invalid/expired
+      await this.centralPrisma.metaConnection.update({
+        where: { id: connection.id },
+        data: { connectionStatus: 'DISCONNECTED' }
+      });
+      return this.getCentralConnection(tenantContext);
+    }
+
+    const phoneData = await phoneResponse.json();
+    const fetchedPhones = phoneData.data || [];
+    const fetchedPhoneIds = fetchedPhones.map((p: any) => p.id);
+
+    // Update connection status
+    await this.centralPrisma.metaConnection.update({
+      where: { id: connection.id },
+      data: { connectionStatus: 'CONNECTED' }
+    });
+
+    // Upsert fetched phones
+    for (const phone of fetchedPhones) {
+      await this.centralPrisma.metaPhoneNumber.upsert({
+        where: {
+          connectionId_phoneNumberId: { connectionId: connection.id, phoneNumberId: phone.id }
+        },
+        update: {
+          displayNumber: phone.display_phone_number || null,
+          verifiedName: phone.verified_name || null,
+          qualityRating: phone.quality_rating || null,
+          status: 'ACTIVE'
+        },
+        create: {
+          connectionId: connection.id,
+          phoneNumberId: phone.id,
+          displayNumber: phone.display_phone_number || null,
+          verifiedName: phone.verified_name || null,
+          qualityRating: phone.quality_rating || null,
+          status: 'ACTIVE'
+        }
+      });
+    }
+
+    // Mark removed phones as INACTIVE
+    const existingPhones = connection.phoneNumbers;
+    for (const ep of existingPhones) {
+      if (!fetchedPhoneIds.includes(ep.phoneNumberId)) {
+        await this.centralPrisma.metaPhoneNumber.update({
+          where: { id: ep.id },
+          data: { status: 'INACTIVE' }
+        });
+      }
+    }
+
+    return this.getCentralConnection(tenantContext);
   }
 
   async findAll(tenantContext: TenantContext) {
@@ -156,29 +360,36 @@ export class MasterConfigService {
   }
 
   async subscribeToWABA(id: number, tenantContext: TenantContext) {
+    const isCentral = isCentralMetaCredentialEnabled();
+    let wabaId: string;
+    let accessToken: string;
     const prisma = this.getPrisma(tenantContext);
-    
-    // Get the master config
-    const config = await prisma.masterConfig.findUnique({
-      where: { id },
-    });
 
-    if (!config) {
-      throw new BadRequestException('Master config not found');
-    }
-
-    if (!config.wabaId || !config.accessToken) {
-      throw new BadRequestException('WABA ID and Access Token are required');
+    if (isCentral) {
+      try {
+        const tenantIdNum = parseInt(tenantContext.tenantId, 10);
+        const metaConfig = await this.metaCredentialService.getMetaConfig(tenantIdNum);
+        wabaId = metaConfig.wabaId;
+        accessToken = metaConfig.accessToken;
+      } catch (err) {
+        throw new BadRequestException(`Central config error: ${err.message}`);
+      }
+    } else {
+      const config = await prisma.masterConfig.findUnique({ where: { id } });
+      if (!config) throw new BadRequestException('Master config not found');
+      if (!config.wabaId || !config.accessToken) throw new BadRequestException('WABA ID and Access Token are required');
+      wabaId = config.wabaId;
+      accessToken = config.accessToken;
     }
 
     // Subscribe app to WABA
-    const subscribeUrl = `https://graph.facebook.com/v18.0/${config.wabaId}/subscribed_apps`;
+    const subscribeUrl = `https://graph.facebook.com/v20.0/${wabaId}/subscribed_apps`;
     
     try {
       const response = await fetch(subscribeUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${config.accessToken}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
       });
@@ -208,29 +419,21 @@ export class MasterConfigService {
 
   async setAppWebhook(id: number, callbackUrl: string, tenantContext: TenantContext) {
     const prisma = this.getPrisma(tenantContext);
+    const config = await prisma.masterConfig.findUnique({ where: { id } });
+
+    // Use environment variables or fallback to legacy config if present
+    const verifyToken = process.env.META_VERIFY_TOKEN || (config && config.verifyToken);
     
-    // Get the master config
-    const config = await prisma.masterConfig.findUnique({
-      where: { id },
-    });
-
-    if (!config) {
-      throw new BadRequestException('Master config not found');
+    if (!verifyToken) {
+      throw new BadRequestException('Verify Token is required in the environment or configuration');
     }
 
-    if (!config.verifyToken) {
-      throw new BadRequestException('Verify Token is required in the configuration');
-    }
-
-    const appId = (config.appId || process.env.META_APP_ID || '').trim();
-    const appSecret = (config.appSecret || process.env.META_APP_SECRET || '').trim();
+    const appId = (process.env.META_APP_ID || (config && config.appId) || '').trim();
+    const appSecret = (process.env.META_APP_SECRET || (config && config.appSecret) || '').trim();
 
     if (!appId || !appSecret) {
-      throw new BadRequestException('Meta App ID and App Secret must be configured (either in the config or .env)');
+      throw new BadRequestException('Meta App ID and App Secret must be configured');
     }
-
-    console.log(`[Webhook Debug] Using App ID: "${appId}"`);
-    console.log(`[Webhook Debug] Using App Secret (first 4 chars): "${appSecret.substring(0, 4)}..." (length: ${appSecret.length})`);
 
     // Set Webhook for App
     const subscribeUrl = `https://graph.facebook.com/v20.0/${appId}/subscriptions?access_token=${appId}|${appSecret}`;
@@ -239,7 +442,7 @@ export class MasterConfigService {
     const params = new URLSearchParams({
       object: 'whatsapp_business_account',
       callback_url: callbackUrl,
-      verify_token: config.verifyToken,
+      verify_token: verifyToken,
       fields: 'messages'
     });
     

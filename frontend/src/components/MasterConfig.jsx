@@ -8,6 +8,7 @@ import { Plus, Trash2, Eye, EyeOff, Wifi, Facebook, X } from "lucide-react";
 const MasterConfig = () => {
   const { showSuccess, showError, showConfirm } = useToast();
   const [masterConfigs, setMasterConfigs] = useState([]);
+  const [centralConnection, setCentralConnection] = useState(null);
   const [allSettings, setAllSettings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -53,6 +54,7 @@ const MasterConfig = () => {
 
   useEffect(() => {
     fetchMasterConfigs();
+    fetchCentralConnection();
     fetchAllSettings();
     fetchFeatureAssignments();
     fetchMetaCatalogConfig();
@@ -139,6 +141,45 @@ const MasterConfig = () => {
       fetchMetaCatalogConfig();
     }
   }, [activeTab]);
+
+  const fetchCentralConnection = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/master-config/central-connection`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCentralConnection(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch central connection:", error);
+    }
+  };
+
+  const [syncingCentral, setSyncingCentral] = useState(false);
+
+  const handleSyncCentralConnection = async () => {
+    setSyncingCentral(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/master-config/central-connection/sync`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCentralConnection(data);
+        showSuccess('Successfully synced with Meta!');
+      } else {
+        const errorData = await response.json();
+        showError(errorData.message || 'Failed to sync with Meta');
+      }
+    } catch (error) {
+      console.error("Failed to sync central connection:", error);
+      showError('Network error while syncing with Meta');
+    } finally {
+      setSyncingCentral(false);
+    }
+  };
 
   const fetchMasterConfigs = async () => {
     try {
@@ -762,6 +803,91 @@ const MasterConfig = () => {
             </div>
           </div>
 
+          {/* NEW CENTRAL CONNECTION DASHBOARD */}
+          {centralConnection && (
+            <div style={{ marginBottom: '24px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+              <div style={{ padding: '20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
+                <h3 style={{ margin: 0, fontSize: '18px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: centralConnection.connectionStatus === 'CONNECTED' ? '#10b981' : '#ef4444' }}></span>
+                  WhatsApp Business Account (WABA)
+                </h3>
+                <span style={{ padding: '4px 12px', background: '#e2e8f0', borderRadius: '16px', fontSize: '13px', fontWeight: '500', color: '#475569' }}>
+                  WABA ID: {centralConnection.wabaId}
+                </span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    onClick={handleSyncCentralConnection}
+                    disabled={syncingCentral}
+                    className="btn-outline" 
+                    style={{ padding: '6px 12px', fontSize: '13px', borderRadius: '4px', cursor: syncingCentral ? 'not-allowed' : 'pointer', background: 'white', border: '1px solid #cbd5e1', opacity: syncingCentral ? 0.7 : 1 }}
+                  >
+                    {syncingCentral ? 'Syncing...' : 'Sync with Meta'}
+                  </button>
+                  <button className="btn-danger" style={{ padding: '6px 12px', fontSize: '13px', borderRadius: '4px', cursor: 'pointer', background: '#ef4444', color: 'white', border: 'none' }}>
+                    Disconnect
+                  </button>
+                </div>
+              </div>
+              
+              <div style={{ padding: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+                  {centralConnection.phoneNumbers.map((phone, idx) => (
+                    <div key={idx} style={{ padding: '16px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                        <strong style={{ fontSize: '16px', color: '#0f172a' }}>{phone.displayNumber || phone.phoneNumberId}</strong>
+                        <span style={{ fontSize: '12px', padding: '2px 8px', background: phone.qualityRating === 'GREEN' ? '#dcfce7' : '#fef08a', color: phone.qualityRating === 'GREEN' ? '#166534' : '#854d0e', borderRadius: '12px' }}>
+                          Quality: {phone.qualityRating || 'UNKNOWN'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '8px' }}>
+                        ID: {phone.phoneNumberId}
+                      </div>
+                      <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '12px' }}>
+                        Verified Name: {phone.verifiedName || 'N/A'}
+                      </div>
+                      
+                      <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '12px', marginTop: 'auto' }}>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Assign to Feature:</label>
+                        <select 
+                          value={
+                            Object.keys(featureAssignments).find(key => featureAssignments[key] === phone.phoneNumberId) || ''
+                          }
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              handleFeatureAssignment(e.target.value, phone.phoneNumberId);
+                            }
+                          }}
+                          style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                        >
+                          <option value="">Unassigned (Default)</option>
+                          <option value="whatsappChat">WhatsApp Chat (Default)</option>
+                          <option value="campaigns">Campaigns</option>
+                          <option value="ecommerce">Ecommerce</option>
+                          <option value="aiChatbot">AI Chatbot</option>
+                          <option value="quickReply">Quick Reply</option>
+                        </select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {centralConnection.billingAccount && (
+                <div style={{ padding: '16px 20px', background: '#f1f5f9', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '24px' }}>
+                  <div>
+                    <span style={{ fontSize: '13px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Billing Mode</span>
+                    <strong style={{ fontSize: '14px', color: '#334155' }}>{centralConnection.billingAccount.billingMode}</strong>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '13px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Meta Status</span>
+                    <strong style={{ fontSize: '14px', color: '#334155' }}>{centralConnection.billingAccount.metaBillingStatus}</strong>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+        {/* LEGACY MASTER CONFIGS FALLBACK */}
         {masterConfigs.length === 0 ? (
           <p>No configurations found.</p>
         ) : (

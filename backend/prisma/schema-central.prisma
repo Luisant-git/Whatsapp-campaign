@@ -7,6 +7,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("CENTRAL_DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model Admin {
@@ -55,6 +56,8 @@ model Tenant {
   subscriptionOrders SubscriptionOrder[]
    phoneNumbers PhoneNumberMapping[]
   metaPageMappings MetaPageMapping[]
+  metaConnections MetaConnection[]
+  billingAccount BillingAccount?
 
   menuPermission MenuPermission?
    subUsers    SubUser[]  
@@ -208,4 +211,114 @@ model MetaPageMapping {
   tenantId  Int
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+}
+
+enum BillingMode {
+  CUSTOMER_META
+  COMPANY_ASSISTED
+  PLATFORM_CREDIT
+}
+
+enum MetaBillingStatus {
+  UNKNOWN
+  ACTIVE
+  PENDING_PAYMENT
+  DISABLED
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+// ----------------------------------------------------
+// NEW ADDITIONS (Phase 1)
+// ----------------------------------------------------
+
+model MetaConnection {
+  id                  Int     @id @default(autoincrement())
+  tenantId            Int
+  businessPortfolioId String?
+  wabaId              String
+  connectionStatus    String  @default("PENDING")
+  onboardingStatus    String  @default("IN_PROGRESS")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant       Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  credential   MetaCredential?
+  phoneNumbers MetaPhoneNumber[]
+
+  @@unique([tenantId, wabaId])
+}
+
+model MetaCredential {
+  id                   Int       @id @default(autoincrement())
+  connectionId         Int       @unique
+  accessTokenEncrypted String
+  tokenType            String    @default("SYSTEM_USER")
+  expiresAt            DateTime?
+  status               String    @default("ACTIVE")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  metaConnection MetaConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+}
+
+model MetaPhoneNumber {
+  id            Int     @id @default(autoincrement())
+  connectionId  Int
+  phoneNumberId String
+  displayNumber String?
+  verifiedName  String?
+  qualityRating String?
+  status        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  metaConnection MetaConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, phoneNumberId])
+}
+
+model BillingAccount {
+  id                Int               @id @default(autoincrement())
+  tenantId          Int               @unique
+  billingMode       BillingMode       @default(CUSTOMER_META)
+  metaBillingStatus MetaBillingStatus @default(UNKNOWN)
+  saasPlanId        Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  wallet Wallet?
+}
+
+model Wallet {
+  id               Int @id @default(autoincrement())
+  billingAccountId Int @unique
+  balancePaise     Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  billingAccount BillingAccount      @relation(fields: [billingAccountId], references: [id], onDelete: Cascade)
+  transactions   WalletTransaction[]
+}
+
+model WalletTransaction {
+  id          Int             @id @default(autoincrement())
+  walletId    Int
+  amountPaise Int
+  type        TransactionType
+  description String
+  referenceId String?
+
+  createdAt DateTime @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
 }

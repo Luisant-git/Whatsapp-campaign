@@ -36,6 +36,20 @@ export class MasterConfigController {
     return this.masterConfigService.findAll(tenantContext);
   }
 
+  @Get('central-connection')
+  @ApiOperation({ summary: 'Get Central Meta Connection details' })
+  @ApiResponse({ status: 200, description: 'Central connection retrieved successfully' })
+  async getCentralConnection(@TenantContext() tenantContext: TenantContextType) {
+    return this.masterConfigService.getCentralConnection(tenantContext);
+  }
+
+  @Post('central-connection/sync')
+  @ApiOperation({ summary: 'Sync Central Meta Connection with Meta' })
+  @ApiResponse({ status: 200, description: 'Central connection synced successfully' })
+  async syncCentralConnection(@TenantContext() tenantContext: TenantContextType) {
+    return this.masterConfigService.syncCentralConnection(tenantContext);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get master config by ID' })
   @ApiResponse({ status: 200, description: 'Master config retrieved successfully' })

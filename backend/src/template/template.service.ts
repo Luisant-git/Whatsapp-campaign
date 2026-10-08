@@ -6,6 +6,7 @@ import axios from 'axios';
 
 import { CarouselValidatorService } from './carousel-validator.service';
 import { MetaCarouselBuilderService } from './meta-carousel-builder.service';
+import { MetaCredentialService, isCentralMetaCredentialEnabled } from '../meta-credential/meta-credential.service';
 
 @Injectable()
 export class TemplateService {
@@ -15,7 +16,8 @@ export class TemplateService {
     private centralPrisma: CentralPrismaService,
     private tenantPrisma: TenantPrismaService,
     private carouselValidator: CarouselValidatorService,
-    private metaCarouselBuilder: MetaCarouselBuilderService
+    private metaCarouselBuilder: MetaCarouselBuilderService,
+    private metaCredentialService: MetaCredentialService
   ) { }
 
   async createTemplate(userId: number, createTemplateDto: CreateTemplateDto) {
@@ -377,20 +379,29 @@ export class TemplateService {
   }
 
   async getCapabilities(userId: number) {
-    const { masterConfig } = await this.getTenantWithCredentials(userId);
-    if (!masterConfig.wabaId) {
+    let wabaId: string | null;
+    let accessToken: string | null;
+
+    if (isCentralMetaCredentialEnabled()) {
+      const metaConfig = await this.metaCredentialService.getMetaConfig(userId);
+      wabaId = metaConfig.wabaId;
+      accessToken = metaConfig.accessToken;
+    } else {
+      // Legacy path remains entirely unchanged
+      const { masterConfig } = await this.getTenantWithCredentials(userId);
+      wabaId = masterConfig.wabaId;
+      accessToken = masterConfig.accessToken;
+    }
+
+    if (!wabaId) {
       return { carousel: { supported: false, reason: 'WABA ID is not configured.' } };
     }
 
     try {
-      // In a real scenario, this would query a specific Meta API capability endpoint 
-      // like /waba_id?fields=message_template_types or similar.
-      // Assuming Meta API throws an error or explicitly states limitations.
-      // For now, we wrap in try-catch to simulate safe network fetching:
       const response = await axios.get(
-        `https://graph.facebook.com/${this.apiVersion}/${masterConfig.wabaId}?fields=id,name,message_template_namespace`,
+        `https://graph.facebook.com/${this.apiVersion}/${wabaId}?fields=id,name,message_template_namespace`,
         {
-          headers: { Authorization: `Bearer ${masterConfig.accessToken}` },
+          headers: { Authorization: `Bearer ${accessToken}` },
           timeout: 10000,
         }
       );

@@ -9,6 +9,7 @@ import { ChatbotService } from '../chatbot/chatbot.service';
 import { WhatsappEcommerceService } from '../ecommerce/whatsapp-ecommerce.service';
 import { PhoneRouterService } from './phone-router.service';
 import { FlowTriggerService } from '../flow-message/flow-trigger.service';
+import { MetaCredentialService, isCentralMetaCredentialEnabled } from '../meta-credential/meta-credential.service';
 
 const globalGrievanceSessions = new Map<string, { step: string; type: string; location?: string; description?: string; photos: string[]; timestamp: number }>();
 
@@ -28,7 +29,8 @@ export class WhatsappService {
     private chatbotService: ChatbotService,
     private ecommerceService: WhatsappEcommerceService,
     private phoneRouter: PhoneRouterService,
-    private flowTriggerService: FlowTriggerService
+    private flowTriggerService: FlowTriggerService,
+    private metaCredentialService: MetaCredentialService
   ) { }
 
   private isEcommerceCheckoutStep(step?: string | null): boolean {
@@ -546,7 +548,21 @@ export class WhatsappService {
 
   async sendMessage(to: string, message: string, userId: number) {
     try {
-      const { phoneNumberId, accessToken, apiUrl } = await this.getPhoneCredentials('whatsappChat', userId);
+      let phoneNumberId: string;
+      let accessToken: string;
+      let apiUrl: string;
+
+      if (isCentralMetaCredentialEnabled()) {
+        const metaConfig = await this.metaCredentialService.getMetaConfig(userId);
+        phoneNumberId = metaConfig.phoneNumberId;
+        accessToken = metaConfig.accessToken;
+        apiUrl = 'https://graph.facebook.com/v20.0'; // We use v20.0 as the central default
+      } else {
+        const credentials = await this.getPhoneCredentials('whatsappChat', userId);
+        phoneNumberId = credentials.phoneNumberId;
+        accessToken = credentials.accessToken;
+        apiUrl = credentials.apiUrl;
+      }
 
       this.logger.log(`Sending message to ${to}: ${message}`);
       this.logger.log(`Using API URL: ${apiUrl}/${phoneNumberId}/messages`);
@@ -787,6 +803,13 @@ export class WhatsappService {
   async validateVerifyToken(token: string): Promise<boolean> {
     try {
       console.log(`\n🔍 VALIDATING VERIFY TOKEN: ${token}`);
+      
+      const isCentral = isCentralMetaCredentialEnabled();
+      if (isCentral && process.env.META_VERIFY_TOKEN && process.env.META_VERIFY_TOKEN === token) {
+        console.log(`✅ Token found matching global META_VERIFY_TOKEN`);
+        return true;
+      }
+      
       const tenants = await this.centralPrisma.tenant.findMany({
         where: { isActive: true }
       });
@@ -2619,7 +2642,25 @@ export class WhatsappService {
   }
 
   async sendBulkTemplateMessageWithNames(contacts: Array<{ name: string; phone: string }>, templateName: string, userId: number, settingsId?: number, headerImageUrl?: string) {
-    const { phoneNumberId, accessToken, apiUrl } = await this.getPhoneCredentials('campaigns', userId);
+    let phoneNumberId: string;
+    let accessToken: string;
+    let apiUrl: string;
+
+    if (isCentralMetaCredentialEnabled()) {
+      // Find assigned phone ID for routing, preserving legacy campaign routing semantics
+      const featureAssignment = await this.prisma.featureAssignment.findFirst();
+      const assignedPhoneId = featureAssignment?.campaigns || undefined;
+
+      const metaConfig = await this.metaCredentialService.getMetaConfig(userId, assignedPhoneId);
+      phoneNumberId = metaConfig.phoneNumberId;
+      accessToken = metaConfig.accessToken;
+      apiUrl = 'https://graph.facebook.com/v20.0';
+    } else {
+      const credentials = await this.getPhoneCredentials('campaigns', userId);
+      phoneNumberId = credentials.phoneNumberId;
+      accessToken = credentials.accessToken;
+      apiUrl = credentials.apiUrl;
+    }
 
     // Fetch template from tenant DB using userId to get tenant context
     const tenantDbUrl = await this.getTenantDbUrl(userId);

@@ -949,21 +949,21 @@ const MasterConfig = () => {
                           {/* Text Info */}
                           <div style={{ flex: 1 }}>
                             <div 
-                              style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px', cursor: 'pointer' }}
+                              style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', cursor: 'pointer' }}
                               title="Copy to clipboard"
                               onClick={() => {
                                 navigator.clipboard.writeText(phone.displayNumber || phone.phoneNumberId);
                               }}
                             >
                               <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#1c1e21' }}>IN</span>
-                              <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#1c1e21' }}>{phone.displayNumber || phone.phoneNumberId}</span>
+                              <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#1c1e21' }}>{phone.displayNumber || phone.phoneNumberId}</span>
                             </div>
                             
-                            <div style={{ fontSize: '14px', color: '#1c1e21', marginBottom: '4px' }}>
+                            <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1c1e21', marginBottom: '6px' }}>
                               {phone.verifiedName || 'Pending'}
                             </div>
 
-                            <div style={{ fontSize: '14px', color: '#1c1e21' }}>
+                            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#1c1e21' }}>
                               Phone number ID: <span style={{ color: '#005ed6', cursor: 'pointer' }} title="Copy ID" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(phone.phoneNumberId); }}>{phone.phoneNumberId}</span>
                             </div>
                           </div>
@@ -1050,9 +1050,9 @@ const MasterConfig = () => {
                     
                     <button 
                       onClick={() => window.open(`https://business.facebook.com/wa/manage/home/?waba_id=${centralConnection.wabaId}`, '_blank')}
-                      style={{ marginTop: '16px', width: '100%', padding: '8px', fontSize: '13px', fontWeight: '600', borderRadius: '4px', cursor: 'pointer', background: '#1877f2', color: 'white', border: 'none', transition: 'background 0.2s' }}
+                      style={{ marginTop: '16px', width: '100%', padding: '10px 8px', fontSize: '14px', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer', backgroundColor: '#1877F2', color: 'white', border: '1px solid #1877F2', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'background 0.2s' }}
                     >
-                      Manage in Meta
+                      <Facebook size={16} /> Manage in Meta
                     </button>
                     
                     {(!centralConnection.billingAccount || centralConnection.billingAccount?.billingMode === 'CUSTOMER_META') && (

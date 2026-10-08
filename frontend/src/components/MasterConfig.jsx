@@ -872,18 +872,58 @@ const MasterConfig = () => {
                 </div>
               </div>
 
-              {centralConnection.billingAccount && (
-                <div style={{ padding: '16px 20px', background: '#f1f5f9', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '24px' }}>
-                  <div>
-                    <span style={{ fontSize: '13px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Billing Mode</span>
-                    <strong style={{ fontSize: '14px', color: '#334155' }}>{centralConnection.billingAccount.billingMode}</strong>
+              <div style={{ padding: '24px 20px', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+                <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  💳 Meta Billing
+                </h4>
+                
+                <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '20px', display: 'flex', flexWrap: 'wrap', gap: '24px', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '280px', flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '8px' }}>
+                      <span style={{ color: '#64748b', fontSize: '14px' }}>Billing Responsibility:</span>
+                      <strong style={{ color: '#0f172a', fontSize: '14px' }}>
+                        {centralConnection.billingAccount?.billingMode === 'CUSTOMER_META' ? 'Customer Managed' : (centralConnection.billingAccount?.billingMode || 'Unconfigured')}
+                      </strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '8px' }}>
+                      <span style={{ color: '#64748b', fontSize: '14px' }}>Payment Method:</span>
+                      <strong style={{ color: '#0f172a', fontSize: '14px' }}>
+                        {centralConnection.billingAccount?.billingMode === 'CUSTOMER_META' ? "Customer's Meta Account" : 'Platform Wallet'}
+                      </strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: '#64748b', fontSize: '14px' }}>Meta Status:</span>
+                      <span style={{ fontSize: '12px', padding: '4px 10px', background: centralConnection.billingAccount?.metaBillingStatus === 'ACTIVE' ? '#dcfce7' : '#f1f5f9', color: centralConnection.billingAccount?.metaBillingStatus === 'ACTIVE' ? '#166534' : '#475569', borderRadius: '12px', fontWeight: '600' }}>
+                        {centralConnection.billingAccount?.metaBillingStatus || 'UNKNOWN'}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span style={{ fontSize: '13px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Meta Status</span>
-                    <strong style={{ fontSize: '14px', color: '#334155' }}>{centralConnection.billingAccount.metaBillingStatus}</strong>
+                  
+                  <div style={{ display: 'flex', gap: '12px', flexDirection: 'column', minWidth: '180px' }}>
+                    <button 
+                      className="btn-outline" 
+                      onClick={() => window.open(`https://business.facebook.com/wa/manage/billing/?waba_id=${centralConnection.wabaId}`, '_blank')}
+                      style={{ padding: '10px 16px', fontSize: '13px', borderRadius: '6px', cursor: 'pointer', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: '500', transition: 'all 0.2s' }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                      Open Meta Billing
+                    </button>
+                    <button 
+                      className="btn-outline" 
+                      style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '6px', cursor: 'pointer', background: 'white', border: '1px solid #cbd5e1', color: '#334155', fontWeight: '500', transition: 'all 0.2s' }}
+                    >
+                      Sync Billing Status
+                    </button>
                   </div>
                 </div>
-              )}
+                
+                {(!centralConnection.billingAccount || centralConnection.billingAccount?.billingMode === 'CUSTOMER_META') && (
+                  <div style={{ margin: '16px 0 0 0', fontSize: '13px', color: '#475569', display: 'flex', gap: '8px', background: '#f1f5f9', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #3b82f6' }}>
+                    <span style={{ color: '#3b82f6', fontSize: '16px' }}>ℹ️</span> 
+                    <span style={{ lineHeight: '1.4' }}>Meta handles the actual WhatsApp API billing. Invoices, usage limits, and payment methods are managed directly by the customer in their Meta Business Manager.</span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

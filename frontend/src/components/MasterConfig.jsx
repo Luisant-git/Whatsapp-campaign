@@ -1162,11 +1162,6 @@ const MasterConfig = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '16px', marginTop: '16px' }}>
             {masterConfigs.map((config) => (
               <div key={config.id} style={{ padding: '16px', border: '1px solid #ccd0d5', borderRadius: '8px', background: '#f4f7fb', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Primary Actions at Top */}
-                <div style={{ display: 'flex', gap: '8px', width: '100%', paddingBottom: '12px', borderBottom: '1px solid #ccd0d5' }}>
-                  <button onClick={() => handleSubscribeWABA(config)} style={{ flex: 1, padding: '6px 12px', fontSize: '13px', background: '#25d366', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Subscribe</button>
-                  <button onClick={() => handleSetWebhookClick(config)} style={{ flex: 1, padding: '6px 12px', fontSize: '13px', background: '#1877f2', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Set Webhook</button>
-                </div>
 
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
                   {/* Avatar with WA Badge */}
@@ -1186,8 +1181,14 @@ const MasterConfig = () => {
                     <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#1c1e21', marginBottom: '4px' }}>
                       {config.name}
                     </div>
-                    <div style={{ fontSize: '14px', color: '#1c1e21' }}>
+                    <div style={{ fontSize: '14px', color: '#1c1e21', marginBottom: '10px' }}>
                       Phone number ID: <span style={{ color: '#005ed6', cursor: 'pointer' }} title="Copy ID" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(config.phoneNumberId); showSuccess('Phone ID copied to clipboard!'); }}>{config.phoneNumberId}</span>
+                    </div>
+
+                    {/* Primary Actions */}
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button onClick={() => handleSubscribeWABA(config)} style={{ padding: '4px 10px', fontSize: '12px', background: '#25d366', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Subscribe</button>
+                      <button onClick={() => handleSetWebhookClick(config)} style={{ padding: '4px 10px', fontSize: '12px', background: '#1877f2', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Set Webhook</button>
                     </div>
                   </div>
                 </div>

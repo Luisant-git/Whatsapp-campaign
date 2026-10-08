@@ -719,6 +719,49 @@ const MasterConfig = () => {
 
       {activeTab === 'configurations' && (
         <div className="settings-list">
+          {/* Tech Provider Dashboard Card */}
+          <div className="tech-provider-dashboard" style={{ marginBottom: '24px', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', borderRadius: '12px', padding: '24px', border: '1px solid #bbf7d0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+              <div style={{ flex: '1 1 min-content', minWidth: '300px' }}>
+                <h2 style={{ color: '#166534', margin: '0 0 12px 0', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Facebook size={24} color="#1877F2" fill="#1877F2" /> Welcome to the WhatsApp Business Platform
+                </h2>
+                <p style={{ color: '#15803d', margin: '0 0 16px 0', fontSize: '15px', lineHeight: '1.5' }}>
+                  Send and receive messages to and from customers using cloud-based servers owned by Meta to host the WhatsApp Business API client.
+                </p>
+                
+                <div style={{ background: 'white', borderRadius: '8px', padding: '16px', border: '1px solid #e2e8f0', marginBottom: '16px' }}>
+                  <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', color: '#1e293b' }}>Configure where you left off</h3>
+                  <p style={{ margin: 0, fontSize: '14px', color: '#475569' }}>
+                    To get alerted when you receive a message or when a message's status has changed, you need to setup a Webhooks endpoint for your app.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ flex: '1 1 min-content', minWidth: '300px', background: 'white', borderRadius: '8px', padding: '20px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>Scale your business</h3>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: '600', color: '#334155' }}>Tech Provider Onboarding</span>
+                      <span style={{ background: '#ecfdf5', color: '#10b981', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: '500', border: '1px solid #a7f3d0' }}>Verified Tech Provider</span>
+                    </div>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                      <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '12px' }}>✓</div>
+                      <span style={{ fontSize: '14px', color: '#10b981', fontWeight: '600' }}>Completed Onboarding</span>
+                    </div>
+                  </div>
+                  
+                  <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#475569', lineHeight: '1.5', background: '#f8fafc', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #10b981' }}>
+                    Congratulations on becoming a WhatsApp Tech Provider. You can now onboard customers to the WhatsApp Business Platform.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
         {masterConfigs.length === 0 ? (
           <p>No configurations found.</p>
         ) : (

@@ -140,15 +140,15 @@ export class MasterConfigService {
         });
       }
 
-      // Initialize Billing Account for this connection
+      // Initialize Billing Account for this tenant
       await this.centralPrisma.billingAccount.upsert({
-        where: { connectionId: metaConnection.id },
+        where: { tenantId: tenantIdNum },
         update: {
           billingMode: 'CUSTOMER_META',
           metaBillingStatus: 'ACTIVE'
         },
         create: {
-          connectionId: metaConnection.id,
+          tenantId: tenantIdNum,
           billingMode: 'CUSTOMER_META',
           metaBillingStatus: 'ACTIVE'
         }

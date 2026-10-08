@@ -157,6 +157,7 @@ const MasterConfig = () => {
     }
   };
 
+  const [metaTab, setMetaTab] = useState('overview');
   const [analyticsData, setAnalyticsData] = useState([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsMonth, setAnalyticsMonth] = useState(() => {
@@ -878,177 +879,233 @@ const MasterConfig = () => {
               borderRadius: '8px', 
               fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
             }}>
-              {/* Header Row */}
+              {/* Header Title & Actions */}
               <div style={{ 
-                padding: '16px 20px', 
-                borderBottom: '1px solid #ccd0d5', 
+                padding: '20px 24px 16px 24px', 
                 display: 'flex', 
                 justifyContent: 'space-between', 
                 alignItems: 'center',
                 flexWrap: 'wrap',
-                gap: '12px'
+                gap: '16px'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: centralConnection.connectionStatus === 'CONNECTED' ? '#31a24c' : '#fa383e' }}></div>
-                    <strong style={{ fontSize: '15px', color: '#1c1e21' }}>WhatsApp Business Account</strong>
-                  </div>
-                  <span style={{ fontSize: '13px', color: '#606770' }}>WABA ID: <strong style={{color: '#1c1e21'}}>{centralConnection.wabaId}</strong></span>
-                  <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', background: '#e4e6eb', color: '#1c1e21', borderRadius: '4px' }}>{centralConnection.connectionStatus}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <h2 style={{ margin: 0, fontSize: '20px', color: '#1c1e21', fontWeight: 'bold' }}>WhatsApp Manager</h2>
+                  <span style={{ fontSize: '12px', fontWeight: 'bold', padding: '4px 8px', background: centralConnection.connectionStatus === 'CONNECTED' ? '#e8fdf0' : '#ffebe8', color: centralConnection.connectionStatus === 'CONNECTED' ? '#1c8c3c' : '#fa383e', borderRadius: '4px' }}>
+                    {centralConnection.connectionStatus}
+                  </span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button 
                     onClick={handleSyncCentralConnection}
                     disabled={syncingCentral}
-                    style={{ padding: '6px 12px', fontSize: '13px', fontWeight: '600', borderRadius: '4px', cursor: syncingCentral ? 'not-allowed' : 'pointer', background: '#e4e6eb', color: '#1c1e21', border: 'none', display: 'flex', alignItems: 'center', gap: '6px', transition: 'background 0.2s' }}
+                    style={{ padding: '8px 16px', fontSize: '13px', fontWeight: '600', borderRadius: '6px', cursor: syncingCentral ? 'not-allowed' : 'pointer', background: '#e4e6eb', color: '#1c1e21', border: 'none', display: 'flex', alignItems: 'center', gap: '6px', transition: 'background 0.2s' }}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
-                    Sync
+                    Sync Meta API
                   </button>
                   <button 
                     onClick={handleDisconnectCentral}
                     disabled={disconnectingCentral}
-                    style={{ padding: '6px 12px', fontSize: '13px', fontWeight: '600', borderRadius: '4px', cursor: disconnectingCentral ? 'not-allowed' : 'pointer', background: '#ffffff', color: '#fa383e', border: '1px solid #fa383e', transition: 'all 0.2s' }}
+                    style={{ padding: '8px 16px', fontSize: '13px', fontWeight: '600', borderRadius: '6px', cursor: disconnectingCentral ? 'not-allowed' : 'pointer', background: '#ffffff', color: '#fa383e', border: '1px solid #ccd0d5', transition: 'all 0.2s' }}
                   >
-                    Disconnect
+                    Remove Connection
                   </button>
                 </div>
               </div>
-              
-              {/* Phone Numbers & Billing Row */}
-              <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-                {/* Phone Numbers Column */}
-                <div style={{ flex: '1 1 50%', minWidth: '300px', borderRight: '1px solid #ccd0d5', padding: '20px' }}>
-                  <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#606770', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Phone Numbers</h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {centralConnection.phoneNumbers.map((phone, idx) => (
-                      <div key={idx} style={{ padding: '12px', border: '1px solid #e4e6eb', borderRadius: '6px', background: '#f5f6f7' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <strong style={{ fontSize: '15px', color: '#1c1e21' }}>{phone.displayNumber || phone.phoneNumberId}</strong>
-                          <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', background: phone.qualityRating === 'GREEN' ? '#e8fdf0' : '#fff4e5', color: phone.qualityRating === 'GREEN' ? '#1c8c3c' : '#b26a00', borderRadius: '4px' }}>
-                            {phone.qualityRating || 'UNKNOWN'}
+
+              {/* Meta-Style Tab Bar */}
+              <div style={{ borderBottom: '1px solid #ccd0d5', padding: '0 24px', display: 'flex', gap: '24px' }}>
+                <button 
+                  onClick={() => setMetaTab('overview')} 
+                  style={{ background: 'none', border: 'none', padding: '16px 0', fontSize: '14px', fontWeight: '600', color: metaTab === 'overview' ? '#1877f2' : '#606770', borderBottom: metaTab === 'overview' ? '3px solid #1877f2' : '3px solid transparent', cursor: 'pointer' }}
+                >
+                  Overview
+                </button>
+                <button 
+                  onClick={() => setMetaTab('phones')} 
+                  style={{ background: 'none', border: 'none', padding: '16px 0', fontSize: '14px', fontWeight: '600', color: metaTab === 'phones' ? '#1877f2' : '#606770', borderBottom: metaTab === 'phones' ? '3px solid #1877f2' : '3px solid transparent', cursor: 'pointer' }}
+                >
+                  Phone numbers
+                </button>
+                <button 
+                  onClick={() => setMetaTab('insights')} 
+                  style={{ background: 'none', border: 'none', padding: '16px 0', fontSize: '14px', fontWeight: '600', color: metaTab === 'insights' ? '#1877f2' : '#606770', borderBottom: metaTab === 'insights' ? '3px solid #1877f2' : '3px solid transparent', cursor: 'pointer' }}
+                >
+                  Insights
+                </button>
+              </div>
+
+              {/* Tab Content */}
+              <div style={{ padding: '24px', background: '#f5f6f7' }}>
+                
+                {metaTab === 'overview' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+                    {/* Account Details Card */}
+                    <div style={{ background: '#ffffff', border: '1px solid #ccd0d5', borderRadius: '8px', padding: '20px' }}>
+                      <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#1c1e21' }}>Account details</h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <div>
+                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px' }}>WhatsApp Business Account ID</div>
+                          <div style={{ fontSize: '14px', color: '#1c1e21', fontWeight: '600' }}>{centralConnection.wabaId}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px' }}>Onboarding Status</div>
+                          <div style={{ fontSize: '14px', color: '#1c1e21', fontWeight: '600' }}>{centralConnection.onboardingStatus}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px' }}>Total Connected Numbers</div>
+                          <div style={{ fontSize: '14px', color: '#1c1e21', fontWeight: '600' }}>{centralConnection.phoneNumbers?.length || 0} numbers</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Billing Setup Card */}
+                    <div style={{ background: '#ffffff', border: '1px solid #ccd0d5', borderRadius: '8px', padding: '20px' }}>
+                      <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#1c1e21' }}>Billing</h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '13px', color: '#606770' }}>Responsibility</span>
+                          <span style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21', background: '#f0f2f5', padding: '4px 8px', borderRadius: '4px' }}>
+                            {centralConnection.billingAccount?.billingMode === 'CUSTOMER_META' ? 'Customer Managed' : (centralConnection.billingAccount?.billingMode || 'Unconfigured')}
                           </span>
                         </div>
-                        <div style={{ fontSize: '13px', color: '#606770', marginBottom: '4px' }}>ID: {phone.phoneNumberId}</div>
-                        <div style={{ fontSize: '13px', color: '#606770', marginBottom: '12px' }}>Name: <strong style={{color: '#1c1e21'}}>{phone.verifiedName || 'Pending'}</strong></div>
-                        
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid #e4e6eb', paddingTop: '10px' }}>
-                          <label style={{ fontSize: '12px', color: '#606770', whiteSpace: 'nowrap', fontWeight: '600' }}>Route to:</label>
-                          <select 
-                            value={Object.keys(featureAssignments).find(key => featureAssignments[key] === phone.phoneNumberId) || ''}
-                            onChange={(e) => { if (e.target.value) handleFeatureAssignment(e.target.value, phone.phoneNumberId); }}
-                            style={{ flex: 1, padding: '4px 8px', borderRadius: '4px', border: '1px solid #ccd0d5', fontSize: '13px', background: '#ffffff', outline: 'none' }}
-                          >
-                            <option value="">Unassigned</option>
-                            <option value="whatsappChat">Primary Inbox</option>
-                            <option value="campaigns">Campaigns</option>
-                            <option value="ecommerce">Ecommerce</option>
-                            <option value="aiChatbot">AI Chatbot</option>
-                            <option value="quickReply">Quick Replies</option>
-                          </select>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '13px', color: '#606770' }}>Status</span>
+                          <span style={{ fontSize: '13px', fontWeight: '600', color: centralConnection.billingAccount?.metaBillingStatus === 'ACTIVE' ? '#1c8c3c' : '#1c1e21' }}>
+                            {centralConnection.billingAccount?.metaBillingStatus || 'UNKNOWN'}
+                          </span>
                         </div>
+                        <div style={{ marginTop: '8px', padding: '12px', background: '#f5f6f7', borderRadius: '6px', fontSize: '12px', color: '#606770', lineHeight: '1.4' }}>
+                          Your WhatsApp conversations are billed directly by Meta. Access your Meta Business Manager to view invoices, manage credit cards, and check your credit line.
+                        </div>
+                        <button 
+                          onClick={() => window.open(`https://business.facebook.com/wa/manage/home/?waba_id=${centralConnection.wabaId}`, '_blank')}
+                          style={{ padding: '8px', fontSize: '14px', fontWeight: '600', borderRadius: '6px', cursor: 'pointer', background: '#e4e6eb', color: '#1c1e21', border: 'none', transition: 'background 0.2s' }}
+                        >
+                          Open Billing Settings
+                        </button>
                       </div>
-                    ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {/* Billing Column */}
-                <div style={{ flex: '1 1 50%', minWidth: '300px', padding: '20px' }}>
-                  <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#606770', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Billing Setup</h4>
-                  <div style={{ padding: '16px', border: '1px solid #e4e6eb', borderRadius: '6px', background: '#ffffff' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: '#606770' }}>Responsibility:</span>
-                        <strong style={{ color: '#1c1e21' }}>{centralConnection.billingAccount?.billingMode === 'CUSTOMER_META' ? 'Customer Managed' : (centralConnection.billingAccount?.billingMode || 'Unconfigured')}</strong>
+                {metaTab === 'phones' && (
+                  <div style={{ background: '#ffffff', border: '1px solid #ccd0d5', borderRadius: '8px', overflow: 'hidden' }}>
+                    <div style={{ padding: '20px', borderBottom: '1px solid #ccd0d5' }}>
+                      <h3 style={{ margin: 0, fontSize: '16px', color: '#1c1e21' }}>Phone numbers</h3>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#606770' }}>Manage routing for your connected numbers.</p>
+                    </div>
+                    {/* Meta Style Table */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #ccd0d5', background: '#f5f6f7' }}>
+                          <th style={{ padding: '12px 20px', color: '#606770', fontWeight: '600' }}>Number & ID</th>
+                          <th style={{ padding: '12px 20px', color: '#606770', fontWeight: '600' }}>Verified Name</th>
+                          <th style={{ padding: '12px 20px', color: '#606770', fontWeight: '600' }}>Quality</th>
+                          <th style={{ padding: '12px 20px', color: '#606770', fontWeight: '600' }}>App Routing</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {centralConnection.phoneNumbers.map((phone, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid #e4e6eb' }}>
+                            <td style={{ padding: '16px 20px' }}>
+                              <strong style={{ color: '#1877f2', display: 'block', marginBottom: '4px', fontSize: '14px' }}>{phone.displayNumber || phone.phoneNumberId}</strong>
+                              <span style={{ color: '#606770', fontSize: '12px' }}>{phone.phoneNumberId}</span>
+                            </td>
+                            <td style={{ padding: '16px 20px', color: '#1c1e21', fontWeight: '500' }}>
+                              {phone.verifiedName || 'Pending'}
+                            </td>
+                            <td style={{ padding: '16px 20px' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '4px 8px', background: phone.qualityRating === 'GREEN' ? '#e8fdf0' : '#fff4e5', color: phone.qualityRating === 'GREEN' ? '#1c8c3c' : '#b26a00', borderRadius: '4px' }}>
+                                {phone.qualityRating || 'UNKNOWN'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '16px 20px' }}>
+                              <select 
+                                value={Object.keys(featureAssignments).find(key => featureAssignments[key] === phone.phoneNumberId) || ''}
+                                onChange={(e) => { if (e.target.value) handleFeatureAssignment(e.target.value, phone.phoneNumberId); }}
+                                style={{ width: '100%', maxWidth: '200px', padding: '8px 12px', borderRadius: '6px', border: '1px solid #ccd0d5', fontSize: '13px', background: '#ffffff', outline: 'none' }}
+                              >
+                                <option value="">Unassigned</option>
+                                <option value="whatsappChat">Primary Inbox</option>
+                                <option value="campaigns">Campaigns</option>
+                                <option value="ecommerce">Ecommerce</option>
+                                <option value="aiChatbot">AI Chatbot</option>
+                                <option value="quickReply">Quick Replies</option>
+                              </select>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {metaTab === 'insights' && (
+                  <div style={{ background: '#ffffff', border: '1px solid #ccd0d5', borderRadius: '8px' }}>
+                    <div style={{ padding: '20px', borderBottom: '1px solid #ccd0d5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: '16px', color: '#1c1e21' }}>Conversation Analytics</h3>
+                        <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#606770' }}>Billed messages synced directly from Meta.</p>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: '#606770' }}>Payment Method:</span>
-                        <strong style={{ color: '#1c1e21' }}>Meta Business Account</strong>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: '#606770' }}>Status:</span>
-                        <strong style={{ color: centralConnection.billingAccount?.metaBillingStatus === 'ACTIVE' ? '#31a24c' : '#1c1e21' }}>{centralConnection.billingAccount?.metaBillingStatus || 'UNKNOWN'}</strong>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontSize: '13px', color: '#606770' }}>Date range:</span>
+                        <input 
+                          type="month" 
+                          value={analyticsMonth}
+                          onChange={(e) => setAnalyticsMonth(e.target.value)}
+                          style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #ccd0d5', fontSize: '14px', outline: 'none', color: '#1c1e21' }}
+                        />
                       </div>
                     </div>
                     
-                    <button 
-                      onClick={() => window.open(`https://business.facebook.com/wa/manage/home/?waba_id=${centralConnection.wabaId}`, '_blank')}
-                      style={{ marginTop: '16px', width: '100%', padding: '8px', fontSize: '13px', fontWeight: '600', borderRadius: '4px', cursor: 'pointer', background: '#1877f2', color: 'white', border: 'none', transition: 'background 0.2s' }}
-                    >
-                      Manage in Meta
-                    </button>
-                    
-                    {(!centralConnection.billingAccount || centralConnection.billingAccount?.billingMode === 'CUSTOMER_META') && (
-                      <div style={{ marginTop: '12px', fontSize: '12px', color: '#606770', lineHeight: '1.4' }}>
-                        Usage is billed directly by Meta. Invoices and card details are managed in your Meta Business Manager.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              {/* Analytics Row */}
-              <div style={{ borderTop: '1px solid #ccd0d5', padding: '20px', background: '#ffffff' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-                  <h4 style={{ margin: 0, fontSize: '13px', color: '#606770', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Conversation Usage Analytics</h4>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '12px', color: '#606770' }}>Month:</span>
-                    <input 
-                      type="month" 
-                      value={analyticsMonth}
-                      onChange={(e) => setAnalyticsMonth(e.target.value)}
-                      style={{ padding: '6px 10px', borderRadius: '4px', border: '1px solid #ccd0d5', fontSize: '13px', outline: 'none', background: '#ffffff', color: '#1c1e21' }}
-                    />
-                    {analyticsLoading && <span style={{ fontSize: '12px', color: '#1877f2', fontWeight: '600' }}>Loading...</span>}
-                  </div>
-                </div>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
-                  {(() => {
-                    const totals = { MARKETING: 0, UTILITY: 0, SERVICE: 0, AUTHENTICATION: 0 };
-                    let totalConversations = 0;
-                    
-                    if (analyticsData && analyticsData.length > 0) {
-                      analyticsData.forEach(item => {
-                        item.data_points?.forEach(dp => {
-                          const cat = dp.conversation_category;
-                          const count = dp.metrics?.conversation || 0;
-                          if (totals[cat] !== undefined) {
-                            totals[cat] += count;
-                          } else {
-                            totals[cat] = count;
-                          }
-                          totalConversations += count;
-                        });
-                      });
-                    }
+                    <div style={{ padding: '24px' }}>
+                      {analyticsLoading ? (
+                        <div style={{ textAlign: 'center', padding: '40px', color: '#606770', fontSize: '14px' }}>Loading insights...</div>
+                      ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                          {(() => {
+                            const totals = { MARKETING: 0, UTILITY: 0, SERVICE: 0, AUTHENTICATION: 0 };
+                            let totalConversations = 0;
+                            
+                            if (analyticsData && analyticsData.length > 0) {
+                              analyticsData.forEach(item => {
+                                item.data_points?.forEach(dp => {
+                                  const cat = dp.conversation_category;
+                                  const count = dp.metrics?.conversation || 0;
+                                  if (totals[cat] !== undefined) totals[cat] += count;
+                                  else totals[cat] = count;
+                                  totalConversations += count;
+                                });
+                              });
+                            }
 
-                    return (
-                      <>
-                        <div style={{ padding: '16px', border: '1px solid #ccd0d5', borderRadius: '6px', background: '#f5f6f7' }}>
-                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Total Charged</div>
-                          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totalConversations}</div>
+                            return (
+                              <>
+                                <div style={{ padding: '24px', border: '1px solid #ccd0d5', borderRadius: '8px', background: '#f5f6f7', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                  <div style={{ fontSize: '13px', color: '#606770', fontWeight: '600', textTransform: 'uppercase' }}>Total Conversations</div>
+                                  <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#1c1e21' }}>{totalConversations}</div>
+                                </div>
+                                <div style={{ padding: '24px', border: '1px solid #e4e6eb', borderRadius: '8px', background: '#ffffff', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                  <div style={{ fontSize: '13px', color: '#606770', fontWeight: '600', textTransform: 'uppercase' }}>Marketing</div>
+                                  <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#1c1e21' }}>{totals.MARKETING || 0}</div>
+                                </div>
+                                <div style={{ padding: '24px', border: '1px solid #e4e6eb', borderRadius: '8px', background: '#ffffff', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                  <div style={{ fontSize: '13px', color: '#606770', fontWeight: '600', textTransform: 'uppercase' }}>Service</div>
+                                  <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#1c1e21' }}>{totals.SERVICE || 0}</div>
+                                </div>
+                                <div style={{ padding: '24px', border: '1px solid #e4e6eb', borderRadius: '8px', background: '#ffffff', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                  <div style={{ fontSize: '13px', color: '#606770', fontWeight: '600', textTransform: 'uppercase' }}>Utility</div>
+                                  <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#1c1e21' }}>{totals.UTILITY || 0}</div>
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
-                        <div style={{ padding: '16px', border: '1px solid #e4e6eb', borderRadius: '6px', background: '#ffffff' }}>
-                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Marketing</div>
-                          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totals.MARKETING || 0}</div>
-                        </div>
-                        <div style={{ padding: '16px', border: '1px solid #e4e6eb', borderRadius: '6px', background: '#ffffff' }}>
-                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Service</div>
-                          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totals.SERVICE || 0}</div>
-                        </div>
-                        <div style={{ padding: '16px', border: '1px solid #e4e6eb', borderRadius: '6px', background: '#ffffff' }}>
-                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Utility</div>
-                          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totals.UTILITY || 0}</div>
-                        </div>
-                        <div style={{ padding: '16px', border: '1px solid #e4e6eb', borderRadius: '6px', background: '#ffffff' }}>
-                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Authentication</div>
-                          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totals.AUTHENTICATION || 0}</div>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

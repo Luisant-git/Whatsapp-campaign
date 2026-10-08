@@ -51,6 +51,7 @@ const MasterConfig = () => {
   const [webhookConfigId, setWebhookConfigId] = useState(null);
   const [callbackUrl, setCallbackUrl] = useState('https://enquiry.api.luisant.cloud/api/webhook');
   const [settingWebhook, setSettingWebhook] = useState(false);
+  const [activeRoutingDropdown, setActiveRoutingDropdown] = useState(null);
 
   useEffect(() => {
     fetchMasterConfigs();
@@ -294,7 +295,18 @@ const MasterConfig = () => {
 
   const handleFeatureAssignment = async (feature, phoneNumberId) => {
     const previousAssignments = { ...featureAssignments };
-    const updated = { ...featureAssignments, [feature]: phoneNumberId };
+    const updated = { ...featureAssignments };
+    
+    // Clear this phone number from any existing features to enforce 1-to-1 routing
+    Object.keys(updated).forEach(k => {
+      if (updated[k] === phoneNumberId) updated[k] = '';
+    });
+    
+    // Assign to new feature if not "Unassigned" (empty string)
+    if (feature) {
+      updated[feature] = phoneNumberId;
+    }
+    
     console.log('Saving feature assignment:', { feature, phoneNumberId, updated });
     setFeatureAssignments(updated);
     
@@ -311,7 +323,8 @@ const MasterConfig = () => {
       console.log('Save response data:', responseData);
       
       if (response.ok) {
-        showSuccess(`${feature.replace(/([A-Z])/g, ' $1').trim()} number updated`);
+        showSuccess(feature ? `${feature.replace(/([A-Z])/g, ' $1').trim()} number updated` : 'Unassigned feature routing');
+        setActiveRoutingDropdown(null);
       } else {
         throw new Error('Failed to save');
       }
@@ -964,18 +977,52 @@ const MasterConfig = () => {
                         {/* Routing App */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '2px solid #606770', paddingTop: '12px' }}>
                           <label style={{ fontSize: '12px', color: '#606770', whiteSpace: 'nowrap', fontWeight: '600' }}>App Routing:</label>
-                          <select 
-                            value={Object.keys(featureAssignments).find(key => featureAssignments[key] === phone.phoneNumberId) || ''}
-                            onChange={(e) => { if (e.target.value) handleFeatureAssignment(e.target.value, phone.phoneNumberId); }}
-                            style={{ flex: 1, padding: '6px 10px', borderRadius: '4px', border: '2px solid #606770', fontSize: '13px', background: '#ffffff', outline: 'none' }}
-                          >
-                            <option value="">Unassigned</option>
-                            <option value="whatsappChat">Primary Inbox</option>
-                            <option value="campaigns">Campaigns</option>
-                            <option value="ecommerce">Ecommerce</option>
-                            <option value="aiChatbot">AI Chatbot</option>
-                            <option value="quickReply">Quick Replies</option>
-                          </select>
+                          <div style={{ position: 'relative', flex: 1 }}>
+                            <button 
+                              onClick={() => setActiveRoutingDropdown(activeRoutingDropdown === phone.phoneNumberId ? null : phone.phoneNumberId)}
+                              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', border: '2px solid #606770', borderRadius: '4px', background: '#ffffff', cursor: 'pointer', fontSize: '13px', color: '#1c1e21', fontWeight: '500' }}
+                            >
+                              {(() => {
+                                const currentKey = Object.keys(featureAssignments).find(key => featureAssignments[key] === phone.phoneNumberId);
+                                const options = {
+                                  '': 'Unassigned',
+                                  'whatsappChat': 'Primary Inbox',
+                                  'campaigns': 'Campaigns',
+                                  'ecommerce': 'Ecommerce',
+                                  'aiChatbot': 'AI Chatbot',
+                                  'quickReply': 'Quick Replies'
+                                };
+                                return options[currentKey || ''];
+                              })()}
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1c1e21" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+                            </button>
+
+                            {activeRoutingDropdown === phone.phoneNumberId && (
+                              <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '4px', width: '100%', background: '#ffffff', border: '2px solid #606770', borderRadius: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 100, padding: '8px 0' }}>
+                                {[
+                                  { value: '', label: 'Unassigned' },
+                                  { value: 'whatsappChat', label: 'Primary Inbox' },
+                                  { value: 'campaigns', label: 'Campaigns' },
+                                  { value: 'ecommerce', label: 'Ecommerce' },
+                                  { value: 'aiChatbot', label: 'AI Chatbot' },
+                                  { value: 'quickReply', label: 'Quick Replies' }
+                                ].map(option => {
+                                  const currentKey = Object.keys(featureAssignments).find(key => featureAssignments[key] === phone.phoneNumberId) || '';
+                                  const isSelected = currentKey === option.value;
+                                  return (
+                                    <div 
+                                      key={option.value}
+                                      onClick={() => handleFeatureAssignment(option.value, phone.phoneNumberId)}
+                                      style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', background: isSelected ? '#f5f6f7' : 'transparent' }}
+                                    >
+                                      <div style={{ width: '14px', height: '14px', borderRadius: '50%', border: isSelected ? '4px solid #1877f2' : '1px solid #ccd0d5', background: '#fff', flexShrink: 0 }}></div>
+                                      <span style={{ fontSize: '13px', color: '#1c1e21' }}>{option.label}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}

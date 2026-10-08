@@ -1188,11 +1188,11 @@ const MasterConfig = () => {
 
                 {/* Legacy Actions */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', borderTop: '1px solid #ccd0d5', paddingTop: '12px' }}>
-                  <button onClick={() => handleSubscribeWABA(config)} style={{ padding: '6px 12px', fontSize: '12px', background: '#25d366', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', flex: 1, fontWeight: 'bold' }}>Subscribe</button>
-                  <button onClick={() => handleSetWebhookClick(config)} style={{ padding: '6px 12px', fontSize: '12px', background: '#1877f2', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', flex: 1, fontWeight: 'bold' }}>Set Webhook</button>
-                  <button onClick={() => handleEdit(config)} style={{ padding: '6px 12px', fontSize: '12px', background: '#e4e6eb', color: '#1c1e21', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Edit</button>
-                  <button onClick={() => setSelectedConfig(config)} style={{ padding: '6px 12px', fontSize: '12px', background: '#e4e6eb', color: '#1c1e21', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Details</button>
-                  <button onClick={() => handleDelete(config.id)} style={{ padding: '6px 12px', fontSize: '12px', background: '#ffebe8', color: '#fa383e', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <button onClick={() => handleSubscribeWABA(config)} style={{ padding: '6px 12px', fontSize: '13px', background: '#25d366', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Subscribe</button>
+                  <button onClick={() => handleSetWebhookClick(config)} style={{ padding: '6px 12px', fontSize: '13px', background: '#1877f2', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Set Webhook</button>
+                  <button onClick={() => handleEdit(config)} style={{ padding: '6px 12px', fontSize: '13px', background: '#e4e6eb', color: '#1c1e21', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Edit</button>
+                  <button onClick={() => setSelectedConfig(config)} style={{ padding: '6px 12px', fontSize: '13px', background: '#e4e6eb', color: '#1c1e21', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Details</button>
+                  <button onClick={() => handleDelete(config.id)} style={{ padding: '6px 12px', fontSize: '13px', background: '#ffebe8', color: '#fa383e', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Trash2 size={14} />
                   </button>
                 </div>

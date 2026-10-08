@@ -806,49 +806,76 @@ const MasterConfig = () => {
 
           {/* NEW CENTRAL CONNECTION DASHBOARD */}
           {centralConnection && (
-            <div style={{ marginBottom: '24px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-              <div style={{ padding: '20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
-                <h3 style={{ margin: 0, fontSize: '18px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: centralConnection.connectionStatus === 'CONNECTED' ? '#10b981' : '#ef4444' }}></span>
-                  WhatsApp Business Account (WABA)
-                </h3>
-                <span style={{ padding: '4px 12px', background: '#e2e8f0', borderRadius: '16px', fontSize: '13px', fontWeight: '500', color: '#475569' }}>
-                  WABA ID: {centralConnection.wabaId}
-                </span>
-                <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ 
+              marginBottom: '32px', 
+              background: '#ffffff', 
+              borderRadius: '12px', 
+              border: '1px solid #dadde1', 
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)', 
+              overflow: 'hidden',
+              fontFamily: 'Segoe UI, Helvetica, Arial, sans-serif'
+            }}>
+              {/* Header */}
+              <div style={{ 
+                padding: '24px', 
+                borderBottom: '1px solid #dadde1', 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                background: '#ffffff',
+                flexWrap: 'wrap',
+                gap: '16px'
+              }}>
+                <div>
+                  <h3 style={{ margin: '0 0 8px 0', fontSize: '20px', fontWeight: '600', color: '#1c1e21', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: centralConnection.connectionStatus === 'CONNECTED' ? '#31a24c' : '#fa383e', boxShadow: `0 0 0 3px ${centralConnection.connectionStatus === 'CONNECTED' ? '#e8fdf0' : '#ffebe8'}` }}></div>
+                    WhatsApp Business Account
+                  </h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '13px', color: '#606770', fontWeight: '500' }}>WABA ID: {centralConnection.wabaId}</span>
+                    <span style={{ padding: '4px 10px', background: '#e4e6eb', borderRadius: '6px', fontSize: '12px', fontWeight: '600', color: '#1c1e21' }}>
+                      {centralConnection.connectionStatus}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '12px' }}>
                   <button 
                     onClick={handleSyncCentralConnection}
                     disabled={syncingCentral}
-                    className="btn-outline" 
-                    style={{ padding: '6px 12px', fontSize: '13px', borderRadius: '4px', cursor: syncingCentral ? 'not-allowed' : 'pointer', background: 'white', border: '1px solid #cbd5e1', opacity: syncingCentral ? 0.7 : 1 }}
+                    style={{ padding: '8px 16px', fontSize: '14px', fontWeight: '600', borderRadius: '6px', cursor: syncingCentral ? 'not-allowed' : 'pointer', background: '#e4e6eb', color: '#1c1e21', border: 'none', transition: 'background 0.2s', opacity: syncingCentral ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '6px' }}
                   >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
                     {syncingCentral ? 'Syncing...' : 'Sync with Meta'}
                   </button>
-                  <button className="btn-danger" style={{ padding: '6px 12px', fontSize: '13px', borderRadius: '4px', cursor: 'pointer', background: '#ef4444', color: 'white', border: 'none' }}>
+                  <button style={{ padding: '8px 16px', fontSize: '14px', fontWeight: '600', borderRadius: '6px', cursor: 'pointer', background: '#fa383e', color: 'white', border: 'none', transition: 'background 0.2s' }}>
                     Disconnect
                   </button>
                 </div>
               </div>
               
-              <div style={{ padding: '20px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+              {/* Phone Numbers Grid */}
+              <div style={{ padding: '24px', background: '#f0f2f5' }}>
+                <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#1c1e21', fontWeight: '600' }}>Connected Phone Numbers</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
                   {centralConnection.phoneNumbers.map((phone, idx) => (
-                    <div key={idx} style={{ padding: '16px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                        <strong style={{ fontSize: '16px', color: '#0f172a' }}>{phone.displayNumber || phone.phoneNumberId}</strong>
-                        <span style={{ fontSize: '12px', padding: '2px 8px', background: phone.qualityRating === 'GREEN' ? '#dcfce7' : '#fef08a', color: phone.qualityRating === 'GREEN' ? '#166534' : '#854d0e', borderRadius: '12px' }}>
-                          Quality: {phone.qualityRating || 'UNKNOWN'}
+                    <div key={idx} style={{ padding: '20px', border: '1px solid #dadde1', borderRadius: '8px', background: '#ffffff', boxShadow: '0 1px 2px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                        <div>
+                          <strong style={{ fontSize: '18px', color: '#1c1e21', display: 'block', marginBottom: '4px' }}>{phone.displayNumber || phone.phoneNumberId}</strong>
+                          <span style={{ fontSize: '13px', color: '#606770' }}>ID: {phone.phoneNumberId}</span>
+                        </div>
+                        <span style={{ fontSize: '12px', padding: '4px 10px', background: phone.qualityRating === 'GREEN' ? '#e8fdf0' : '#fff4e5', color: phone.qualityRating === 'GREEN' ? '#1c8c3c' : '#b26a00', borderRadius: '6px', fontWeight: '600', border: `1px solid ${phone.qualityRating === 'GREEN' ? '#a3e4bc' : '#ffc885'}` }}>
+                          {phone.qualityRating || 'UNKNOWN'}
                         </span>
                       </div>
-                      <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '8px' }}>
-                        ID: {phone.phoneNumberId}
-                      </div>
-                      <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '12px' }}>
-                        Verified Name: {phone.verifiedName || 'N/A'}
+                      
+                      <div style={{ fontSize: '14px', color: '#1c1e21', marginBottom: '20px', padding: '12px', background: '#f7f8fa', borderRadius: '6px', border: '1px solid #ebedf0' }}>
+                        <span style={{ color: '#606770', display: 'block', fontSize: '12px', marginBottom: '4px' }}>Verified Name</span>
+                        <strong style={{ fontWeight: '600' }}>{phone.verifiedName || 'Pending Verification'}</strong>
                       </div>
                       
-                      <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '12px', marginTop: 'auto' }}>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Assign to Feature:</label>
+                      <div style={{ marginTop: 'auto' }}>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#1c1e21', marginBottom: '8px' }}>Assign Feature Routing:</label>
                         <select 
                           value={
                             Object.keys(featureAssignments).find(key => featureAssignments[key] === phone.phoneNumberId) || ''
@@ -858,14 +885,16 @@ const MasterConfig = () => {
                               handleFeatureAssignment(e.target.value, phone.phoneNumberId);
                             }
                           }}
-                          style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                          style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #ccd0d5', fontSize: '14px', color: '#1c1e21', background: '#ffffff', cursor: 'pointer', outline: 'none' }}
+                          onFocus={(e) => e.target.style.borderColor = '#1877f2'}
+                          onBlur={(e) => e.target.style.borderColor = '#ccd0d5'}
                         >
-                          <option value="">Unassigned (Default)</option>
-                          <option value="whatsappChat">WhatsApp Chat (Default)</option>
-                          <option value="campaigns">Campaigns</option>
-                          <option value="ecommerce">Ecommerce</option>
-                          <option value="aiChatbot">AI Chatbot</option>
-                          <option value="quickReply">Quick Reply</option>
+                          <option value="">Unassigned (No Action)</option>
+                          <option value="whatsappChat">Primary WhatsApp Chat</option>
+                          <option value="campaigns">Campaigns & Broadcasts</option>
+                          <option value="ecommerce">Ecommerce & Catalogs</option>
+                          <option value="aiChatbot">AI Auto-Responder</option>
+                          <option value="quickReply">Quick Replies</option>
                         </select>
                       </div>
                     </div>
@@ -873,45 +902,51 @@ const MasterConfig = () => {
                 </div>
               </div>
 
-              <div style={{ padding: '24px 20px', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
-                <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  💳 Meta Billing
+              {/* Meta Billing Section */}
+              <div style={{ padding: '24px', background: '#ffffff', borderTop: '1px solid #dadde1' }}>
+                <h4 style={{ margin: '0 0 20px 0', fontSize: '16px', color: '#1c1e21', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1877f2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" ry="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+                  Billing & Payments
                 </h4>
                 
-                <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '20px', display: 'flex', flexWrap: 'wrap', gap: '24px', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '280px', flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '8px' }}>
-                      <span style={{ color: '#64748b', fontSize: '14px' }}>Billing Responsibility:</span>
-                      <strong style={{ color: '#0f172a', fontSize: '14px' }}>
-                        {centralConnection.billingAccount?.billingMode === 'CUSTOMER_META' ? 'Customer Managed' : (centralConnection.billingAccount?.billingMode || 'Unconfigured')}
-                      </strong>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '8px' }}>
-                      <span style={{ color: '#64748b', fontSize: '14px' }}>Payment Method:</span>
-                      <strong style={{ color: '#0f172a', fontSize: '14px' }}>
-                        {centralConnection.billingAccount?.billingMode === 'CUSTOMER_META' ? "Customer's Meta Account" : 'Platform Wallet'}
-                      </strong>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: '#64748b', fontSize: '14px' }}>Meta Status:</span>
-                      <span style={{ fontSize: '12px', padding: '4px 10px', background: centralConnection.billingAccount?.metaBillingStatus === 'ACTIVE' ? '#dcfce7' : '#f1f5f9', color: centralConnection.billingAccount?.metaBillingStatus === 'ACTIVE' ? '#166534' : '#475569', borderRadius: '12px', fontWeight: '600' }}>
-                        {centralConnection.billingAccount?.metaBillingStatus || 'UNKNOWN'}
-                      </span>
+                <div style={{ background: '#ffffff', border: '1px solid #dadde1', borderRadius: '8px', display: 'flex', flexWrap: 'wrap', overflow: 'hidden' }}>
+                  <div style={{ flex: 2, minWidth: '300px', padding: '24px', borderRight: '1px solid #dadde1' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ color: '#606770', fontSize: '14px' }}>Billing Responsibility:</span>
+                        <strong style={{ color: '#1c1e21', fontSize: '14px', background: '#f0f2f5', padding: '4px 10px', borderRadius: '6px' }}>
+                          {centralConnection.billingAccount?.billingMode === 'CUSTOMER_META' ? 'Customer Managed' : (centralConnection.billingAccount?.billingMode || 'Unconfigured')}
+                        </strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ color: '#606770', fontSize: '14px' }}>Payment Method:</span>
+                        <strong style={{ color: '#1c1e21', fontSize: '14px' }}>
+                          {centralConnection.billingAccount?.billingMode === 'CUSTOMER_META' ? "Meta Business Account" : 'Platform Wallet'}
+                        </strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ color: '#606770', fontSize: '14px' }}>Account Status:</span>
+                        <span style={{ fontSize: '13px', padding: '4px 10px', background: centralConnection.billingAccount?.metaBillingStatus === 'ACTIVE' ? '#e8fdf0' : '#f0f2f5', color: centralConnection.billingAccount?.metaBillingStatus === 'ACTIVE' ? '#1c8c3c' : '#606770', borderRadius: '6px', fontWeight: '600' }}>
+                          {centralConnection.billingAccount?.metaBillingStatus || 'UNKNOWN'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   
-                  <div style={{ display: 'flex', gap: '12px', flexDirection: 'column', minWidth: '180px' }}>
+                  <div style={{ flex: 1, minWidth: '220px', padding: '24px', background: '#f8f9fa', display: 'flex', gap: '12px', flexDirection: 'column', justifyContent: 'center' }}>
                     <button 
-                      className="btn-outline" 
                       onClick={() => window.open(`https://business.facebook.com/wa/manage/billing/?waba_id=${centralConnection.wabaId}`, '_blank')}
-                      style={{ padding: '10px 16px', fontSize: '13px', borderRadius: '6px', cursor: 'pointer', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: '500', transition: 'all 0.2s' }}
+                      style={{ padding: '10px 16px', fontSize: '14px', borderRadius: '6px', cursor: 'pointer', background: '#1877f2', color: 'white', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: '600', transition: 'background 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#166fe5'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = '#1877f2'}
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
                       Open Meta Billing
                     </button>
                     <button 
-                      className="btn-outline" 
-                      style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '6px', cursor: 'pointer', background: 'white', border: '1px solid #cbd5e1', color: '#334155', fontWeight: '500', transition: 'all 0.2s' }}
+                      style={{ padding: '10px 16px', fontSize: '14px', borderRadius: '6px', cursor: 'pointer', background: '#ffffff', border: '1px solid #ccd0d5', color: '#1c1e21', fontWeight: '600', transition: 'all 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#f5f6f7'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
                     >
                       Sync Billing Status
                     </button>
@@ -919,9 +954,9 @@ const MasterConfig = () => {
                 </div>
                 
                 {(!centralConnection.billingAccount || centralConnection.billingAccount?.billingMode === 'CUSTOMER_META') && (
-                  <div style={{ margin: '16px 0 0 0', fontSize: '13px', color: '#475569', display: 'flex', gap: '8px', background: '#f1f5f9', padding: '12px', borderRadius: '6px', borderLeft: '3px solid #3b82f6' }}>
-                    <span style={{ color: '#3b82f6', fontSize: '16px' }}>ℹ️</span> 
-                    <span style={{ lineHeight: '1.4' }}>Meta handles the actual WhatsApp API billing. Invoices, usage limits, and payment methods are managed directly by the customer in their Meta Business Manager.</span>
+                  <div style={{ marginTop: '20px', fontSize: '14px', color: '#606770', display: 'flex', gap: '12px', background: '#f0f2f5', padding: '16px', borderRadius: '8px' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1877f2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    <span style={{ lineHeight: '1.5' }}><strong>Direct Meta Invoicing:</strong> Your WhatsApp usage is billed directly by Meta. Invoices, payment methods, and account limits are managed exclusively in your Meta Business Manager.</span>
                   </div>
                 )}
               </div>
@@ -929,9 +964,11 @@ const MasterConfig = () => {
           )}
 
         {/* LEGACY MASTER CONFIGS FALLBACK */}
-        {masterConfigs.length === 0 ? (
-          <p>No configurations found.</p>
-        ) : (
+        {!centralConnection && (
+          <>
+            {masterConfigs.length === 0 ? (
+              <p>No legacy configurations found.</p>
+            ) : (
           <div className="configurations-grid">
             {masterConfigs.map((config) => (
               <div key={config.id} className="config-card">
@@ -1009,6 +1046,8 @@ const MasterConfig = () => {
             ))}
           </div>
         )}
+        </>
+      )}
         </div>
       )}
 

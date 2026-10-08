@@ -159,19 +159,21 @@ const MasterConfig = () => {
 
   const [analyticsData, setAnalyticsData] = useState([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [analyticsMonth, setAnalyticsMonth] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  });
+  
+  const [analyticsRange, setAnalyticsRange] = useState({ label: 'Last 7 days', days: 7 });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showWabaPicker, setShowWabaPicker] = useState(false);
 
-  const fetchAnalytics = async (monthStr) => {
+  const fetchAnalytics = async (range) => {
     if (!centralConnection) return;
     setAnalyticsLoading(true);
     try {
-      // monthStr is "YYYY-MM"
-      const [year, month] = monthStr.split('-');
-      const startDate = new Date(year, parseInt(month) - 1, 1).toISOString();
-      const endDate = new Date(year, parseInt(month), 0, 23, 59, 59).toISOString();
+      const end = new Date();
+      const start = new Date();
+      start.setDate(end.getDate() - range.days);
+      
+      const startDate = start.toISOString();
+      const endDate = end.toISOString();
       
       const response = await fetch(`${API_BASE_URL}/master-config/central-connection/analytics?start=${startDate}&end=${endDate}`, {
         credentials: 'include'
@@ -190,9 +192,9 @@ const MasterConfig = () => {
 
   useEffect(() => {
     if (centralConnection && centralConnection.connectionStatus === 'CONNECTED') {
-      fetchAnalytics(analyticsMonth);
+      fetchAnalytics(analyticsRange);
     }
-  }, [centralConnection?.id, analyticsMonth]);
+  }, [centralConnection?.id, analyticsRange.days]);
 
   const [syncingCentral, setSyncingCentral] = useState(false);
 
@@ -856,13 +858,40 @@ const MasterConfig = () => {
                 flexWrap: 'wrap',
                 gap: '12px'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: centralConnection.connectionStatus === 'CONNECTED' ? '#31a24c' : '#fa383e' }}></div>
-                    <strong style={{ fontSize: '15px', color: '#1c1e21' }}>WhatsApp Business Account</strong>
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ position: 'relative' }}>
+                    <div 
+                      onClick={() => setShowWabaPicker(!showWabaPicker)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', border: '1px solid #ccd0d5', borderRadius: '4px', background: '#f5f6f7', cursor: 'pointer', minWidth: '280px' }}
+                    >
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="#1c1e21"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                      <span style={{ fontSize: '15px', color: '#1c1e21', fontWeight: '500', flex: 1 }}>
+                        {centralConnection.phoneNumbers[0]?.verifiedName || 'WhatsApp Business Account'}
+                      </span>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1c1e21" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </div>
+                    
+                    {showWabaPicker && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '4px', width: '360px', background: '#ffffff', border: '1px solid #ccd0d5', borderRadius: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 100 }}>
+                        <div style={{ padding: '8px' }}>
+                          <div style={{ padding: '8px 12px', border: '1px solid #1877f2', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#606770" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                            <input type="text" placeholder="Please select a WhatsApp account" style={{ border: 'none', outline: 'none', width: '100%', fontSize: '14px', color: '#1c1e21' }} />
+                          </div>
+                        </div>
+                        
+                        <div style={{ padding: '8px', background: '#e0f0f8', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                          <div style={{ marginTop: '2px', width: '16px', height: '16px', borderRadius: '50%', border: '5px solid #1877f2', background: '#fff', flexShrink: 0 }}></div>
+                          <div>
+                            <div style={{ fontSize: '15px', fontWeight: '600', color: '#1c1e21' }}>{centralConnection.phoneNumbers[0]?.verifiedName || 'WhatsApp Business Account'}</div>
+                            <div style={{ fontSize: '13px', color: '#606770', marginTop: '2px' }}>ID: {centralConnection.wabaId}</div>
+                            <div style={{ fontSize: '13px', color: '#606770', marginTop: '2px' }}>Owned by You</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <span style={{ fontSize: '13px', color: '#606770' }}>WABA ID: <strong style={{color: '#1c1e21'}}>{centralConnection.wabaId}</strong></span>
-                  <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', background: '#e4e6eb', color: '#1c1e21', borderRadius: '4px' }}>{centralConnection.connectionStatus}</span>
+                  <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', background: centralConnection.connectionStatus === 'CONNECTED' ? '#e8fdf0' : '#ffebe8', color: centralConnection.connectionStatus === 'CONNECTED' ? '#1c8c3c' : '#fa383e', borderRadius: '4px', marginLeft: '12px' }}>{centralConnection.connectionStatus}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button 
@@ -993,13 +1022,36 @@ const MasterConfig = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
                   <h4 style={{ margin: 0, fontSize: '13px', color: '#606770', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Conversation Usage Analytics</h4>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '12px', color: '#606770' }}>Month:</span>
-                    <input 
-                      type="month" 
-                      value={analyticsMonth}
-                      onChange={(e) => setAnalyticsMonth(e.target.value)}
-                      style={{ padding: '6px 10px', borderRadius: '4px', border: '1px solid #ccd0d5', fontSize: '13px', outline: 'none', background: '#ffffff', color: '#1c1e21' }}
-                    />
+                    <div style={{ position: 'relative' }}>
+                      <button 
+                        onClick={() => setShowDatePicker(!showDatePicker)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', border: '1px solid #ccd0d5', borderRadius: '4px', background: '#ffffff', cursor: 'pointer', fontSize: '14px', color: '#1c1e21', fontWeight: '500' }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1c1e21" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        {analyticsRange.label}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1c1e21" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+                      </button>
+
+                      {showDatePicker && (
+                        <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', width: '220px', background: '#ffffff', border: '1px solid #ccd0d5', borderRadius: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 100, padding: '8px 0' }}>
+                          {[
+                            { label: 'Last 7 days', days: 7 },
+                            { label: 'Last 30 days', days: 30 },
+                            { label: 'Last 60 days', days: 60 },
+                            { label: 'Last 90 days', days: 90 }
+                          ].map(range => (
+                            <div 
+                              key={range.label}
+                              onClick={() => { setAnalyticsRange(range); setShowDatePicker(false); }}
+                              style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', background: analyticsRange.label === range.label ? '#f5f6f7' : 'transparent' }}
+                            >
+                              <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: analyticsRange.label === range.label ? '5px solid #1877f2' : '1px solid #ccd0d5', background: '#fff' }}></div>
+                              <span style={{ fontSize: '14px', color: '#1c1e21' }}>{range.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     {analyticsLoading && <span style={{ fontSize: '12px', color: '#1877f2', fontWeight: '600' }}>Loading...</span>}
                   </div>
                 </div>

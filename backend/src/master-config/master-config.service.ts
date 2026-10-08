@@ -337,6 +337,51 @@ export class MasterConfigService {
     return { success: true, message: 'Disconnected successfully' };
   }
 
+  async getCentralConnectionAnalytics(tenantContext: TenantContext, start?: string, end?: string) {
+    const tenantIdNum = parseInt(tenantContext.tenantId, 10);
+    if (isNaN(tenantIdNum)) throw new BadRequestException('Invalid tenant ID');
+
+    const connection = await this.centralPrisma.metaConnection.findFirst({
+      where: { tenantId: tenantIdNum },
+      include: { credential: true }
+    });
+
+    if (!connection || !connection.credential?.accessTokenEncrypted) {
+      throw new BadRequestException('No active central connection found');
+    }
+
+    const accessToken = this.metaCredentialService.decrypt(connection.credential.accessTokenEncrypted);
+
+    let startTs: number;
+    let endTs: number;
+
+    if (start && end) {
+      startTs = Math.floor(new Date(start).getTime() / 1000);
+      endTs = Math.floor(new Date(end).getTime() / 1000);
+    } else {
+      const now = new Date();
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      startTs = Math.floor(firstDay.getTime() / 1000);
+      endTs = Math.floor(now.getTime() / 1000);
+    }
+
+    const url = `https://graph.facebook.com/v20.0/${connection.wabaId}?fields=conversation_analytics.start(${startTs}).end(${endTs}).granularity(DAILY)&access_token=${accessToken}`;
+    
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new BadRequestException(data.error.message || 'Failed to fetch analytics from Meta');
+      }
+
+      return data.conversation_analytics || { data: [] };
+    } catch (e) {
+      console.error('Analytics fetch error:', e);
+      throw new BadRequestException('Failed to fetch analytics from Meta');
+    }
+  }
+
   async findAll(tenantContext: TenantContext) {
     const prisma = this.getPrisma(tenantContext);
     return prisma.masterConfig.findMany({

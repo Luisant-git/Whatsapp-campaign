@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, BadRequestException, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SessionGuard } from '../auth/session.guard';
 import { TenantContext } from '../tenant/tenant.decorator';
@@ -55,6 +55,17 @@ export class MasterConfigController {
   @ApiResponse({ status: 200, description: 'Central connection disconnected successfully' })
   async disconnectCentralConnection(@TenantContext() tenantContext: TenantContextType) {
     return this.masterConfigService.disconnectCentralConnection(tenantContext);
+  }
+
+  @Get('central-connection/analytics')
+  @ApiOperation({ summary: 'Get Central Connection usage analytics' })
+  @ApiResponse({ status: 200, description: 'Analytics retrieved successfully' })
+  async getCentralConnectionAnalytics(
+    @TenantContext() tenantContext: TenantContextType,
+    @Query('start') start?: string,
+    @Query('end') end?: string
+  ) {
+    return this.masterConfigService.getCentralConnectionAnalytics(tenantContext, start, end);
   }
 
   @Get(':id')

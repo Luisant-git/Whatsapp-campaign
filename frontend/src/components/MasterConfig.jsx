@@ -157,6 +157,43 @@ const MasterConfig = () => {
     }
   };
 
+  const [analyticsData, setAnalyticsData] = useState([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsMonth, setAnalyticsMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  const fetchAnalytics = async (monthStr) => {
+    if (!centralConnection) return;
+    setAnalyticsLoading(true);
+    try {
+      // monthStr is "YYYY-MM"
+      const [year, month] = monthStr.split('-');
+      const startDate = new Date(year, parseInt(month) - 1, 1).toISOString();
+      const endDate = new Date(year, parseInt(month), 0, 23, 59, 59).toISOString();
+      
+      const response = await fetch(`${API_BASE_URL}/master-config/central-connection/analytics?start=${startDate}&end=${endDate}`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // data.data is the array of data points
+        setAnalyticsData(data.data || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch analytics:", error);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (centralConnection && centralConnection.connectionStatus === 'CONNECTED') {
+      fetchAnalytics(analyticsMonth);
+    }
+  }, [centralConnection?.id, analyticsMonth]);
+
   const [syncingCentral, setSyncingCentral] = useState(false);
 
   const handleSyncCentralConnection = async () => {
@@ -947,6 +984,70 @@ const MasterConfig = () => {
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+              
+              {/* Analytics Row */}
+              <div style={{ borderTop: '1px solid #ccd0d5', padding: '20px', background: '#ffffff' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                  <h4 style={{ margin: 0, fontSize: '13px', color: '#606770', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Conversation Usage Analytics</h4>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '12px', color: '#606770' }}>Month:</span>
+                    <input 
+                      type="month" 
+                      value={analyticsMonth}
+                      onChange={(e) => setAnalyticsMonth(e.target.value)}
+                      style={{ padding: '6px 10px', borderRadius: '4px', border: '1px solid #ccd0d5', fontSize: '13px', outline: 'none', background: '#ffffff', color: '#1c1e21' }}
+                    />
+                    {analyticsLoading && <span style={{ fontSize: '12px', color: '#1877f2', fontWeight: '600' }}>Loading...</span>}
+                  </div>
+                </div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+                  {(() => {
+                    const totals = { MARKETING: 0, UTILITY: 0, SERVICE: 0, AUTHENTICATION: 0 };
+                    let totalConversations = 0;
+                    
+                    if (analyticsData && analyticsData.length > 0) {
+                      analyticsData.forEach(item => {
+                        item.data_points?.forEach(dp => {
+                          const cat = dp.conversation_category;
+                          const count = dp.metrics?.conversation || 0;
+                          if (totals[cat] !== undefined) {
+                            totals[cat] += count;
+                          } else {
+                            totals[cat] = count;
+                          }
+                          totalConversations += count;
+                        });
+                      });
+                    }
+
+                    return (
+                      <>
+                        <div style={{ padding: '16px', border: '1px solid #ccd0d5', borderRadius: '6px', background: '#f5f6f7' }}>
+                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Total Charged</div>
+                          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totalConversations}</div>
+                        </div>
+                        <div style={{ padding: '16px', border: '1px solid #e4e6eb', borderRadius: '6px', background: '#ffffff' }}>
+                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Marketing</div>
+                          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totals.MARKETING || 0}</div>
+                        </div>
+                        <div style={{ padding: '16px', border: '1px solid #e4e6eb', borderRadius: '6px', background: '#ffffff' }}>
+                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Service</div>
+                          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totals.SERVICE || 0}</div>
+                        </div>
+                        <div style={{ padding: '16px', border: '1px solid #e4e6eb', borderRadius: '6px', background: '#ffffff' }}>
+                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Utility</div>
+                          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totals.UTILITY || 0}</div>
+                        </div>
+                        <div style={{ padding: '16px', border: '1px solid #e4e6eb', borderRadius: '6px', background: '#ffffff' }}>
+                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Authentication</div>
+                          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totals.AUTHENTICATION || 0}</div>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

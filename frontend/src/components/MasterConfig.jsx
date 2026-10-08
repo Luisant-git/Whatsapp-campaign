@@ -112,7 +112,8 @@ const MasterConfig = () => {
             }
 
             showSuccess('Successfully connected to Meta and saved configuration!');
-            fetchMasterConfigs(); // Refresh the list
+            fetchMasterConfigs(); // Refresh the legacy list
+            fetchCentralConnection(); // Refresh the central UI
           } catch (error) {
             console.error("Embedded Signup Error:", error);
             showError(error.message || 'Failed to connect with Meta');

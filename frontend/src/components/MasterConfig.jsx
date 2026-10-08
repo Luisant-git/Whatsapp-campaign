@@ -967,21 +967,23 @@ const MasterConfig = () => {
                   
                   <div style={{ flex: 1, minWidth: '220px', padding: '24px', background: '#f8f9fa', display: 'flex', gap: '12px', flexDirection: 'column', justifyContent: 'center' }}>
                     <button 
-                      onClick={() => window.open(`https://business.facebook.com/wa/manage/billing/?waba_id=${centralConnection.wabaId}`, '_blank')}
+                      onClick={() => window.open(`https://business.facebook.com/wa/manage/home/?waba_id=${centralConnection.wabaId}`, '_blank')}
                       style={{ padding: '10px 16px', fontSize: '14px', borderRadius: '6px', cursor: 'pointer', background: '#1877f2', color: 'white', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: '600', transition: 'background 0.2s' }}
                       onMouseEnter={(e) => e.currentTarget.style.background = '#166fe5'}
                       onMouseLeave={(e) => e.currentTarget.style.background = '#1877f2'}
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                      Open Meta Billing
+                      Open WhatsApp Manager
                     </button>
-                    <button 
-                      style={{ padding: '10px 16px', fontSize: '14px', borderRadius: '6px', cursor: 'pointer', background: '#ffffff', border: '1px solid #ccd0d5', color: '#1c1e21', fontWeight: '600', transition: 'all 0.2s' }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#f5f6f7'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
-                    >
-                      Sync Billing Status
-                    </button>
+                    {centralConnection.billingAccount?.billingMode !== 'CUSTOMER_META' && (
+                      <button 
+                        style={{ padding: '10px 16px', fontSize: '14px', borderRadius: '6px', cursor: 'pointer', background: '#ffffff', border: '1px solid #ccd0d5', color: '#1c1e21', fontWeight: '600', transition: 'all 0.2s' }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#f5f6f7'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
+                      >
+                        Sync Billing Status
+                      </button>
+                    )}
                   </div>
                 </div>
                 

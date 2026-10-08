@@ -1162,6 +1162,12 @@ const MasterConfig = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '16px', marginTop: '16px' }}>
             {masterConfigs.map((config) => (
               <div key={config.id} style={{ padding: '16px', border: '1px solid #ccd0d5', borderRadius: '8px', background: '#f4f7fb', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Primary Actions at Top */}
+                <div style={{ display: 'flex', gap: '8px', width: '100%', paddingBottom: '12px', borderBottom: '1px solid #ccd0d5' }}>
+                  <button onClick={() => handleSubscribeWABA(config)} style={{ flex: 1, padding: '6px 12px', fontSize: '13px', background: '#25d366', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Subscribe</button>
+                  <button onClick={() => handleSetWebhookClick(config)} style={{ flex: 1, padding: '6px 12px', fontSize: '13px', background: '#1877f2', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Set Webhook</button>
+                </div>
+
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
                   {/* Avatar with WA Badge */}
                   <div style={{ position: 'relative', width: '48px', height: '48px', flexShrink: 0 }}>
@@ -1187,19 +1193,13 @@ const MasterConfig = () => {
                 </div>
 
                 {/* Legacy Actions */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid #ccd0d5', paddingTop: '12px' }}>
-                  <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                    <button onClick={() => handleSubscribeWABA(config)} style={{ flex: 1, padding: '6px 12px', fontSize: '13px', background: '#25d366', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Subscribe</button>
-                    <button onClick={() => handleSetWebhookClick(config)} style={{ flex: 1, padding: '6px 12px', fontSize: '13px', background: '#1877f2', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Set Webhook</button>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                <div style={{ display: 'flex', gap: '8px', width: '100%', borderTop: '1px solid #ccd0d5', paddingTop: '12px' }}>
                     <button onClick={() => handleEdit(config)} style={{ flex: 1, padding: '6px 12px', fontSize: '13px', background: '#e4e6eb', color: '#1c1e21', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Edit</button>
                     <button onClick={() => setSelectedConfig(config)} style={{ flex: 1, padding: '6px 12px', fontSize: '13px', background: '#e4e6eb', color: '#1c1e21', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Details</button>
                     <button onClick={() => handleDelete(config.id)} style={{ padding: '6px 12px', fontSize: '13px', background: '#ffebe8', color: '#fa383e', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <Trash2 size={14} />
                     </button>
                   </div>
-                </div>
               </div>
             ))}
           </div>

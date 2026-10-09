@@ -48,6 +48,9 @@ model WhatsAppMessage {
   userId        String?
   parentUserId  String?
   username      String?
+  billable        Boolean?
+  pricingModel    String?
+  pricingCategory String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

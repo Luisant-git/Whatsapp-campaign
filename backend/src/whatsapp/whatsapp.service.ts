@@ -2255,77 +2255,76 @@ export class WhatsappService {
     return dbUrl;
   }
 
-  async updateMessageStatusWithoutContext(messageId: string, status: string, phoneNumberId: string, errorDetails?: any) {
+  async updateMessageStatusWithoutContext(messageId: string, status: string, phoneNumberId: string, errorDetails?: any, pricingPayload?: any, tenantId?: number) {
+    if (!tenantId) {
+      console.error(`❌ Cannot update message status for ${messageId}: tenantId is strictly required.`);
+      return;
+    }
+
+    const statusHierarchy: Record<string, number> = { 'sent': 1, 'failed': 2, 'delivered': 3, 'read': 4 };
+    const newStatusLevel = statusHierarchy[status] || 0;
+
     try {
-      const tenants = await this.centralPrisma.tenant.findMany({ where: { isActive: true } });
+      const dbUrl = await this.getTenantDbUrl(tenantId);
+      const tenantClient = this.tenantPrisma.getTenantClient(tenantId.toString(), dbUrl);
 
-      for (const tenant of tenants) {
-        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
-
-        // Prepare error message from webhook error details
-        let errorMessage: string | null = null;
-        if (status === 'failed' && errorDetails && errorDetails.length > 0) {
-          const error = errorDetails[0];
-          const errorCode = error.code;
-          const errorTitle = error.title || error.message;
-          const errorDetail = error.error_data?.details;
-
-          // Build user-friendly error message based on error code
-          if (errorCode === 131026) {
-            errorMessage = 'Number not registered on WhatsApp or message cannot be delivered';
-          } else if (errorCode === 131049) {
-            errorMessage = 'Message blocked to maintain healthy engagement (possible spam detection)';
-          } else if (errorCode === 131047) {
-            errorMessage = 'Invalid phone number format';
-          } else if (errorCode === 131051) {
-            errorMessage = 'Message type not supported';
-          } else if (errorCode === 132000) {
-            errorMessage = 'Template does not exist or not approved';
-          } else if (errorCode === 132001) {
-            errorMessage = 'Template parameters do not match';
-          } else if (errorCode === 132005) {
-            errorMessage = 'Template is paused or disabled';
-          } else if (errorCode === 133000) {
-            errorMessage = 'Too many messages sent (rate limit exceeded)';
-          } else if (errorCode === 133005) {
-            errorMessage = 'Phone number not allowed to receive messages';
-          } else if (errorCode === 133006) {
-            errorMessage = 'Phone number has blocked your business';
-          } else {
-            // For unknown error codes, use the original message
-            errorMessage = `${errorTitle}`;
-            if (errorDetail && errorDetail !== errorTitle) {
-              errorMessage += ` - ${errorDetail}`;
-            }
-          }
-
-          this.logger.log(`Webhook error captured: Code ${errorCode} - ${errorMessage}`);
-        }
-
-        const updated = await tenantClient.whatsAppMessage.updateMany({
-          where: { messageId },
-          data: { status }
+      // Verify that this phoneNumberId belongs to this tenant
+      if (phoneNumberId) {
+        const settings = await tenantClient.whatsAppSettings.findFirst({
+          where: { phoneNumberId }
         });
-
-        // Also update campaign messages with error details
-        const campaignUpdateData: any = { status };
-        if (errorMessage) {
-          campaignUpdateData.error = errorMessage;
-        }
-
-        await tenantClient.campaignMessage.updateMany({
-          where: { messageId },
-          data: campaignUpdateData
-        });
-
-        if (updated.count > 0) {
-          this.logger.log(`Message ${messageId} status updated to ${status}${errorMessage ? ` with error: ${errorMessage}` : ''}`);
+        if (!settings) {
+          console.error(`❌ phoneNumberId '${phoneNumberId}' is not registered to tenant ${tenantId}. Update rejected.`);
           return;
         }
       }
+
+      const query: any = { messageId };
+      if (phoneNumberId) {
+        query.phoneNumberId = phoneNumberId;
+      }
+
+      const existingMessage = await tenantClient.whatsAppMessage.findFirst({
+        where: query
+      });
+
+      if (existingMessage) {
+        let errorMessage: string | null = null;
+        if (status === 'failed' && errorDetails && errorDetails.length > 0) {
+          errorMessage = errorDetails[0].message || errorDetails[0].title || 'Unknown error';
+        }
+
+        const currentStatusLevel = statusHierarchy[existingMessage.status] || 0;
+        let finalStatus = existingMessage.status;
+        
+        // Explicitly prevent failed events from overwriting terminal success states
+        if (status === 'failed') {
+          if (existingMessage.status !== 'delivered' && existingMessage.status !== 'read') {
+            finalStatus = 'failed';
+          }
+        } else if (newStatusLevel >= currentStatusLevel) {
+           finalStatus = status;
+        }
+
+        const updateData: any = { status: finalStatus };
+        
+        if (errorMessage) {
+          updateData.errorDetails = errorMessage;
+        }
+
+        if (pricingPayload && typeof pricingPayload === 'object') {
+          if (typeof pricingPayload.billable === 'boolean') updateData.billable = pricingPayload.billable;
+          if (typeof pricingPayload.pricing_model === 'string') updateData.pricingModel = pricingPayload.pricing_model;
+          if (typeof pricingPayload.category === 'string') updateData.pricingCategory = pricingPayload.category;
+        }
+
+        await tenantClient.whatsAppMessage.update({
+          where: { id: existingMessage.id },
+          data: updateData
+        });
+      }
     } catch (error) {
-      this.logger.error('Error updating message status:', error);
+      this.logger.error(`Error updating message status for ${messageId}:`, error.stack);
     }
   }
 

@@ -15,8 +15,11 @@ import {
   Session,
   UseGuards,
   Res,
-  Headers
+  Headers,
+  Req,
+  UnauthorizedException
 } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiQuery, ApiParam } from '@nestjs/swagger';
@@ -103,7 +106,32 @@ export class WhatsappController {
   @ApiParam({ name: 'verifyToken', required: true, description: 'Verify token from settings' })
   @ApiResponse({ status: 200, description: 'Webhook processed successfully' })
   @ApiResponse({ status: 404, description: 'Not Found' })
-  async handleWebhook(@Param('verifyToken') verifyToken: string, @Body() body: any) {
+  async handleWebhook(@Req() req: any, @Param('verifyToken') verifyToken: string, @Body() body: any) {
+    const signature = req.headers['x-hub-signature-256'];
+    const appSecret = process.env.META_APP_SECRET;
+
+    if (!appSecret) {
+      console.error('Webhook failed: No Global META_APP_SECRET available');
+      throw new UnauthorizedException('No App Secret available to verify webhook');
+    }
+    if (!signature) {
+      console.error('Webhook failed: Missing x-hub-signature-256 header');
+      throw new UnauthorizedException('Missing x-hub-signature-256 header');
+    }
+    if (!req.rawBody) {
+      console.error('Webhook failed: req.rawBody is missing. Raw payload preservation is required for HMAC validation.');
+      throw new UnauthorizedException('Raw body is required for signature verification');
+    }
+
+    const expectedSignature = 'sha256=' + crypto.createHmac('sha256', appSecret).update(req.rawBody).digest('hex');
+    const sigBuffer = Buffer.from(signature as string, 'utf8');
+    const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
+
+    if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
+      console.error(`Webhook signature mismatch detected. Request blocked.`);
+      throw new UnauthorizedException('Invalid x-hub-signature-256');
+    }
+
     // Check if the webhook is meant for the Daily-Kurtis Phone Number
     const phoneNumberId = body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
     if (phoneNumberId === '1239751119221958') {
@@ -138,6 +166,12 @@ export class WhatsappController {
      
       if (!body || !body.object) {
         console.log('⚠️ Empty or invalid webhook body');
+        return;
+      }
+      
+      const resolvedTenantId = await this.whatsappService.findUserByVerifyToken(verifyToken);
+      if (!resolvedTenantId) {
+        console.log('❌ Webhook rejected: verifyToken did not match any tenant');
         return;
       }
      
@@ -205,22 +239,9 @@ export class WhatsappController {
                   console.log('\n🔍 USER LOOKUP PROCESS:');
                   console.log('Step 1: Looking up by verify token:', verifyToken);
                  
-                  let userId = await this.whatsappService.findUserByVerifyToken(verifyToken);
+                  const userId = resolvedTenantId;
                   console.log('→ User ID from verify token:', userId || 'NOT FOUND');
                   
-                  if (!userId) {
-                    console.log('Step 2: Looking up by phone_number_id:', phoneNumberId);
-                    const userIds = await this.whatsappService.findAllUsersByPhoneNumberId(phoneNumberId);
-                    console.log('→ User IDs from phone_number_id:', userIds.length > 0 ? userIds : 'NOT FOUND');
-                    userId = userIds.length > 0 ? userIds[0] : null;
-                  }
-                  
-                  if (!userId) {
-                    console.log('Step 3: Using fallback to first active user');
-                    userId = await this.whatsappService.findFirstActiveUser();
-                    console.log('→ Fallback user ID:', userId || 'NOT FOUND');
-                  }
-                 
                   if (userId) {
                     console.log(`\n✅ PROCESSING MESSAGE for user ID: ${userId}`);
                     await this.whatsappService.handleIncomingMessageWithoutContext(
@@ -270,186 +291,9 @@ export class WhatsappController {
                       status.id, 
                       status.status, 
                       change.value.metadata?.phone_number_id,
-                      status.errors // Pass the errors array from webhook
-                    );
-                  } catch (statusError) {
-                    console.error('Error updating status:', statusError);
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Webhook error:', error);
-    }
-  }
- 
-  @Public()
-  @Post('external/log-message')
-  @ApiOperation({ summary: 'Log an external template sent by an external system' })
-  async logExternalMessage(@Headers('authorization') authHeader: string, @Body() body: any) {
-    try {
-      const expectedApiKey = process.env.EXTERNAL_API_KEY || 'default-secret-key';
-      if (!authHeader || authHeader.replace('Bearer ', '') !== expectedApiKey) {
-        throw new Error('Unauthorized API Key');
-      }
-
-      // Strict payload validation
-      const { phoneNumberId, customerPhone, messageId, templateName, templateLanguage } = body;
-      if (!phoneNumberId || !customerPhone || !messageId || !templateName || !templateLanguage) {
-        throw new Error('Bad Request: Missing required fields (phoneNumberId, customerPhone, messageId, templateName, templateLanguage)');
-      }
-
-      const result = await this.whatsappService.logExternalMessage(body);
-      return { success: true, message: 'Message logged successfully', data: result };
-    } catch (error) {
-      console.error('Error logging external message:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  @Public()
-  @Post('webhook')
-  @ApiOperation({ summary: 'Handle webhook without token parameter' })
-  async catchAllWebhookPost(@Body() body: any) {
-    // Check if the webhook is meant for the Daily-Kurtis Phone Number
-    const phoneNumberId = body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
-    if (phoneNumberId === '1239751119221958') {
-      try {
-        await require('axios').post('https://dailykurtis.api.luisant.cloud/whatsapp/webhook', body);
-        console.log('✅ Forwarded Daily-Kurtis webhook to dailykurtis.api.luisant.cloud');
-        return 'EVENT_RECEIVED';
-      } catch (err) {
-        console.error('❌ Failed to forward to Daily-Kurtis:', err.message);
-      }
-    }
-
-    // Forward to Ananda Honda
-    require('axios').post('https://api.anandahonda.cloud/whatsapp/webhook', body)
-      .catch((e: any) => console.log('Webhook Forwarding failed:', e.message));
-
-    // Respond immediately to WhatsApp
-    setImmediate(() => {
-      this.processWebhookAsync(body).catch(error => {
-        console.error('Async webhook processing error:', error);
-      });
-    });
-    return 'EVENT_RECEIVED';
-  }
-
-  private async processWebhookAsync(body: any) {
-    try {
-      console.log('\n=== WEBHOOK POST RECEIVED (WITHOUT TOKEN) ===');
-      console.log('Timestamp:', new Date().toISOString());
-      console.log('🔍 FULL WEBHOOK BODY:', JSON.stringify(body, null, 2));
-     
-      if (!body || !body.object) {
-        return;
-      }
-     
-      if (body.object === 'whatsapp_business_account') {
-        for (const entry of body.entry) {
-          for (const change of entry.changes) {
-            if (change.field === 'messages') {
-              const message = change.value.messages?.[0];
-              const phoneNumberId = change.value.metadata?.phone_number_id;
-              const displayPhoneNumber = change.value.metadata?.display_phone_number;
-              const contacts = change.value.contacts?.[0];
-              const profileName = contacts?.profile?.name || null;
-              const userId = contacts?.user_id || message?.from_user_id;
-              const parentUserId = contacts?.parent_user_id || message?.from_parent_user_id;
-              const username = contacts?.profile?.username;
-              
-              console.log('\n🔔 MESSAGE DETECTED');
-              console.log(`📞 Phone Number ID: ${phoneNumberId}`);
-              console.log(`📞 Display Phone: ${displayPhoneNumber}`);
-              console.log(`👤 From: ${message?.from}`);
-              console.log(`📝 Message Type: ${message?.type}`);
-              console.log(`🔑 No verify token (catch-all route)`);
-              
-              if (message) {
-                // Check if it's a flow response
-                if (message.type === 'interactive' && message.interactive?.type === 'nfm_reply') {
-                  console.log('📋 Flow response received');
-                  const responseData = JSON.parse(message.interactive.nfm_reply.response_json);
-                  
-                  // Check if it's a customer details flow (has customer_name field)
-                  if (responseData.customer_name || responseData.customerName) {
-                    console.log('👤 Customer details flow response detected');
-                    // Handle customer details flow directly
-                    await this.metaCatalogService.handleCustomerDetailsFlowResponse(
-                      message.from,
-                      phoneNumberId,
-                      responseData,
-                      1 // userId - you may need to determine this properly
-                    );
-                    return;
-                  } else {
-                    // Handle appointment flows
-                    console.log('📅 Appointment flow response detected');
-                    await this.flowAppointmentService.saveAppointmentFromWebhook(
-                      responseData,
-                      message.from,
-                      phoneNumberId
-                    );
-                    return;
-                  }
-                }
-                
-                try {
-                  console.log('\n🔍 PROCESSING WITHOUT CONTEXT:');
-                  console.log('Phone Number ID:', phoneNumberId);
-                  console.log('BSUID Data:', { userId, parentUserId, username });
-                  
-                  console.log('\n✅ Calling handleIncomingMessageWithoutContext');
-                  await this.whatsappService.handleIncomingMessageWithoutContext(
-                    message, 
-                    phoneNumberId, 
-                    profileName,
-                    userId,
-                    parentUserId,
-                    username
-                  );
-                } catch (msgError) {
-                  console.error('❌ Error processing message:', msgError);
-                }
-              }
-              
-              const statuses = change.value.statuses;
-              if (statuses) {
-                for (const status of statuses) {
-                  try {
-                    // Check if it's a payment status
-                    if (status.type === 'payment' && status.status === 'captured') {
-                      console.log('💳 Payment captured:', status);
-                      const referenceId = status.payment?.reference_id;
-                      const orderId = referenceId ? parseInt(referenceId.split('_')[1]) : null;
-                      
-                      if (orderId) {
-                        console.log(`Processing payment for order #${orderId}`);
-                        
-                        try {
-                          const axios = require('axios');
-                          const backendUrl = process.env.BACKEND_URL || 'http://localhost:3010';
-                          const response = await axios.post(`${backendUrl}/webhooks/payment-success/${orderId}`, {}, {
-                            headers: { 'Content-Type': 'application/json' },
-                            timeout: 5000
-                          });
-                          console.log('✅ Payment confirmation triggered:', response.data);
-                        } catch (paymentError) {
-                          console.error('Payment processing error:', paymentError.response?.data || paymentError.message);
-                        }
-                      }
-                    }
-                    
-                    // Pass error details if status is failed
-                    await this.whatsappService.updateMessageStatusWithoutContext(
-                      status.id, 
-                      status.status, 
-                      change.value.metadata?.phone_number_id,
-                      status.errors // Pass the errors array from webhook
+                      status.errors, // Pass the errors array from webhook
+                      status.pricing, // Untrusted payload for individual billing tracking
+                      resolvedTenantId // Direct mapped tenant ID for unambiguous routing
                     );
                   } catch (statusError) {
                     console.error('Error updating status:', statusError);

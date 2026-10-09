@@ -203,6 +203,13 @@ export class PrismaService {
     return this.client.messageTemplate;
   }
 
+  get metaVolumeTierLog() {
+    if (!this.client) {
+      throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');
+    }
+    return this.client.metaVolumeTierLog;
+  }
+
   $queryRawUnsafe<T = any>(query: string, ...values: any[]): Promise<T> {
     if (!this.client) {
       throw new Error('Tenant context not initialized. Make sure you are authenticated and the tenant middleware is enabled.');

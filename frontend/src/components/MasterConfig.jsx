@@ -1215,7 +1215,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                                   <td style={{ padding: '12px 16px', color: '#606770', textAlign: 'right' }}>{getPublishedRate(row.country, row.category)}</td>
                                   <td style={{ padding: '12px 16px', color: '#1c1e21', textAlign: 'right' }}>
                                     {!row.hasSpend ? (
-                                      <span style={{ color: '#d97706' }}>Delayed</span>
+                                      <span style={{ color: '#d97706' }}>Pending / Unavailable</span>
                                     ) : (
                                       row.spend === 0 ? <span style={{ color: '#047857' }}>{currencySymbol} 0.00</span> : `${currencySymbol} ${row.spend.toFixed(2)}`
                                     )}

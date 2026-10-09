@@ -488,8 +488,19 @@ export class TemplateService {
       try {
         const url = `https://graph.facebook.com/${this.apiVersion}/${wabaId}?fields=currency,template_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).template_ids(['${metaTemplateId}'])&access_token=${accessToken}`;
         const res = await axios.get(url, { timeout: 10000 });
+        console.log('Template Analytics Meta Data:', JSON.stringify(res.data?.template_analytics?.data, null, 2));
         currency = res.data?.currency || 'INR';
-        metaAnalytics = res.data?.template_analytics?.data?.[0];
+        
+        // Instead of taking [0], merge all data objects since edited templates return multiple
+        const analyticsDataArr = res.data?.template_analytics?.data || [];
+        if (analyticsDataArr.length > 0) {
+          metaAnalytics = { data_points: [] };
+          analyticsDataArr.forEach((item: any) => {
+            if (item.data_points) {
+              metaAnalytics.data_points.push(...item.data_points);
+            }
+          });
+        }
       } catch (err: any) {
         console.warn(`Failed to fetch Meta template_analytics for ${metaTemplateId}:`, err?.response?.data || err?.message);
       }
@@ -505,6 +516,8 @@ export class TemplateService {
     const dailyPoints: any[] = [];
 
     if (metaAnalytics?.data_points?.length) {
+      const dailyMap = new Map<number, any>();
+      
       metaAnalytics.data_points.forEach((dp: any) => {
         sent += dp.sent || 0;
         delivered += dp.delivered || 0;
@@ -514,15 +527,25 @@ export class TemplateService {
         const spentObj = dp.cost?.find((c: any) => c.type?.toLowerCase() === 'amount_spent');
         if (spentObj?.value) amountSpent += Number(spentObj.value);
 
-        dailyPoints.push({
-          start: dp.start,
-          end: dp.end,
-          sent: dp.sent || 0,
-          delivered: dp.delivered || 0,
-          read: dp.read || 0,
-          replied: dp.replied || 0,
-        });
+        if (dailyMap.has(dp.start)) {
+          const existing = dailyMap.get(dp.start);
+          existing.sent += (dp.sent || 0);
+          existing.delivered += (dp.delivered || 0);
+          existing.read += (dp.read || 0);
+          existing.replied += (dp.replied || 0);
+        } else {
+          dailyMap.set(dp.start, {
+            start: dp.start,
+            end: dp.end,
+            sent: dp.sent || 0,
+            delivered: dp.delivered || 0,
+            read: dp.read || 0,
+            replied: dp.replied || 0,
+          });
+        }
       });
+      
+      dailyPoints.push(...Array.from(dailyMap.values()));
 
       if (delivered > 0 && amountSpent > 0) {
         costPerDelivered = Number((amountSpent / delivered).toFixed(2));

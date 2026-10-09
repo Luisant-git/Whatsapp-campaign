@@ -1184,9 +1184,23 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
 
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                        <div>
-                          <div style={{ fontSize: '13px', color: '#606770', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Messages Delivered</div>
-                          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#1c1e21' }}>{totalDelivered}</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                          <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', padding: '16px', background: '#fff' }}>
+                            <div style={{ fontSize: '13px', color: '#606770', fontWeight: '600', marginBottom: '8px' }}>Messages sent</div>
+                            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totalDelivered}</div>
+                          </div>
+                          <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', padding: '16px', background: '#fff' }}>
+                            <div style={{ fontSize: '13px', color: '#606770', fontWeight: '600', marginBottom: '8px' }}>Messages delivered</div>
+                            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totalDelivered}</div>
+                          </div>
+                          <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', padding: '16px', background: '#fff' }}>
+                            <div style={{ fontSize: '13px', color: '#606770', fontWeight: '600', marginBottom: '8px' }}>Messages read</div>
+                            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>0 <span style={{ fontSize: '14px', color: '#606770', fontWeight: 'normal' }}>(0%)</span></div>
+                          </div>
+                          <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', padding: '16px', background: '#fff' }}>
+                            <div style={{ fontSize: '13px', color: '#606770', fontWeight: '600', marginBottom: '8px' }}>Unique replies</div>
+                            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>0</div>
+                          </div>
                         </div>
 
                         <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', overflow: 'hidden' }}>

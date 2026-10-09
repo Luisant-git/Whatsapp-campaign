@@ -431,6 +431,132 @@ export class TemplateService {
     }
   }
 
+  async getTemplateAnalytics(userId: number, templateId: string, start?: string, end?: string) {
+    const { tenantClient } = await this.getTenantWithCredentials(userId);
+    
+    // Find template in local DB by templateId or id
+    let template = await tenantClient.messageTemplate.findFirst({
+      where: { templateId },
+    });
+    if (!template && !isNaN(Number(templateId))) {
+      template = await tenantClient.messageTemplate.findFirst({
+        where: { id: Number(templateId) },
+      });
+    }
+
+    if (!template) {
+      throw new NotFoundException('Template not found');
+    }
+
+    let wabaId: string | null = null;
+    let accessToken: string | null = null;
+
+    if (isCentralMetaCredentialEnabled()) {
+      try {
+        const metaConfig = await this.metaCredentialService.getMetaConfig(userId);
+        wabaId = metaConfig.wabaId;
+        accessToken = metaConfig.accessToken;
+      } catch (e) {}
+    }
+    
+    if (!wabaId || !accessToken) {
+      try {
+        const { masterConfig } = await this.getTenantWithCredentials(userId);
+        wabaId = masterConfig?.wabaId;
+        accessToken = masterConfig?.accessToken;
+      } catch (e) {}
+    }
+
+    // Default 7 days if not provided
+    let startTs: number;
+    let endTs: number;
+    if (start && end) {
+      startTs = Math.floor(new Date(start).getTime() / 1000);
+      endTs = Math.floor(new Date(end).getTime() / 1000);
+    } else {
+      const now = new Date();
+      startTs = Math.floor((now.getTime() - 7 * 24 * 60 * 60 * 1000) / 1000);
+      endTs = Math.floor(now.getTime() / 1000);
+    }
+
+    const metaTemplateId = template.templateId || templateId;
+
+    let metaAnalytics: any = null;
+    let currency = 'INR';
+
+    if (wabaId && accessToken && metaTemplateId) {
+      try {
+        const url = `https://graph.facebook.com/${this.apiVersion}/${wabaId}?fields=currency,template_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).template_ids([${metaTemplateId}])&access_token=${accessToken}`;
+        const res = await axios.get(url, { timeout: 10000 });
+        currency = res.data?.currency || 'INR';
+        metaAnalytics = res.data?.template_analytics?.data?.[0];
+      } catch (err: any) {
+        console.warn(`Failed to fetch Meta template_analytics for ${metaTemplateId}: ${err?.message}`);
+      }
+    }
+
+    // Aggregate metrics
+    let sent = 0;
+    let delivered = 0;
+    let read = 0;
+    let replied = 0;
+    let amountSpent = 0;
+    let costPerDelivered = 0;
+    const dailyPoints: any[] = [];
+
+    if (metaAnalytics?.data_points?.length) {
+      metaAnalytics.data_points.forEach((dp: any) => {
+        sent += dp.sent || 0;
+        delivered += dp.delivered || 0;
+        read += dp.read || 0;
+        replied += dp.replied || 0;
+
+        const spentObj = dp.cost?.find((c: any) => c.type === 'amount_spent');
+        if (spentObj?.value) amountSpent += Number(spentObj.value);
+
+        dailyPoints.push({
+          start: dp.start,
+          end: dp.end,
+          sent: dp.sent || 0,
+          delivered: dp.delivered || 0,
+          read: dp.read || 0,
+          replied: dp.replied || 0,
+        });
+      });
+
+      if (delivered > 0 && amountSpent > 0) {
+        costPerDelivered = Number((amountSpent / delivered).toFixed(2));
+      }
+    }
+
+    const readRate = delivered > 0 ? Math.round((read / delivered) * 100) : 0;
+
+    return {
+      template: {
+        id: template.id,
+        templateId: template.templateId,
+        name: template.name,
+        category: template.category,
+        language: template.language,
+        status: template.status,
+        components: template.components,
+        createdAt: template.createdAt,
+        updatedAt: template.updatedAt,
+      },
+      analytics: {
+        amountSpent,
+        costPerDelivered,
+        currency,
+        sent,
+        delivered,
+        read,
+        readRate,
+        replies: replied,
+        dataPoints: dailyPoints,
+      }
+    };
+  }
+
   async getTemplate(userId: number, templateId: string) {
     const { tenantClient } = await this.getTenantWithCredentials(userId);
     const template = await tenantClient.messageTemplate.findFirst({

@@ -618,7 +618,15 @@ function App() {
             {activeView === "settings" && (
               <SettingsPanel onNavigate={setActiveView} />
             )}
-            {activeView === "master-config" && <MasterConfig />}
+            {activeView === "master-config" && (
+              <MasterConfig 
+                tenantId={
+                  user?.tenantId || 
+                  (user?.userType === "tenant" || localStorage.getItem("userType") === "tenant" ? user?.id : undefined) || 
+                  localStorage.getItem("tenantId")
+                } 
+              />
+            )}
             {activeView === "profile" && <Profile />}
             {activeView === "subscription" && <Subscription onSubscriptionChange={refreshMenuPermissions} />}
           </div>

@@ -78,6 +78,16 @@ export class TemplateController {
     return this.templateService.requestReview(session.tenantId, requestReviewDto);
   }
 
+  @Get(':templateId/analytics')
+  async getTemplateAnalytics(
+    @Session() session: any,
+    @Param('templateId') templateId: string,
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    return this.templateService.getTemplateAnalytics(session.tenantId, templateId, start, end);
+  }
+
   @Get(':templateId')
   async getTemplate(@Session() session: any, @Param('templateId') templateId: string) {
     return this.templateService.getTemplate(session.tenantId, templateId);

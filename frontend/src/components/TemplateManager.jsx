@@ -27,8 +27,10 @@ import {
   Maximize2,
   Minimize2,
   MapPin,
-  Lock
+  Lock,
+  BarChart2
 } from 'lucide-react';
+import TemplateDetailView from './TemplateDetailView';
 import '../styles/TemplateManager.css';
 import { API_BASE_URL } from '../api/config';
 
@@ -86,6 +88,7 @@ const TemplateManager = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogType, setDialogType] = useState('create');
   const [currentTemplate, setCurrentTemplate] = useState(null);
+  const [viewingTemplate, setViewingTemplate] = useState(null);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('ALL');
@@ -257,6 +260,15 @@ const TemplateManager = () => {
     fetchTemplateLibrary();
     fetchCapabilities();
   }, []);
+
+  useEffect(() => {
+    if (viewingTemplate && templates.length > 0) {
+      const updated = templates.find(t => (t.id || t.templateId) === (viewingTemplate.id || viewingTemplate.templateId));
+      if (updated) {
+        setViewingTemplate(updated);
+      }
+    }
+  }, [templates]);
 
   const fetchCapabilities = async () => {
     try {
@@ -1504,8 +1516,16 @@ const TemplateManager = () => {
   };
 
   return (
-    <div className="template-manager">
-      <div className="template-header">
+    <div className="template-manager" style={viewingTemplate ? { padding: 0, background: 'transparent' } : {}}>
+      {viewingTemplate ? (
+        <TemplateDetailView 
+          template={viewingTemplate}
+          onBack={() => setViewingTemplate(null)}
+          onEdit={(tpl) => handleEditTemplate(tpl)}
+        />
+      ) : (
+        <>
+          <div className="template-header">
         <div>
           <div style={{display: 'flex', alignItems: 'center', gap: 8, color: '#606770', fontSize: 13, marginBottom: 4}}>
             <span>WhatsApp Manager</span>
@@ -1623,7 +1643,7 @@ const TemplateManager = () => {
                 <tr key={template.id}>
                   <td>
                     <div className="template-name-cell">
-                      <span className="template-name" onClick={() => handleEditTemplate(template)} style={{cursor: 'pointer'}}>
+                      <span className="template-name" onClick={() => setViewingTemplate(template)} style={{cursor: 'pointer', color: '#1877f2', fontWeight: '600'}} title="Click to view template details & analytics">
                         {template.name}
                       </span>
                       <span className="template-id">ID: {template.id || template.templateId}</span>
@@ -1734,9 +1754,17 @@ const TemplateManager = () => {
                     <div className="action-btns" style={{display: 'flex', gap: 8}}>
                       <button 
                         className="icon-btn" 
+                        title="View Details & Analytics"
+                        onClick={() => setViewingTemplate(template)}
+                        style={{background: 'none', border: 'none', color: '#1877f2', cursor: 'pointer', padding: 2}}
+                      >
+                        <BarChart2 size={18} />
+                      </button>
+                      <button 
+                        className="icon-btn" 
                         title="Edit Template"
                         onClick={() => handleEditTemplate(template)}
-                        style={{background: 'none', border: 'none', color: '#008069', cursor: 'pointer'}}
+                        style={{background: 'none', border: 'none', color: '#008069', cursor: 'pointer', padding: 2}}
                       >
                         <Layout size={18} />
                       </button>
@@ -1744,7 +1772,7 @@ const TemplateManager = () => {
                         className="icon-btn" 
                         title="Delete Template"
                         onClick={() => handleDeleteTemplate(template)}
-                        style={{background: 'none', border: 'none', color: '#fa3e3e', cursor: 'pointer'}}
+                        style={{background: 'none', border: 'none', color: '#fa3e3e', cursor: 'pointer', padding: 2}}
                       >
                         <Trash2 size={18} />
                       </button>
@@ -1869,6 +1897,8 @@ const TemplateManager = () => {
             </div>
           )}
         </div>
+      )}
+        </>
       )}
 
       {/* Category Mismatch Modal */}

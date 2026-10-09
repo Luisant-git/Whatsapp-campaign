@@ -226,3 +226,21 @@ export const getTemplates = async (status) => {
 
   return await response.json();
 };
+
+export const getTemplateAnalytics = async (templateId, start, end) => {
+  let url = `${API_BASE_URL}/templates/${templateId}/analytics`;
+  const params = [];
+  if (start) params.push(`start=${encodeURIComponent(start)}`);
+  if (end) params.push(`end=${encodeURIComponent(end)}`);
+  if (params.length > 0) url += `?${params.join('&')}`;
+
+  const response = await fetch(url, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch template analytics');
+  }
+
+  return await response.json();
+};

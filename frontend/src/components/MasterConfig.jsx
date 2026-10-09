@@ -5,7 +5,7 @@ import { useToast } from '../contexts/ToastContext';
 import { API_BASE_URL } from "../api/config";
 import { Plus, Trash2, Eye, EyeOff, Wifi, Facebook, X } from "lucide-react";
 
-const MasterConfig = () => {
+const MasterConfig = ({ tenantId: propTenantId }) => {
   const { showSuccess, showError, showConfirm } = useToast();
   const [masterConfigs, setMasterConfigs] = useState([]);
   const [centralConnection, setCentralConnection] = useState(null);
@@ -51,7 +51,19 @@ const MasterConfig = () => {
   const [webhookConfigId, setWebhookConfigId] = useState(null);
   const [callbackUrl, setCallbackUrl] = useState('https://enquiry.api.luisant.cloud/api/webhook');
   const [settingWebhook, setSettingWebhook] = useState(false);
-  const [activeRoutingDropdown, setActiveRoutingDropdown] = useState(null);
+
+  // Tenant detection: Only Tenant 1 is the verified WhatsApp Tech Provider
+  const currentTenantId = propTenantId || (() => {
+    const tid = localStorage.getItem("tenantId");
+    if (tid) return String(tid);
+    try {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      if (user?.tenantId) return String(user.tenantId);
+      if (localStorage.getItem("userType") === "tenant" && user?.id) return String(user.id);
+    } catch (e) {}
+    return null;
+  })();
+  const isTenant1 = String(currentTenantId) === "1" || currentTenantId === 1 || String(currentTenantId) === "tenant-1";
 
   useEffect(() => {
     fetchMasterConfigs();
@@ -161,7 +173,8 @@ const MasterConfig = () => {
   const [analyticsData, setAnalyticsData] = useState([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   
-  const [analyticsRange, setAnalyticsRange] = useState({ label: 'Last 7 days', days: 7 });
+  const [analyticsRange, setAnalyticsRange] = useState({ label: 'Last 30 days', days: 30 });
+  const [analyticsCurrency, setAnalyticsCurrency] = useState('INR');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showWabaPicker, setShowWabaPicker] = useState(false);
 
@@ -183,6 +196,7 @@ const MasterConfig = () => {
         const data = await response.json();
         // data.data is the array of data points
         setAnalyticsData(data.data || []);
+        if (data.currency) setAnalyticsCurrency(data.currency);
       }
     } catch (error) {
       console.error("Failed to fetch analytics:", error);
@@ -324,7 +338,6 @@ const MasterConfig = () => {
       
       if (response.ok) {
         showSuccess(feature ? `${feature.replace(/([A-Z])/g, ' $1').trim()} number updated` : 'Unassigned feature routing');
-        setActiveRoutingDropdown(null);
       } else {
         throw new Error('Failed to save');
       }
@@ -841,16 +854,17 @@ const MasterConfig = () => {
 
       {activeTab === 'configurations' && (
         <div className="settings-list">
-          {/* Tech Provider Dashboard Card */}
-          {/* Compact Tech Provider Alert */}
-          <div style={{ marginBottom: '24px', background: '#ecfdf5', borderRadius: '6px', padding: '12px 16px', border: '1px solid #a7f3d0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '10px' }}>✓</div>
-              <strong style={{ color: '#065f46', fontSize: '14px' }}>Tech Provider Onboarding Complete</strong>
-              <span style={{ color: '#047857', fontSize: '14px' }}>- You are a verified WhatsApp Tech Provider.</span>
+          {/* Tech Provider Dashboard Card - Only shown for Tenant 1 */}
+          {isTenant1 && (
+            <div style={{ marginBottom: '24px', background: '#ecfdf5', borderRadius: '6px', padding: '12px 16px', border: '1px solid #a7f3d0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '10px' }}>✓</div>
+                <strong style={{ color: '#065f46', fontSize: '14px' }}>Tech Provider Onboarding Complete</strong>
+                <span style={{ color: '#047857', fontSize: '14px' }}>- You are a verified WhatsApp Tech Provider.</span>
+              </div>
+              <a href="https://business.facebook.com" target="_blank" rel="noopener noreferrer" style={{ color: '#10b981', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>Open Meta Platform</a>
             </div>
-            <a href="https://business.facebook.com" target="_blank" rel="noopener noreferrer" style={{ color: '#10b981', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>Open Meta Platform</a>
-          </div>
+          )}
 
           {/* NEW CENTRAL CONNECTION DASHBOARD - COMPACT META STYLE */}
           {centralConnection && (
@@ -973,57 +987,6 @@ const MasterConfig = () => {
                             {phone.qualityRating || 'UNKNOWN'}
                           </span>
                         </div>
-
-                        {/* Routing App */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid #ccd0d5', paddingTop: '12px' }}>
-                          <label style={{ fontSize: '12px', color: '#606770', whiteSpace: 'nowrap', fontWeight: '600' }}>App Routing:</label>
-                          <div style={{ position: 'relative', flex: 1 }}>
-                            <button 
-                              onClick={() => setActiveRoutingDropdown(activeRoutingDropdown === phone.phoneNumberId ? null : phone.phoneNumberId)}
-                              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', border: '1px solid #ccd0d5', borderRadius: '4px', background: '#ffffff', cursor: 'pointer', fontSize: '13px', color: '#1c1e21', fontWeight: '500' }}
-                            >
-                              {(() => {
-                                const currentKey = Object.keys(featureAssignments).find(key => featureAssignments[key] === phone.phoneNumberId);
-                                const options = {
-                                  '': 'Unassigned',
-                                  'whatsappChat': 'Primary Inbox',
-                                  'campaigns': 'Campaigns',
-                                  'ecommerce': 'Ecommerce',
-                                  'aiChatbot': 'AI Chatbot',
-                                  'quickReply': 'Quick Replies'
-                                };
-                                return options[currentKey || ''];
-                              })()}
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1c1e21" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
-                            </button>
-
-                            {activeRoutingDropdown === phone.phoneNumberId && (
-                              <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '4px', width: '100%', background: '#ffffff', border: '1px solid #ccd0d5', borderRadius: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 100, padding: '8px 0' }}>
-                                {[
-                                  { value: '', label: 'Unassigned' },
-                                  { value: 'whatsappChat', label: 'Primary Inbox' },
-                                  { value: 'campaigns', label: 'Campaigns' },
-                                  { value: 'ecommerce', label: 'Ecommerce' },
-                                  { value: 'aiChatbot', label: 'AI Chatbot' },
-                                  { value: 'quickReply', label: 'Quick Replies' }
-                                ].map(option => {
-                                  const currentKey = Object.keys(featureAssignments).find(key => featureAssignments[key] === phone.phoneNumberId) || '';
-                                  const isSelected = currentKey === option.value;
-                                  return (
-                                    <div 
-                                      key={option.value}
-                                      onClick={() => handleFeatureAssignment(option.value, phone.phoneNumberId)}
-                                      style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', background: isSelected ? '#f5f6f7' : 'transparent' }}
-                                    >
-                                      <div style={{ width: '14px', height: '14px', borderRadius: '50%', border: isSelected ? '4px solid #1877f2' : '1px solid #ccd0d5', background: '#fff', flexShrink: 0 }}></div>
-                                      <span style={{ fontSize: '13px', color: '#1c1e21' }}>{option.label}</span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        </div>
                       </div>
                     ))}
                   </div>
@@ -1067,7 +1030,7 @@ const MasterConfig = () => {
               {/* Analytics Row */}
               <div style={{ borderTop: '1px solid #ccd0d5', padding: '20px', background: '#ffffff' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-                  <h4 style={{ margin: 0, fontSize: '13px', color: '#606770', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Conversation Usage Analytics</h4>
+                  <h4 style={{ margin: 0, fontSize: '13px', color: '#606770', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Message Pricing & Usage Analytics</h4>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ position: 'relative' }}>
                       <button 
@@ -1106,44 +1069,86 @@ const MasterConfig = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
                   {(() => {
                     const totals = { MARKETING: 0, UTILITY: 0, SERVICE: 0, AUTHENTICATION: 0 };
-                    let totalConversations = 0;
+                    const costs = { MARKETING: 0, UTILITY: 0, SERVICE: 0, AUTHENTICATION: 0 };
+                    let totalDelivered = 0;
+                    let totalCost = 0;
                     
                     if (analyticsData && analyticsData.length > 0) {
                       analyticsData.forEach(item => {
                         item.data_points?.forEach(dp => {
-                          const cat = dp.conversation_category;
-                          const count = dp.metrics?.conversation || 0;
+                          const rawCat = (dp.pricing_category || dp.conversation_category || '').toUpperCase();
+                          const cat = rawCat.includes('MARKETING') ? 'MARKETING' 
+                            : rawCat.includes('AUTH') ? 'AUTHENTICATION'
+                            : rawCat.includes('UTIL') ? 'UTILITY'
+                            : rawCat.includes('SERV') ? 'SERVICE'
+                            : rawCat;
+
+                          const count = typeof dp.volume === 'number' 
+                            ? dp.volume 
+                            : (typeof dp.metrics?.conversation === 'number' ? dp.metrics.conversation : 0);
+                          const cost = typeof dp.cost === 'number' ? dp.cost : 0;
+
                           if (totals[cat] !== undefined) {
                             totals[cat] += count;
-                          } else {
+                            costs[cat] += cost;
+                          } else if (cat) {
                             totals[cat] = count;
+                            costs[cat] = cost;
                           }
-                          totalConversations += count;
+                          totalDelivered += count;
+                          totalCost += cost;
                         });
                       });
                     }
 
+                    const currencySymbol = analyticsCurrency === 'INR' ? '₹' : (analyticsCurrency || '₹');
+
                     return (
                       <>
                         <div style={{ padding: '16px', border: '1px solid #ccd0d5', borderRadius: '6px', background: '#f5f6f7' }}>
-                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Total Charged</div>
-                          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totalConversations}</div>
+                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Messages Delivered</div>
+                          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totalDelivered}</div>
+                          {totalCost > 0 && (
+                            <div style={{ fontSize: '12px', color: '#047857', marginTop: '4px', fontWeight: '600' }}>
+                              Est. Charges: {currencySymbol} {totalCost.toFixed(2)}
+                            </div>
+                          )}
                         </div>
                         <div style={{ padding: '16px', border: '1px solid #ccd0d5', borderRadius: '6px', background: '#ffffff' }}>
                           <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Marketing</div>
                           <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totals.MARKETING || 0}</div>
+                          {costs.MARKETING > 0 && (
+                            <div style={{ fontSize: '12px', color: '#606770', marginTop: '4px' }}>
+                              {currencySymbol} {costs.MARKETING.toFixed(2)}
+                            </div>
+                          )}
                         </div>
                         <div style={{ padding: '16px', border: '1px solid #ccd0d5', borderRadius: '6px', background: '#ffffff' }}>
                           <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Service</div>
                           <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totals.SERVICE || 0}</div>
+                          {costs.SERVICE > 0 && (
+                            <div style={{ fontSize: '12px', color: '#606770', marginTop: '4px' }}>
+                              {currencySymbol} {costs.SERVICE.toFixed(2)}
+                            </div>
+                          )}
                         </div>
                         <div style={{ padding: '16px', border: '1px solid #ccd0d5', borderRadius: '6px', background: '#ffffff' }}>
                           <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Utility</div>
                           <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totals.UTILITY || 0}</div>
+                          {costs.UTILITY > 0 && (
+                            <div style={{ fontSize: '12px', color: '#606770', marginTop: '4px' }}>
+                              {currencySymbol} {costs.UTILITY.toFixed(2)}
+                            </div>
+                          )}
                         </div>
                         <div style={{ padding: '16px', border: '1px solid #ccd0d5', borderRadius: '6px', background: '#ffffff' }}>
                           <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Authentication</div>
                           <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totals.AUTHENTICATION || 0}</div>
+                          {costs.AUTHENTICATION > 0 && (
+                            <div style={{ fontSize: '12px', color: '#606770', marginTop: '4px' }}>
+                              {currencySymbol} {costs.AUTHENTICATION.toFixed(2)}
+                            </div>
+                          )}
                         </div>
                       </>
                     );

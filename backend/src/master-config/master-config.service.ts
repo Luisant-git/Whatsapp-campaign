@@ -365,17 +365,28 @@ export class MasterConfigService {
       endTs = Math.floor(now.getTime() / 1000);
     }
 
-    const url = `https://graph.facebook.com/v20.0/${connection.wabaId}?fields=conversation_analytics.start(${startTs}).end(${endTs}).granularity(DAILY)&access_token=${accessToken}`;
+    let url = `https://graph.facebook.com/v20.0/${connection.wabaId}?fields=currency,pricing_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).dimensions(["PRICING_CATEGORY","PHONE"]),conversation_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).dimensions(["CONVERSATION_CATEGORY"])&access_token=${accessToken}`;
     
     try {
-      const response = await fetch(url);
-      const data = await response.json();
+      let response = await fetch(url);
+      let data = await response.json();
       
+      if (data.error) {
+        // Fallback without PHONE dimension
+        url = `https://graph.facebook.com/v20.0/${connection.wabaId}?fields=currency,pricing_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).dimensions(["PRICING_CATEGORY"]),conversation_analytics.start(${startTs}).end(${endTs}).granularity(DAILY)&access_token=${accessToken}`;
+        response = await fetch(url);
+        data = await response.json();
+      }
+
       if (data.error) {
         throw new BadRequestException(data.error.message || 'Failed to fetch analytics from Meta');
       }
 
-      return data.conversation_analytics || { data: [] };
+      const analyticsObj = data.pricing_analytics || data.conversation_analytics || { data: [] };
+      return {
+        ...analyticsObj,
+        currency: data.currency || 'INR'
+      };
     } catch (e) {
       console.error('Analytics fetch error:', e);
       throw new BadRequestException('Failed to fetch analytics from Meta');

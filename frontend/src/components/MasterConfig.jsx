@@ -1076,17 +1076,39 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                     if (analyticsData && analyticsData.length > 0) {
                       analyticsData.forEach(item => {
                         item.data_points?.forEach(dp => {
-                          const rawCat = (dp.pricing_category || dp.conversation_category || '').toUpperCase();
+                          // Extract Category safely
+                          const rawCat = (
+                            dp.pricing_category || 
+                            dp.conversation_category || 
+                            item.dimensions?.PRICING_CATEGORY || 
+                            item.dimensions?.CONVERSATION_CATEGORY || 
+                            item.pricing_category || 
+                            item.conversation_category || 
+                            ''
+                          ).toUpperCase();
+
                           const cat = rawCat.includes('MARKETING') ? 'MARKETING' 
                             : rawCat.includes('AUTH') ? 'AUTHENTICATION'
                             : rawCat.includes('UTIL') ? 'UTILITY'
                             : rawCat.includes('SERV') ? 'SERVICE'
                             : rawCat;
 
-                          const count = typeof dp.volume === 'number' 
-                            ? dp.volume 
-                            : (typeof dp.metrics?.conversation === 'number' ? dp.metrics.conversation : 0);
-                          const cost = typeof dp.cost === 'number' ? dp.cost : 0;
+                          // Extract Count safely
+                          const count = 
+                            typeof dp.volume === 'number' ? dp.volume :
+                            typeof dp.conversation === 'number' ? dp.conversation :
+                            typeof dp.delivered === 'number' ? dp.delivered :
+                            typeof dp.metrics?.conversation === 'number' ? dp.metrics.conversation :
+                            typeof dp.metrics?.delivered === 'number' ? dp.metrics.delivered :
+                            0;
+
+                          // Extract Cost safely
+                          let cost = 0;
+                          if (typeof dp.cost === 'number') cost = dp.cost;
+                          else if (typeof dp.amount_spent === 'number') cost = dp.amount_spent;
+                          else if (typeof dp.amountSpent === 'number') cost = dp.amountSpent;
+                          else if (dp.cost && typeof dp.cost.amount_spent === 'number') cost = dp.cost.amount_spent;
+                          else if (typeof dp.metrics?.cost === 'number') cost = dp.metrics.cost;
 
                           if (totals[cat] !== undefined) {
                             totals[cat] += count;

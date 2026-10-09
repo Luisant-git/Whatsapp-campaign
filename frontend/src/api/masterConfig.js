@@ -92,3 +92,22 @@ export const setAppWebhook = async (id, callbackUrl) => {
 
   return await response.json();
 };
+
+export const getCentralConnectionAnalytics = async (start, end) => {
+  let url = `${API_BASE_URL}/master-config/central-connection/analytics`;
+  const params = [];
+  if (start) params.push(`start=${encodeURIComponent(start)}`);
+  if (end) params.push(`end=${encodeURIComponent(end)}`);
+  if (params.length > 0) url += `?${params.join('&')}`;
+
+  const response = await fetch(url, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || 'Failed to fetch connection analytics');
+  }
+
+  return await response.json();
+};

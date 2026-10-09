@@ -383,6 +383,7 @@ export class MasterConfigService {
       }
 
       const analyticsObj = data.pricing_analytics || data.conversation_analytics || { data: [] };
+      console.log('WABA Analytics Data from Meta:', JSON.stringify(analyticsObj, null, 2));
       return {
         ...analyticsObj,
         currency: data.currency || 'INR'

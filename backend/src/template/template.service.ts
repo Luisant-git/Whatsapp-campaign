@@ -467,7 +467,7 @@ export class TemplateService {
       } catch (e) {}
     }
 
-    // Default 7 days if not provided
+    // Default 30 days if not provided
     let startTs: number;
     let endTs: number;
     if (start && end) {
@@ -475,7 +475,7 @@ export class TemplateService {
       endTs = Math.floor(new Date(end).getTime() / 1000);
     } else {
       const now = new Date();
-      startTs = Math.floor((now.getTime() - 7 * 24 * 60 * 60 * 1000) / 1000);
+      startTs = Math.floor((now.getTime() - 30 * 24 * 60 * 60 * 1000) / 1000);
       endTs = Math.floor(now.getTime() / 1000);
     }
 
@@ -486,12 +486,12 @@ export class TemplateService {
 
     if (wabaId && accessToken && metaTemplateId) {
       try {
-        const url = `https://graph.facebook.com/${this.apiVersion}/${wabaId}?fields=currency,template_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).template_ids([${metaTemplateId}])&access_token=${accessToken}`;
+        const url = `https://graph.facebook.com/${this.apiVersion}/${wabaId}?fields=currency,template_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).template_ids(['${metaTemplateId}'])&access_token=${accessToken}`;
         const res = await axios.get(url, { timeout: 10000 });
         currency = res.data?.currency || 'INR';
         metaAnalytics = res.data?.template_analytics?.data?.[0];
       } catch (err: any) {
-        console.warn(`Failed to fetch Meta template_analytics for ${metaTemplateId}: ${err?.message}`);
+        console.warn(`Failed to fetch Meta template_analytics for ${metaTemplateId}:`, err?.response?.data || err?.message);
       }
     }
 
@@ -511,7 +511,7 @@ export class TemplateService {
         read += dp.read || 0;
         replied += dp.replied || 0;
 
-        const spentObj = dp.cost?.find((c: any) => c.type === 'amount_spent');
+        const spentObj = dp.cost?.find((c: any) => c.type?.toLowerCase() === 'amount_spent');
         if (spentObj?.value) amountSpent += Number(spentObj.value);
 
         dailyPoints.push({

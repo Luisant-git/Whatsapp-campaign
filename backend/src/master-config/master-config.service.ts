@@ -374,7 +374,7 @@ export class MasterConfigService {
       endTs = Math.floor(now.getTime() / 1000);
     }
 
-    let url = `https://graph.facebook.com/v20.0/${connection.wabaId}?fields=currency,pricing_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).dimensions(["PRICING_CATEGORY","PHONE"]),conversation_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).dimensions(["CONVERSATION_CATEGORY"])&access_token=${accessToken}`;
+    let url = `https://graph.facebook.com/v21.0/${connection.wabaId}?fields=currency,pricing_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).dimensions(["PRICING_CATEGORY","COUNTRY","TIER"]),conversation_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).dimensions(["CONVERSATION_CATEGORY"])&access_token=${accessToken}`;
     
     try {
       let response = await fetch(url);
@@ -382,7 +382,7 @@ export class MasterConfigService {
       
       if (data.error) {
         // Fallback without PHONE dimension
-        url = `https://graph.facebook.com/v20.0/${connection.wabaId}?fields=currency,pricing_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).dimensions(["PRICING_CATEGORY"]),conversation_analytics.start(${startTs}).end(${endTs}).granularity(DAILY)&access_token=${accessToken}`;
+        url = `https://graph.facebook.com/v21.0/${connection.wabaId}?fields=currency,pricing_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).dimensions(["PRICING_CATEGORY"]),conversation_analytics.start(${startTs}).end(${endTs}).granularity(DAILY)&access_token=${accessToken}`;
         response = await fetch(url);
         data = await response.json();
       }

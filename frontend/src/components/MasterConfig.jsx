@@ -4,6 +4,7 @@ import { getAllSettings } from "../api/auth";
 import { useToast } from '../contexts/ToastContext';
 import { API_BASE_URL } from "../api/config";
 import { Plus, Trash2, Eye, EyeOff, Wifi, Facebook, X } from "lucide-react";
+import { getMetaRate, META_PRICING_SOURCE, META_PRICING_EFFECTIVE_DATE, META_PRICING_RATES } from "../utils/metaPricing";
 
 const MasterConfig = ({ tenantId: propTenantId }) => {
   const { showSuccess, showError, showConfirm } = useToast();
@@ -52,6 +53,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
   const [callbackUrl, setCallbackUrl] = useState('https://enquiry.api.luisant.cloud/api/webhook');
   const [settingWebhook, setSettingWebhook] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [recipientMarket, setRecipientMarket] = useState('IN');
 
   // Tenant detection: Only Tenant 1 is the verified WhatsApp Tech Provider
   const currentTenantId = propTenantId || (() => {
@@ -1084,6 +1086,24 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                     {analyticsLoading && <span style={{ fontSize: '12px', color: '#1877f2', fontWeight: '600' }}>Loading...</span>}
                   </div>
                 </div>
+
+                {/* Recipient Market Selector */}
+                <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: '#f5f6f7', borderRadius: '8px', border: '1px solid #ccd0d5' }}>
+                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#1c1e21' }}>Recipient Market:</div>
+                  <select 
+                    value={recipientMarket}
+                    onChange={(e) => setRecipientMarket(e.target.value)}
+                    style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccd0d5', fontSize: '14px', background: '#ffffff', cursor: 'pointer', outline: 'none' }}
+                  >
+                    {Object.keys(META_PRICING_RATES).map(code => (
+                      <option key={code} value={code}>{META_PRICING_RATES[code].name}</option>
+                    ))}
+                  </select>
+                  <div style={{ fontSize: '12px', color: '#606770', marginLeft: 'auto', textAlign: 'right' }}>
+                    Rates effective from <strong>{META_PRICING_EFFECTIVE_DATE}</strong>. <br/>
+                    <a href={META_PRICING_SOURCE} target="_blank" rel="noreferrer" style={{ color: '#1877f2', textDecoration: 'none' }}>View Official Meta Rate Card</a>
+                  </div>
+                </div>
                 
                 <div style={{ padding: '0 0 16px 0' }}>
                   {(() => {
@@ -1121,12 +1141,12 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                     const currencySymbol = analyticsCurrency === 'INR' ? '₹' : (analyticsCurrency || '₹');
                     
                     const getRate = (cat) => {
-                      if (totals[cat] > 0 && costs[cat] > 0) {
-                        return `${currencySymbol} ${(costs[cat] / totals[cat]).toFixed(4)} / message`;
-                      } else if (totals[cat] > 0 && costs[cat] === 0) {
-                        return `${currencySymbol} 0.0000 / message*`;
+                      const metaRate = getMetaRate(recipientMarket, cat);
+                      if (metaRate && metaRate.rate !== undefined && metaRate.rate !== null) {
+                        const symbol = metaRate.currency === 'INR' ? '₹' : metaRate.currency === 'USD' ? '$' : metaRate.currency === 'GBP' ? '£' : metaRate.currency === 'BRL' ? 'R$' : metaRate.currency;
+                        return `${symbol} ${metaRate.rate.toFixed(4)} / message`;
                       }
-                      return '--';
+                      return 'Pricing unavailable';
                     };
 
                     const categories = [

@@ -688,3 +688,17 @@ model ContactAutomationLog {
   @@index([sentAt])
   @@index([status])
 }
+
+model MetaVolumeTierLog {
+  id              Int      @id @default(autoincrement())
+  wabaId          String
+  pricingCategory String
+  tier            String
+  effectiveMonth  String
+  region          String?
+  tierUpdateTime  Int
+  createdAt       DateTime @default(now())
+
+  @@unique([wabaId, pricingCategory, effectiveMonth, tierUpdateTime])
+  @@index([wabaId, effectiveMonth])
+}

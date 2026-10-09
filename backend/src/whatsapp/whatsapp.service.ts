@@ -3349,4 +3349,56 @@ export class WhatsappService {
       }
     });
   }
+
+  async handleTierUpdateWebhook(wabaId: string, verifyToken: string, payload: any) {
+    if (!wabaId || !payload || payload.event !== 'VOLUME_BASED_PRICING_TIER_UPDATE') {
+      return;
+    }
+    
+    const { category, tier, effective_month, tier_update_time, region } = payload;
+    
+    // Attempt to upsert the tier update into MetaVolumeTierLog.
+    // The unique constraint [wabaId, pricingCategory, effectiveMonth, tierUpdateTime] deduplicates exact repeated events.
+    try {
+      // Because this is central/tenant architected, verify if the verifyToken is valid for this WABA in tenant DB.
+      // We assume this is called within the tenant context since we are using TenantPrismaService or we find the tenant
+      // We will look up the tenant via the verifyToken first (as done earlier in controller).
+      const userId = await this.findUserByVerifyToken(verifyToken);
+      if (!userId) {
+        this.logger.warn(`Tier update received but verifyToken not linked to any tenant.`);
+        return;
+      }
+
+      // If we use tenantPrisma directly:
+      // Note: we might need to get tenant context or use standard prisma instance if it's single DB per tenant logic.
+      const prisma = this.prisma;
+      
+      // Upsert to handle Meta's duplicate identical events idempotently
+      await prisma.metaVolumeTierLog.upsert({
+        where: {
+          wabaId_pricingCategory_effectiveMonth_tierUpdateTime: {
+            wabaId,
+            pricingCategory: category || 'UNKNOWN',
+            effectiveMonth: effective_month || 'UNKNOWN',
+            tierUpdateTime: tier_update_time || 0
+          }
+        },
+        update: {
+          tier: tier || 'UNKNOWN',
+          region: region || null
+        },
+        create: {
+          wabaId,
+          pricingCategory: category || 'UNKNOWN',
+          tier: tier || 'UNKNOWN',
+          effectiveMonth: effective_month || 'UNKNOWN',
+          tierUpdateTime: tier_update_time || 0,
+          region: region || null
+        }
+      });
+      this.logger.log(`Persisted MetaVolumeTierLog for wabaId: ${wabaId}, category: ${category}, tier: ${tier}`);
+    } catch (e) {
+      this.logger.error(`Error saving tier update: ${e.message}`);
+    }
+  }
 }

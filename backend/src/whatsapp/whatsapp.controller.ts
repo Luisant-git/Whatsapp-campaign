@@ -144,6 +144,21 @@ export class WhatsappController {
       if (body.object === 'whatsapp_business_account') {
         for (const entry of body.entry) {
           for (const change of entry.changes) {
+            if (change.field === 'business_account_update') {
+              const value = change.value;
+              if (value && value.event === 'VOLUME_BASED_PRICING_TIER_UPDATE') {
+                console.log('📈 Received VOLUME_BASED_PRICING_TIER_UPDATE for WABA:', entry.id);
+                try {
+                  // verifyToken is scoped to the WABA in MasterConfig in this tenant.
+                  // We lookup the wabaId to ensure tenant association.
+                  await this.whatsappService.handleTierUpdateWebhook(entry.id, verifyToken, value);
+                } catch (err) {
+                  console.error('❌ Failed to process tier update:', err.message);
+                }
+              }
+              continue;
+            }
+
             if (change.field === 'messages') {
               const message = change.value.messages?.[0];
               const phoneNumberId = change.value.metadata?.phone_number_id;

@@ -1279,10 +1279,10 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                           </table>
                         </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#606770', flexWrap: 'wrap', gap: '8px' }}>
-                          <div>* Actual Meta spend may be delayed or unavailable. A missing cost value does not mean the messages were free. Zero cost is shown only when explicitly reported by Meta or confirmed by applicable pricing rules. Estimates are indicative and are not an official invoice.</div>
-                          <a href="https://business.facebook.com/wa/manage/home/" target="_blank" rel="noopener noreferrer" style={{ color: '#1877f2', textDecoration: 'none', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            View current pricing <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#606770', flexWrap: 'wrap', gap: '16px', marginTop: '8px' }}>
+                          <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#4b5563', flex: 1 }}>* Actual Meta spend may be delayed or unavailable. A missing cost value does not mean the messages were free. Zero cost is shown only when explicitly reported by Meta or confirmed by applicable pricing rules. Estimates are indicative and are not an official invoice.</div>
+                          <a href="https://business.facebook.com/wa/manage/home/" target="_blank" rel="noopener noreferrer" style={{ backgroundColor: '#1877f2', color: '#ffffff', padding: '10px 16px', borderRadius: '6px', textDecoration: 'none', fontWeight: 'bold', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 4px rgba(24,119,242,0.2)', transition: 'background-color 0.2s', whiteSpace: 'nowrap' }}>
+                            View current pricing <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                           </a>
                         </div>
                       </div>

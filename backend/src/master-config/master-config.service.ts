@@ -156,8 +156,17 @@ export class MasterConfigService {
     }
 
     // 5. Fallback Write to Legacy MasterConfig (for temporary compatibility)
-    return prisma.masterConfig.create({
-      data: {
+    return prisma.masterConfig.upsert({
+      where: { name: `Meta Connect - ${primaryPhoneNumberId}` },
+      update: {
+        phoneNumberId: primaryPhoneNumberId,
+        wabaId,
+        appId,
+        accessToken,
+        verifyToken,
+        isActive: true,
+      },
+      create: {
         name: `Meta Connect - ${primaryPhoneNumberId}`,
         phoneNumberId: primaryPhoneNumberId,
         wabaId,

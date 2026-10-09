@@ -30,6 +30,7 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
   const [activeTab, setActiveTab] = useState('Trend');
   const [range, setRange] = useState({ label: 'Last 60 days', days: 60 });
   const [showRangeDropdown, setShowRangeDropdown] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [analytics, setAnalytics] = useState({
@@ -155,9 +156,35 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
                      : template.category?.toUpperCase() === 'UTILITY' ? <Bell size={20} /> 
                      : <Megaphone size={20} />;
 
+  const handleExportCSV = () => {
+    const csvData = [
+      ["Template", template?.name],
+      ["Date Range", formatDateRange(range.days)],
+      [],
+      ["Metric", "Value"],
+      ["Messages Sent", analytics.sent],
+      ["Messages Delivered", analytics.delivered],
+      ["Messages Read", analytics.read],
+      ["Unique Replies", analytics.replies],
+      ["Amount Spent", `${analytics.currency} ${analytics.amountSpent}`]
+    ].map(e => e.join(",")).join("\n");
+
+    const blob = new Blob([csvData], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analytics-${template?.name}.csv`;
+    a.click();
+    setShowExportMenu(false);
+  };
+
   return (
     <div style={{ background: '#F0F2F5', minHeight: '100%', padding: '24px 32px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
       
+      <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: 'none', color: '#606770', fontSize: '14px', fontWeight: '600', cursor: 'pointer', padding: 0, marginBottom: '24px' }}>
+        <ArrowLeft size={16} /> Back to Templates
+      </button>
+
       {/* Header card area - matching exact meta pattern */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
@@ -220,9 +247,18 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
           }}>
             <Edit3 size={14} /> Edit template
           </button>
-          <button style={{ padding: '7px 10px', borderRadius: '6px', border: '1px solid #ccd0d5', background: '#ffffff', color: '#606770', cursor: 'pointer' }}>
-            <MoreHorizontal size={15} />
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => setShowExportMenu(!showExportMenu)} style={{ padding: '7px 10px', borderRadius: '6px', border: '1px solid #ccd0d5', background: '#ffffff', color: '#606770', cursor: 'pointer' }}>
+              <MoreHorizontal size={15} />
+            </button>
+            {showExportMenu && (
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', width: '180px', background: '#ffffff', border: '1px solid #ccd0d5', borderRadius: '6px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, padding: '6px 0' }}>
+                <div onClick={handleExportCSV} style={{ padding: '10px 16px', fontSize: '13px', cursor: 'pointer', color: '#1c1e21', fontWeight: '500' }}>
+                  Export insights
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -289,7 +325,7 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
               <div>
                 <h3 style={{ margin: '0 0 6px 0', fontSize: '15px', fontWeight: '700', color: '#1c1e21' }}>See the complete picture</h3>
                 <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#606770' }}>Monitor performance across your account.</p>
-                <button style={{ padding: '6px 12px', background: '#ffffff', border: '1px solid #ccd0d5', borderRadius: '6px', fontSize: '13px', fontWeight: '600', color: '#1c1e21', cursor: 'pointer' }}>
+                <button onClick={() => { localStorage.setItem('activeView', 'master-config'); window.location.reload(); }} style={{ padding: '6px 12px', background: '#ffffff', border: '1px solid #ccd0d5', borderRadius: '6px', fontSize: '13px', fontWeight: '600', color: '#1c1e21', cursor: 'pointer' }}>
                   View account insights
                 </button>
               </div>
@@ -348,15 +384,6 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
               <HelpCircle size={14} color="#1c1e21" />
             </div>
 
-            <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid #e4e6eb', marginBottom: '20px' }}>
-              <div onClick={() => setActiveTab('Trend')} style={{ paddingBottom: '10px', fontSize: '14px', fontWeight: '600', color: activeTab === 'Trend' ? '#008069' : '#606770', borderBottom: activeTab === 'Trend' ? '3px solid #008069' : '3px solid transparent', cursor: 'pointer' }}>
-                Trend
-              </div>
-              <div onClick={() => setActiveTab('Funnel')} style={{ paddingBottom: '10px', fontSize: '14px', fontWeight: '600', color: activeTab === 'Funnel' ? '#008069' : '#606770', borderBottom: activeTab === 'Funnel' ? '3px solid #008069' : '3px solid transparent', cursor: 'pointer' }}>
-                Funnel
-              </div>
-            </div>
-
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
               <div style={{ padding: '12px', border: '1px solid #ccd0d5', borderRadius: '6px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
@@ -365,7 +392,6 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '24px', fontWeight: '500', color: '#1c1e21' }}>{analytics.sent}</span>
-                  <span style={{ fontSize: '12px', fontWeight: '600', color: '#e11d48', display: 'flex', alignItems: 'center' }}>↓ 15.8%</span>
                 </div>
               </div>
               <div style={{ padding: '12px', border: '1px solid #ccd0d5', borderRadius: '6px' }}>
@@ -375,7 +401,6 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '24px', fontWeight: '500', color: '#1c1e21' }}>{analytics.delivered}</span>
-                  <span style={{ fontSize: '12px', fontWeight: '600', color: '#e11d48', display: 'flex', alignItems: 'center' }}>↓ 15.8%</span>
                 </div>
               </div>
               <div style={{ padding: '12px', border: '1px solid #ccd0d5', borderRadius: '6px' }}>
@@ -386,7 +411,6 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ fontSize: '24px', fontWeight: '500', color: '#1c1e21' }}>{analytics.read}</span>
                   <span style={{ fontSize: '12px', fontWeight: '500', color: '#606770' }}>({analytics.readRate}%)</span>
-                  <span style={{ fontSize: '12px', fontWeight: '600', color: '#e11d48', display: 'flex', alignItems: 'center' }}>↓ 15.6%</span>
                 </div>
               </div>
               <div style={{ padding: '12px', border: '1px solid #ccd0d5', borderRadius: '6px' }}>
@@ -400,51 +424,27 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
               </div>
             </div>
 
-            {activeTab === 'Trend' && (
-              <div style={{ marginTop: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
-                  <div style={{ border: '1px solid #ccd0d5', borderRadius: '6px', padding: '6px 12px', fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    4 metrics selected <ChevronDown size={14} />
-                  </div>
-                </div>
-                <div style={{ height: '300px', width: '100%' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e9edef" />
-                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#606770' }} dy={10} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#606770' }} dx={-10} />
-                      <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                      <Line type="monotone" dataKey="Sent" stroke="#00a884" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                      <Line type="monotone" dataKey="Delivered" stroke="#6028a3" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                      <Line type="monotone" dataKey="Read" stroke="#005d4b" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-            {activeTab === 'Funnel' && (
-              <div style={{ marginTop: '24px', padding: '20px', background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#334155', fontWeight: '600' }}>Delivery & Engagement Funnel</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  {[
-                    { label: 'Sent', count: analytics.sent, pct: 100, color: '#3b82f6' },
-                    { label: 'Delivered', count: analytics.delivered, pct: analytics.sent > 0 ? Math.round((analytics.delivered / analytics.sent) * 100) : 100, color: '#10b981' },
-                    { label: 'Read', count: analytics.read, pct: analytics.delivered > 0 ? Math.round((analytics.read / analytics.delivered) * 100) : 0, color: '#6366f1' },
-                    { label: 'Replied', count: analytics.replies, pct: analytics.delivered > 0 ? Math.round((analytics.replies / analytics.delivered) * 100) : 0, color: '#ec4899' },
-                  ].map(step => (
-                    <div key={step.label} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                      <span style={{ width: '80px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>{step.label}</span>
-                      <div style={{ flex: 1, height: '14px', background: '#e2e8f0', borderRadius: '7px', overflow: 'hidden' }}>
-                        <div style={{ width: `${step.pct}%`, height: '100%', background: step.color, borderRadius: '7px', transition: 'width 0.4s' }}></div>
-                      </div>
-                      <span style={{ width: '70px', textAlign: 'right', fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>
-                        {step.count} ({step.pct}%)
-                      </span>
+            <div style={{ marginTop: '24px', padding: '20px', background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#334155', fontWeight: '600' }}>Delivery & Engagement Funnel</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {[
+                  { label: 'Sent', count: analytics.sent, pct: 100, color: '#3b82f6' },
+                  { label: 'Delivered', count: analytics.delivered, pct: analytics.sent > 0 ? Math.round((analytics.delivered / analytics.sent) * 100) : 100, color: '#10b981' },
+                  { label: 'Read', count: analytics.read, pct: analytics.delivered > 0 ? Math.round((analytics.read / analytics.delivered) * 100) : 0, color: '#6366f1' },
+                  { label: 'Replied', count: analytics.replies, pct: analytics.delivered > 0 ? Math.round((analytics.replies / analytics.delivered) * 100) : 0, color: '#ec4899' },
+                ].map(step => (
+                  <div key={step.label} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <span style={{ width: '80px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>{step.label}</span>
+                    <div style={{ flex: 1, height: '14px', background: '#e2e8f0', borderRadius: '7px', overflow: 'hidden' }}>
+                      <div style={{ width: `${step.pct}%`, height: '100%', background: step.color, borderRadius: '7px', transition: 'width 0.4s' }}></div>
                     </div>
-                  ))}
-                </div>
+                    <span style={{ width: '70px', textAlign: 'right', fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>
+                      {step.count} ({step.pct}%)
+                    </span>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

@@ -5,6 +5,7 @@ export const META_PRICING_EFFECTIVE_DATE = 'October 1, 2026';
 // Rates are usually tiered, but for this implementation we use the base tier (Tier 1/Standard).
 export const META_PRICING_RATES = {
   IN: {
+    taxMultiplier: 1.18, // 18% GST in India
     name: 'India',
     currency: 'INR',
     MARKETING: 0.7265,
@@ -43,5 +44,6 @@ export const getMetaRate = (countryCode, category) => {
   if (!market) return null;
   const rate = market[category];
   if (rate === undefined || rate === null) return null;
-  return { rate, currency: market.currency };
+  const tax = market.taxMultiplier || 1;
+  return { rate: rate * tax, currency: market.currency };
 };

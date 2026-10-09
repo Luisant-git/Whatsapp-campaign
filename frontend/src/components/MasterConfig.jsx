@@ -1166,7 +1166,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                       if (cat === 'SERVICE') return 'Free (Service)';
                       // If the API didn't return a country, we use the fallback dropdown selected by user
                       const actualMarket = marketCode !== 'Unknown' ? marketCode : recipientMarket;
-                      const metaRate = getMetaRate(actualMarket, cat);
+                      const metaRate = ((market, category) => META_PRICING_RATES[market]?.[category])(actualMarket, cat);
                       if (metaRate && metaRate.rate !== undefined && metaRate.rate !== null) {
                         const symbol = metaRate.currency === 'INR' ? '₹' : metaRate.currency === 'USD' ? '$' : metaRate.currency === 'GBP' ? '£' : metaRate.currency === 'BRL' ? 'R$' : metaRate.currency;
                         return `${symbol} ${metaRate.rate.toFixed(4)} / msg`;
@@ -1198,7 +1198,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                                 <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600' }}>Tier</th>
                                 <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600', textAlign: 'right' }}>Messages</th>
                                 <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600', textAlign: 'right' }}>Unit Rate</th>
-                                <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600', textAlign: 'right' }}>Actual Spend</th>
+                                <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600', textAlign: 'right' }}>Spend</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1214,9 +1214,17 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                                   <td style={{ padding: '12px 16px', color: '#1c1e21', textAlign: 'right' }}>{row.messages}</td>
                                   <td style={{ padding: '12px 16px', color: '#606770', textAlign: 'right' }}>{getPublishedRate(row.country, row.category)}</td>
                                   <td style={{ padding: '12px 16px', color: '#1c1e21', textAlign: 'right' }}>
-                                    {!row.hasSpend ? (
-                                      <span style={{ color: '#d97706' }}>Pending / Unavailable</span>
-                                    ) : (
+                                    {!row.hasSpend ? (() => {
+                                      const metaRate = ((market, category) => META_PRICING_RATES[market]?.[category])(row.country !== 'Unknown' ? row.country : recipientMarket, row.category);
+                                      if (row.category === 'SERVICE' || row.category === 'Service' || row.category === 'service') {
+                                        return <span style={{ color: '#047857' }}>{currencySymbol} 0.00</span>;
+                                      }
+                                      if (metaRate && typeof metaRate.rate === 'number') {
+                                        const symbol = metaRate.currency === 'INR' ? '₹' : metaRate.currency === 'USD' ? '$' : metaRate.currency === 'GBP' ? '£' : metaRate.currency === 'BRL' ? 'R$' : metaRate.currency;
+                                        return <span style={{ color: '#606770' }}>~{symbol} {(metaRate.rate * row.messages).toFixed(4)} <span style={{fontSize: '11px'}}>(Est.)</span></span>;
+                                      }
+                                      return <span style={{ color: '#d97706' }}>Pending / Unavailable</span>;
+                                    })() : (
                                       row.spend === 0 ? <span style={{ color: '#047857' }}>{currencySymbol} 0.00</span> : `${currencySymbol} ${row.spend.toFixed(2)}`
                                     )}
                                   </td>
@@ -1225,11 +1233,32 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                             </tbody>
                             <tfoot style={{ background: '#f8f9fa', borderTop: '2px solid #ccd0d5' }}>
                               <tr>
-                                <td colSpan={5} style={{ padding: '16px', fontWeight: 'bold', color: '#1c1e21', fontSize: '15px' }}>Total Actual Spend (Meta Reported)</td>
+                                <td colSpan={5} style={{ padding: '16px', fontWeight: 'bold', color: '#1c1e21', fontSize: '15px' }}>Total Spend (Reported + Estimated)</td>
                                 <td style={{ padding: '16px', fontWeight: 'bold', textAlign: 'right', fontSize: '15px' }}>
-                                  {hasMissingCost ? (
-                                    <span style={{ color: '#d97706', fontSize: '14px', fontWeight: '500' }}>Pending / Unavailable</span>
-                                  ) : (
+                                  {hasMissingCost ? (() => {
+                                    let estTotal = 0;
+                                    let allCalculable = true;
+                                    let estCurrency = currencySymbol;
+                                    rows.forEach(r => {
+                                      if (r.hasSpend) {
+                                        estTotal += r.spend;
+                                      } else {
+                                        const metaRate = ((market, category) => META_PRICING_RATES[market]?.[category])(r.country !== 'Unknown' ? r.country : recipientMarket, r.category);
+                                        if (r.category === 'SERVICE' || r.category === 'Service' || r.category === 'service') {
+                                          // Add 0 for service
+                                        } else if (metaRate && typeof metaRate.rate === 'number') {
+                                          estTotal += (metaRate.rate * r.messages);
+                                          estCurrency = metaRate.currency === 'INR' ? '₹' : metaRate.currency === 'USD' ? '$' : metaRate.currency === 'GBP' ? '£' : metaRate.currency === 'BRL' ? 'R$' : metaRate.currency;
+                                        } else {
+                                          allCalculable = false;
+                                        }
+                                      }
+                                    });
+                                    if (allCalculable) {
+                                      return <span style={{ color: '#1c1e21', fontSize: '15px', fontWeight: 'bold' }}>~{estCurrency} {estTotal.toFixed(2)}</span>;
+                                    }
+                                    return <span style={{ color: '#d97706', fontSize: '14px', fontWeight: '500' }}>Pending / Unavailable</span>;
+                                  })() : (
                                     <span style={{ color: '#047857' }}>{currencySymbol} {totalCost.toFixed(2)}</span>
                                   )}
                                 </td>

@@ -1184,7 +1184,13 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                             <tfoot style={{ background: '#f8f9fa', borderTop: '2px solid #ccd0d5' }}>
                               <tr>
                                 <td colSpan={2} style={{ padding: '16px', fontWeight: 'bold', color: '#1c1e21', fontSize: '15px' }}>Estimated Meta Usage</td>
-                                <td style={{ padding: '16px', fontWeight: 'bold', color: '#047857', textAlign: 'right', fontSize: '15px' }}>{currencySymbol} {totalCost.toFixed(2)}</td>
+                                <td style={{ padding: '16px', fontWeight: 'bold', textAlign: 'right', fontSize: '15px' }}>
+                                  {totalDelivered > 0 && totalCost === 0 ? (
+                                    <span style={{ color: '#d97706', fontSize: '14px', fontWeight: '500' }}>Estimated usage unavailable</span>
+                                  ) : (
+                                    <span style={{ color: '#047857' }}>{currencySymbol} {totalCost.toFixed(2)}</span>
+                                  )}
+                                </td>
                               </tr>
                             </tfoot>
                           </table>

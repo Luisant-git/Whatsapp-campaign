@@ -1123,8 +1123,8 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                           ).toUpperCase();
                           const cat = rawCat.includes('MARKETING') ? 'MARKETING' : rawCat.includes('AUTH') ? 'AUTHENTICATION' : rawCat.includes('UTIL') ? 'UTILITY' : rawCat.includes('SERV') ? 'SERVICE' : rawCat || 'UNKNOWN';
 
-                          const country = item.dimensions?.COUNTRY || dp.dimensions?.COUNTRY || 'Unknown';
-                          const tier = item.dimensions?.TIER || dp.dimensions?.TIER || 'Unknown';
+                          const country = item.dimensions?.COUNTRY || dp.dimensions?.COUNTRY || dp.country || 'Unknown';
+                          const tier = item.dimensions?.TIER || dp.dimensions?.TIER || dp.tier || (cat === 'SERVICE' ? 'N/A' : 'Unknown');
 
                           const count = typeof dp.volume === 'number' ? dp.volume : typeof dp.conversation === 'number' ? dp.conversation : typeof dp.delivered === 'number' ? dp.delivered : typeof dp.metrics?.conversation === 'number' ? dp.metrics.conversation : typeof dp.metrics?.delivered === 'number' ? dp.metrics.delivered : 0;
                           

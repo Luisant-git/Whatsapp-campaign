@@ -55,7 +55,7 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
     try {
       const end = new Date();
       const start = new Date();
-      start.setDate(end.getDate() - range.days);
+      start.setDate(end.getDate() - (range.days - 1));
 
       const targetId = template.templateId || template.id;
       const res = await getTemplateAnalytics(targetId, start.toISOString(), end.toISOString());
@@ -81,7 +81,7 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
   const formatDateRange = (days) => {
     const end = new Date();
     const start = new Date();
-    start.setDate(end.getDate() - days);
+    start.setDate(end.getDate() - (days - 1));
     const fmt = (d) => {
       const day = d.getDate();
       const month = d.toLocaleDateString('en-GB', { month: 'short' });

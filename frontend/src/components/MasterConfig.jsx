@@ -184,7 +184,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
     try {
       const end = new Date();
       const start = new Date();
-      start.setDate(end.getDate() - range.days);
+      start.setDate(end.getDate() - (range.days - 1));
       
       const startDate = start.toISOString();
       const endDate = end.toISOString();

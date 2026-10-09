@@ -51,6 +51,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
   const [webhookConfigId, setWebhookConfigId] = useState(null);
   const [callbackUrl, setCallbackUrl] = useState('https://enquiry.api.luisant.cloud/api/webhook');
   const [settingWebhook, setSettingWebhook] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   // Tenant detection: Only Tenant 1 is the verified WhatsApp Tech Provider
   const currentTenantId = propTenantId || (() => {
@@ -106,6 +107,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
     // Launch Facebook login
     window.FB.login((response) => {
       if (response.authResponse) {
+        setIsConnecting(true);
         const code = response.authResponse.code;
         console.log('FB Login response code:', code);
         
@@ -130,6 +132,8 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
           } catch (error) {
             console.error("Embedded Signup Error:", error);
             showError(error.message || 'Failed to connect with Meta');
+          } finally {
+            setIsConnecting(false);
           }
         })();
         
@@ -587,6 +591,21 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
 
   return (
     <div className="settings-container">
+      {isConnecting && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', 
+          backgroundColor: 'rgba(255, 255, 255, 0.9)', zIndex: 9999, 
+          display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center'
+        }}>
+          <div style={{ border: '4px solid #f3f3f3', borderTop: '4px solid #1877F2', borderRadius: '50%', width: '50px', height: '50px', animation: 'meta-spin 1s linear infinite' }}></div>
+          <p style={{ marginTop: '24px', fontSize: '18px', fontWeight: '600', color: '#1c1e21' }}>Connecting your Meta Account...</p>
+          <p style={{ marginTop: '8px', fontSize: '14px', color: '#606770', maxWidth: '300px', textAlign: 'center' }}>Please wait while we sync your WhatsApp Business Account. This may take a few moments.</p>
+          <style>{`
+            @keyframes meta-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+          `}</style>
+        </div>
+      )}
+
       <div className="settings-header">
         <div>
           <h1>Configurations</h1>

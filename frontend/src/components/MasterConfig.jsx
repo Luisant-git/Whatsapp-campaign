@@ -1194,8 +1194,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                             <thead style={{ background: '#f5f6f7', borderBottom: '1px solid #ccd0d5' }}>
                               <tr>
                                 <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600' }}>Category</th>
-                                <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600' }}>Market</th>
-                                <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600' }}>Tier</th>
+                                
                                 <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600', textAlign: 'right' }}>Messages</th>
                                 <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600', textAlign: 'right' }}>Unit Rate</th>
                                 <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600', textAlign: 'right' }}>Spend</th>
@@ -1204,13 +1203,12 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                             <tbody>
                               {rows.length === 0 ? (
                                 <tr>
-                                  <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: '#606770' }}>No analytics data available for this period.</td>
+                                  <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#606770' }}>No analytics data available for this period.</td>
                                 </tr>
                               ) : rows.map((row, idx) => (
                                 <tr key={idx} style={{ borderBottom: idx < rows.length - 1 ? '1px solid #e4e6eb' : 'none' }}>
                                   <td style={{ padding: '12px 16px', fontWeight: '500', color: '#1c1e21' }}>{formatCategory(row.category)}</td>
-                                  <td style={{ padding: '12px 16px', color: '#1c1e21' }}>{row.country}</td>
-                                  <td style={{ padding: '12px 16px', color: '#1c1e21' }}>{row.tier}</td>
+                                  
                                   <td style={{ padding: '12px 16px', color: '#1c1e21', textAlign: 'right' }}>{row.messages}</td>
                                   <td style={{ padding: '12px 16px', color: '#606770', textAlign: 'right' }}>{getPublishedRate(row.country, row.category)}</td>
                                   <td style={{ padding: '12px 16px', color: '#1c1e21', textAlign: 'right' }}>
@@ -1233,7 +1231,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                             </tbody>
                             <tfoot style={{ background: '#f8f9fa', borderTop: '2px solid #ccd0d5' }}>
                               <tr>
-                                <td colSpan={5} style={{ padding: '16px', fontWeight: 'bold', color: '#1c1e21', fontSize: '15px' }}>Total Spend (Reported + Estimated)</td>
+                                <td colSpan={3} style={{ padding: '16px', fontWeight: 'bold', color: '#1c1e21', fontSize: '15px' }}>Total Spend (Reported + Estimated)</td>
                                 <td style={{ padding: '16px', fontWeight: 'bold', textAlign: 'right', fontSize: '15px' }}>
                                   {hasMissingCost ? (() => {
                                     let estTotal = 0;

@@ -1066,7 +1066,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                   </div>
                 </div>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+                <div style={{ padding: '0 0 16px 0' }}>
                   {(() => {
                     const totals = { MARKETING: 0, UTILITY: 0, SERVICE: 0, AUTHENTICATION: 0 };
                     const costs = { MARKETING: 0, UTILITY: 0, SERVICE: 0, AUTHENTICATION: 0 };
@@ -1076,33 +1076,15 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                     if (analyticsData && analyticsData.length > 0) {
                       analyticsData.forEach(item => {
                         item.data_points?.forEach(dp => {
-                          // Extract Category safely
                           const rawCat = (
-                            dp.pricing_category || 
-                            dp.conversation_category || 
-                            item.dimensions?.PRICING_CATEGORY || 
-                            item.dimensions?.CONVERSATION_CATEGORY || 
-                            item.pricing_category || 
-                            item.conversation_category || 
-                            ''
+                            dp.pricing_category || dp.conversation_category || 
+                            item.dimensions?.PRICING_CATEGORY || item.dimensions?.CONVERSATION_CATEGORY || 
+                            item.pricing_category || item.conversation_category || ''
                           ).toUpperCase();
+                          const cat = rawCat.includes('MARKETING') ? 'MARKETING' : rawCat.includes('AUTH') ? 'AUTHENTICATION' : rawCat.includes('UTIL') ? 'UTILITY' : rawCat.includes('SERV') ? 'SERVICE' : rawCat;
 
-                          const cat = rawCat.includes('MARKETING') ? 'MARKETING' 
-                            : rawCat.includes('AUTH') ? 'AUTHENTICATION'
-                            : rawCat.includes('UTIL') ? 'UTILITY'
-                            : rawCat.includes('SERV') ? 'SERVICE'
-                            : rawCat;
-
-                          // Extract Count safely
-                          const count = 
-                            typeof dp.volume === 'number' ? dp.volume :
-                            typeof dp.conversation === 'number' ? dp.conversation :
-                            typeof dp.delivered === 'number' ? dp.delivered :
-                            typeof dp.metrics?.conversation === 'number' ? dp.metrics.conversation :
-                            typeof dp.metrics?.delivered === 'number' ? dp.metrics.delivered :
-                            0;
-
-                          // Extract Cost safely
+                          const count = typeof dp.volume === 'number' ? dp.volume : typeof dp.conversation === 'number' ? dp.conversation : typeof dp.delivered === 'number' ? dp.delivered : typeof dp.metrics?.conversation === 'number' ? dp.metrics.conversation : typeof dp.metrics?.delivered === 'number' ? dp.metrics.delivered : 0;
+                          
                           let cost = 0;
                           if (typeof dp.cost === 'number') cost = dp.cost;
                           else if (typeof dp.amount_spent === 'number') cost = dp.amount_spent;
@@ -1110,69 +1092,72 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                           else if (dp.cost && typeof dp.cost.amount_spent === 'number') cost = dp.cost.amount_spent;
                           else if (typeof dp.metrics?.cost === 'number') cost = dp.metrics.cost;
 
-                          if (totals[cat] !== undefined) {
-                            totals[cat] += count;
-                            costs[cat] += cost;
-                          } else if (cat) {
-                            totals[cat] = count;
-                            costs[cat] = cost;
-                          }
-                          totalDelivered += count;
-                          totalCost += cost;
+                          if (totals[cat] !== undefined) { totals[cat] += count; costs[cat] += cost; }
+                          else if (cat) { totals[cat] = count; costs[cat] = cost; }
+                          totalDelivered += count; totalCost += cost;
                         });
                       });
                     }
 
                     const currencySymbol = analyticsCurrency === 'INR' ? '₹' : (analyticsCurrency || '₹');
+                    
+                    const getRate = (cat) => {
+                      if (totals[cat] > 0 && costs[cat] > 0) {
+                        return `${currencySymbol} ${(costs[cat] / totals[cat]).toFixed(4)} / message`;
+                      } else if (totals[cat] > 0 && costs[cat] === 0) {
+                        return `${currencySymbol} 0.0000 / message*`;
+                      }
+                      return '--';
+                    };
+
+                    const categories = [
+                      { id: 'MARKETING', label: 'Marketing' },
+                      { id: 'UTILITY', label: 'Utility' },
+                      { id: 'AUTHENTICATION', label: 'Authentication' },
+                      { id: 'SERVICE', label: 'Service' }
+                    ];
 
                     return (
-                      <>
-                        <div style={{ padding: '16px', border: '1px solid #ccd0d5', borderRadius: '6px', background: '#f5f6f7' }}>
-                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Messages Delivered</div>
-                          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totalDelivered}</div>
-                          {totalCost > 0 && (
-                            <div style={{ fontSize: '12px', color: '#047857', marginTop: '4px', fontWeight: '600' }}>
-                              Est. Charges: {currencySymbol} {totalCost.toFixed(2)}
-                            </div>
-                          )}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        <div>
+                          <div style={{ fontSize: '13px', color: '#606770', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Messages Delivered</div>
+                          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#1c1e21' }}>{totalDelivered}</div>
                         </div>
-                        <div style={{ padding: '16px', border: '1px solid #ccd0d5', borderRadius: '6px', background: '#ffffff' }}>
-                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Marketing</div>
-                          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totals.MARKETING || 0}</div>
-                          {costs.MARKETING > 0 && (
-                            <div style={{ fontSize: '12px', color: '#606770', marginTop: '4px' }}>
-                              {currencySymbol} {costs.MARKETING.toFixed(2)}
-                            </div>
-                          )}
+
+                        <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', overflow: 'hidden' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                            <thead style={{ background: '#f5f6f7', borderBottom: '1px solid #ccd0d5' }}>
+                              <tr>
+                                <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600' }}>Category</th>
+                                <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600', textAlign: 'right' }}>Messages</th>
+                                <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600', textAlign: 'right' }}>Meta Rate</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {categories.map((cat, idx) => (
+                                <tr key={cat.id} style={{ borderBottom: idx < categories.length - 1 ? '1px solid #e4e6eb' : 'none' }}>
+                                  <td style={{ padding: '12px 16px', fontWeight: '500', color: '#1c1e21' }}>{cat.label}</td>
+                                  <td style={{ padding: '12px 16px', color: '#1c1e21', textAlign: 'right' }}>{totals[cat.id] || 0}</td>
+                                  <td style={{ padding: '12px 16px', color: '#606770', textAlign: 'right' }}>{getRate(cat.id)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot style={{ background: '#f8f9fa', borderTop: '2px solid #ccd0d5' }}>
+                              <tr>
+                                <td colSpan={2} style={{ padding: '16px', fontWeight: 'bold', color: '#1c1e21', fontSize: '15px' }}>Estimated Meta Usage</td>
+                                <td style={{ padding: '16px', fontWeight: 'bold', color: '#047857', textAlign: 'right', fontSize: '15px' }}>{currencySymbol} {totalCost.toFixed(2)}</td>
+                              </tr>
+                            </tfoot>
+                          </table>
                         </div>
-                        <div style={{ padding: '16px', border: '1px solid #ccd0d5', borderRadius: '6px', background: '#ffffff' }}>
-                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Service</div>
-                          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totals.SERVICE || 0}</div>
-                          {costs.SERVICE > 0 && (
-                            <div style={{ fontSize: '12px', color: '#606770', marginTop: '4px' }}>
-                              {currencySymbol} {costs.SERVICE.toFixed(2)}
-                            </div>
-                          )}
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#606770', flexWrap: 'wrap', gap: '8px' }}>
+                          <div>* Pricing is determined by Meta and may change. Free tier messages are reflected as 0.0000.</div>
+                          <a href="https://business.facebook.com/wa/manage/home/" target="_blank" rel="noopener noreferrer" style={{ color: '#1877f2', textDecoration: 'none', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            View current pricing <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                          </a>
                         </div>
-                        <div style={{ padding: '16px', border: '1px solid #ccd0d5', borderRadius: '6px', background: '#ffffff' }}>
-                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Utility</div>
-                          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totals.UTILITY || 0}</div>
-                          {costs.UTILITY > 0 && (
-                            <div style={{ fontSize: '12px', color: '#606770', marginTop: '4px' }}>
-                              {currencySymbol} {costs.UTILITY.toFixed(2)}
-                            </div>
-                          )}
-                        </div>
-                        <div style={{ padding: '16px', border: '1px solid #ccd0d5', borderRadius: '6px', background: '#ffffff' }}>
-                          <div style={{ fontSize: '12px', color: '#606770', marginBottom: '4px', textTransform: 'uppercase' }}>Authentication</div>
-                          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totals.AUTHENTICATION || 0}</div>
-                          {costs.AUTHENTICATION > 0 && (
-                            <div style={{ fontSize: '12px', color: '#606770', marginTop: '4px' }}>
-                              {currencySymbol} {costs.AUTHENTICATION.toFixed(2)}
-                            </div>
-                          )}
-                        </div>
-                      </>
+                      </div>
                     );
                   })()}
                 </div>

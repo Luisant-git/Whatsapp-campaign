@@ -1227,10 +1227,9 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                               <tr>
                                 <td colSpan={5} style={{ padding: '16px', fontWeight: 'bold', color: '#1c1e21', fontSize: '15px' }}>Total Actual Spend (Meta Reported)</td>
                                 <td style={{ padding: '16px', fontWeight: 'bold', textAlign: 'right', fontSize: '15px' }}>
-                                  {hasMissingCost && totalCost === 0 ? (
+                                  {hasMissingCost ? (
                                     <span style={{ color: '#d97706', fontSize: '14px', fontWeight: '500' }}>Pending / Unavailable</span>
                                   ) : (
-
                                     <span style={{ color: '#047857' }}>{currencySymbol} {totalCost.toFixed(2)}</span>
                                   )}
                                 </td>
@@ -1240,7 +1239,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                         </div>
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#606770', flexWrap: 'wrap', gap: '8px' }}>
-                          <div>* Pricing is determined by Meta and may change. Free tier messages are reflected as 0.0000.</div>
+                          <div>* Actual Meta spend may be delayed or unavailable. A missing cost value does not mean the messages were free. Zero cost is shown only when explicitly reported by Meta or confirmed by applicable pricing rules. Estimates are indicative and are not an official invoice.</div>
                           <a href="https://business.facebook.com/wa/manage/home/" target="_blank" rel="noopener noreferrer" style={{ color: '#1877f2', textDecoration: 'none', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             View current pricing <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                           </a>

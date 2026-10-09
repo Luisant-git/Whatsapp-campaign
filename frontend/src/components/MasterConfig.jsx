@@ -1107,11 +1107,12 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                 
                 <div style={{ padding: '0 0 16px 0' }}>
                   {(() => {
-                    const totals = { MARKETING: 0, UTILITY: 0, SERVICE: 0, AUTHENTICATION: 0 };
-                    const costs = { MARKETING: 0, UTILITY: 0, SERVICE: 0, AUTHENTICATION: 0 };
                     let totalDelivered = 0;
                     let totalCost = 0;
+                    let hasMissingCost = false;
                     
+                    const rowsMap = new Map();
+
                     if (analyticsData && analyticsData.length > 0) {
                       analyticsData.forEach(item => {
                         item.data_points?.forEach(dp => {
@@ -1120,41 +1121,66 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                             item.dimensions?.PRICING_CATEGORY || item.dimensions?.CONVERSATION_CATEGORY || 
                             item.pricing_category || item.conversation_category || ''
                           ).toUpperCase();
-                          const cat = rawCat.includes('MARKETING') ? 'MARKETING' : rawCat.includes('AUTH') ? 'AUTHENTICATION' : rawCat.includes('UTIL') ? 'UTILITY' : rawCat.includes('SERV') ? 'SERVICE' : rawCat;
+                          const cat = rawCat.includes('MARKETING') ? 'MARKETING' : rawCat.includes('AUTH') ? 'AUTHENTICATION' : rawCat.includes('UTIL') ? 'UTILITY' : rawCat.includes('SERV') ? 'SERVICE' : rawCat || 'UNKNOWN';
+
+                          const country = item.dimensions?.COUNTRY || dp.dimensions?.COUNTRY || 'Unknown';
+                          const tier = item.dimensions?.TIER || dp.dimensions?.TIER || 'Unknown';
 
                           const count = typeof dp.volume === 'number' ? dp.volume : typeof dp.conversation === 'number' ? dp.conversation : typeof dp.delivered === 'number' ? dp.delivered : typeof dp.metrics?.conversation === 'number' ? dp.metrics.conversation : typeof dp.metrics?.delivered === 'number' ? dp.metrics.delivered : 0;
                           
-                          let cost = 0;
+                          let cost = undefined;
                           if (typeof dp.cost === 'number') cost = dp.cost;
                           else if (typeof dp.amount_spent === 'number') cost = dp.amount_spent;
                           else if (typeof dp.amountSpent === 'number') cost = dp.amountSpent;
                           else if (dp.cost && typeof dp.cost.amount_spent === 'number') cost = dp.cost.amount_spent;
                           else if (typeof dp.metrics?.cost === 'number') cost = dp.metrics.cost;
+                          else if (typeof dp.metrics?.amount_spent === 'number') cost = dp.metrics.amount_spent;
 
-                          if (totals[cat] !== undefined) { totals[cat] += count; costs[cat] += cost; }
-                          else if (cat) { totals[cat] = count; costs[cat] = cost; }
-                          totalDelivered += count; totalCost += cost;
+                          if (count > 0 && cost === undefined) {
+                            hasMissingCost = true;
+                          }
+
+                          const key = `${cat}_${country}_${tier}`;
+                          if (!rowsMap.has(key)) {
+                            rowsMap.set(key, { category: cat, country, tier, messages: 0, spend: 0, hasSpend: false });
+                          }
+                          const row = rowsMap.get(key);
+                          row.messages += count;
+                          if (cost !== undefined) {
+                            row.spend += cost;
+                            row.hasSpend = true;
+                          }
+
+                          totalDelivered += count;
+                          if (cost !== undefined) {
+                            totalCost += cost;
+                          }
                         });
                       });
                     }
 
+                    const rows = Array.from(rowsMap.values()).sort((a, b) => a.category.localeCompare(b.category));
                     const currencySymbol = analyticsCurrency === 'INR' ? '₹' : (analyticsCurrency || '₹');
                     
-                    const getRate = (cat) => {
-                      const metaRate = getMetaRate(recipientMarket, cat);
+                    const getPublishedRate = (marketCode, cat) => {
+                      if (cat === 'SERVICE') return 'Free (Service)';
+                      // If the API didn't return a country, we use the fallback dropdown selected by user
+                      const actualMarket = marketCode !== 'Unknown' ? marketCode : recipientMarket;
+                      const metaRate = getMetaRate(actualMarket, cat);
                       if (metaRate && metaRate.rate !== undefined && metaRate.rate !== null) {
                         const symbol = metaRate.currency === 'INR' ? '₹' : metaRate.currency === 'USD' ? '$' : metaRate.currency === 'GBP' ? '£' : metaRate.currency === 'BRL' ? 'R$' : metaRate.currency;
-                        return `${symbol} ${metaRate.rate.toFixed(4)} / message`;
+                        return `${symbol} ${metaRate.rate.toFixed(4)} / msg`;
                       }
                       return 'Pricing unavailable';
                     };
 
-                    const categories = [
-                      { id: 'MARKETING', label: 'Marketing' },
-                      { id: 'UTILITY', label: 'Utility' },
-                      { id: 'AUTHENTICATION', label: 'Authentication' },
-                      { id: 'SERVICE', label: 'Service' }
-                    ];
+                    const formatCategory = (cat) => {
+                      if (cat === 'MARKETING') return 'Marketing';
+                      if (cat === 'UTILITY') return 'Utility';
+                      if (cat === 'AUTHENTICATION') return 'Authentication';
+                      if (cat === 'SERVICE') return 'Service';
+                      return cat;
+                    };
 
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -1168,26 +1194,43 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                             <thead style={{ background: '#f5f6f7', borderBottom: '1px solid #ccd0d5' }}>
                               <tr>
                                 <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600' }}>Category</th>
+                                <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600' }}>Market</th>
+                                <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600' }}>Tier</th>
                                 <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600', textAlign: 'right' }}>Messages</th>
-                                <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600', textAlign: 'right' }}>Meta Rate</th>
+                                <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600', textAlign: 'right' }}>Unit Rate</th>
+                                <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600', textAlign: 'right' }}>Actual Spend</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {categories.map((cat, idx) => (
-                                <tr key={cat.id} style={{ borderBottom: idx < categories.length - 1 ? '1px solid #e4e6eb' : 'none' }}>
-                                  <td style={{ padding: '12px 16px', fontWeight: '500', color: '#1c1e21' }}>{cat.label}</td>
-                                  <td style={{ padding: '12px 16px', color: '#1c1e21', textAlign: 'right' }}>{totals[cat.id] || 0}</td>
-                                  <td style={{ padding: '12px 16px', color: '#606770', textAlign: 'right' }}>{getRate(cat.id)}</td>
+                              {rows.length === 0 ? (
+                                <tr>
+                                  <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: '#606770' }}>No analytics data available for this period.</td>
+                                </tr>
+                              ) : rows.map((row, idx) => (
+                                <tr key={idx} style={{ borderBottom: idx < rows.length - 1 ? '1px solid #e4e6eb' : 'none' }}>
+                                  <td style={{ padding: '12px 16px', fontWeight: '500', color: '#1c1e21' }}>{formatCategory(row.category)}</td>
+                                  <td style={{ padding: '12px 16px', color: '#1c1e21' }}>{row.country}</td>
+                                  <td style={{ padding: '12px 16px', color: '#1c1e21' }}>{row.tier}</td>
+                                  <td style={{ padding: '12px 16px', color: '#1c1e21', textAlign: 'right' }}>{row.messages}</td>
+                                  <td style={{ padding: '12px 16px', color: '#606770', textAlign: 'right' }}>{getPublishedRate(row.country, row.category)}</td>
+                                  <td style={{ padding: '12px 16px', color: '#1c1e21', textAlign: 'right' }}>
+                                    {!row.hasSpend ? (
+                                      <span style={{ color: '#d97706' }}>Delayed</span>
+                                    ) : (
+                                      row.spend === 0 ? <span style={{ color: '#047857' }}>{currencySymbol} 0.00</span> : `${currencySymbol} ${row.spend.toFixed(2)}`
+                                    )}
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>
                             <tfoot style={{ background: '#f8f9fa', borderTop: '2px solid #ccd0d5' }}>
                               <tr>
-                                <td colSpan={2} style={{ padding: '16px', fontWeight: 'bold', color: '#1c1e21', fontSize: '15px' }}>Estimated Meta Usage</td>
+                                <td colSpan={5} style={{ padding: '16px', fontWeight: 'bold', color: '#1c1e21', fontSize: '15px' }}>Total Actual Spend (Meta Reported)</td>
                                 <td style={{ padding: '16px', fontWeight: 'bold', textAlign: 'right', fontSize: '15px' }}>
-                                  {totalDelivered > 0 && totalCost === 0 ? (
-                                    <span style={{ color: '#d97706', fontSize: '14px', fontWeight: '500' }}>Estimated usage unavailable</span>
+                                  {hasMissingCost && totalCost === 0 ? (
+                                    <span style={{ color: '#d97706', fontSize: '14px', fontWeight: '500' }}>Pending / Unavailable</span>
                                   ) : (
+
                                     <span style={{ color: '#047857' }}>{currencySymbol} {totalCost.toFixed(2)}</span>
                                   )}
                                 </td>

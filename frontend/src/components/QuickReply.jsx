@@ -341,52 +341,68 @@ const QuickReply = () => {
         ) : (
           <div className="replies-grid">
             {quickReplies.map((reply) => (
-              <div key={reply.id} className="reply-item">
-                <div className="reply-content">
-                  {reply.title && (
-                    <div className="reply-title">
-                      <strong>{reply.title}</strong>
+              <div key={reply.id} className="wa-reply-card">
+                <div className="wa-card-header">
+                  <div className="wa-triggers">
+                    <Zap size={14} style={{ color: '#f5a623' }} />
+                    <span style={{ marginRight: '6px' }}>Triggers:</span>
+                    <div className="wa-triggers-badges">
+                      {reply.triggers.map((t, i) => <span key={i} className="wa-trigger-badge">{t}</span>)}
                     </div>
-                  )}
-                  {reply.response && (
-                    <div className="reply-body" style={{ whiteSpace: 'pre-wrap' }}>
-                      {reply.response}
-                    </div>
-                  )}
-                  <div className="trigger-text">
-                    <strong>Triggers:</strong> {reply.triggers.join(', ')}
                   </div>
-                  <div className="buttons-preview">
-                    <strong>Buttons:</strong>
-                    {reply.sendSeparately && <span className="separate-badge">📤 Sent separately</span>}
-                    <div className="button-list">
-                      {reply.buttons.map((button, i) => {
-                        const btn = typeof button === 'string' ? { type: 'normal', text: button } : button;
-                        return (
-                          <div key={i} className="button-item">
-                            <span className="button-type-badge">{btn.type === 'menu' ? '📋' : '💬'}</span>
-                            {btn.text}
-                            {btn.type === 'menu' && btn.menuItems?.length > 0 && (
-                              <span className="menu-count">({btn.menuItems.length} items)</span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {reply.mediaUrls && reply.mediaUrls.length > 0 && (
-                      <div className="media-preview" style={{ marginTop: '10px' }}>
-                        <strong>Documents:</strong> {reply.mediaUrls.length} attached
-                      </div>
-                    )}
+                  <div className="wa-actions">
+                    <button onClick={() => handleEdit(reply)} className="btn-icon-action" title="Edit">
+                      <Edit size={16} />
+                    </button>
+                    <button onClick={() => handleDelete(reply.id)} className="btn-icon-action danger" title="Delete">
+                      <Trash2 size={16} />
+                    </button>
                   </div>
                 </div>
-                <div className="reply-actions">
-                  <button onClick={() => handleEdit(reply)} className="btn-icon-action">
-                    <Edit size={18} />
-                  </button>
-                  <button onClick={() => handleDelete(reply.id)} className="btn-icon-action danger">
-                    <Trash2 size={18} />
-                  </button>
+
+                <div className="wa-card-body">
+                  <div className="wa-bubble">
+                    {reply.title && <div className="wa-bubble-title">{reply.title}</div>}
+                    
+                    {reply.mediaUrls && reply.mediaUrls.length > 0 && (
+                      <div className="wa-attachment">
+                        <Link size={14} />
+                        {reply.mediaUrls.length} Media Attached
+                      </div>
+                    )}
+
+                    {reply.response && <div className="wa-bubble-body">{reply.response}</div>}
+                  </div>
+
+                  {reply.sendSeparately && <div className="wa-separate-indicator">Sent Separately</div>}
+
+                  {reply.buttons && reply.buttons.length > 0 && (
+                    <div className="wa-interactive-container">
+                      {reply.buttons.map((button, i) => {
+                        const btn = typeof button === 'string' ? { type: 'normal', text: button } : button;
+                        
+                        if (btn.type === 'menu') {
+                          return (
+                            <div key={i} className="wa-btn wa-btn-menu">
+                              <span>📋</span> {btn.text} ({btn.menuItems?.length || 0})
+                            </div>
+                          );
+                        } else if (btn.type === 'url') {
+                          return (
+                            <div key={i} className="wa-btn wa-btn-url">
+                              <Link size={16} /> {btn.text}
+                            </div>
+                          );
+                        } else {
+                          return (
+                            <div key={i} className="wa-btn">
+                              <span>💬</span> {btn.text}
+                            </div>
+                          );
+                        }
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

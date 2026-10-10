@@ -33,10 +33,17 @@ export class WhatsappSessionService {
       buttonText: string,
       menuItems: string[],
     ) => Promise<any>,
-    sendMediaCallback?: (
+        sendMediaCallback?: (
       to: string,
       mediaUrl: string,
       mediaType: string,
+    ) => Promise<any>,
+    sendUrlButtonCallback?: (
+      to: string,
+      title: string,
+      msg: string,
+      btnText: string,
+      url: string
     ) => Promise<any>,
   ): Promise<boolean> {
     const lowerText = text.toLowerCase().trim();

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Edit, ChevronDown, Upload, Loader } from 'lucide-react';
+import { Plus, Trash2, Edit, ChevronDown, Upload, Loader, Zap, Link } from 'lucide-react';
 import { uploadFile } from '../api/whatsapp';
 import { API_BASE_URL } from '../api/config';
 import { useToast } from '../contexts/ToastContext';

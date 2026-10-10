@@ -92,7 +92,9 @@ export class WhatsappSessionService {
           // If no buttons or empty buttons array, send as simple text message
           if (!buttons || buttons.length === 0) {
             const message = [nestedQuickReply.title, nestedQuickReply.response].filter(Boolean).join('\n\n');
-            await sendCallback(from, message);
+            if (message) {
+              await sendCallback(from, message);
+            }
             return true; // Handled
           }
           
@@ -181,7 +183,9 @@ export class WhatsappSessionService {
         // If no buttons or empty buttons array, send as simple text message
         if (!buttons || buttons.length === 0) {
           const message = [quickReply.title, quickReply.response].filter(Boolean).join('\n\n');
-          await sendCallback(from, message);
+          if (message) {
+            await sendCallback(from, message);
+          }
           return true; // Handled
         }
         

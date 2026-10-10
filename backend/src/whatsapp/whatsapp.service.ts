@@ -1994,7 +1994,8 @@ export class WhatsappService {
         }
 
         ,
-        async (to, mediaUrl, mediaType) => { return this.sendMediaMessageDirect(to, mediaUrl, mediaType, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient); }
+        async (to, mediaUrl, mediaType) => { return this.sendMediaMessageDirect(to, mediaUrl, mediaType, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient); },
+        async (to, title, msg, btnText, url) => { return this.sendUrlButtonMessageDirect(to, title, msg, btnText, url, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient); }
       ).catch(e => {
         this.logger.error('Quick Reply error:', e);
         return false;
@@ -2483,6 +2484,72 @@ export class WhatsappService {
       return { success: false, error: error.message };
     }
   }
+
+  
+  async sendUrlButtonMessageDirect(to: string, title: string, text: string, buttonText: string, url: string, accessToken: string, phoneNumberId: string, tenantClient: any) {
+    try {
+      const isBSUID = /^[A-Z]{2}\.([A-Z]+\.)?[0-9]+$/.test(to);
+      const interactive: any = {
+        type: 'cta_url',
+        body: { text: text || 'Please click the link below:' },
+        action: {
+          name: 'cta_url',
+          parameters: {
+            display_text: buttonText.length > 20 ? buttonText.substring(0, 20) : buttonText,
+            url: url
+          }
+        }
+      };
+
+      if (title && title.trim()) {
+        interactive.header = {
+          type: 'text',
+          text: title
+        };
+      }
+
+      const payload: any = {
+        messaging_product: 'whatsapp',
+        type: 'interactive',
+        interactive
+      };
+
+      if (isBSUID) {
+        payload.recipient = to;
+      } else {
+        payload.to = to;
+      }
+
+      const response = await require('axios').post(
+        `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      await tenantClient.whatsAppMessage.create({
+        data: {
+          messageId: response.data.messages[0].id,
+          to: this.formatPhoneNumber(to),
+          from: this.formatPhoneNumber(to),
+          message: text + ' [' + buttonText + '](' + url + ')',
+          direction: 'outgoing',
+          status: 'sent',
+          phoneNumberId,
+        }
+      });
+
+      return { success: true, messageId: response.data.messages[0].id };
+    } catch (error) {
+      this.logger.error('WhatsApp API Error (URL Button):', error.response?.data || error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
 
   async sendButtonsMessageDirect(to: string, title: string, text: string, buttons: any[], accessToken: string, phoneNumberId: string, tenantClient: any) {
     try {

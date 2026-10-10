@@ -89,6 +89,16 @@ export class WhatsappSessionService {
             }
           }
           
+          
+          const isUrl = buttons[0] && typeof buttons[0] === 'object' && buttons[0].type === 'url';
+          if (isUrl && sendUrlButtonCallback) {
+            const btnText = buttons[0].text || 'Click Here';
+            const btnUrl = buttons[0].url || '';
+            const message = nestedQuickReply.response || 'Please click the link below:';
+            await sendUrlButtonCallback(from, nestedQuickReply.title || '', message, btnText, btnUrl);
+            return true;
+          }
+          
           // If no buttons or empty buttons array, send as simple text message
           if (!buttons || buttons.length === 0) {
             const message = [nestedQuickReply.title, nestedQuickReply.response].filter(Boolean).join('\n\n');
@@ -145,6 +155,17 @@ export class WhatsappSessionService {
         const firstBtn = buttons && buttons[0];
         const isMenu = firstBtn && typeof firstBtn === 'object' && firstBtn.type === 'menu';
         
+        
+        const isUrl = firstBtn && typeof firstBtn === 'object' && firstBtn.type === 'url';
+        
+        if (isUrl && sendUrlButtonCallback) {
+          const btnText = firstBtn.text || 'Click Here';
+          const btnUrl = firstBtn.url || '';
+          const message = quickReply.response || 'Please click the link below:';
+          await sendUrlButtonCallback(from, quickReply.title || '', message, btnText, btnUrl);
+          return true;
+        }
+
         if (isMenu && sendListCallback) {
           // Send as WhatsApp List Message
           const menuName = firstBtn.text || 'Options';

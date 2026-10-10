@@ -187,6 +187,7 @@ const QuickReply = () => {
     const validButtons = formData.buttons.filter(b => b.trim());
     
     // Prepare button data based on type
+    
     let buttonData;
     if (formData.buttonType === 'menu') {
       if (!formData.menuButtonText.trim()) {
@@ -198,7 +199,14 @@ const QuickReply = () => {
         return;
       }
       buttonData = [{ type: 'menu', text: formData.menuButtonText.trim(), menuItems: validButtons }];
+    } else if (formData.buttonType === 'url') {
+      if (!formData.urlButtonText.trim() || !formData.urlButtonLink.trim()) {
+        showError('Please provide both text and URL for the redirect button');
+        return;
+      }
+      buttonData = [{ type: 'url', text: formData.urlButtonText.trim(), url: formData.urlButtonLink.trim() }];
     } else {
+
       buttonData = validButtons.map(b => ({ type: 'normal', text: b }));
     }
 
@@ -240,6 +248,8 @@ const QuickReply = () => {
     // Check if it's a menu type
     const firstBtn = quickReply.buttons[0];
     const isMenu = firstBtn && typeof firstBtn === 'object' && firstBtn.type === 'menu';
+    const isUrl = firstBtn && typeof firstBtn === 'object' && firstBtn.type === 'url';
+    
     
     if (isMenu) {
       setFormData({
@@ -249,11 +259,28 @@ const QuickReply = () => {
         buttonType: 'menu',
         menuName: '',
         menuButtonText: firstBtn.text || '',
+        urlButtonText: '',
+        urlButtonLink: '',
         buttons: firstBtn.menuItems || [''],
         mediaUrls: quickReply.mediaUrls?.length ? quickReply.mediaUrls : [''],
         sendSeparately: quickReply.sendSeparately || false
       });
+    } else if (isUrl) {
+      setFormData({
+        title: quickReply.title || '',
+        response: quickReply.response || '',
+        triggersText: quickReply.triggers.join(', '),
+        buttonType: 'url',
+        menuName: '',
+        menuButtonText: '',
+        urlButtonText: firstBtn.text || '',
+        urlButtonLink: firstBtn.url || '',
+        buttons: [''],
+        mediaUrls: quickReply.mediaUrls?.length ? quickReply.mediaUrls : [''],
+        sendSeparately: quickReply.sendSeparately || false
+      });
     } else {
+
       // Normal buttons
       const buttons = quickReply.buttons.map(btn => 
         typeof btn === 'string' ? btn : btn.text || ''
@@ -509,9 +536,29 @@ const QuickReply = () => {
                 >
                   <option value="normal">Normal Buttons</option>
                   <option value="menu">Menu (Dropdown)</option>
+                  <option value="url">Redirect URL Button</option>
                 </select>
 
-                {formData.buttonType === 'menu' ? (
+                                {formData.buttonType === 'url' ? (
+                  <>
+                    <label>Button Text</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Visit Website"
+                      value={formData.urlButtonText}
+                      onChange={(e) => setFormData({...formData, urlButtonText: e.target.value})}
+                      style={{ marginBottom: '16px' }}
+                    />
+                    <label>Redirect URL</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., https://example.com"
+                      value={formData.urlButtonLink}
+                      onChange={(e) => setFormData({...formData, urlButtonLink: e.target.value})}
+                      style={{ marginBottom: '16px' }}
+                    />
+                  </>
+                ) : formData.buttonType === 'menu' ? (
                   <>
                     <label>Button Text (Menu Name)</label>
                     <input

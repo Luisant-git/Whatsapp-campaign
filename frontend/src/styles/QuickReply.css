@@ -431,14 +431,16 @@
 
 /* WhatsApp Style Bubble UI for Quick Replies List */
 .replies-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 280px));
-  justify-content: start;
+  display: flex;
+  flex-wrap: wrap;
   gap: 20px;
   margin-top: 20px;
 }
 
 .wa-reply-card {
+  width: 320px;
+  min-width: 320px;
+  max-width: 320px;
   background: #ffffff;
   border: 1px solid #e1e8ed;
   border-radius: 12px;

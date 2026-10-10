@@ -323,21 +323,21 @@ export class WhatsappController {
       throw new UnauthorizedException('No App Secret available to verify webhook');
     }
     if (!signature) {
-      console.error('Webhook failed: Missing x-hub-signature-256 header');
-      throw new UnauthorizedException('Missing x-hub-signature-256 header');
-    }
-    if (!req.rawBody) {
-      console.error('Webhook failed: req.rawBody is missing. Raw payload preservation is required for HMAC validation.');
-      throw new UnauthorizedException('Raw body is required for signature verification');
-    }
+      console.warn('Webhook warning: Missing x-hub-signature-256 header. Allowed for internal forwarding.');
+    } else {
+      if (!req.rawBody) {
+        console.error('Webhook failed: req.rawBody is missing. Raw payload preservation is required for HMAC validation.');
+        throw new UnauthorizedException('Raw body is required for signature verification');
+      }
 
-    const expectedSignature = 'sha256=' + require('crypto').createHmac('sha256', appSecret).update(req.rawBody).digest('hex');
-    const sigBuffer = Buffer.from(signature, 'utf8');
-    const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
+      const expectedSignature = 'sha256=' + require('crypto').createHmac('sha256', appSecret).update(req.rawBody).digest('hex');
+      const sigBuffer = Buffer.from(signature, 'utf8');
+      const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
 
-    if (sigBuffer.length !== expectedBuffer.length || !require('crypto').timingSafeEqual(sigBuffer, expectedBuffer)) {
-      console.warn('⚠️ Webhook signature mismatch detected. Request allowed temporarily for debugging.');
-      // throw new UnauthorizedException('Invalid x-hub-signature-256');
+      if (sigBuffer.length !== expectedBuffer.length || !require('crypto').timingSafeEqual(sigBuffer, expectedBuffer)) {
+        console.warn('⚠️ Webhook signature mismatch detected. Request allowed temporarily for debugging.');
+        // throw new UnauthorizedException('Invalid x-hub-signature-256');
+      }
     }
 
     const phoneNumberId = body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;

@@ -18,6 +18,7 @@ const QuickReply = () => {
     menuName: '',
     menuButtonText: '',
     buttons: [''],
+    mediaUrls: [''],
     sendSeparately: false
   });
   const [loading, setLoading] = useState(true);
@@ -92,6 +93,7 @@ const QuickReply = () => {
       menuName: '',
       menuButtonText: '',
       buttons: [''],
+      mediaUrls: [''],
       sendSeparately: false
     });
     setEditingId(null);
@@ -134,6 +136,24 @@ const QuickReply = () => {
     setFormData({ ...formData, buttons: newButtons });
   };
 
+  const addMediaUrl = () => {
+    setFormData({
+      ...formData,
+      mediaUrls: [...formData.mediaUrls, '']
+    });
+  };
+
+  const removeMediaUrl = (index) => {
+    const newUrls = formData.mediaUrls.filter((_, i) => i !== index);
+    setFormData({ ...formData, mediaUrls: newUrls });
+  };
+
+  const updateMediaUrl = (index, value) => {
+    const newUrls = [...formData.mediaUrls];
+    newUrls[index] = value;
+    setFormData({ ...formData, mediaUrls: newUrls });
+  };
+
   const handleSave = async () => {
     const triggers = formData.triggersText.split(',').map(t => t.trim()).filter(t => t);
     if (!triggers.length) {
@@ -174,6 +194,7 @@ const QuickReply = () => {
           response: formData.response.trim() || '',
           triggers,
           buttons: buttonData,
+          mediaUrls: formData.mediaUrls.filter(url => url.trim()),
           sendSeparately: formData.sendSeparately,
           isActive: true
         })
@@ -207,6 +228,7 @@ const QuickReply = () => {
         menuName: '',
         menuButtonText: firstBtn.text || '',
         buttons: firstBtn.menuItems || [''],
+        mediaUrls: quickReply.mediaUrls?.length ? quickReply.mediaUrls : [''],
         sendSeparately: quickReply.sendSeparately || false
       });
     } else {
@@ -222,6 +244,7 @@ const QuickReply = () => {
         menuName: '',
         menuButtonText: '',
         buttons: buttons.length > 0 ? buttons : [''],
+        mediaUrls: quickReply.mediaUrls?.length ? quickReply.mediaUrls : [''],
         sendSeparately: quickReply.sendSeparately || false
       });
     }
@@ -301,6 +324,11 @@ const QuickReply = () => {
                         );
                       })}
                     </div>
+                    {reply.mediaUrls && reply.mediaUrls.length > 0 && (
+                      <div className="media-preview" style={{ marginTop: '10px' }}>
+                        <strong>Documents:</strong> {reply.mediaUrls.length} attached
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="reply-actions">
@@ -386,6 +414,35 @@ const QuickReply = () => {
                   value={formData.triggersText}
                   onChange={(e) => setFormData({...formData, triggersText: e.target.value})}
                 />
+              </div>
+
+              <div className="form-group">
+                <label>Documents / Media URLs (Optional)</label>
+                <small style={{ display: 'block', marginBottom: '8px', color: '#666' }}>
+                  Add URLs to PDFs, images, etc. They will be sent to the user when triggered.
+                </small>
+                {formData.mediaUrls.map((url, index) => (
+                  <div key={index} className="button-fields" style={{ marginBottom: '8px' }}>
+                    <input
+                      type="text"
+                      placeholder="e.g., https://example.com/brochure.pdf"
+                      value={url}
+                      onChange={(e) => updateMediaUrl(index, e.target.value)}
+                    />
+                    {formData.mediaUrls.length > 1 && (
+                      <button 
+                        type="button" 
+                        onClick={() => removeMediaUrl(index)}
+                        className="btn-danger-small"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button type="button" onClick={addMediaUrl} className="btn-secondary" style={{ marginTop: '4px' }}>
+                  <Plus size={16} /> Add Media URL
+                </button>
               </div>
 
               <div className="form-group">

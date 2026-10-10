@@ -200,6 +200,7 @@ model QuickReply {
   id             Int      @id @default(autoincrement())
   title          String?
   response       String?
+  mediaUrls      String[] @default([])
   triggers       String[]
   buttons        Json?
   sendSeparately Boolean  @default(false)

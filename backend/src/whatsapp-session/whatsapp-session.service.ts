@@ -33,6 +33,11 @@ export class WhatsappSessionService {
       buttonText: string,
       menuItems: string[],
     ) => Promise<any>,
+    sendMediaCallback?: (
+      to: string,
+      mediaUrl: string,
+      mediaType: string,
+    ) => Promise<any>,
   ): Promise<boolean> {
     const lowerText = text.toLowerCase().trim();
     console.log('[SessionService] Processing message:', lowerText, 'for userId:', userId);
@@ -73,6 +78,17 @@ export class WhatsappSessionService {
           console.log('Found nested quick reply:', nestedQuickReply);
           const buttons = nestedQuickReply.buttons as any[];
           
+          // Send attached media URLs as separate messages first
+          if ((nestedQuickReply as any).mediaUrls && (nestedQuickReply as any).mediaUrls.length > 0 && sendMediaCallback) {
+            for (const url of (nestedQuickReply as any).mediaUrls) {
+              if (!url) continue;
+              const isVideo = /\.(mp4|avi|mov)$/i.test(url);
+              const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i.test(url);
+              const mediaType = isDocument ? 'document' : isVideo ? 'video' : 'image';
+              await sendMediaCallback(from, url, mediaType);
+            }
+          }
+          
           // If no buttons or empty buttons array, send as simple text message
           if (!buttons || buttons.length === 0) {
             const message = [nestedQuickReply.title, nestedQuickReply.response].filter(Boolean).join('\n\n');
@@ -111,6 +127,17 @@ export class WhatsappSessionService {
       if (quickReply) {
         const buttons = quickReply.buttons as any[];
         const sendSeparately = quickReply.sendSeparately || false;
+        
+        // Send attached media URLs as separate messages first
+        if ((quickReply as any).mediaUrls && (quickReply as any).mediaUrls.length > 0 && sendMediaCallback) {
+          for (const url of (quickReply as any).mediaUrls) {
+            if (!url) continue;
+            const isVideo = /\.(mp4|avi|mov)$/i.test(url);
+            const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i.test(url);
+            const mediaType = isDocument ? 'document' : isVideo ? 'video' : 'image';
+            await sendMediaCallback(from, url, mediaType);
+          }
+        }
         
         // Check if it's a menu type (list message)
         const firstBtn = buttons && buttons[0];

@@ -13,13 +13,13 @@ export class QuickReplyController {
   }
 
   @Post()
-  addQuickReply(@Session() session: any, @Body() body: { title: string; response: string; triggers: string[]; buttons: string[]; sendSeparately?: boolean }) {
-    return this.quickReplyService.addQuickReply(session.user.id, body.title, body.response, body.triggers, body.buttons, body.sendSeparately);
+  addQuickReply(@Session() session: any, @Body() body: { title: string; response: string; triggers: string[]; buttons: string[]; sendSeparately?: boolean; mediaUrls?: string[] }) {
+    return this.quickReplyService.addQuickReply(session.user.id, body.title, body.response, body.triggers, body.buttons, body.sendSeparately, body.mediaUrls);
   }
 
   @Put(':id')
-  updateQuickReply(@Session() session: any, @Param('id') id: string, @Body() body: { title: string; response: string; triggers: string[]; buttons: string[]; isActive: boolean; sendSeparately?: boolean }) {
-    return this.quickReplyService.updateQuickReply(parseInt(id), session.user.id, body.title, body.response, body.triggers, body.buttons, body.isActive, body.sendSeparately);
+  updateQuickReply(@Session() session: any, @Param('id') id: string, @Body() body: { title: string; response: string; triggers: string[]; buttons: string[]; isActive: boolean; sendSeparately?: boolean; mediaUrls?: string[] }) {
+    return this.quickReplyService.updateQuickReply(parseInt(id), session.user.id, body.title, body.response, body.triggers, body.buttons, body.isActive, body.sendSeparately, body.mediaUrls);
   }
 
   @Delete(':id')

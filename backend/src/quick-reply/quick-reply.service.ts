@@ -51,6 +51,7 @@ export class QuickReplyService {
     triggers: string[],
     buttons: string[],
     sendSeparately: boolean = false,
+    mediaUrls: string[] = [],
   ) {
     const prisma = await this.getPrisma(userId);
     return prisma.quickReply.create({
@@ -60,6 +61,7 @@ export class QuickReplyService {
         triggers: triggers.map((t) => t.toLowerCase()),
         buttons,
         sendSeparately,
+        mediaUrls,
       },
     });
   }
@@ -73,6 +75,7 @@ export class QuickReplyService {
     buttons: string[],
     isActive: boolean,
     sendSeparately: boolean = false,
+    mediaUrls: string[] = [],
   ) {
     const prisma = await this.getPrisma(userId);
     return prisma.quickReply.update({
@@ -84,6 +87,7 @@ export class QuickReplyService {
         buttons,
         isActive,
         sendSeparately,
+        mediaUrls,
       },
     });
   }

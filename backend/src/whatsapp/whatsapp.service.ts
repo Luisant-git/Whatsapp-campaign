@@ -386,6 +386,10 @@ export class WhatsappService {
         },
         async (to, title, msg, buttons) => {
           return this.sendButtonsMessage(to, msg, buttons, userId);
+        },
+        undefined, // sendListCallback
+        async (to, mediaUrl, mediaType) => {
+          return this.sendMediaMessage(to, mediaUrl, mediaType, userId);
         }
       );
     }
@@ -1983,6 +1987,8 @@ export class WhatsappService {
 
         }
 
+        ,
+        async (to, mediaUrl, mediaType) => { return this.sendMediaMessageDirect(to, mediaUrl, mediaType, whatsappSettings.accessToken, whatsappSettings.phoneNumberId, tenantClient); }
       ).catch(e => {
         this.logger.error('Quick Reply error:', e);
         return false;
@@ -2321,6 +2327,38 @@ export class WhatsappService {
         await tenantClient.whatsAppMessage.update({
           where: { id: existingMessage.id },
           data: updateData
+        });
+      }
+
+      // Also update CampaignMessage if it exists, independently
+      const campaignMessage = await tenantClient.campaignMessage.findFirst({
+        where: { messageId }
+      });
+      
+      if (campaignMessage) {
+        let errorMessage: string | null = null;
+        if (status === 'failed' && errorDetails && errorDetails.length > 0) {
+          errorMessage = errorDetails[0].message || errorDetails[0].title || 'Unknown error';
+        }
+
+        const currentCampaignStatusLevel = statusHierarchy[campaignMessage.status] || 0;
+        let finalCampaignStatus = campaignMessage.status;
+        
+        if (status === 'failed') {
+          if (campaignMessage.status !== 'delivered' && campaignMessage.status !== 'read') {
+            finalCampaignStatus = 'failed';
+          }
+        } else if (newStatusLevel >= currentCampaignStatusLevel) {
+           finalCampaignStatus = status;
+        }
+
+        const campaignUpdateData: any = { status: finalCampaignStatus };
+        if (errorMessage) {
+          campaignUpdateData.error = errorMessage;
+        }
+        await tenantClient.campaignMessage.update({
+          where: { id: campaignMessage.id },
+          data: campaignUpdateData
         });
       }
     } catch (error) {

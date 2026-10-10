@@ -322,7 +322,7 @@ const QuickReply = () => {
   if (loading) return <div className="loading">Loading...</div>;
 
   return (
-    <div className="settings-container">
+    <div className="settings-container quick-reply-full-width">
       <div className="settings-header">
         <div>
           <h1>Quick Reply Buttons</h1>

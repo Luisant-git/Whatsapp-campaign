@@ -309,7 +309,162 @@ export class WhatsappController {
     }
   }
  
-  @Get('messages')
+    @Public()
+  @Post('webhook')
+  @ApiOperation({ summary: 'Handle incoming WhatsApp webhooks without token in URL' })
+  @ApiResponse({ status: 200, description: 'Webhook processed successfully' })
+  async handleWebhookCatchAll(@Req() req: any, @Body() body: any) {
+    const signature = req.headers['x-hub-signature-256'];
+    const appSecret = process.env.META_APP_SECRET;
+
+    if (!appSecret) {
+      console.error('Webhook failed: No Global META_APP_SECRET available');
+      throw new UnauthorizedException('No App Secret available to verify webhook');
+    }
+    if (!signature) {
+      console.error('Webhook failed: Missing x-hub-signature-256 header');
+      throw new UnauthorizedException('Missing x-hub-signature-256 header');
+    }
+    if (!req.rawBody) {
+      console.error('Webhook failed: req.rawBody is missing. Raw payload preservation is required for HMAC validation.');
+      throw new UnauthorizedException('Raw body is required for signature verification');
+    }
+
+    const expectedSignature = 'sha256=' + require('crypto').createHmac('sha256', appSecret).update(req.rawBody).digest('hex');
+    const sigBuffer = Buffer.from(signature, 'utf8');
+    const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
+
+    if (sigBuffer.length !== expectedBuffer.length || !require('crypto').timingSafeEqual(sigBuffer, expectedBuffer)) {
+      console.error('Webhook signature mismatch detected. Request blocked.');
+      throw new UnauthorizedException('Invalid x-hub-signature-256');
+    }
+
+    const phoneNumberId = body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
+    if (phoneNumberId === '1239751119221958') {
+      try {
+        await require('axios').post('https://dailykurtis.api.luisant.cloud/whatsapp/webhook', body);
+        console.log('✅ Forwarded Daily-Kurtis webhook to dailykurtis.api.luisant.cloud');
+        return 'EVENT_RECEIVED';
+      } catch (err) {
+        console.error('❌ Failed to forward to Daily-Kurtis:', err.message);
+      }
+    }
+
+    require('axios').post('https://api.anandahonda.cloud/whatsapp/webhook', body)
+      .catch((e: any) => console.log('Webhook Forwarding failed:', e.message));
+
+    setImmediate(() => {
+      this.processWebhookWithoutTokenAsync(body).catch(error => {
+        console.error('Async webhook processing error:', error);
+      });
+    });
+    return 'EVENT_RECEIVED';
+  }
+
+  private async processWebhookWithoutTokenAsync(body: any) {
+    try {
+      console.log('\n=== WEBHOOK POST RECEIVED (NO URL TOKEN) ===');
+      console.log('Timestamp:', new Date().toISOString());
+      console.log('🔍 FULL WEBHOOK BODY:', JSON.stringify(body, null, 2));
+     
+      if (!body || !body.object) return;
+      
+      if (body.object === 'whatsapp_business_account') {
+        for (const entry of body.entry) {
+          for (const change of entry.changes) {
+            
+            let phoneNumberId = change.value?.metadata?.phone_number_id;
+            
+            if (!phoneNumberId && entry.id) {
+               phoneNumberId = entry.id;
+            }
+
+            if (!phoneNumberId) {
+              console.log('❌ No phone_number_id found in webhook payload. Cannot resolve tenant.');
+              continue;
+            }
+
+            const userIds = await this.whatsappService.findAllUsersByPhoneNumberId(phoneNumberId);
+            if (!userIds || userIds.length === 0) {
+              console.log(`❌ Webhook rejected: phone_number_id ${phoneNumberId} did not match any tenant`);
+              continue;
+            }
+            const resolvedTenantId = userIds[0];
+
+            if (change.field === 'business_account_update') {
+              console.log('📈 Received business_account_update (tier update), but verifyToken is required to process it via existing methods. Skipping.');
+              continue;
+            }
+
+            if (change.field === 'messages') {
+              const message = change.value.messages?.[0];
+              const displayPhoneNumber = change.value.metadata?.display_phone_number;
+              const profileName = change.value.contacts?.[0]?.profile?.name || null;
+              
+              if (message) {
+                if (message.type === 'interactive' && message.interactive?.type === 'nfm_reply') {
+                  const responseData = JSON.parse(message.interactive.nfm_reply.response_json);
+                  if (responseData.customer_name || responseData.customerName) {
+                    await this.metaCatalogService.handleCustomerDetailsFlowResponse(
+                      message.from, phoneNumberId, responseData, resolvedTenantId
+                    );
+                    continue;
+                  } else {
+                    await this.flowAppointmentService.saveAppointmentFromWebhook(
+                      responseData, message.from, phoneNumberId
+                    );
+                    continue;
+                  }
+                }
+                
+                try {
+                  await this.whatsappService.handleIncomingMessageWithoutContext(
+                    message, phoneNumberId, profileName
+                  );
+                } catch (msgError) {
+                  console.error('❌ Error processing message:', msgError);
+                }
+              }
+              
+              const statuses = change.value.statuses;
+              if (statuses) {
+                for (const status of statuses) {
+                  try {
+                    if (status.type === 'payment' && status.status === 'captured') {
+                      const referenceId = status.payment?.reference_id;
+                      const orderId = referenceId ? parseInt(referenceId.split('_')[1]) : null;
+                      if (orderId) {
+                        try {
+                          const axios = require('axios');
+                          const backendUrl = process.env.BACKEND_URL || 'http://localhost:3010';
+                          await axios.post(`${backendUrl}/webhooks/payment-success/${orderId}`, {}, {
+                            headers: { 'Content-Type': 'application/json' },
+                            timeout: 5000
+                          });
+                        } catch (paymentError) {
+                          console.error('Payment processing error:', paymentError.message);
+                        }
+                      }
+                    }
+                    
+                    await this.whatsappService.updateMessageStatusWithoutContext(
+                      status.id, status.status, phoneNumberId, status.errors, status.pricing, resolvedTenantId
+                    );
+                  } catch (statusError) {
+                    console.error('Error updating status:', statusError);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Webhook error:', error);
+    }
+  }
+
+@Get('messages')
 @UseGuards(SessionGuard)
 async getMessages(
   @Session() session: any,

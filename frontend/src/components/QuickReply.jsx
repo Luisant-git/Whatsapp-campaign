@@ -420,58 +420,6 @@ const QuickReply = () => {
             
             <div className="settings-form">
               <div className="form-group">
-                <label>Title (Header) - Optional</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Our Features"
-                  value={formData.title}
-                  onChange={(e) => setFormData({...formData, title: e.target.value})}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Response (Body Message) - Optional</label>
-                <div className="text-editor">
-                  <div className="editor-toolbar">
-                    <button type="button" className="toolbar-btn" onClick={() => insertText('*', '*')} title="Bold">
-                      <strong>B</strong>
-                    </button>
-                    <button type="button" className="toolbar-btn" onClick={() => insertText('_', '_')} title="Italic">
-                      <em>I</em>
-                    </button>
-                    <button type="button" className="toolbar-btn" onClick={() => insertText('~', '~')} title="Strikethrough">
-                      <s>S</s>
-                    </button>
-                    <div className="toolbar-divider"></div>
-                    <button type="button" className="toolbar-btn" onClick={() => insertText('\n• ', '')} title="Bullet Point">
-                      •
-                    </button>
-                    <button type="button" className="toolbar-btn" onClick={() => insertText('\n', '')} title="New Line">
-                      ↵
-                    </button>
-                    <div className="toolbar-divider"></div>
-                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('✅')} title="Check">✅</button>
-                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('❌')} title="Cross">❌</button>
-                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('👉')} title="Point">👉</button>
-                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('⭐')} title="Star">⭐</button>
-                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('🎯')} title="Target">🎯</button>
-                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('💡')} title="Idea">💡</button>
-                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('🔥')} title="Fire">🔥</button>
-                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('💰')} title="Money">💰</button>
-                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('📞')} title="Phone">📞</button>
-                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('📧')} title="Email">📧</button>
-                  </div>
-                  <textarea
-                    ref={responseTextareaRef}
-                    placeholder="e.g., We offer AI chatbot, bulk messaging, automation, and more!"
-                    value={formData.response}
-                    onChange={(e) => setFormData({...formData, response: e.target.value})}
-                    rows={6}
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
                 <label>Trigger Words (comma separated)</label>
                 <input
                   type="text"
@@ -527,6 +475,59 @@ const QuickReply = () => {
                   <Plus size={16} /> Add Media URL
                 </button>
               </div>
+
+              <div className="form-group">
+                <label>Title (Header) - Optional</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Our Features"
+                  value={formData.title}
+                  onChange={(e) => setFormData({...formData, title: e.target.value})}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Response (Body Message) - Optional</label>
+                <div className="text-editor">
+                  <div className="editor-toolbar">
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('*', '*')} title="Bold">
+                      <strong>B</strong>
+                    </button>
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('_', '_')} title="Italic">
+                      <em>I</em>
+                    </button>
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('~', '~')} title="Strikethrough">
+                      <s>S</s>
+                    </button>
+                    <div className="toolbar-divider"></div>
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('\n• ', '')} title="Bullet Point">
+                      •
+                    </button>
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('\n', '')} title="New Line">
+                      ↵
+                    </button>
+                    <div className="toolbar-divider"></div>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('✅')} title="Check">✅</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('❌')} title="Cross">❌</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('👉')} title="Point">👉</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('⭐')} title="Star">⭐</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('🎯')} title="Target">🎯</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('💡')} title="Idea">💡</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('🔥')} title="Fire">🔥</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('💰')} title="Money">💰</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('📞')} title="Phone">📞</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('📧')} title="Email">📧</button>
+                  </div>
+                  <textarea
+                    ref={responseTextareaRef}
+                    placeholder="e.g., We offer AI chatbot, bulk messaging, automation, and more!"
+                    value={formData.response}
+                    onChange={(e) => setFormData({...formData, response: e.target.value})}
+                    rows={6}
+                  />
+                </div>
+              </div>
+
 
               <div className="form-group">
                 <label>

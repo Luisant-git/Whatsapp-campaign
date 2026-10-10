@@ -115,6 +115,7 @@ const MENU_TO_VIEW = {
   "ecommerce.customers": "customers",
   "ecommerce.shipping": "shipping",
 
+  "templates": "templates",
   "templates.create": "templates",
   "templates.manage": "templates",
   "templates.library": "templates",

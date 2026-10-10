@@ -2420,12 +2420,25 @@ export class WhatsappService {
   async sendMediaMessageDirect(to: string, mediaUrl: string, mediaType: string, accessToken: string, phoneNumberId: string, tenantClient: any, caption?: string) {
     try {
       const isBSUID = /^[A-Z]{2}\.([A-Z]+\.)?[0-9]+$/.test(to);
-      const mediaPayload: any = { link: mediaUrl, caption };
+
+      let finalMediaUrl = mediaUrl;
+      // Auto-convert Google Drive viewer links to direct download links
+      const gDriveMatch = mediaUrl.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+      if (gDriveMatch && gDriveMatch[1]) {
+        finalMediaUrl = `https://drive.google.com/uc?export=download&id=${gDriveMatch[1]}`;
+      }
+
+      const mediaPayload: any = { link: finalMediaUrl, caption };
       if (mediaType === 'document') {
-        let filename = mediaUrl.split('/').pop() || 'Document.pdf';
-        if (filename.includes('?')) filename = filename.split('?')[0];
-        filename = decodeURIComponent(filename);
-        mediaPayload.filename = filename.replace(/-[0-9]+-[0-9]+(\.[a-zA-Z0-9]+)$/, '$1');
+        let filename = 'Document.pdf';
+        // Only try to extract filename from URL if it's a standard URL, not a gdrive export URL
+        if (!gDriveMatch) {
+          filename = mediaUrl.split('/').pop() || 'Document.pdf';
+          if (filename.includes('?')) filename = filename.split('?')[0];
+          filename = decodeURIComponent(filename);
+          filename = filename.replace(/-[0-9]+-[0-9]+(\.[a-zA-Z0-9]+)$/, '$1');
+        }
+        mediaPayload.filename = filename;
       }
       const payload: any = {
         messaging_product: 'whatsapp',

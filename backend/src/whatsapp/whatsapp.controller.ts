@@ -96,7 +96,7 @@ export class WhatsappController {
         return challenge;
       }
     }
-    console.log('✗ Webhook verification failed - Missing or invalid parameters');
+    if (!mode && !token && !challenge) { return { status: 'success', message: 'WhatsApp Webhook is active and listening for events!' }; }\n    console.log('✗ Webhook verification failed - Missing or invalid parameters');
     throw new HttpException('Webhook verification failed. Expected query parameters: hub.mode, hub.verify_token, hub.challenge', HttpStatus.FORBIDDEN);
   }
  

@@ -135,7 +135,7 @@ export class WhatsappSessionService {
           for (const url of (quickReply as any).mediaUrls) {
             if (!url) continue;
             const isVideo = /\.(mp4|avi|mov)$/i.test(url);
-            const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i.test(url);
+            const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i.test(url) || url.includes('drive.google.com');
             const mediaType = isDocument ? 'document' : isVideo ? 'video' : 'image';
             await sendMediaCallback(from, url, mediaType);
           }

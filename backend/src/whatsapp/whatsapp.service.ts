@@ -732,6 +732,8 @@ export class WhatsappService {
         const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
         const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
 
+        let matched = false;
+
         // Check WhatsApp Settings
         const settings = await tenantClient.whatsAppSettings.findMany({
           where: { phoneNumberId },
@@ -743,7 +745,7 @@ export class WhatsappService {
           settings.forEach(s => {
             console.log(`     - Settings ID: ${s.id}, Name: ${s.name}, PhoneID: ${s.phoneNumberId}`);
           });
-          userIds.push(...settings.map(s => s.id));
+          matched = true;
         }
 
         // ✅ ALSO CHECK MASTER CONFIG
@@ -752,23 +754,27 @@ export class WhatsappService {
           select: { id: true, name: true, phoneNumberId: true }
         });
 
-        // If master config found, add tenant ID
         if (masterConfigs.length > 0) {
           console.log(`  ✅ Tenant ${tenant.id}: Found ${masterConfigs.length} Master Configs`);
           masterConfigs.forEach(mc => {
             console.log(`     - MasterConfig: ${mc.name}, PhoneID: ${mc.phoneNumberId}`);
           });
-          userIds.push(tenant.id);
+          matched = true;
         }
 
-        if (settings.length === 0 && masterConfigs.length === 0) {
+        if (matched) {
+          userIds.push(tenant.id);
+        } else {
           console.log(`  ❌ Tenant ${tenant.id}: No matching phone_number_id`);
         }
       }
 
-      console.log(`\n📊 TOTAL USERS FOUND: ${userIds.length}`);
-      console.log(`User IDs: ${userIds.join(', ') || 'NONE'}`);
-      return userIds;
+      // Remove duplicates just in case
+      const uniqueUserIds = [...new Set(userIds)];
+
+      console.log(`\n📊 TOTAL USERS FOUND: ${uniqueUserIds.length}`);
+      console.log(`User IDs: ${uniqueUserIds.join(', ') || 'NONE'}`);
+      return uniqueUserIds;
     } catch (error) {
       this.logger.error('Error finding users by phone number ID:', error);
       return [];

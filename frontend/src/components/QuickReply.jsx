@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Edit, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Edit, ChevronDown, Upload, Loader } from 'lucide-react';
+import { uploadFile } from '../api/whatsapp';
 import { API_BASE_URL } from '../api/config';
 import { useToast } from '../contexts/ToastContext';
 import { getProfile } from '../api/auth';
@@ -23,6 +24,7 @@ const QuickReply = () => {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingMediaIndex, setUploadingMediaIndex] = useState(null);
   const [useQuickReply, setUseQuickReply] = useState(true);
   const responseTextareaRef = useRef(null);
 
@@ -146,6 +148,26 @@ const QuickReply = () => {
   const removeMediaUrl = (index) => {
     const newUrls = formData.mediaUrls.filter((_, i) => i !== index);
     setFormData({ ...formData, mediaUrls: newUrls });
+  };
+
+  
+  const handleFileUpload = async (index, event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    try {
+      setUploadingMediaIndex(index);
+      const response = await uploadFile(file);
+      if (response && response.mediaUrl) {
+        updateMediaUrl(index, response.mediaUrl);
+        showSuccess('File uploaded successfully');
+      }
+    } catch (error) {
+      showError(error.message || 'Failed to upload file');
+    } finally {
+      setUploadingMediaIndex(null);
+      event.target.value = null;
+    }
   };
 
   const updateMediaUrl = (index, value) => {
@@ -428,7 +450,25 @@ const QuickReply = () => {
                       placeholder="e.g., https://example.com/brochure.pdf"
                       value={url}
                       onChange={(e) => updateMediaUrl(index, e.target.value)}
+                      style={{ flex: 1 }}
                     />
+                    <input
+                      type="file"
+                      id={`qr-upload-${index}`}
+                      style={{ display: 'none' }}
+                      onChange={(e) => handleFileUpload(index, e)}
+                    />
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ padding: '0 12px', height: '40px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      onClick={() => document.getElementById(`qr-upload-${index}`).click()}
+                      disabled={uploadingMediaIndex === index}
+                    >
+                      {uploadingMediaIndex === index ? <Loader size={16} className="spinner" /> : <Upload size={16} />} 
+                      {uploadingMediaIndex === index ? 'Uploading...' : 'Upload'}
+                    </button>
+
                     {formData.mediaUrls.length > 1 && (
                       <button 
                         type="button" 

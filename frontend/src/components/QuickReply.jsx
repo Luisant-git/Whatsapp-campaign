@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Edit, ChevronDown, Upload, Loader, MessageSquare, Link, MousePointer2, Settings, Zap } from 'lucide-react';
+import { Plus, Trash2, Edit, ChevronDown, Upload, Loader } from 'lucide-react';
 import { uploadFile } from '../api/whatsapp';
 import { API_BASE_URL } from '../api/config';
 import { useToast } from '../contexts/ToastContext';
@@ -412,265 +412,241 @@ const QuickReply = () => {
 
       {showForm && (
         <div className="modal-overlay">
-          <div className="modal-content meta-modal">
-            <div className="meta-modal-header">
-              <h2>{editingId ? 'Edit Interactive Message' : 'Create Interactive Message'}</h2>
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>{editingId ? 'Edit Quick Reply' : 'Add Quick Reply'}</h2>
               <button onClick={resetForm} className="close-btn">×</button>
             </div>
             
-            <div className="meta-modal-body">
-              <div className="settings-form">
-                
-                {/* SECTION 1: TRIGGERS */}
-                <div className="meta-section">
-                  <div className="meta-section-header">
-                    <div className="meta-section-icon"><Zap size={18} /></div>
-                    <h3 className="meta-section-title">Message Triggers</h3>
+            <div className="settings-form">
+              <div className="form-group">
+                <label>Title (Header) - Optional</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Our Features"
+                  value={formData.title}
+                  onChange={(e) => setFormData({...formData, title: e.target.value})}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Response (Body Message) - Optional</label>
+                <div className="text-editor">
+                  <div className="editor-toolbar">
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('*', '*')} title="Bold">
+                      <strong>B</strong>
+                    </button>
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('_', '_')} title="Italic">
+                      <em>I</em>
+                    </button>
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('~', '~')} title="Strikethrough">
+                      <s>S</s>
+                    </button>
+                    <div className="toolbar-divider"></div>
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('\n• ', '')} title="Bullet Point">
+                      •
+                    </button>
+                    <button type="button" className="toolbar-btn" onClick={() => insertText('\n', '')} title="New Line">
+                      ↵
+                    </button>
+                    <div className="toolbar-divider"></div>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('✅')} title="Check">✅</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('❌')} title="Cross">❌</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('👉')} title="Point">👉</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('⭐')} title="Star">⭐</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('🎯')} title="Target">🎯</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('💡')} title="Idea">💡</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('🔥')} title="Fire">🔥</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('💰')} title="Money">💰</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('📞')} title="Phone">📞</button>
+                    <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('📧')} title="Email">📧</button>
                   </div>
-                  <p className="meta-helper-text">When a customer sends any of these keywords, this interactive message will be sent automatically.</p>
-                  <div className="meta-input-group">
-                    <label className="meta-label">Trigger Words (comma separated)</label>
-                    <input
-                      type="text"
-                      className="meta-input"
-                      placeholder="e.g., hi, hello, pricing, help"
-                      value={formData.triggersText}
-                      onChange={(e) => setFormData({...formData, triggersText: e.target.value})}
-                    />
-                  </div>
+                  <textarea
+                    ref={responseTextareaRef}
+                    placeholder="e.g., We offer AI chatbot, bulk messaging, automation, and more!"
+                    value={formData.response}
+                    onChange={(e) => setFormData({...formData, response: e.target.value})}
+                    rows={6}
+                  />
                 </div>
+              </div>
 
-                {/* SECTION 2: HEADER & BODY */}
-                <div className="meta-section">
-                  <div className="meta-section-header">
-                    <div className="meta-section-icon"><MessageSquare size={18} /></div>
-                    <h3 className="meta-section-title">Message Content</h3>
-                  </div>
-                  
-                  <div className="meta-input-group">
-                    <label className="meta-label">Title / Header (Optional)</label>
-                    <p className="meta-helper-text">Short title displayed at the top of the message in bold.</p>
+              <div className="form-group">
+                <label>Trigger Words (comma separated)</label>
+                <input
+                  type="text"
+                  placeholder="e.g., hi, hello, help, info"
+                  value={formData.triggersText}
+                  onChange={(e) => setFormData({...formData, triggersText: e.target.value})}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Documents / Media URLs (Optional)</label>
+                <small style={{ display: 'block', marginBottom: '8px', color: '#666' }}>
+                  Add URLs to PDFs, images, etc. They will be sent to the user when triggered.
+                </small>
+                {formData.mediaUrls.map((url, index) => (
+                  <div key={index} className="button-fields" style={{ marginBottom: '8px' }}>
                     <input
                       type="text"
-                      className="meta-input"
-                      placeholder="e.g., Welcome to Our Store!"
-                      value={formData.title}
-                      onChange={(e) => setFormData({...formData, title: e.target.value})}
-                      maxLength={60}
+                      placeholder="e.g., https://example.com/brochure.pdf"
+                      value={url}
+                      onChange={(e) => updateMediaUrl(index, e.target.value)}
+                      style={{ flex: 1 }}
                     />
-                  </div>
+                    <input
+                      type="file"
+                      id={`qr-upload-${index}`}
+                      style={{ display: 'none' }}
+                      onChange={(e) => handleFileUpload(index, e)}
+                    />
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ padding: '0 12px', height: '40px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      onClick={() => document.getElementById(`qr-upload-${index}`).click()}
+                      disabled={uploadingMediaIndex === index}
+                    >
+                      {uploadingMediaIndex === index ? <Loader size={16} className="spinner" /> : <Upload size={16} />} 
+                      {uploadingMediaIndex === index ? 'Uploading...' : 'Upload'}
+                    </button>
 
-                  <div className="meta-input-group">
-                    <label className="meta-label">Media Header (Optional)</label>
-                    <p className="meta-helper-text">Add a document or image to be sent along with this message.</p>
-                    {formData.mediaUrls.map((url, index) => (
+                    {formData.mediaUrls.length > 1 && (
+                      <button 
+                        type="button" 
+                        onClick={() => removeMediaUrl(index)}
+                        className="btn-danger-small"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button type="button" onClick={addMediaUrl} className="btn-secondary" style={{ marginTop: '4px' }}>
+                  <Plus size={16} /> Add Media URL
+                </button>
+              </div>
+
+              <div className="form-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={formData.sendSeparately}
+                    onChange={(e) => setFormData({...formData, sendSeparately: e.target.checked})}
+                    style={{ marginRight: '8px' }}
+                  />
+                  Send greeting text and buttons as separate messages
+                </label>
+                <small style={{ display: 'block', marginTop: '4px', color: '#666' }}>
+                  When enabled, the text message will be sent first, followed by the buttons in a second message
+                </small>
+              </div>
+
+              <div className="form-group">
+                <label>Button Type</label>
+                <select
+                  value={formData.buttonType}
+                  onChange={(e) => setFormData({...formData, buttonType: e.target.value})}
+                  style={{ width: '100%', padding: '10px', marginBottom: '16px' }}
+                >
+                  <option value="normal">Normal Buttons</option>
+                  <option value="menu">Menu (Dropdown)</option>
+                  <option value="url">Redirect URL Button</option>
+                </select>
+
+                                {formData.buttonType === 'url' ? (
+                  <>
+                    <label>Button Text</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Visit Website"
+                      value={formData.urlButtonText}
+                      onChange={(e) => setFormData({...formData, urlButtonText: e.target.value})}
+                      style={{ marginBottom: '16px' }}
+                    />
+                    <label>Redirect URL</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., https://example.com"
+                      value={formData.urlButtonLink}
+                      onChange={(e) => setFormData({...formData, urlButtonLink: e.target.value})}
+                      style={{ marginBottom: '16px' }}
+                    />
+                  </>
+                ) : formData.buttonType === 'menu' ? (
+                  <>
+                    <label>Button Text (Menu Name)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., View Options, Select Service"
+                      value={formData.menuButtonText}
+                      onChange={(e) => setFormData({...formData, menuButtonText: e.target.value})}
+                      style={{ marginBottom: '16px' }}
+                    />
+                    <label>Menu Items</label>
+                    {formData.buttons.map((button, index) => (
                       <div key={index} className="button-fields" style={{ marginBottom: '8px' }}>
                         <input
                           type="text"
-                          className="meta-input"
-                          placeholder="e.g., https://example.com/brochure.pdf"
-                          value={url}
-                          onChange={(e) => updateMediaUrl(index, e.target.value)}
-                          style={{ flex: 1 }}
+                          placeholder={`Item ${index + 1}`}
+                          value={button}
+                          onChange={(e) => updateButton(index, e.target.value)}
                         />
-                        <input
-                          type="file"
-                          id={`qr-upload-${index}`}
-                          style={{ display: 'none' }}
-                          onChange={(e) => handleFileUpload(index, e)}
-                        />
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          style={{ padding: '0 12px', height: '44px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                          onClick={() => document.getElementById(`qr-upload-${index}`).click()}
-                          disabled={uploadingMediaIndex === index}
-                        >
-                          {uploadingMediaIndex === index ? <Loader size={16} className="spinner" /> : <Upload size={16} />} 
-                          {uploadingMediaIndex === index ? 'Uploading...' : 'Upload File'}
-                        </button>
-                        {formData.mediaUrls.length > 1 && (
+                        {formData.buttons.length > 1 && (
                           <button 
                             type="button" 
-                            onClick={() => removeMediaUrl(index)}
+                            onClick={() => removeButton(index)}
                             className="btn-danger-small"
-                            style={{ height: '44px' }}
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={14} />
                           </button>
                         )}
                       </div>
                     ))}
-                  </div>
-
-                  <div className="meta-input-group" style={{ marginTop: '20px' }}>
-                    <label className="meta-label">Body Text</label>
-                    <div className="text-editor" style={{ borderColor: '#d1d7db', borderRadius: '8px' }}>
-                      <div className="editor-toolbar" style={{ background: '#f0f2f5', borderBottom: '1px solid #d1d7db' }}>
-                        <button type="button" className="toolbar-btn" onClick={() => insertText('*', '*')} title="Bold"><strong>B</strong></button>
-                        <button type="button" className="toolbar-btn" onClick={() => insertText('_', '_')} title="Italic"><em>I</em></button>
-                        <button type="button" className="toolbar-btn" onClick={() => insertText('~', '~')} title="Strikethrough"><s>S</s></button>
-                        <div className="toolbar-divider"></div>
-                        <button type="button" className="toolbar-btn" onClick={() => insertText('\n• ', '')} title="Bullet Point">•</button>
-                        <button type="button" className="toolbar-btn" onClick={() => insertText('\n', '')} title="New Line">↵</button>
-                        <div className="toolbar-divider"></div>
-                        <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('✅')}>✅</button>
-                        <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('❌')}>❌</button>
-                        <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('👉')}>👉</button>
-                        <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('⭐')}>⭐</button>
-                        <button type="button" className="toolbar-btn emoji-btn" onClick={() => insertEmoji('💡')}>💡</button>
-                      </div>
-                      <textarea
-                        ref={responseTextareaRef}
-                        className="meta-input"
-                        style={{ border: 'none', background: 'white', borderTopLeftRadius: 0, borderTopRightRadius: 0 }}
-                        placeholder="Type your message here... e.g., We offer AI chatbot, bulk messaging, automation, and more!"
-                        value={formData.response}
-                        onChange={(e) => setFormData({...formData, response: e.target.value})}
-                        rows={5}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* SECTION 3: INTERACTIVE BUTTONS */}
-                <div className="meta-section">
-                  <div className="meta-section-header">
-                    <div className="meta-section-icon"><MousePointer2 size={18} /></div>
-                    <h3 className="meta-section-title">Interactive Actions</h3>
-                  </div>
-                  <p className="meta-helper-text">Add buttons for the user to click. Meta allows up to 3 Quick Reply buttons, 1 Redirect URL button, or a Menu List.</p>
-                  
-                  <div className="meta-input-group">
-                    <label className="meta-label">Action Type</label>
-                    <select
-                      className="meta-input"
-                      value={formData.buttonType}
-                      onChange={(e) => setFormData({...formData, buttonType: e.target.value})}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <option value="normal">Quick Reply Buttons (Max 3)</option>
-                      <option value="menu">List Menu (Dropdown with up to 10 items)</option>
-                      <option value="url">Redirect URL Button</option>
-                    </select>
-                  </div>
-
-                  <div style={{ marginTop: '20px', padding: '16px', background: '#f8f9fa', borderRadius: '8px', border: '1px solid #e1e8ed' }}>
-                    {formData.buttonType === 'url' ? (
-                      <>
-                        <div className="meta-input-group">
-                          <label className="meta-label">Button Text</label>
-                          <input
-                            type="text"
-                            className="meta-input"
-                            placeholder="e.g., Visit Website"
-                            value={formData.urlButtonText}
-                            onChange={(e) => setFormData({...formData, urlButtonText: e.target.value})}
-                          />
-                        </div>
-                        <div className="meta-input-group">
-                          <label className="meta-label">Redirect URL</label>
-                          <input
-                            type="url"
-                            className="meta-input"
-                            placeholder="e.g., https://example.com"
-                            value={formData.urlButtonLink}
-                            onChange={(e) => setFormData({...formData, urlButtonLink: e.target.value})}
-                          />
-                        </div>
-                      </>
-                    ) : formData.buttonType === 'menu' ? (
-                      <>
-                        <div className="meta-input-group">
-                          <label className="meta-label">Menu Button Name</label>
-                          <input
-                            type="text"
-                            className="meta-input"
-                            placeholder="e.g., View Options"
-                            value={formData.menuButtonText}
-                            onChange={(e) => setFormData({...formData, menuButtonText: e.target.value})}
-                          />
-                        </div>
-                        <label className="meta-label" style={{ marginTop: '16px' }}>List Items</label>
-                        {formData.buttons.map((button, index) => (
-                          <div key={index} className="button-fields" style={{ marginBottom: '8px' }}>
-                            <input
-                              type="text"
-                              className="meta-input"
-                              placeholder={`Item ${index + 1}`}
-                              value={button}
-                              onChange={(e) => updateButton(index, e.target.value)}
-                            />
-                            {formData.buttons.length > 1 && (
-                              <button type="button" onClick={() => removeButton(index)} className="btn-danger-small" style={{ height: '44px' }}>
-                                <Trash2 size={16} />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                        {formData.buttons.length < 10 && (
-                          <button type="button" onClick={addButton} className="btn-secondary" style={{ marginTop: '8px' }}>
-                            <Plus size={16} /> Add List Item
-                          </button>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <label className="meta-label">Quick Reply Buttons</label>
-                        {formData.buttons.map((button, index) => (
-                          <div key={index} className="button-fields" style={{ marginBottom: '8px' }}>
-                            <input
-                              type="text"
-                              className="meta-input"
-                              placeholder={`Button ${index + 1} text`}
-                              value={button}
-                              onChange={(e) => updateButton(index, e.target.value)}
-                            />
-                            {formData.buttons.length > 1 && (
-                              <button type="button" onClick={() => removeButton(index)} className="btn-danger-small" style={{ height: '44px' }}>
-                                <Trash2 size={16} />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                        {formData.buttons.length < 3 && (
-                          <button type="button" onClick={addButton} className="btn-secondary" style={{ marginTop: '8px' }}>
-                            <Plus size={16} /> Add Button
-                          </button>
-                        )}
-                      </>
+                    {formData.buttons.length < 10 && (
+                      <button type="button" onClick={addButton} className="btn-secondary">
+                        <Plus size={16} /> Add Menu Item
+                      </button>
                     )}
-                  </div>
-                </div>
-
-                {/* SECTION 4: ADVANCED */}
-                <div className="meta-section" style={{ marginBottom: 0 }}>
-                  <div className="meta-section-header">
-                    <div className="meta-section-icon" style={{ background: '#f0f2f5', color: '#667781' }}><Settings size={18} /></div>
-                    <h3 className="meta-section-title">Advanced Settings</h3>
-                  </div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={formData.sendSeparately}
-                      onChange={(e) => setFormData({...formData, sendSeparately: e.target.checked})}
-                      style={{ width: '18px', height: '18px', accentColor: '#00a884' }}
-                    />
-                    <span className="meta-label" style={{ margin: 0 }}>Send media and buttons as separate messages</span>
-                  </label>
-                  <p className="meta-helper-text" style={{ paddingLeft: '28px', marginTop: '4px' }}>
-                    Useful if you have a very long caption or want the document to appear above the interactive buttons.
-                  </p>
-                </div>
-                
+                  </>
+                ) : (
+                  <>
+                    <label>Buttons</label>
+                    {formData.buttons.map((button, index) => (
+                      <div key={index} className="button-fields" style={{ marginBottom: '8px' }}>
+                        <input
+                          type="text"
+                          placeholder="Button text"
+                          value={button}
+                          onChange={(e) => updateButton(index, e.target.value)}
+                        />
+                        {formData.buttons.length > 1 && (
+                          <button 
+                            type="button" 
+                            onClick={() => removeButton(index)}
+                            className="btn-danger-small"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {formData.buttons.length < 3 && (
+                      <button type="button" onClick={addButton} className="btn-secondary">
+                        <Plus size={16} /> Add Button
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
-            </div>
-            
-            <div className="meta-modal-footer">
-              <button onClick={resetForm} className="btn-secondary" style={{ padding: '10px 24px', fontSize: '15px' }}>Cancel</button>
-              <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ background: '#00a884', borderColor: '#00a884', padding: '10px 24px', fontSize: '15px' }}>
-                {saving ? 'Saving...' : editingId ? 'Update Message' : 'Create Message'}
-              </button>
+
+              <div className="form-actions">
+                <button onClick={resetForm} className="btn-secondary">Cancel</button>
+                <button onClick={handleSave} disabled={saving} className="btn-primary">
+                  {saving ? 'Saving...' : editingId ? 'Update' : 'Save'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

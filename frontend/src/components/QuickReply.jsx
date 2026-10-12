@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Edit, ChevronDown, Upload, Loader, Zap, Link, FileText, Image, File, ExternalLink } from 'lucide-react';
+import { Plus, Trash2, Edit, ChevronDown, Upload, Loader, Zap, Link, FileText, Image, File, ExternalLink, Info, AlertCircle } from 'lucide-react';
 import { uploadFile } from '../api/whatsapp';
 import { API_BASE_URL } from '../api/config';
 import { useToast } from '../contexts/ToastContext';
@@ -211,14 +211,34 @@ const QuickReply = () => {
   const handleFileUpload = async (index, event) => {
     const file = event.target.files[0];
     if (!file) return;
-    
+
+    // ── Meta Media Size Limits & Validation ──
+    const isPdf = file.type?.includes('pdf') || /\.pdf$/i.test(file.name);
+    const isImg = file.type?.startsWith('image') || /\.(png|jpe?g|webp|gif)$/i.test(file.name);
+    const isVid = file.type?.startsWith('video') || /\.(mp4|avi|mov)$/i.test(file.name);
+    const formattedSize = formatFileSize(file.size);
+
+    // Hard ceilings enforced by Meta WhatsApp Cloud API
+    if (isImg && file.size > 5 * 1024 * 1024) {
+      showError(`Image "${file.name}" is ${formattedSize}. Meta maximum limit for images is 5 MB.`);
+      event.target.value = null;
+      return;
+    }
+    if (isVid && file.size > 16 * 1024 * 1024) {
+      showError(`Video "${file.name}" is ${formattedSize}. Meta maximum limit for videos is 16 MB.`);
+      event.target.value = null;
+      return;
+    }
+    if (file.size > 100 * 1024 * 1024) {
+      showError(`File "${file.name}" is ${formattedSize}. Meta maximum document limit is 100 MB.`);
+      event.target.value = null;
+      return;
+    }
+
     try {
       setUploadingMediaIndex(index);
       const response = await uploadFile(file);
       if (response && response.mediaUrl) {
-        const formattedSize = formatFileSize(file.size);
-        const isPdf = file.type?.includes('pdf') || /\.pdf$/i.test(file.name);
-        const isImg = file.type?.startsWith('image') || /\.(png|jpe?g|webp|gif)$/i.test(file.name);
         setMediaMeta(prev => ({
           ...prev,
           [response.mediaUrl]: {
@@ -228,7 +248,11 @@ const QuickReply = () => {
           }
         }));
         updateMediaUrl(index, response.mediaUrl);
-        showSuccess(`"${file.name}" uploaded successfully (${formattedSize})`);
+        if (file.size > 15 * 1024 * 1024) {
+          showSuccess(`"${file.name}" uploaded (${formattedSize}). Note: Files under 15 MB download faster on customer mobile.`);
+        } else {
+          showSuccess(`"${file.name}" uploaded successfully (${formattedSize})`);
+        }
       }
     } catch (error) {
       showError(error.message || 'Failed to upload file');
@@ -237,6 +261,7 @@ const QuickReply = () => {
       event.target.value = null;
     }
   };
+
 
   const updateMediaUrl = (index, value) => {
     const newUrls = [...formData.mediaUrls];
@@ -536,9 +561,35 @@ const QuickReply = () => {
                     {formData.mediaUrls.filter(u => u && u.trim()).length} File(s)
                   </span>
                 </div>
-                <small style={{ display: 'block', marginBottom: '12px', color: '#64748b', fontSize: '13px' }}>
+                <small style={{ display: 'block', marginBottom: '10px', color: '#64748b', fontSize: '13px' }}>
                   Upload PDFs, brochures, or images. They will be sent to the user when this quick reply triggers.
                 </small>
+
+                {/* ── Recommended File Size & Meta Limits Notice ── */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  background: '#f0fdf4',
+                  border: '1.5px solid #86efac',
+                  borderRadius: '10px',
+                  padding: '10px 14px',
+                  marginBottom: '14px',
+                  fontSize: '12.5px',
+                  color: '#14532d',
+                  lineHeight: 1.45
+                }}>
+                  <Info size={18} color="#16a34a" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div style={{ flex: 1 }}>
+                    <div>
+                      <strong>Recommended Size:</strong> Keep under <strong>15 MB</strong> per file for fast customer downloads on mobile.
+                    </div>
+                    <div style={{ marginTop: '3px', fontSize: '11.5px', color: '#166534', fontWeight: 600 }}>
+                      Meta Max Limits: <strong>PDF / Documents: 100 MB</strong> • <strong>Videos: 16 MB</strong> • <strong>Images: 5 MB</strong>
+                    </div>
+                  </div>
+                </div>
+
 
                 {formData.mediaUrls.map((url, index) => {
                   const hasUrl = Boolean(url && url.trim());

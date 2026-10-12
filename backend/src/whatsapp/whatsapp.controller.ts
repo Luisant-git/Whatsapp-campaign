@@ -667,18 +667,34 @@ async getMessages(
       }
     },
     limits: {
-      fileSize: 16 * 1024 * 1024 // 16MB limit
+      fileSize: 100 * 1024 * 1024 // 100MB limit (Meta document limit)
     }
   }))
   async uploadFile(@UploadedFile() file: any) {
     if (!file) {
       throw new HttpException('File is required', HttpStatus.BAD_REQUEST);
     }
+
+    const isImage = file.mimetype?.startsWith('image');
+    const isVideo = file.mimetype?.startsWith('video');
+    const isAudio = file.mimetype?.startsWith('audio');
+    const isDocument = !isImage && !isVideo && !isAudio;
+
+    // Meta strict limits validation
+    if (isImage && file.size > 5 * 1024 * 1024) {
+      throw new HttpException('Image exceeds Meta limit of 5 MB', HttpStatus.BAD_REQUEST);
+    }
+    if ((isVideo || isAudio) && file.size > 16 * 1024 * 1024) {
+      throw new HttpException('Media exceeds Meta limit of 16 MB', HttpStatus.BAD_REQUEST);
+    }
+    if (isDocument && file.size > 100 * 1024 * 1024) {
+      throw new HttpException('Document exceeds Meta limit of 100 MB', HttpStatus.BAD_REQUEST);
+    }
  
     const mediaUrl = `${process.env.UPLOAD_URL}/${file.filename}`;
-    const mediaType = file.mimetype.startsWith('image') ? 'image' :
-                      file.mimetype.startsWith('video') ? 'video' :
-                      file.mimetype.startsWith('audio') ? 'audio' : 'document';
+    const mediaType = isImage ? 'image' :
+                      isVideo ? 'video' :
+                      isAudio ? 'audio' : 'document';
    
     return {
       success: true,
@@ -690,6 +706,7 @@ async getMessages(
       mimetype: file.mimetype
     };
   }
+
 
   @Public()
   @Get('file-info')

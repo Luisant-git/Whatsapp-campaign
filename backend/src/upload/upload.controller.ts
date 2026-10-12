@@ -26,7 +26,7 @@ export class UploadController {
         },
       }),
       limits: {
-        fileSize: 16 * 1024 * 1024, // 16MB limit
+        fileSize: 100 * 1024 * 1024, // 100MB limit (Meta document limit)
       },
       fileFilter: (req, file, cb) => {
         // Allow images, videos, and documents

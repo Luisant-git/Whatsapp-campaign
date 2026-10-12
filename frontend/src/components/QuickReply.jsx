@@ -590,15 +590,36 @@ const QuickReply = () => {
                   Upload PDFs, brochures, or images. They will be sent to the user when this quick reply triggers.
                 </small>
 
-                {/* ── Recommended File Size & Meta Limits Notice ── */}
+                {/* ── Recommended File Size, Quantity & Meta Limits Notice ── */}
                 <div className="qr-recommended-notice">
-                  <Info size={18} color="#16a34a" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <div>
-                    <div>
-                      <strong>Recommended Size:</strong> Keep under <strong>15 MB</strong> per file for fast customer downloads on mobile.
+                  <div className="qr-notice-header">
+                    <Info size={17} color="#16a34a" style={{ flexShrink: 0 }} />
+                    <span className="qr-notice-title">Media Best Practices & Meta Limits</span>
+                  </div>
+
+                  <div className="qr-notice-grid">
+                    <div className="qr-notice-item">
+                      <span className="qr-notice-label">Recommended Quantity:</span>
+                      <span className="qr-notice-val">
+                        <strong>1 – 3 files</strong> per trigger (Optimal customer mobile experience; max safe is <strong>5 files</strong> to avoid chat spam/rate limits).
+                      </span>
                     </div>
-                    <div className="qr-notice-subtext">
-                      Meta Max Limits: <strong>PDF / Documents: 100 MB</strong> • <strong>Videos: 16 MB</strong> • <strong>Images: 5 MB</strong>
+
+                    <div className="qr-notice-item">
+                      <span className="qr-notice-label">Recommended Size:</span>
+                      <span className="qr-notice-val">
+                        Under <strong>15 MB</strong> per file for instant mobile downloading.
+                      </span>
+                    </div>
+
+                    <div className="qr-notice-item">
+                      <span className="qr-notice-label">Meta Max Limits:</span>
+                      <span className="qr-notice-badges">
+                        <span className="qr-limit-pill">📄 <strong>PDF / Doc:</strong> 100 MB</span>
+                        <span className="qr-limit-pill">🎬 <strong>Videos:</strong> 16 MB</span>
+                        <span className="qr-limit-pill">🖼️ <strong>Images:</strong> 5 MB</span>
+                        <span className="qr-limit-pill">🎵 <strong>Audio:</strong> 16 MB</span>
+                      </span>
                     </div>
                   </div>
                 </div>

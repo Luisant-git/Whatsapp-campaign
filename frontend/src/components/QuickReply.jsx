@@ -207,8 +207,20 @@ const QuickReply = () => {
   };
 
   const removeMediaUrl = (index) => {
-    const newUrls = formData.mediaUrls.filter((_, i) => i !== index);
-    setFormData({ ...formData, mediaUrls: newUrls });
+    const targetUrl = formData.mediaUrls[index];
+    if (targetUrl && mediaMeta[targetUrl]) {
+      setMediaMeta(prev => {
+        const copy = { ...prev };
+        delete copy[targetUrl];
+        return copy;
+      });
+    }
+    if (formData.mediaUrls.length <= 1) {
+      setFormData({ ...formData, mediaUrls: [''] });
+    } else {
+      const newUrls = formData.mediaUrls.filter((_, i) => i !== index);
+      setFormData({ ...formData, mediaUrls: newUrls });
+    }
   };
 
   const handleFileUpload = async (index, event) => {
@@ -662,10 +674,11 @@ const QuickReply = () => {
                               <button
                                 type="button"
                                 onClick={() => removeMediaUrl(index)}
-                                className="qr-media-delete-btn"
+                                className="btn-danger-small qr-media-delete-btn"
                                 title="Remove file"
+                                aria-label="Remove file"
                               >
-                                <Trash2 size={14} />
+                                <Trash2 size={16} color="#ffffff" strokeWidth={2} />
                               </button>
                             </div>
                           </div>
@@ -692,16 +705,15 @@ const QuickReply = () => {
                                 value={url}
                                 onChange={(e) => updateMediaUrl(index, e.target.value)}
                               />
-                              {formData.mediaUrls.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => removeMediaUrl(index)}
-                                  className="qr-media-delete-btn"
-                                  title="Remove"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => removeMediaUrl(index)}
+                                className="btn-danger-small qr-media-delete-btn"
+                                title="Remove / Clear"
+                                aria-label="Remove / Clear"
+                              >
+                                <Trash2 size={16} color="#ffffff" strokeWidth={2} />
+                              </button>
                             </div>
                           </div>
                         )}

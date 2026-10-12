@@ -244,3 +244,31 @@ export const getTemplateAnalytics = async (templateId, start, end) => {
 
   return await response.json();
 };
+
+export const getSendingWindow = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/whatsapp/sending-window`, {
+      credentials: 'include',
+    });
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (err) {
+    console.error('Failed to fetch sending window', err);
+  }
+  // Fallback to local IST calculation if API call fails
+  const now = new Date();
+  const istHour = (now.getUTCHours() + 5 + Math.floor((now.getUTCMinutes() + 30) / 60)) % 24;
+  const istMin = (now.getUTCMinutes() + 30) % 60;
+  const inWindow = istHour >= 8 && istHour < 20;
+  const timeStr = `${istHour % 12 || 12}:${String(istMin).padStart(2, '0')} ${istHour >= 12 ? 'PM' : 'AM'}`;
+  return {
+    isWithinWindow: inWindow,
+    currentIstTime: timeStr,
+    startTime: '08:00 AM',
+    endTime: '08:00 PM',
+    timeZone: 'Asia/Kolkata',
+    status: inWindow ? 'active' : 'night_paused',
+    nextWindowOpensAt: inWindow ? 'Active now until 08:00 PM IST' : (istHour < 8 ? 'Today at 08:00 AM IST' : 'Tomorrow at 08:00 AM IST')
+  };
+};

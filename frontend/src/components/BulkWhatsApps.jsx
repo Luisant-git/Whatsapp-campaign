@@ -8,6 +8,7 @@ import { sendBulkMessages } from "../api/whatsapp";
 import { getAllSettings, getSettings } from "../api/auth";
 import { groupAPI } from "../api/group";
 import { useToast } from "../contexts/ToastContext";
+import MetaSendingWindowBar from "./MetaSendingWindowBar";
 import "../styles/BulkWhatsApps.scss";
 
 const BulkWhatsApp = () => {
@@ -238,43 +239,9 @@ const BulkWhatsApp = () => {
         </div>
       </div>
 
-      {/* Meta Healthy Sending Hours Banner */}
-      <div style={{
-        background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
-        border: '1px solid #86efac',
-        borderRadius: '12px',
-        padding: '14px 18px',
-        marginBottom: '24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '12px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            width: '38px', height: '38px', borderRadius: '10px',
-            background: '#dcfce7', color: '#16a34a',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px'
-          }}>
-            🕒
-          </div>
-          <div>
-            <div style={{ fontSize: '14px', fontWeight: '700', color: '#14532d' }}>
-              Meta Healthy Sending Hours: 8:00 AM – 8:00 PM IST
-            </div>
-            <div style={{ fontSize: '13px', color: '#166534', marginTop: '2px' }}>
-              Campaign messages are only sent between 8:00 AM and 8:00 PM IST to protect your WhatsApp number quality and respect customers' night hours. Outside this window, campaigns automatically pause and resume at 8:00 AM IST.
-            </div>
-          </div>
-        </div>
-        <div style={{
-          background: '#fff', border: '1px solid #bbf7d0', borderRadius: '8px',
-          padding: '6px 12px', fontSize: '12px', fontWeight: '600', color: '#15803d'
-        }}>
-          TimeZone: Asia/Kolkata
-        </div>
-      </div>
+      {/* Meta WhatsApp Sending Window Bar (Short, Bold, WhatsApp Style) */}
+      <MetaSendingWindowBar />
+
 
       <div className="content-grid">
         {/* FORM SECTION */}

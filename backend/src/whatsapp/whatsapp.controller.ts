@@ -29,7 +29,9 @@ import { SendMessageDto, SendBulkDto, SendMediaDto, MessageResponseDto, BulkMess
 import { SessionGuard } from '../auth/session.guard';
 import { FlowAppointmentService } from '../flow-appointment/flow-appointment.service';
 import { MetaCatalogService } from '../ecommerce/meta-catalog.service';
+import { CentralPrismaService } from '../central-prisma.service';
 import { Public } from '../auth/public.decorator';
+import { getAllowedSendingWindowInfo, isWithinAllowedSendingHours } from '../utils/campaign-window.util';
  
 @ApiTags('WhatsApp')
 @Controller('whatsapp')
@@ -38,8 +40,37 @@ export class WhatsappController {
     private readonly whatsappService: WhatsappService,
     private readonly campaignService: CampaignService,
     private readonly flowAppointmentService: FlowAppointmentService,
-    private readonly metaCatalogService: MetaCatalogService
+    private readonly metaCatalogService: MetaCatalogService,
+    private readonly centralPrisma: CentralPrismaService
   ) {}
+
+  private async forwardTenantWebhookIfConfigured(phoneNumberId?: string, body?: any) {
+    if (!phoneNumberId || !body) return;
+    try {
+      const rows: any[] = await this.centralPrisma.$queryRawUnsafe(`
+        SELECT "callbackUrl" 
+        FROM "TenantWebhookForward" 
+        WHERE "phoneNumberId" = $1 AND "isActive" = true 
+        LIMIT 1;
+      `, phoneNumberId);
+
+      if (rows && rows.length > 0 && rows[0].callbackUrl) {
+        const targetUrl = rows[0].callbackUrl;
+        console.log(`[WebhookForwarder] 🚀 Forwarding webhook for Phone ${phoneNumberId} to ${targetUrl}`);
+        require('axios').post(targetUrl, body)
+          .then((res: any) => console.log(`[WebhookForwarder] ✅ Forwarded to ${targetUrl} successfully (Status: ${res.status})`))
+          .catch((err: any) => console.error(`[WebhookForwarder] ❌ Failed to forward to ${targetUrl}:`, err.message));
+      }
+    } catch (err: any) {
+      console.error('[WebhookForwarder] Error checking forwarding table:', err.message);
+    }
+  }
+
+  @Get('sending-window')
+  @ApiOperation({ summary: 'Get allowed campaign sending window info (8 AM - 8 PM IST)' })
+  getSendingWindow() {
+    return getAllowedSendingWindowInfo();
+  }
  
   @Public()
   @Get('webhook/:verifyToken')
@@ -133,8 +164,13 @@ export class WhatsappController {
       throw new UnauthorizedException('Invalid x-hub-signature-256');
     }
 
-    // Check if the webhook is meant for the Daily-Kurtis Phone Number
+    // Check if a specific tenant has configured a custom webhook forwarding URL
     const phoneNumberId = body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
+    if (phoneNumberId) {
+      this.forwardTenantWebhookIfConfigured(phoneNumberId, body).catch(() => {});
+    }
+
+    // Check if the webhook is meant for the Daily-Kurtis Phone Number
     if (phoneNumberId === '1239751119221958') {
       try {
         await require('axios').post('https://dailykurtis.api.luisant.cloud/whatsapp/webhook', body);
@@ -341,6 +377,10 @@ export class WhatsappController {
     }
 
     const phoneNumberId = body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
+    if (phoneNumberId) {
+      this.forwardTenantWebhookIfConfigured(phoneNumberId, body).catch(() => {});
+    }
+
     if (phoneNumberId === '1239751119221958') {
       try {
         await require('axios').post('https://dailykurtis.api.luisant.cloud/whatsapp/webhook', body);
@@ -552,12 +592,21 @@ async getMessages(
         });
       });
 
+      const windowInfo = getAllowedSendingWindowInfo();
+      const message = windowInfo.isWithinWindow
+        ? 'Campaign started successfully. Messages are being sent in the background.'
+        : 'Campaign queued: Messages will start sending automatically at 8:00 AM IST to follow Meta healthy sending rules.';
+
       // Return immediately
       return {
         success: true,
         campaignName,
         campaignId: campaign.id,
-        message: 'Campaign started successfully. Messages are being sent in the background.',
+        status: windowInfo.isWithinWindow ? 'running' : 'paused_outside_hours',
+        statusLabel: windowInfo.isWithinWindow ? 'Running' : 'Paused – Outside Sending Hours',
+        rescheduledFor: windowInfo.nextWindowOpensAt,
+        isNightPaused: !windowInfo.isWithinWindow,
+        message,
         totalContacts: contacts.length
       };
     }
@@ -781,10 +830,19 @@ async getMessages(
       });
     });
 
+    const windowInfo = getAllowedSendingWindowInfo();
+    const message = windowInfo.isWithinWindow
+      ? 'Campaign started successfully'
+      : 'Campaign queued for morning: Outside allowed hours (8:00 AM - 8:00 PM IST). Messages will start sending automatically at 8:00 AM IST.';
+
     // Return immediately
     return {
       success: true,
-      message: 'Campaign started successfully',
+      message,
+      status: windowInfo.isWithinWindow ? 'running' : 'paused_outside_hours',
+      statusLabel: windowInfo.isWithinWindow ? 'Running' : 'Paused – Outside Sending Hours',
+      rescheduledFor: windowInfo.nextWindowOpensAt,
+      isNightPaused: !windowInfo.isWithinWindow,
       campaignId
     };
   }
@@ -805,9 +863,18 @@ async getMessages(
       });
     });
 
+    const windowInfo = getAllowedSendingWindowInfo();
+    const message = windowInfo.isWithinWindow
+      ? 'Campaign resumed successfully'
+      : 'Campaign queued to resume: Outside allowed hours (8:00 AM - 8:00 PM IST). Messages will resume automatically at 8:00 AM IST.';
+
     return {
       success: true,
-      message: 'Campaign resumed successfully',
+      message,
+      status: windowInfo.isWithinWindow ? 'running' : 'paused_outside_hours',
+      statusLabel: windowInfo.isWithinWindow ? 'Running' : 'Paused – Outside Sending Hours',
+      rescheduledFor: windowInfo.nextWindowOpensAt,
+      isNightPaused: !windowInfo.isWithinWindow,
       campaignId
     };
   }

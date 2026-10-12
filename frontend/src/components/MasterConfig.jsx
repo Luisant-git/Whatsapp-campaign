@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getMasterConfigs, createMasterConfig, updateMasterConfig, deleteMasterConfig, subscribeToWABA, setAppWebhook } from "../api/masterConfig";
+import { getMasterConfigs, createMasterConfig, updateMasterConfig, deleteMasterConfig, subscribeToWABA, setAppWebhook, getAppWebhook } from "../api/masterConfig";
 import { getAllSettings } from "../api/auth";
 import { useToast } from '../contexts/ToastContext';
 import { API_BASE_URL } from "../api/config";
@@ -50,7 +50,10 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
   const [catalogUserAccessToken, setCatalogUserAccessToken] = useState('');
   const [showWebhookModal, setShowWebhookModal] = useState(false);
   const [webhookConfigId, setWebhookConfigId] = useState(null);
-  const [callbackUrl, setCallbackUrl] = useState('https://enquiry.api.luisant.cloud/api/webhook');
+  const [webhookConfigName, setWebhookConfigName] = useState('');
+  const [webhookPhoneNumberId, setWebhookPhoneNumberId] = useState('');
+  const [callbackUrl, setCallbackUrl] = useState('');
+  const [isForwardingActive, setIsForwardingActive] = useState(false);
   const [settingWebhook, setSettingWebhook] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [recipientMarket, setRecipientMarket] = useState('IN');
@@ -560,24 +563,54 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
     }
   };
 
-  const handleSetWebhookClick = (config) => {
+  const handleSetWebhookClick = async (config) => {
     setWebhookConfigId(config.id);
+    setWebhookConfigName(config.name || `Config #${config.id}`);
+    setWebhookPhoneNumberId(config.phoneNumberId || '');
+    setCallbackUrl('');
+    setIsForwardingActive(false);
     setShowWebhookModal(true);
+
+    try {
+      const data = await getAppWebhook(config.id);
+      if (data && data.callbackUrl) {
+        setCallbackUrl(data.callbackUrl);
+        setIsForwardingActive(data.isForwarding !== false);
+      }
+    } catch (e) {
+      console.error('Failed to fetch existing webhook forward URL:', e);
+    }
   };
 
   const submitSetWebhook = async () => {
-    if (!callbackUrl) {
-      showError('Please enter a callback URL');
+    if (!callbackUrl || !callbackUrl.trim()) {
+      showError('Please enter a callback URL, or click "Reset to Default" to remove forwarding.');
       return;
     }
     setSettingWebhook(true);
     try {
-      await setAppWebhook(webhookConfigId, callbackUrl);
-      showSuccess('Successfully configured App Webhook URL in Meta!');
+      const res = await setAppWebhook(webhookConfigId, callbackUrl.trim());
+      showSuccess(res.message || 'Webhook forwarding configured for this tenant!');
       setShowWebhookModal(false);
     } catch (error) {
       console.error(error);
-      showError(error.message || 'Failed to set app webhook');
+      showError(error.message || 'Failed to set webhook forwarding');
+    } finally {
+      setSettingWebhook(false);
+    }
+  };
+
+  const submitClearWebhook = async () => {
+    setSettingWebhook(true);
+    try {
+      const res = await setAppWebhook(webhookConfigId, '');
+      showSuccess(res.message || 'Webhook forwarding cleared. Reverted to default webhook!');
+      setCallbackUrl('');
+      setIsForwardingActive(false);
+      setShowWebhookModal(false);
+    } catch (error) {
+      console.error(error);
+      showError(error.message || 'Failed to clear webhook forwarding');
     } finally {
       setSettingWebhook(false);
     }
@@ -1585,35 +1618,64 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
 
       {showWebhookModal && (
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content" style={{ maxWidth: '580px' }}>
             <div className="modal-header">
-              <h2>Set Meta Webhook Callback URL</h2>
+              <h2>Set Forwarding Webhook URL</h2>
               <button onClick={() => setShowWebhookModal(false)} className="close-btn">
                 <X size={20} />
               </button>
             </div>
             
             <div style={{ padding: '20px 0' }}>
-              <p style={{ marginBottom: '16px', color: '#666' }}>
-                This will update your Meta App's webhook callback URL. Ensure your endpoint is ready to receive webhook verification.
-              </p>
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px' }}>
+                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#1e293b' }}>
+                  {webhookConfigName}
+                </div>
+                <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>
+                  Phone Number ID: <strong>{webhookPhoneNumberId}</strong>
+                </div>
+              </div>
+
+              <div style={{ background: '#e0f2fe', border: '1px solid #bae6fd', borderRadius: '6px', padding: '12px', marginBottom: '18px', fontSize: '13px', color: '#0369a1', lineHeight: '1.5' }}>
+                <strong>📌 Per-Tenant Routing:</strong> Only incoming webhooks for this specific phone number will be forwarded to this callback URL. All other tenants will continue using the default webhook (<code>https://whatsapp.api.luisant.cloud/api/webhook</code>).
+              </div>
+
               <div className="form-group">
-                <label>Callback URL *</label>
+                <label style={{ fontWeight: '600', marginBottom: '6px', display: 'block' }}>Forwarding Callback URL</label>
                 <input
                   type="text"
-                  placeholder="https://your-api.com/webhook"
+                  placeholder="e.g. https://enquiry.api.luisant.cloud/api/webhook"
                   value={callbackUrl}
                   onChange={(e) => setCallbackUrl(e.target.value)}
-                  style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px' }}
+                  style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }}
                 />
+                <small style={{ color: '#64748b', display: 'block', marginTop: '6px' }}>
+                  Incoming messages & status receipts for this number will be forwarded via POST to this URL.
+                </small>
               </div>
-              <div className="form-actions" style={{ marginTop: '24px' }}>
-                <button type="button" onClick={() => setShowWebhookModal(false)} className="btn-secondary">
-                  Cancel
-                </button>
-                <button type="button" onClick={submitSetWebhook} className="btn-primary" disabled={settingWebhook}>
-                  {settingWebhook ? 'Saving...' : 'Set Webhook URL'}
-                </button>
+
+              <div className="form-actions" style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  {isForwardingActive && (
+                    <button 
+                      type="button" 
+                      onClick={submitClearWebhook} 
+                      className="btn-secondary" 
+                      disabled={settingWebhook}
+                      style={{ color: '#ef4444', borderColor: '#fca5a5' }}
+                    >
+                      Reset to Default (No Forwarding)
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="button" onClick={() => setShowWebhookModal(false)} className="btn-secondary">
+                    Cancel
+                  </button>
+                  <button type="button" onClick={submitSetWebhook} className="btn-primary" disabled={settingWebhook}>
+                    {settingWebhook ? 'Saving...' : 'Save Forwarding URL'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

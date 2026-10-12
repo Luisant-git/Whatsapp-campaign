@@ -110,13 +110,17 @@ export class MasterConfigController {
     return this.masterConfigService.subscribeToWABA(parseInt(id), tenantContext);
   }
 
+  @Get(':id/webhook')
+  @ApiOperation({ summary: 'Get configured webhook forward URL for this config' })
+  @ApiResponse({ status: 200, description: 'Successfully retrieved webhook config' })
+  async getAppWebhook(@TenantContext() tenantContext: TenantContextType, @Param('id') id: string) {
+    return this.masterConfigService.getAppWebhook(parseInt(id), tenantContext);
+  }
+
   @Post(':id/set-webhook')
-  @ApiOperation({ summary: 'Set App Webhook URL in Meta' })
-  @ApiResponse({ status: 200, description: 'Successfully set app webhook' })
+  @ApiOperation({ summary: 'Set Webhook Forwarding URL for this tenant' })
+  @ApiResponse({ status: 200, description: 'Successfully configured webhook forwarding' })
   async setAppWebhook(@TenantContext() tenantContext: TenantContextType, @Param('id') id: string, @Body('callbackUrl') callbackUrl: string) {
-    if (!callbackUrl) {
-      throw new BadRequestException('Callback URL is required');
-    }
-    return this.masterConfigService.setAppWebhook(parseInt(id), callbackUrl, tenantContext);
+    return this.masterConfigService.setAppWebhook(parseInt(id), callbackUrl || '', tenantContext);
   }
 }

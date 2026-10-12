@@ -75,22 +75,6 @@ export const subscribeToWABA = async (id) => {
   return await response.json();
 };
 
-export const getAppWebhook = async (id) => {
-  const response = await fetch(`${API_BASE_URL}/master-config/${id}/webhook`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    return { callbackUrl: '', isForwarding: false };
-  }
-
-  return await response.json();
-};
-
 export const setAppWebhook = async (id, callbackUrl) => {
   const response = await fetch(`${API_BASE_URL}/master-config/${id}/set-webhook`, {
     method: 'POST',

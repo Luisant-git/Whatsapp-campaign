@@ -532,97 +532,60 @@ export class MasterConfigService {
     const prisma = this.getPrisma(tenantContext);
     const config = await prisma.masterConfig.findUnique({ where: { id } });
 
-    if (!config) {
-      throw new BadRequestException('Master configuration not found');
+    // Use environment variables or fallback to legacy config if present
+    const verifyToken = process.env.META_VERIFY_TOKEN || (config && config.verifyToken);
+    
+    if (!verifyToken) {
+      throw new BadRequestException('Verify Token is required in the environment or configuration');
     }
 
-    const phoneNumberId = config.phoneNumberId;
-    const tenantId = parseInt(tenantContext.tenantId, 10) || null;
+    const appId = (process.env.META_APP_ID || (config && config.appId) || '').trim();
+    const appSecret = (process.env.META_APP_SECRET || (config && config.appSecret) || '').trim();
 
-    // Ensure the central TenantWebhookForward table exists
+    if (!appId || !appSecret) {
+      throw new BadRequestException('Meta App ID and App Secret must be configured');
+    }
+
+    // Set Webhook for App
+    const subscribeUrl = `https://graph.facebook.com/v20.0/${appId}/subscriptions?access_token=${appId}|${appSecret}`;
+    
+    // Prepare url parameters
+    const params = new URLSearchParams({
+      object: 'whatsapp_business_account',
+      callback_url: callbackUrl,
+      verify_token: verifyToken,
+      fields: 'messages'
+    });
+    
     try {
-      await this.centralPrisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "TenantWebhookForward" (
-          "id" SERIAL PRIMARY KEY,
-          "phoneNumberId" TEXT UNIQUE NOT NULL,
-          "tenantId" INTEGER,
-          "callbackUrl" TEXT NOT NULL,
-          "isActive" BOOLEAN DEFAULT true,
-          "createdAt" TIMESTAMP DEFAULT NOW(),
-          "updatedAt" TIMESTAMP DEFAULT NOW()
+      const response = await fetch(subscribeUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params.toString()
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new BadRequestException(
+          error.error?.message || 'Failed to set app webhook'
         );
-      `);
-    } catch (e) {
-      // Table creation handled gracefully
-    }
+      }
 
-    // If callbackUrl is empty or user requested clearing, deactivate forwarding
-    if (!callbackUrl || !callbackUrl.trim()) {
-      await this.centralPrisma.$executeRawUnsafe(`
-        UPDATE "TenantWebhookForward"
-        SET "isActive" = false, "updatedAt" = NOW()
-        WHERE "phoneNumberId" = $1;
-      `, phoneNumberId);
-
+      const data = await response.json();
       return {
         success: true,
-        message: `Cleared webhook forwarding for ${config.name} (${phoneNumberId}). Reverted to default webhook (no forwarding).`,
-        phoneNumberId,
-        callbackUrl: '',
-        isForwarding: false,
+        message: 'Successfully configured App Webhook URL in Meta.',
+        data,
       };
-    }
-
-    const trimmedUrl = callbackUrl.trim();
-
-    // Upsert forwarding rule for this specific phone number ID only
-    await this.centralPrisma.$executeRawUnsafe(`
-      INSERT INTO "TenantWebhookForward" ("phoneNumberId", "tenantId", "callbackUrl", "isActive", "updatedAt")
-      VALUES ($1, $2, $3, true, NOW())
-      ON CONFLICT ("phoneNumberId") 
-      DO UPDATE SET "callbackUrl" = EXCLUDED."callbackUrl", "isActive" = true, "updatedAt" = NOW();
-    `, phoneNumberId, tenantId, trimmedUrl);
-
-    return {
-      success: true,
-      message: `Webhook forwarding configured for ${config.name} (${phoneNumberId}). Incoming messages for this number will forward to ${trimmedUrl}. All other tenants will continue using the default webhook.`,
-      phoneNumberId,
-      callbackUrl: trimmedUrl,
-      isForwarding: true,
-    };
-  }
-
-  async getAppWebhook(id: number, tenantContext: TenantContext) {
-    const prisma = this.getPrisma(tenantContext);
-    const config = await prisma.masterConfig.findUnique({ where: { id } });
-
-    if (!config) {
-      return { phoneNumberId: '', callbackUrl: '', isForwarding: false };
-    }
-
-    try {
-      const rows: any[] = await this.centralPrisma.$queryRawUnsafe(`
-        SELECT "callbackUrl", "isActive"
-        FROM "TenantWebhookForward"
-        WHERE "phoneNumberId" = $1 AND "isActive" = true
-        LIMIT 1;
-      `, config.phoneNumberId);
-
-      if (rows && rows.length > 0) {
-        return {
-          phoneNumberId: config.phoneNumberId,
-          callbackUrl: rows[0].callbackUrl,
-          isForwarding: rows[0].isActive === true,
-        };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
       }
-    } catch (e) {
-      // Ignore if table query fails
+      throw new BadRequestException(
+        `Failed to set app webhook: ${error.message}`
+      );
     }
-
-    return {
-      phoneNumberId: config.phoneNumberId,
-      callbackUrl: '',
-      isForwarding: false,
-    };
   }
-}
+}

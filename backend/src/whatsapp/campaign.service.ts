@@ -2,14 +2,6 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { WhatsappService } from './whatsapp.service';
 import { CreateCampaignDto, UpdateCampaignDto } from './dto/campaign.dto';
-import {
-  isWithinAllowedSendingHours,
-  getAllowedSendingWindowInfo,
-  CAMPAIGN_STATUS_OUTSIDE_HOURS,
-  isOutsideSendingHoursStatus,
-  formatCampaignStatusLabel,
-  getNextAllowedWindowStart
-} from '../utils/campaign-window.util';
 
 @Injectable()
 export class CampaignService {
@@ -91,14 +83,11 @@ export class CampaignService {
     });
 
     if (!campaign) throw new NotFoundException('Campaign not found');
-    return {
-      ...campaign,
-      statusLabel: formatCampaignStatusLabel(campaign.status),
-    };
+    return campaign;
   }
 
   async getCampaigns(userId: number, settingsName?: string) {
-    const campaigns = await this.prisma.campaign.findMany({
+    return this.prisma.campaign.findMany({
       where: {
         ...(settingsName ? { settings: { templateName: settingsName } } : {}),
       },
@@ -109,11 +98,6 @@ export class CampaignService {
       },
       orderBy: { createdAt: 'desc' },
     });
-
-    return campaigns.map(c => ({
-      ...c,
-      statusLabel: formatCampaignStatusLabel(c.status),
-    }));
   }
 
   async updateCampaign(id: number, updateCampaignDto: UpdateCampaignDto, userId: number) {
@@ -166,30 +150,6 @@ export class CampaignService {
   async runCampaign(id: number, userId: number, isResume: boolean = false) {
     const campaign = await this.getCampaign(id, userId);
 
-    // 1. Meta Healthy Rule Check: Allowed hours 8:00 AM - 8:00 PM IST
-    if (!isWithinAllowedSendingHours()) {
-      const windowInfo = getAllowedSendingWindowInfo();
-      this.logger.warn(`Campaign ${id} attempted outside allowed sending window (8:00 AM - 8:00 PM IST). Pausing campaign until morning 8:00 AM IST.`);
-      await this.prisma.campaign.update({
-        where: { id },
-        data: {
-          status: CAMPAIGN_STATUS_OUTSIDE_HOURS,
-        }
-      });
-      return {
-        campaignId: id,
-        totalContacts: campaign.contacts?.length || 0,
-        successCount: campaign.successCount || 0,
-        failedCount: campaign.failedCount || 0,
-        status: CAMPAIGN_STATUS_OUTSIDE_HOURS,
-        statusLabel: 'Paused – Outside Sending Hours',
-        rescheduledFor: windowInfo.nextWindowOpensAt,
-        nextWindowStartDate: windowInfo.nextWindowStartDate,
-        isNightPaused: true,
-        message: 'Campaign paused: Outside allowed sending hours (8:00 AM - 8:00 PM IST). Messages will start sending automatically at 8:00 AM IST.'
-      };
-    }
-
     // Update campaign status to running
     await this.prisma.campaign.update({
       where: { id },
@@ -220,47 +180,18 @@ export class CampaignService {
       let contactsToSend = campaign.contacts || [];
 
       if (isResume) {
-        // Find all phones that already have a message for this campaign to prevent duplicates
+        // Find all phones that already have a message for this campaign
         const existingMessages = await this.prisma.campaignMessage.findMany({
           where: { campaignId: id },
           select: { phone: true }
         });
-        const processedPhones = new Set(
-          existingMessages.flatMap(m => [
-            m.phone,
-            this.formatPhoneNumber(m.phone),
-            String(m.phone || '').replace(/\D/g, '')
-          ])
-        );
+        const processedPhones = new Set(existingMessages.map(m => m.phone));
 
         contactsToSend = contactsToSend.filter(c => {
           const p1 = c.phone;
           const p2 = this.formatPhoneNumber(c.phone);
-          const p3 = String(c.phone || '').replace(/\D/g, '');
-          return !processedPhones.has(p1) && !processedPhones.has(p2) && !processedPhones.has(p3);
+          return !processedPhones.has(p1) && !processedPhones.has(p2);
         });
-      }
-
-      // Filter out opted-out contacts (Stop / stop label)
-      try {
-        const stopLabels = await this.prisma.chatLabel.findMany({
-          where: { labels: { hasSome: ['Stop', 'stop'] } },
-          select: { phone: true }
-        });
-        const stopPhones = new Set(stopLabels.map(l => String(l.phone || '').trim().replace(/\D/g, '')));
-        if (stopPhones.size > 0) {
-          const initialCount = contactsToSend.length;
-          contactsToSend = contactsToSend.filter(c => {
-            const clean = String(c.phone || '').trim().replace(/\D/g, '');
-            return !stopPhones.has(clean);
-          });
-          const skipped = initialCount - contactsToSend.length;
-          if (skipped > 0) {
-            this.logger.log(`Campaign ${id}: Suppressed ${skipped} contact(s) due to opt-out (STOP label)`);
-          }
-        }
-      } catch (optErr) {
-        this.logger.warn(`Failed checking stop labels for campaign ${id}: ${optErr.message}`);
       }
 
       totalContactsCount = contactsToSend.length;
@@ -288,19 +219,9 @@ export class CampaignService {
         break; // Stop processing
       }
 
-      if (currentCampaign?.status === 'paused' || isOutsideSendingHoursStatus(currentCampaign?.status)) {
+      if (currentCampaign?.status === 'paused') {
         this.logger.log(`Campaign ${id} was paused.`);
         break; // Pause processing
-      }
-
-      // Check if current time reached 8:00 PM IST cut-off
-      if (!isWithinAllowedSendingHours()) {
-        this.logger.log(`Campaign ${id} reached 8:00 PM IST cut-off. Pausing remaining batches until 8:00 AM IST.`);
-        await this.prisma.campaign.update({
-          where: { id },
-          data: { status: CAMPAIGN_STATUS_OUTSIDE_HOURS }
-        });
-        break;
       }
 
       const batch = batches[batchIndex];
@@ -446,8 +367,8 @@ export class CampaignService {
       // Update final campaign status and counts GUARANTEED
       try {
         const currentCampaign = await this.prisma.campaign.findUnique({ where: { id }, select: { status: true } });
-        // Only mark as completed if it wasn't explicitly stopped, paused, or paused outside hours
-        if (currentCampaign?.status !== 'stopped' && currentCampaign?.status !== 'paused' && !isOutsideSendingHoursStatus(currentCampaign?.status)) {
+        // Only mark as completed if it wasn't explicitly stopped or paused
+        if (currentCampaign?.status !== 'stopped' && currentCampaign?.status !== 'paused') {
           await this.prisma.campaign.update({
             where: { id },
             data: {

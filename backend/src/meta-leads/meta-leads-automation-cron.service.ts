@@ -4,8 +4,6 @@ import { CentralPrismaService } from '../central-prisma.service';
 import { TenantPrismaService } from '../tenant-prisma.service';
 import axios from 'axios';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
-import { CampaignService } from '../whatsapp/campaign.service';
-import { isWithinAllowedSendingHours, getAllowedSendingWindowInfo } from '../utils/campaign-window.util';
 
 import { ModuleRef, ContextIdFactory } from '@nestjs/core';
 
@@ -27,16 +25,6 @@ export class MetaLeadsAutomationCronService {
       this.logger.debug('Cron already running, skipping this minute...');
       return;
     }
-
-    // Healthy Meta campaign sending rule: Only send between 8:00 AM and 8:00 PM IST
-    if (!isWithinAllowedSendingHours()) {
-      const windowInfo = getAllowedSendingWindowInfo();
-      this.logger.debug(
-        `Campaign Automation Cron: Outside allowed sending hours (8:00 AM - 8:00 PM IST). Current IST time: ${windowInfo.currentIstTime}. Messages paused for the night; will resume at 8:00 AM IST.`
-      );
-      return;
-    }
-
     this.isRunning = true;
     this.logger.debug('Running Meta Leads Automation Cron Job');
     try {
@@ -75,22 +63,9 @@ export class MetaLeadsAutomationCronService {
       trace.push(`✗ ${msg}`);
     };
 
-    // Check sending window (8:00 AM - 8:00 PM IST)
-    if (!isWithinAllowedSendingHours()) {
-      const windowInfo = getAllowedSendingWindowInfo();
-      warn(`Outside allowed sending hours (8:00 AM - 8:00 PM IST). Current IST time: ${windowInfo.currentIstTime}. Template sending paused until 8:00 AM IST.`);
-      return {
-        trace: [
-          ...trace,
-          `🌙 Outside allowed campaign sending hours (8:00 AM - 8:00 PM IST). Current IST time: ${windowInfo.currentIstTime}. Messages are paused for the night to protect WhatsApp reputation and will resume at 8:00 AM IST.`
-        ]
-      };
-    }
-
     let whatsappService: WhatsappService;
-    let contextId: any;
     try {
-      contextId = ContextIdFactory.create();
+      const contextId = ContextIdFactory.create();
       this.moduleRef.registerRequestByContextId({ tenantContext: { tenantId, dbUrl } }, contextId);
       whatsappService = await this.moduleRef.resolve(WhatsappService, contextId, { strict: false });
     } catch (e) {
@@ -101,27 +76,6 @@ export class MetaLeadsAutomationCronService {
     try {
       const client = await this.tenantPrisma.getTenantClientReady(tenantId, dbUrl) as any;
       log('DB client ready');
-
-      // Auto-resume any campaigns that were paused for the night window
-      try {
-        const nightPausedCampaigns = await client.campaign.findMany({
-          where: {
-            status: { in: ['paused_outside_hours', 'paused_night'] }
-          }
-        });
-        if (nightPausedCampaigns.length > 0) {
-          log(`Found ${nightPausedCampaigns.length} campaign(s) paused for the night window. Auto-resuming...`);
-          const campaignService = await this.moduleRef.resolve(CampaignService, contextId, { strict: false });
-          for (const camp of nightPausedCampaigns) {
-            log(`Auto-resuming night-paused campaign: id=${camp.id}, name="${camp.name}"`);
-            campaignService.runCampaign(camp.id, 0, true).catch((e: any) => {
-              this.logger.error(`Error auto-resuming campaign ${camp.id}: ${e.message}`);
-            });
-          }
-        }
-      } catch (campResumeErr: any) {
-        // Ignore if campaign table doesn't have records or other benign error
-      }
 
       const activeRules = await client.metaLeadAutomation.findMany({
         where: { isActive: true },
@@ -191,41 +145,6 @@ export class MetaLeadsAutomationCronService {
             take: 100 // Batch limit to prevent memory exhaustion
           });
           log(`Found ${pendingRecords.length} pending lead(s) created after ${earliestCreatedAt.toISOString()}`);
-        }
-
-        // Check for customer opt-out (Stop / stop label)
-        let stopPhoneSet = new Set<string>();
-        try {
-          const stopLabels = await client.chatLabel.findMany({
-            where: { labels: { hasSome: ['Stop', 'stop'] } },
-            select: { phone: true },
-          });
-          stopPhoneSet = new Set(stopLabels.map((l: any) => String(l.phone || '').trim().replace(/\D/g, '')));
-        } catch (stopErr: any) {
-          warn(`Could not query stop labels: ${stopErr.message}`);
-        }
-
-        if (stopPhoneSet.size > 0 && pendingRecords.length > 0) {
-          const optedOutRecords = pendingRecords.filter((r: any) => {
-            const clean = String(r.phone || '').trim().replace(/\D/g, '');
-            return stopPhoneSet.has(clean);
-          });
-          if (optedOutRecords.length > 0) {
-            const optedOutIds = optedOutRecords.map((r: any) => r.id);
-            if (isContact) {
-              await client.contact.updateMany({
-                where: { id: { in: optedOutIds } },
-                data: { lastAutomationStep: sequenceRules.length },
-              });
-            } else {
-              await client.metaLead.updateMany({
-                where: { id: { in: optedOutIds } },
-                data: { lastAutomationStep: sequenceRules.length },
-              });
-            }
-            log(`Suppressed ${optedOutRecords.length} opted-out record(s) (STOP label) from automation sequence.`);
-            pendingRecords = pendingRecords.filter((r: any) => !optedOutIds.includes(r.id));
-          }
         }
 
         if (!pendingRecords.length) {

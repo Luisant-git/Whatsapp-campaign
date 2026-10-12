@@ -4,7 +4,6 @@ import { CentralPrismaService } from '../central-prisma.service';
 import { TenantPrismaService } from '../tenant-prisma.service';
 import { AutoTemplateSenderService } from './auto-template-sender.service';
 import { Prisma, PrismaClient as TenantPrismaClient } from '@prisma/client-tenant';
-import { isWithinAllowedSendingHours } from '../utils/campaign-window.util';
 
 const IST_OFFSET_MIN = 330;
 
@@ -116,13 +115,6 @@ export class AutomationCronService {
       this.logger.debug('runDailyAutomation is already running, skipping this minute...');
       return;
     }
-
-    // Healthy Meta campaign sending rule: Only send between 8:00 AM and 8:00 PM IST
-    if (!isWithinAllowedSendingHours()) {
-      this.logger.debug('runDailyAutomation: Outside allowed sending hours (8:00 AM - 8:00 PM IST). Automation messages paused for the night.');
-      return;
-    }
-
     this.isRunningRunDailyAutomation = true;
     try {
       const tenants = await this.centralPrisma.tenant.findMany({

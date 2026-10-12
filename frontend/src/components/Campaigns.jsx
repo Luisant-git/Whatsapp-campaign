@@ -292,8 +292,8 @@ const Campaigns = ({ onResendFailed }) => {
                 <td>{campaign.templateName}</td>
                 <td>{campaign.group?.name || '—'}</td>
                 <td>
-                  <span className={`status-badge ${campaign.status}`} title={campaign.status === 'paused_night' ? 'Night pause: Messages held until 8:00 AM IST to respect customer sleeping hours' : ''}>
-                    {campaign.status === 'paused_night' ? '🌙 PAUSED (NIGHT - 8 AM)' : (campaign.status ? campaign.status.toUpperCase() : 'UNKNOWN')}
+                  <span className={`status-badge ${campaign.status}`}>
+                    {campaign.status.toUpperCase()}
                   </span>
                 </td>
                 <td className="results">
@@ -325,19 +325,19 @@ const Campaigns = ({ onResendFailed }) => {
                       </button>
                     </>
                   )}
-                  {(campaign.status === 'paused' || campaign.status === 'paused_night') && (
+                  {campaign.status === 'paused' && (
                     <button
                       onClick={() => handleResumeCampaign(campaign.id)}
                       disabled={loading}
                       className="resume-btn"
-                      title={campaign.status === 'paused_night' ? 'Resume Campaign Now (Override Night Pause)' : 'Resume Campaign'}
+                      title="Resume Campaign"
                     >
                       <Play size={16} />
                     </button>
                   )}
                   <button
                     onClick={() => handleRerunCampaign(campaign.id)}
-                    disabled={loading || campaign.status === 'running' || campaign.status === 'paused' || campaign.status === 'paused_night'}
+                    disabled={loading || campaign.status === 'running' || campaign.status === 'paused'}
                     className="rerun-btn"
                     title="Rerun Campaign"
                   >

@@ -2,7 +2,6 @@ import { Controller, Get, Post, Patch, Body, Param, Query, Req, UseInterceptors,
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MetaLeadsService } from './meta-leads.service';
 import { MetaLeadsAutomationCronService } from './meta-leads-automation-cron.service';
-import { getAllowedSendingWindowInfo } from '../utils/campaign-window.util';
 import csv from 'csv-parser';
 import * as crypto from 'crypto';
 
@@ -12,11 +11,6 @@ export class MetaLeadsController {
     private readonly metaLeadsService: MetaLeadsService,
     private readonly automationCronService: MetaLeadsAutomationCronService,
   ) { }
-
-  @Get('sending-window')
-  getSendingWindow() {
-    return getAllowedSendingWindowInfo();
-  }
 
   private async getTenantContext(req: any): Promise<{ tenantId: string; dbUrl: string }> {
     // Try tenantContext from middleware first

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Trash2, Clock, Play, Target, MessageSquare, AlertTriangle, HelpCircle, CheckCircle, XCircle, Info, Zap, Bot, RefreshCw, Timer, ClipboardList, ShieldAlert, Moon, Sun, ShieldCheck } from 'lucide-react';
+import { Trash2, Clock, Play, Target, MessageSquare, AlertTriangle, HelpCircle, CheckCircle, XCircle, Info, Zap, Bot, RefreshCw, Timer, ClipboardList, ShieldAlert } from 'lucide-react';
 import '../styles/Settings.css';
 import Select from 'react-select';
 
@@ -224,7 +224,6 @@ const MetaLeadsAutomation = () => {
   const [newRuleId, setNewRuleId] = useState(null); // for highlight animation
   const [newRuleGroupKey, setNewRuleGroupKey] = useState(null); // hide progress for new sequence
   const [groupProgressMap, setGroupProgressMap] = useState({}); // track step completions
-  const [sendingWindow, setSendingWindow] = useState(null);
 
   const [formData, setFormData] = useState({
     targetType: 'all', campaignNames: [], groupIds: [],
@@ -236,37 +235,12 @@ const MetaLeadsAutomation = () => {
     'Content-Type': 'application/json',
   });
 
-  const fetchSendingWindow = useCallback(async () => {
-    try {
-      const { data } = await axios.get(`${API_BASE_URL}/meta-leads/sending-window`, { headers: getHeaders(), withCredentials: true });
-      if (data) setSendingWindow(data);
-    } catch {
-      const now = new Date();
-      const istHour = (now.getUTCHours() + 5 + Math.floor((now.getUTCMinutes() + 30) / 60)) % 24;
-      const istMin = (now.getUTCMinutes() + 30) % 60;
-      const inWindow = istHour >= 8 && istHour < 20;
-      const timeStr = `${istHour % 12 || 12}:${String(istMin).padStart(2, '0')} ${istHour >= 12 ? 'PM' : 'AM'}`;
-      setSendingWindow({
-        isWithinWindow: inWindow,
-        currentIstTime: timeStr,
-        startTime: '08:00 AM',
-        endTime: '08:00 PM',
-        timeZone: 'Asia/Kolkata',
-        status: inWindow ? 'active' : 'night_paused',
-        nextWindowOpensAt: inWindow ? 'Active now until 08:00 PM IST' : (istHour < 8 ? 'Today at 08:00 AM IST' : 'Tomorrow at 08:00 AM IST')
-      });
-    }
-  }, []);
-
   useEffect(() => {
     fetchRules();
     fetchTemplates();
     fetchCampaigns();
     fetchContactGroups();
-    fetchSendingWindow();
-    const iv = setInterval(fetchSendingWindow, 30000);
-    return () => clearInterval(iv);
-  }, [fetchSendingWindow]);
+  }, []);
 
   const fetchRules = async () => {
     try {
@@ -502,98 +476,6 @@ const MetaLeadsAutomation = () => {
           >
             <HelpCircle size={16} color="#64748b" /> How it works
           </button>
-        </div>
-      </div>
-
-      {/* ── Meta Healthy Sending Window Card ── */}
-      <div style={{
-        marginBottom: 24,
-        background: sendingWindow?.isWithinWindow
-          ? 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)'
-          : 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)',
-        border: sendingWindow?.isWithinWindow ? '1px solid #86efac' : '1px solid #c4b5fd',
-        borderRadius: 14,
-        padding: '16px 20px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: 10,
-              background: sendingWindow?.isWithinWindow ? '#dcfce7' : '#ddd6fe',
-              color: sendingWindow?.isWithinWindow ? '#15803d' : '#6d28d9',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-            }}>
-              {sendingWindow?.isWithinWindow ? <Sun size={22} color="#15803d" /> : <Moon size={22} color="#6d28d9" />}
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{
-                  fontSize: 15, fontWeight: 700,
-                  color: sendingWindow?.isWithinWindow ? '#14532d' : '#4c1d95'
-                }}>
-                  {sendingWindow?.isWithinWindow
-                    ? 'Meta Healthy Sending Window: OPEN (8:00 AM – 8:00 PM IST)'
-                    : '🌙 Night Protection Mode: PAUSED (Resumes 8:00 AM IST)'}
-                </span>
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px',
-                  padding: '2px 8px', borderRadius: 12,
-                  background: sendingWindow?.isWithinWindow ? '#22c55e' : '#8b5cf6',
-                  color: '#fff'
-                }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff', display: 'inline-block' }} />
-                  {sendingWindow?.isWithinWindow ? 'Active' : 'Night Hold'}
-                </span>
-              </div>
-              <p style={{ margin: '3px 0 0 0', fontSize: 13, color: sendingWindow?.isWithinWindow ? '#166534' : '#5b21b6' }}>
-                {sendingWindow?.isWithinWindow
-                  ? 'Campaign template messages are actively dispatched according to your configured wait times.'
-                  : 'To protect your WhatsApp sender rating and avoid disturbing customers at night, messages are paused and will resume automatically at 8:00 AM IST.'}
-              </p>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <div style={{
-              background: '#fff',
-              border: '1px solid ' + (sendingWindow?.isWithinWindow ? '#bbf7d0' : '#ddd6fe'),
-              borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600,
-              color: '#334155', display: 'flex', alignItems: 'center', gap: 6
-            }}>
-              <Clock size={13} color="#64748b" />
-              <span>Current IST: <strong>{sendingWindow?.currentIstTime || '8:00 AM'}</strong></span>
-            </div>
-            <div style={{
-              background: '#fff',
-              border: '1px solid ' + (sendingWindow?.isWithinWindow ? '#bbf7d0' : '#ddd6fe'),
-              borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600,
-              color: '#334155', display: 'flex', alignItems: 'center', gap: 6
-            }}>
-              <ShieldCheck size={13} color="#16a34a" />
-              <span>Allowed: <strong>8:00 AM – 8:00 PM</strong></span>
-            </div>
-          </div>
-        </div>
-
-        {/* Policy Badges */}
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', paddingTop: 8, borderTop: sendingWindow?.isWithinWindow ? '1px solid #bbf7d0' : '1px solid #ddd6fe', fontSize: 12, color: sendingWindow?.isWithinWindow ? '#166534' : '#5b21b6' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <CheckCircle size={13} color="#16a34a" /> Time Zone: Asia/Kolkata (IST)
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <CheckCircle size={13} color="#16a34a" /> Night Messages: Pause & Auto-Reschedule
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <CheckCircle size={13} color="#16a34a" /> Customer Opt-Out: Immediate STOP suppression
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <CheckCircle size={13} color="#16a34a" /> Failed Messages: Retry within allowed hours
-          </span>
         </div>
       </div>
 
@@ -979,10 +861,9 @@ const MetaLeadsAutomation = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, fontSize: 14, color: '#475569', lineHeight: 1.7 }}>
               {[
                 [<RefreshCw size={14} />, 'Background Execution', 'Automations run every minute in the background. You do not need to keep this page open.'],
-                [<ShieldCheck size={14} />, 'Meta Healthy Sending Window (8 AM – 8 PM IST)', 'Messages are only sent between 8:00 AM and 8:00 PM IST. If a contact reaches delay eligibility overnight, messages are safely paused to avoid disturbing customers and will dispatch at 8:00 AM IST. Customer opt-outs (STOP) are stopped immediately.'],
                 [<Timer size={14} />, 'Relative Wait Times', 'Each step\'s wait time is counted from when the previous step was sent — not from when the contact was created. If Step 1 is "5 min" and Step 2 is "5 min", the second message sends 5 minutes after Step 1 is delivered.'],
                 [<ClipboardList size={14} />, 'Viewing Logs', 'Check the Run Automation Logs page to see delivery status, failures, and which contacts received each step.'],
-                [<ShieldAlert size={14} />, 'Failed Sends & Retries', 'If a message fails to send (e.g. invalid number or template error), it can be retried during the allowed 8:00 AM – 8:00 PM window.'],
+                [<ShieldAlert size={14} />, 'Failed Sends', 'If a message fails to send (e.g. invalid number or template error), the contact stays at that step and the system retries automatically on the next cron tick.'],
               ].map(([icon, title, desc]) => (
                 <div key={title} style={{ background: '#f8fafc', borderRadius: 8, padding: '12px 14px' }}>
                   <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>{icon}{title}</div>

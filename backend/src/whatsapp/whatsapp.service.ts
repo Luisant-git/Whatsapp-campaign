@@ -10,7 +10,6 @@ import { WhatsappEcommerceService } from '../ecommerce/whatsapp-ecommerce.servic
 import { PhoneRouterService } from './phone-router.service';
 import { FlowTriggerService } from '../flow-message/flow-trigger.service';
 import { MetaCredentialService, isCentralMetaCredentialEnabled } from '../meta-credential/meta-credential.service';
-import { isWithinAllowedSendingHours } from '../utils/campaign-window.util';
 
 const globalGrievanceSessions = new Map<string, { step: string; type: string; location?: string; description?: string; photos: string[]; timestamp: number }>();
 
@@ -814,13 +813,13 @@ export class WhatsappService {
   async validateVerifyToken(token: string): Promise<boolean> {
     try {
       console.log(`\n🔍 VALIDATING VERIFY TOKEN: ${token}`);
-
+      
       const isCentral = isCentralMetaCredentialEnabled();
       if (isCentral && process.env.META_VERIFY_TOKEN && process.env.META_VERIFY_TOKEN === token) {
         console.log(`✅ Token found matching global META_VERIFY_TOKEN`);
         return true;
       }
-
+      
       const tenants = await this.centralPrisma.tenant.findMany({
         where: { isActive: true }
       });
@@ -2310,18 +2309,18 @@ export class WhatsappService {
 
         const currentStatusLevel = statusHierarchy[existingMessage.status] || 0;
         let finalStatus = existingMessage.status;
-
+        
         // Explicitly prevent failed events from overwriting terminal success states
         if (status === 'failed') {
           if (existingMessage.status !== 'delivered' && existingMessage.status !== 'read') {
             finalStatus = 'failed';
           }
         } else if (newStatusLevel >= currentStatusLevel) {
-          finalStatus = status;
+           finalStatus = status;
         }
 
         const updateData: any = { status: finalStatus };
-
+        
         if (errorMessage) {
           updateData.errorDetails = errorMessage;
         }
@@ -2342,7 +2341,7 @@ export class WhatsappService {
       const campaignMessage = await tenantClient.campaignMessage.findFirst({
         where: { messageId }
       });
-
+      
       if (campaignMessage) {
         let errorMessage: string | null = null;
         if (status === 'failed' && errorDetails && errorDetails.length > 0) {
@@ -2351,13 +2350,13 @@ export class WhatsappService {
 
         const currentCampaignStatusLevel = statusHierarchy[campaignMessage.status] || 0;
         let finalCampaignStatus = campaignMessage.status;
-
+        
         if (status === 'failed') {
           if (campaignMessage.status !== 'delivered' && campaignMessage.status !== 'read') {
             finalCampaignStatus = 'failed';
           }
         } else if (newStatusLevel >= currentCampaignStatusLevel) {
-          finalCampaignStatus = status;
+           finalCampaignStatus = status;
         }
 
         const campaignUpdateData: any = { status: finalCampaignStatus };
@@ -2486,7 +2485,7 @@ export class WhatsappService {
     }
   }
 
-
+  
   async sendUrlButtonMessageDirect(to: string, title: string, text: string, buttonText: string, url: string, accessToken: string, phoneNumberId: string, tenantClient: any) {
     try {
       const isBSUID = /^[A-Z]{2}\.([A-Z]+\.)?[0-9]+$/.test(to);
@@ -2712,13 +2711,6 @@ export class WhatsappService {
     const buttonsStr = this.extractTemplateButtonsStr(templateComponents, parameters);
 
     for (const phoneNumber of phoneNumbers) {
-      // 1. Time restriction check before sending each message (8:00 AM - 8:00 PM IST)
-      if (!isWithinAllowedSendingHours()) {
-        this.logger.warn(`sendBulkTemplateMessage: Outside allowed sending hours (8:00 AM - 8:00 PM IST). Halting further messages.`);
-        results.push({ phoneNumber, success: false, error: 'Paused – Outside Sending Hours (8:00 AM - 8:00 PM IST)' });
-        break;
-      }
-
       try {
         // Build template components
         const components: any[] = [];
@@ -2904,17 +2896,6 @@ export class WhatsappService {
     const messagesToCreate: any[] = [];
 
     for (const contact of contacts) {
-      // 1. Time restriction check before sending each message (8:00 AM - 8:00 PM IST)
-      if (!isWithinAllowedSendingHours()) {
-        this.logger.warn(`sendBulkTemplateMessageWithNames: Current time reached 8:00 PM IST cutoff. Halting further message dispatches.`);
-        results.push({
-          phoneNumber: contact.phone,
-          success: false,
-          error: 'Paused – Outside Sending Hours (8:00 AM - 8:00 PM IST)'
-        });
-        break;
-      }
-
       const validationError = this.validatePhoneNumber(contact.phone);
       if (validationError) {
         results.push({ phoneNumber: contact.phone, success: false, error: validationError });
@@ -3496,9 +3477,9 @@ export class WhatsappService {
     if (!wabaId || !payload || payload.event !== 'VOLUME_BASED_PRICING_TIER_UPDATE') {
       return;
     }
-
+    
     const { category, tier, effective_month, tier_update_time, region } = payload;
-
+    
     // Attempt to upsert the tier update into MetaVolumeTierLog.
     // The unique constraint [wabaId, pricingCategory, effectiveMonth, tierUpdateTime] deduplicates exact repeated events.
     try {
@@ -3514,7 +3495,7 @@ export class WhatsappService {
       // If we use tenantPrisma directly:
       // Note: we might need to get tenant context or use standard prisma instance if it's single DB per tenant logic.
       const prisma = this.prisma;
-
+      
       // Upsert to handle Meta's duplicate identical events idempotently
       await prisma.metaVolumeTierLog.upsert({
         where: {

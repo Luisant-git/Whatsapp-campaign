@@ -568,74 +568,154 @@ const QuickReply = () => {
               </div>
 
               <div className="form-group">
-                <label>Documents / Media URLs (Optional)</label>
-                <small style={{ display: 'block', marginBottom: '8px', color: '#64748b', fontSize: '13px' }}>
-                  Add URLs to PDFs, images, etc. They will be sent to the user when triggered.
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ margin: 0 }}>Attached Documents / PDFs (Optional)</label>
+                  <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700 }}>
+                    {formData.mediaUrls.filter(u => u && u.trim()).length} File(s)
+                  </span>
+                </div>
+                <small style={{ display: 'block', marginBottom: '10px', color: '#64748b', fontSize: '13px' }}>
+                  Upload PDFs, brochures, or images. They will be sent to the user when this quick reply triggers.
                 </small>
 
                 {/* ── Recommended File Size & Meta Limits Notice ── */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  background: '#f0fdf4',
-                  border: '1px solid #86efac',
-                  borderRadius: '6px',
-                  padding: '8px 12px',
-                  marginBottom: '10px',
-                  fontSize: '12px',
-                  color: '#166534'
-                }}>
-                  <Info size={16} color="#16a34a" style={{ flexShrink: 0 }} />
-                  <span>
-                    <strong>Recommended Size:</strong> Under <strong>15 MB</strong> per file for fast mobile downloads (Meta Limits: PDF/Doc 100 MB, Video 16 MB, Image 5 MB)
-                  </span>
+                <div className="qr-recommended-notice">
+                  <Info size={18} color="#16a34a" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div>
+                    <div>
+                      <strong>Recommended Size:</strong> Keep under <strong>15 MB</strong> per file for fast customer downloads on mobile.
+                    </div>
+                    <div className="qr-notice-subtext">
+                      Meta Max Limits: <strong>PDF / Documents: 100 MB</strong> • <strong>Videos: 16 MB</strong> • <strong>Images: 5 MB</strong>
+                    </div>
+                  </div>
                 </div>
 
-                {formData.mediaUrls.map((url, index) => (
-                  <div key={index} className="button-fields" style={{ marginBottom: '8px' }}>
-                    <input
-                      type="text"
-                      placeholder="e.g., https://example.com/brochure.pdf"
-                      value={url}
-                      onChange={(e) => updateMediaUrl(index, e.target.value)}
-                      style={{ flex: 1 }}
-                    />
-                    <input
-                      type="file"
-                      id={`qr-upload-${index}`}
-                      style={{ display: 'none' }}
-                      onChange={(e) => handleFileUpload(index, e)}
-                    />
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      style={{ padding: '0 12px', height: '40px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                      onClick={() => document.getElementById(`qr-upload-${index}`).click()}
-                      disabled={uploadingMediaIndex === index}
-                    >
-                      {uploadingMediaIndex === index ? <Loader size={16} className="spinner" /> : <Upload size={16} />}
-                      {uploadingMediaIndex === index ? 'Uploading...' : 'Upload'}
-                    </button>
-                    {formData.mediaUrls.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeMediaUrl(index)}
-                        className="btn-danger-small"
-                        title="Delete"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </div>
-                ))}
+                <div className="qr-media-list">
+                  {formData.mediaUrls.map((url, index) => {
+                    const hasUrl = Boolean(url && url.trim());
+                    const fileName = hasUrl ? getFileNameFromUrl(url, mediaMeta) : '';
+                    const meta = mediaMeta[url] || {};
+                    const isPdf = /\.pdf$/i.test(fileName || url);
+                    const isImg = /\.(jpg|jpeg|png|webp|gif)$/i.test(fileName || url);
+                    const mediaType = isPdf ? 'pdf' : isImg ? 'image' : 'document';
+                    const hasValidSize = Boolean(
+                      meta.size &&
+                      !meta.size.includes('NaN') &&
+                      !meta.size.includes('undefined') &&
+                      meta.size.trim() !== ''
+                    );
+
+                    return (
+                      <div key={index} className="qr-media-item">
+                        <input
+                          type="file"
+                          id={`qr-upload-${index}`}
+                          style={{ display: 'none' }}
+                          onChange={(e) => handleFileUpload(index, e)}
+                        />
+
+                        {hasUrl ? (
+                          /* ── Clean Responsive Uploaded File Card ── */
+                          <div className="qr-media-card">
+                            <div className="qr-media-card-info">
+                              <div className={`qr-media-icon-badge ${mediaType}`}>
+                                {isPdf ? <FileText size={18} /> : isImg ? <Image size={18} /> : <File size={18} />}
+                              </div>
+                              <div className="qr-media-details">
+                                <span className="qr-media-name" title={fileName}>
+                                  {fileName}
+                                </span>
+                                <div className="qr-media-meta-row">
+                                  <span className={`qr-media-type-badge ${mediaType}`}>
+                                    {mediaType.toUpperCase()}
+                                  </span>
+                                  {hasValidSize && (
+                                    <span className="qr-media-size-text">
+                                      • {meta.size}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="qr-media-card-actions">
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn-secondary qr-action-btn"
+                                title="Open file preview"
+                              >
+                                <ExternalLink size={13} /> View
+                              </a>
+                              <button
+                                type="button"
+                                className="btn-secondary qr-action-btn"
+                                onClick={() => document.getElementById(`qr-upload-${index}`).click()}
+                                disabled={uploadingMediaIndex === index}
+                                title="Replace with another file"
+                              >
+                                {uploadingMediaIndex === index ? <Loader size={13} className="spinner" /> : <Upload size={13} />}
+                                Replace
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeMediaUrl(index)}
+                                className="qr-media-delete-btn"
+                                title="Remove file"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          /* ── Responsive Upload / URL Input Box ── */
+                          <div className="qr-media-input-box">
+                            <button
+                              type="button"
+                              className="qr-media-input-upload-btn"
+                              onClick={() => document.getElementById(`qr-upload-${index}`).click()}
+                              disabled={uploadingMediaIndex === index}
+                            >
+                              {uploadingMediaIndex === index ? <Loader size={15} className="spinner" /> : <Upload size={15} />}
+                              {uploadingMediaIndex === index ? 'Uploading...' : 'Upload PDF / File'}
+                            </button>
+
+                            <span className="qr-media-divider-text">or paste URL:</span>
+
+                            <div className="qr-media-url-row">
+                              <input
+                                type="text"
+                                className="qr-media-url-input"
+                                placeholder="https://example.com/document.pdf"
+                                value={url}
+                                onChange={(e) => updateMediaUrl(index, e.target.value)}
+                              />
+                              {formData.mediaUrls.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeMediaUrl(index)}
+                                  className="qr-media-delete-btn"
+                                  title="Remove"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
                 <button
                   type="button"
                   onClick={addMediaUrl}
-                  className="btn-secondary"
-                  style={{ marginTop: '4px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  className="qr-add-media-btn"
                 >
-                  <Plus size={16} /> Add Media URL
+                  <Plus size={16} /> Add Another Document / PDF
                 </button>
               </div>
 

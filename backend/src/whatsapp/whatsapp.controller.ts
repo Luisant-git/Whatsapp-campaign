@@ -690,8 +690,41 @@ async getMessages(
       mimetype: file.mimetype
     };
   }
- 
+
+  @Public()
+  @Get('file-info')
+  @ApiOperation({ summary: 'Get file metadata and size for a media URL' })
+  async getFileInfo(@Query('url') fileUrl: string) {
+    if (!fileUrl) {
+      return { name: '', size: null, sizeFormatted: null };
+    }
+    try {
+      let filename = fileUrl.split('/').pop()?.split('?')[0] || '';
+      filename = decodeURIComponent(filename);
+      const fs = await import('fs');
+      const path = await import('path');
+      const filepath = path.join(process.cwd(), 'uploads', filename);
+      if (fs.existsSync(filepath)) {
+        const stats = fs.statSync(filepath);
+        const bytes = stats.size;
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        const sizeFormatted = parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        return {
+          name: filename,
+          size: bytes,
+          sizeFormatted,
+          exists: true,
+        };
+      }
+    } catch (e) {}
+    let name = fileUrl.split('/').pop()?.split('?')[0] || '';
+    return { name: decodeURIComponent(name), size: null, sizeFormatted: null };
+  }
+
   @Post('upload-multiple')
+
   @ApiOperation({ summary: 'Upload multiple media files for WhatsApp' })
   @ApiConsumes('multipart/form-data')
   @ApiResponse({ status: 201, description: 'Files uploaded successfully', type: [UploadResponseDto] })

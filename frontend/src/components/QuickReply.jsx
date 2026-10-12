@@ -1,16 +1,39 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Edit, ChevronDown, Upload, Loader, Zap, Link } from 'lucide-react';
+import { Plus, Trash2, Edit, ChevronDown, Upload, Loader, Zap, Link, FileText, Image, File, ExternalLink } from 'lucide-react';
 import { uploadFile } from '../api/whatsapp';
 import { API_BASE_URL } from '../api/config';
 import { useToast } from '../contexts/ToastContext';
 import { getProfile } from '../api/auth';
 import '../styles/QuickReply.css';
 
+const formatFileSize = (bytes) => {
+  if (!bytes || isNaN(bytes) || bytes === 0) return '';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+};
+
+const getFileNameFromUrl = (url, meta = {}) => {
+  if (!url) return '';
+  if (meta[url]?.name) return meta[url].name;
+  try {
+    const parsed = new URL(url);
+    const decoded = decodeURIComponent(parsed.pathname.split('/').pop() || '');
+    return decoded || url;
+  } catch {
+    const parts = url.split('/');
+    return decodeURIComponent(parts[parts.length - 1].split('?')[0]) || url;
+  }
+};
+
 const QuickReply = () => {
   const { showSuccess, showError, showConfirm } = useToast();
   const [quickReplies, setQuickReplies] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [mediaMeta, setMediaMeta] = useState({});
+  const [showRawUrlIndex, setShowRawUrlIndex] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     response: '',
@@ -138,6 +161,41 @@ const QuickReply = () => {
     setFormData({ ...formData, buttons: newButtons });
   };
 
+  const fetchFileInfo = async (url) => {
+    if (!url || !url.trim() || mediaMeta[url]) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/whatsapp/file-info?url=${encodeURIComponent(url.trim())}`, {
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data) {
+          setMediaMeta(prev => ({
+            ...prev,
+            [url]: {
+              name: data.name || getFileNameFromUrl(url),
+              size: data.sizeFormatted || '',
+              type: /\.pdf$/i.test(data.name || url) ? 'pdf' : /\.(png|jpe?g|webp|gif)$/i.test(data.name || url) ? 'image' : 'document'
+            }
+          }));
+        }
+      }
+    } catch (err) {}
+  };
+
+  useEffect(() => {
+    const urls = new Set();
+    quickReplies.forEach(qr => {
+      if (Array.isArray(qr.mediaUrls)) {
+        qr.mediaUrls.forEach(u => u && urls.add(u.trim()));
+      }
+    });
+    formData.mediaUrls.forEach(u => u && urls.add(u.trim()));
+    urls.forEach(u => {
+      fetchFileInfo(u);
+    });
+  }, [quickReplies, formData.mediaUrls]);
+
   const addMediaUrl = () => {
     setFormData({
       ...formData,
@@ -150,7 +208,6 @@ const QuickReply = () => {
     setFormData({ ...formData, mediaUrls: newUrls });
   };
 
-  
   const handleFileUpload = async (index, event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -159,8 +216,19 @@ const QuickReply = () => {
       setUploadingMediaIndex(index);
       const response = await uploadFile(file);
       if (response && response.mediaUrl) {
+        const formattedSize = formatFileSize(file.size);
+        const isPdf = file.type?.includes('pdf') || /\.pdf$/i.test(file.name);
+        const isImg = file.type?.startsWith('image') || /\.(png|jpe?g|webp|gif)$/i.test(file.name);
+        setMediaMeta(prev => ({
+          ...prev,
+          [response.mediaUrl]: {
+            name: file.name,
+            size: formattedSize,
+            type: isPdf ? 'pdf' : isImg ? 'image' : 'document'
+          }
+        }));
         updateMediaUrl(index, response.mediaUrl);
-        showSuccess('File uploaded successfully');
+        showSuccess(`"${file.name}" uploaded successfully (${formattedSize})`);
       }
     } catch (error) {
       showError(error.message || 'Failed to upload file');
@@ -174,7 +242,11 @@ const QuickReply = () => {
     const newUrls = [...formData.mediaUrls];
     newUrls[index] = value;
     setFormData({ ...formData, mediaUrls: newUrls });
+    if (value && value.trim()) {
+      fetchFileInfo(value.trim());
+    }
   };
+
 
   const handleSave = async () => {
     const triggers = formData.triggersText.split(',').map(t => t.trim()).filter(t => t);
@@ -365,11 +437,39 @@ const QuickReply = () => {
                     {reply.title && <div className="wa-bubble-title">{reply.title}</div>}
                     
                     {reply.mediaUrls && reply.mediaUrls.length > 0 && (
-                      <div className="wa-attachment">
-                        <Link size={14} />
-                        {reply.mediaUrls.length} Media Attached
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginBottom: '8px' }}>
+                        {reply.mediaUrls.filter(Boolean).map((mUrl, mIdx) => {
+                          const mName = getFileNameFromUrl(mUrl, mediaMeta);
+                          const mMeta = mediaMeta[mUrl] || {};
+                          const isPdf = /\.pdf$/i.test(mName || mUrl);
+                          return (
+                            <div key={mIdx} style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '4px 8px',
+                              borderRadius: '6px',
+                              background: isPdf ? '#fee2e2' : 'rgba(0,0,0,0.05)',
+                              border: isPdf ? '1px solid #fecaca' : '1px solid rgba(0,0,0,0.08)',
+                              fontSize: '11.5px',
+                              fontWeight: 700,
+                              color: isPdf ? '#991b1b' : '#1e293b'
+                            }}>
+                              {isPdf ? <FileText size={13} color="#dc2626" /> : <File size={13} color="#059669" />}
+                              <span style={{ maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={mName}>
+                                {mName}
+                              </span>
+                              {mMeta.size && (
+                                <span style={{ color: '#64748b', fontWeight: 600, fontSize: '10.5px' }}>
+                                  ({mMeta.size})
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
+
 
                     {reply.response && <div className="wa-bubble-body">{reply.response}</div>}
                   </div>
@@ -430,51 +530,214 @@ const QuickReply = () => {
               </div>
 
               <div className="form-group">
-                <label>Documents / Media URLs (Optional)</label>
-                <small style={{ display: 'block', marginBottom: '8px', color: '#666' }}>
-                  Add URLs to PDFs, images, etc. They will be sent to the user when triggered.
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ margin: 0, fontWeight: 700, fontSize: '14px' }}>Attached Documents / PDFs (Optional)</label>
+                  <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700 }}>
+                    {formData.mediaUrls.filter(u => u && u.trim()).length} File(s)
+                  </span>
+                </div>
+                <small style={{ display: 'block', marginBottom: '12px', color: '#64748b', fontSize: '13px' }}>
+                  Upload PDFs, brochures, or images. They will be sent to the user when this quick reply triggers.
                 </small>
-                {formData.mediaUrls.map((url, index) => (
-                  <div key={index} className="button-fields" style={{ marginBottom: '8px' }}>
-                    <input
-                      type="text"
-                      placeholder="e.g., https://example.com/brochure.pdf"
-                      value={url}
-                      onChange={(e) => updateMediaUrl(index, e.target.value)}
-                      style={{ flex: 1 }}
-                    />
-                    <input
-                      type="file"
-                      id={`qr-upload-${index}`}
-                      style={{ display: 'none' }}
-                      onChange={(e) => handleFileUpload(index, e)}
-                    />
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      style={{ padding: '0 12px', height: '40px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                      onClick={() => document.getElementById(`qr-upload-${index}`).click()}
-                      disabled={uploadingMediaIndex === index}
-                    >
-                      {uploadingMediaIndex === index ? <Loader size={16} className="spinner" /> : <Upload size={16} />} 
-                      {uploadingMediaIndex === index ? 'Uploading...' : 'Upload'}
-                    </button>
 
-                    {formData.mediaUrls.length > 1 && (
-                      <button 
-                        type="button" 
-                        onClick={() => removeMediaUrl(index)}
-                        className="btn-danger-small"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <button type="button" onClick={addMediaUrl} className="btn-secondary" style={{ marginTop: '4px' }}>
-                  <Plus size={16} /> Add Media URL
+                {formData.mediaUrls.map((url, index) => {
+                  const hasUrl = Boolean(url && url.trim());
+                  const fileName = hasUrl ? getFileNameFromUrl(url, mediaMeta) : '';
+                  const meta = mediaMeta[url] || {};
+                  const isPdf = /\.pdf$/i.test(fileName || url);
+                  const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(fileName || url);
+                  const isShowingRaw = showRawUrlIndex === index;
+
+                  return (
+                    <div key={index} style={{ marginBottom: '10px' }}>
+                      <input
+                        type="file"
+                        id={`qr-upload-${index}`}
+                        style={{ display: 'none' }}
+                        onChange={(e) => handleFileUpload(index, e)}
+                      />
+
+                      {hasUrl && !isShowingRaw ? (
+                        /* ── Clean PDF / Media Card (Shows PDF Name & Size Instead of Raw URL) ── */
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '10px 14px',
+                          background: '#f8fafc',
+                          border: '1.5px solid #e2e8f0',
+                          borderRadius: '10px',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                          gap: '12px',
+                          flexWrap: 'wrap'
+                        }}>
+                          {/* File Icon + Name + Size */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+                            <div style={{
+                              width: '38px',
+                              height: '38px',
+                              borderRadius: '8px',
+                              background: isPdf ? '#fee2e2' : isImage ? '#f0fdf4' : '#e0f2fe',
+                              color: isPdf ? '#dc2626' : isImage ? '#16a34a' : '#0284c7',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0
+                            }}>
+                              {isPdf ? <FileText size={20} color="#dc2626" /> : isImage ? <Image size={20} color="#16a34a" /> : <File size={20} color="#0284c7" />}
+                            </div>
+
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <div style={{
+                                fontSize: '14px',
+                                fontWeight: 700,
+                                color: '#0f172a',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }} title={fileName}>
+                                {fileName}
+                              </div>
+                              <div style={{ fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px', flexWrap: 'wrap' }}>
+                                <span style={{
+                                  display: 'inline-block',
+                                  padding: '1px 6px',
+                                  background: isPdf ? '#fef2f2' : '#ecfdf5',
+                                  border: isPdf ? '1px solid #fecaca' : '1px solid #a7f3d0',
+                                  borderRadius: '4px',
+                                  color: isPdf ? '#b91c1c' : '#047857',
+                                  fontWeight: 800,
+                                  fontSize: '10px',
+                                  textTransform: 'uppercase'
+                                }}>
+                                  {isPdf ? 'PDF' : isImage ? 'IMAGE' : 'DOCUMENT'}
+                                </span>
+                                {meta.size && (
+                                  <span style={{ fontWeight: 700, color: '#334155' }}>
+                                    • {meta.size}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn-secondary"
+                              style={{
+                                padding: '6px 10px',
+                                fontSize: '12px',
+                                textDecoration: 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                color: '#334155',
+                                fontWeight: 600
+                              }}
+                              title="Open file preview"
+                            >
+                              <ExternalLink size={13} /> View
+                            </a>
+
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              style={{ padding: '6px 10px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}
+                              onClick={() => document.getElementById(`qr-upload-${index}`).click()}
+                              disabled={uploadingMediaIndex === index}
+                              title="Replace this document"
+                            >
+                              {uploadingMediaIndex === index ? <Loader size={13} className="spinner" /> : <Upload size={13} />}
+                              Replace
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => removeMediaUrl(index)}
+                              className="btn-danger-small"
+                              style={{ padding: '6px 8px' }}
+                              title="Remove document"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        /* ── Upload Box for New / Empty Attachment ── */
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          background: '#f8fafc',
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          border: '1.5px dashed #cbd5e1',
+                          flexWrap: 'wrap'
+                        }}>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            style={{
+                              padding: '8px 16px',
+                              height: '38px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              background: '#25D366',
+                              color: '#fff',
+                              border: 'none',
+                              fontWeight: 700,
+                              borderRadius: '6px',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => document.getElementById(`qr-upload-${index}`).click()}
+                            disabled={uploadingMediaIndex === index}
+                          >
+                            {uploadingMediaIndex === index ? <Loader size={15} className="spinner" /> : <Upload size={15} />}
+                            {uploadingMediaIndex === index ? 'Uploading...' : 'Upload PDF / File'}
+                          </button>
+
+                          <span style={{ fontSize: '12px', color: '#94a3b8' }}>or paste URL:</span>
+
+                          <input
+                            type="text"
+                            placeholder="https://whatsapp.api.luisant.cloud/uploads/document.pdf"
+                            value={url}
+                            onChange={(e) => updateMediaUrl(index, e.target.value)}
+                            onBlur={() => setShowRawUrlIndex(null)}
+                            style={{ flex: 1, minWidth: '200px', padding: '7px 10px', fontSize: '13px' }}
+                          />
+
+                          {formData.mediaUrls.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeMediaUrl(index)}
+                              className="btn-danger-small"
+                              title="Delete"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  onClick={addMediaUrl}
+                  className="btn-secondary"
+                  style={{ marginTop: '4px', display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 700 }}
+                >
+                  <Plus size={16} /> Add Another Document / PDF
                 </button>
               </div>
+
 
               <div className="form-group">
                 <label>Title (Header) - Optional</label>

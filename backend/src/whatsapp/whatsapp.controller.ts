@@ -30,6 +30,7 @@ import { SessionGuard } from '../auth/session.guard';
 import { FlowAppointmentService } from '../flow-appointment/flow-appointment.service';
 import { MetaCatalogService } from '../ecommerce/meta-catalog.service';
 import { Public } from '../auth/public.decorator';
+import { getAllowedSendingWindowInfo } from '../utils/campaign-window.util';
  
 @ApiTags('WhatsApp')
 @Controller('whatsapp')
@@ -41,6 +42,12 @@ export class WhatsappController {
     private readonly metaCatalogService: MetaCatalogService
   ) {}
  
+  @Get('sending-window')
+  @ApiOperation({ summary: 'Get allowed campaign sending window info (8 AM - 8 PM IST)' })
+  getSendingWindow() {
+    return getAllowedSendingWindowInfo();
+  }
+
   @Public()
   @Get('webhook/:verifyToken')
   @ApiOperation({ summary: 'Verify WhatsApp webhook' })
@@ -552,12 +559,21 @@ async getMessages(
         });
       });
 
+      const windowInfo = getAllowedSendingWindowInfo();
+      const message = windowInfo.isWithinWindow
+        ? 'Campaign started successfully. Messages are being sent in the background.'
+        : 'Campaign queued: Messages will start sending automatically at 8:00 AM IST to follow Meta healthy sending rules.';
+
       // Return immediately
       return {
         success: true,
         campaignName,
         campaignId: campaign.id,
-        message: 'Campaign started successfully. Messages are being sent in the background.',
+        status: windowInfo.isWithinWindow ? 'running' : 'paused_outside_hours',
+        statusLabel: windowInfo.isWithinWindow ? 'Running' : 'Paused – Outside Sending Hours',
+        rescheduledFor: windowInfo.nextWindowOpensAt,
+        isNightPaused: !windowInfo.isWithinWindow,
+        message,
         totalContacts: contacts.length
       };
     }
@@ -781,10 +797,19 @@ async getMessages(
       });
     });
 
+    const windowInfo = getAllowedSendingWindowInfo();
+    const message = windowInfo.isWithinWindow
+      ? 'Campaign started successfully'
+      : 'Campaign queued for morning: Outside allowed hours (8:00 AM - 8:00 PM IST). Messages will start sending automatically at 8:00 AM IST.';
+
     // Return immediately
     return {
       success: true,
-      message: 'Campaign started successfully',
+      message,
+      status: windowInfo.isWithinWindow ? 'running' : 'paused_outside_hours',
+      statusLabel: windowInfo.isWithinWindow ? 'Running' : 'Paused – Outside Sending Hours',
+      rescheduledFor: windowInfo.nextWindowOpensAt,
+      isNightPaused: !windowInfo.isWithinWindow,
       campaignId
     };
   }
@@ -805,9 +830,18 @@ async getMessages(
       });
     });
 
+    const windowInfo = getAllowedSendingWindowInfo();
+    const message = windowInfo.isWithinWindow
+      ? 'Campaign resumed successfully'
+      : 'Campaign queued to resume: Outside allowed hours (8:00 AM - 8:00 PM IST). Messages will resume automatically at 8:00 AM IST.';
+
     return {
       success: true,
-      message: 'Campaign resumed successfully',
+      message,
+      status: windowInfo.isWithinWindow ? 'running' : 'paused_outside_hours',
+      statusLabel: windowInfo.isWithinWindow ? 'Running' : 'Paused – Outside Sending Hours',
+      rescheduledFor: windowInfo.nextWindowOpensAt,
+      isNightPaused: !windowInfo.isWithinWindow,
       campaignId
     };
   }

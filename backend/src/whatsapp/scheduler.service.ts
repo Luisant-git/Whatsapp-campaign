@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma.service';
 import { CampaignService } from './campaign.service';
+import { isWithinAllowedSendingHours } from '../utils/campaign-window.util';
 
 @Injectable()
 export class SchedulerService {
@@ -24,6 +25,11 @@ export class SchedulerService {
     });
 
     this.logger.debug(`Checking scheduled campaigns for ${currentDay} at ${currentTime} IST`);
+
+    if (!isWithinAllowedSendingHours(now)) {
+      this.logger.debug(`SchedulerService: Outside allowed sending hours (8:00 AM - 8:00 PM IST). Scheduled campaigns paused for the night.`);
+      return;
+    }
 
     try {
       const scheduledCampaigns = await this.prisma.campaign.findMany({

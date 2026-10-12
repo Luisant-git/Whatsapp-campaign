@@ -724,10 +724,15 @@ async getMessages(
       if (fs.existsSync(filepath)) {
         const stats = fs.statSync(filepath);
         const bytes = stats.size;
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        const sizeFormatted = parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        let sizeFormatted: string | null = null;
+        if (typeof bytes === 'number' && !isNaN(bytes) && bytes > 0) {
+          const k = 1024;
+          const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+          const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
+          if (i >= 0 && sizes[i]) {
+            sizeFormatted = parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+          }
+        }
         return {
           name: filename,
           size: bytes,

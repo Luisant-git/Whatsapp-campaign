@@ -512,34 +512,27 @@
 }
 
 .wa-bubble {
-  background: #d9fdd3; /* WA outgoing bubble */
+  background: #ffffff;
   border-radius: 8px;
-  border-top-right-radius: 0;
-  padding: 8px 12px;
+  padding: 10px 14px;
   position: relative;
-  box-shadow: 0 1px 0.5px rgba(11,20,26,.13);
+  box-shadow: 0 1px 2px rgba(11,20,26,.08);
   color: #111b21;
   font-size: 14.2px;
   line-height: 19px;
-  max-width: 95%;
-  align-self: flex-end;
+  width: 100%;
+  max-width: 100%;
+  align-self: stretch;
+  box-sizing: border-box;
 }
 
 .wa-bubble::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: -8px;
-  width: 0;
-  height: 0;
-  border-top: 0px solid transparent;
-  border-bottom: 12px solid transparent;
-  border-left: 12px solid #d9fdd3;
+  display: none;
 }
 
 .wa-bubble-title {
   font-weight: bold;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   font-size: 15px;
 }
 
@@ -567,10 +560,11 @@
   background: #e1e8ed;
   border-radius: 8px;
   overflow: hidden;
-  align-self: flex-end;
-  width: 95%;
+  align-self: stretch;
+  width: 100%;
   margin-top: 2px;
   box-shadow: 0 1px 0.5px rgba(11,20,26,.13);
+  box-sizing: border-box;
 }
 
 .wa-btn {

@@ -1995,7 +1995,7 @@ const WhatsAppChat = () => {
                   <>
                     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#111b21', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <h3 style={{ margin: 0, fontSize: '19px', fontWeight: '700', color: '#111b21', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {selectedChatData?.name || selectedChat}
                         </h3>
                         {chatLabels[selectedChat]?.length > 0 && (
@@ -2025,7 +2025,7 @@ const WhatsAppChat = () => {
                           </div>
                         )}
                       </div>
-                      <div style={{ fontSize: '12px', color: '#667781', marginTop: '2px' }}>
+                      <div style={{ fontSize: '14px', color: '#667781', marginTop: '2px', fontWeight: '500' }}>
                         {selectedChat}
                       </div>
                       {/* Business Number in Chat Header - COMMENTED OUT

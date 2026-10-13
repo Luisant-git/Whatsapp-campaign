@@ -140,35 +140,8 @@ export class WhatsappController {
       throw new UnauthorizedException('Invalid x-hub-signature-256');
     }
 
-    // Check if the webhook is meant for the Daily-Kurtis Phone Number
-    const phoneNumberId = body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
-    if (phoneNumberId === '1239751119221958') {
-      try {
-        await require('axios').post('https://dailykurtis.api.luisant.cloud/whatsapp/webhook', body);
-        console.log('✅ Forwarded Daily-Kurtis webhook to dailykurtis.api.luisant.cloud');
-        return 'EVENT_RECEIVED';
-      } catch (err) {
-        console.error('❌ Failed to forward to Daily-Kurtis:', err.message);
-      }
-    }
-
-    // Forward to Ananda Honda
-    require('axios').post('https://api.anandahonda.cloud/whatsapp/webhook', body)
-      .catch((e: any) => console.log('Ananda Honda forwarding info:', e.message));
-
-    // Forward to Enquiry Bot (Kanakku Customer Enquire) with loop protection
-    const isFromEnquiryBot1 = req.headers['x-forwarded-from'] === 'enquiry-bot' || req.headers['x-forwarded-by'] === 'enquiry';
-    if (!isFromEnquiryBot1) {
-      require('axios').post('https://enquiry.api.luisant.cloud/api/webhook', body, {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-forwarded-from': 'whatsapp-dashboard',
-        },
-        timeout: 8000,
-      })
-      .then(() => console.log('✅ Forwarded webhook to Enquiry Bot (enquiry.api.luisant.cloud)'))
-      .catch((e: any) => console.log('Enquiry Bot forwarding info:', e.message));
-    }
+    // Dynamically forward to tenant-configured external webhook URL (with loop protection)
+    this.forwardWebhookDynamically(body, req).catch(() => {});
 
     // Respond immediately to WhatsApp
     setImmediate(() => {
@@ -361,33 +334,8 @@ export class WhatsappController {
       }
     }
 
-    const phoneNumberId = body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
-    if (phoneNumberId === '1239751119221958') {
-      try {
-        await require('axios').post('https://dailykurtis.api.luisant.cloud/whatsapp/webhook', body);
-        console.log('✅ Forwarded Daily-Kurtis webhook to dailykurtis.api.luisant.cloud');
-        return 'EVENT_RECEIVED';
-      } catch (err) {
-        console.error('❌ Failed to forward to Daily-Kurtis:', err.message);
-      }
-    }
-
-    require('axios').post('https://api.anandahonda.cloud/whatsapp/webhook', body)
-      .catch((e: any) => console.log('Ananda Honda forwarding info:', e.message));
-
-    // Forward to Enquiry Bot (Kanakku Customer Enquire) with loop protection
-    const isFromEnquiryBot2 = req.headers['x-forwarded-from'] === 'enquiry-bot' || req.headers['x-forwarded-by'] === 'enquiry';
-    if (!isFromEnquiryBot2) {
-      require('axios').post('https://enquiry.api.luisant.cloud/api/webhook', body, {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-forwarded-from': 'whatsapp-dashboard',
-        },
-        timeout: 8000,
-      })
-      .then(() => console.log('✅ Forwarded webhook to Enquiry Bot (enquiry.api.luisant.cloud)'))
-      .catch((e: any) => console.log('Enquiry Bot forwarding info:', e.message));
-    }
+    // Dynamically forward to tenant-configured external webhook URL (with loop protection)
+    this.forwardWebhookDynamically(body, req).catch(() => {});
 
     setImmediate(() => {
       this.processWebhookWithoutTokenAsync(body).catch(error => {
@@ -395,6 +343,42 @@ export class WhatsappController {
       });
     });
     return 'EVENT_RECEIVED';
+  }
+
+  private async forwardWebhookDynamically(body: any, req: any) {
+    try {
+      const isFromForwarder = req.headers['x-forwarded-from'] || req.headers['x-forwarded-by'];
+      if (isFromForwarder) return;
+
+      const phoneNumberId = body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
+      if (!phoneNumberId) return;
+
+      // 1. Check if this phone number has a dynamic forward URL configured in MasterConfig
+      const dynamicForwardUrl = await this.whatsappService.findWebhookForwardUrlByPhoneNumberId(phoneNumberId);
+      if (dynamicForwardUrl) {
+        const axios = require('axios');
+        axios.post(dynamicForwardUrl, body, {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-forwarded-from': 'whatsapp-dashboard',
+          },
+          timeout: 8000,
+        })
+        .then(() => console.log(`✅ Dynamically forwarded webhook to configured URL: ${dynamicForwardUrl}`))
+        .catch((e: any) => console.log(`Dynamic forward to ${dynamicForwardUrl} info:`, e.message));
+        return;
+      }
+
+      // 2. Legacy fallback for known numbers without dynamic forward URL
+      if (phoneNumberId === '1239751119221958') {
+        require('axios').post('https://dailykurtis.api.luisant.cloud/whatsapp/webhook', body, {
+          headers: { 'Content-Type': 'application/json', 'x-forwarded-from': 'whatsapp-dashboard' },
+          timeout: 8000,
+        }).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('Error in dynamic webhook forwarding:', e.message);
+    }
   }
 
   private async processWebhookWithoutTokenAsync(body: any) {

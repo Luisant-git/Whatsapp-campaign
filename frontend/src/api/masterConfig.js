@@ -123,3 +123,21 @@ export const getCentralConnectionAnalytics = async (start, end) => {
 
   return await response.json();
 };
+
+export const updateWebhookForwardUrl = async (id, webhookForwardUrl) => {
+  const response = await fetch(`${API_BASE_URL}/master-config/${id}/webhook-forward`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({ webhookForwardUrl }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to update webhook forward URL');
+  }
+
+  return await response.json();
+};

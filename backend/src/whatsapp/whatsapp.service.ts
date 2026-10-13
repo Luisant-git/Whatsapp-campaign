@@ -782,6 +782,32 @@ export class WhatsappService {
     }
   }
 
+  async findWebhookForwardUrlByPhoneNumberId(phoneNumberId: string): Promise<string | null> {
+    try {
+      const tenants = await this.centralPrisma.tenant.findMany({
+        where: { isActive: true },
+      });
+
+      for (const tenant of tenants) {
+        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+
+        const config = await tenantClient.masterConfig.findFirst({
+          where: { phoneNumberId, isActive: true },
+          select: { webhookForwardUrl: true },
+        });
+
+        if (config?.webhookForwardUrl) {
+          return config.webhookForwardUrl.trim();
+        }
+      }
+      return null;
+    } catch (err) {
+      this.logger.warn(`Failed to find webhookForwardUrl for phone ${phoneNumberId}: ${err.message}`);
+      return null;
+    }
+  }
+
   async findFirstActiveUser(): Promise<number | null> {
     try {
       const tenants = await this.centralPrisma.tenant.findMany({

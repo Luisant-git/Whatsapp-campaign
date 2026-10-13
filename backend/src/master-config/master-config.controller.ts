@@ -126,4 +126,15 @@ export class MasterConfigController {
   async getAppWebhook(@TenantContext() tenantContext: TenantContextType, @Param('id') id: string) {
     return this.masterConfigService.getAppWebhook(parseInt(id), tenantContext);
   }
+
+  @Post(':id/webhook-forward')
+  @ApiOperation({ summary: 'Update external webhook forwarding URL for this configuration' })
+  @ApiResponse({ status: 200, description: 'Successfully updated webhook forward URL' })
+  async updateWebhookForwardUrl(
+    @TenantContext() tenantContext: TenantContextType,
+    @Param('id') id: string,
+    @Body('webhookForwardUrl') webhookForwardUrl: string,
+  ) {
+    return this.masterConfigService.updateWebhookForwardUrl(parseInt(id), webhookForwardUrl, tenantContext);
+  }
 }

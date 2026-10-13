@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { getMasterConfigs, createMasterConfig, updateMasterConfig, deleteMasterConfig, subscribeToWABA, setAppWebhook, getAppWebhook } from "../api/masterConfig";
+import { getMasterConfigs, createMasterConfig, updateMasterConfig, deleteMasterConfig, subscribeToWABA, setAppWebhook, getAppWebhook, updateWebhookForwardUrl } from "../api/masterConfig";
 import { getAllSettings } from "../api/auth";
 import { useToast } from '../contexts/ToastContext';
 import { API_BASE_URL } from "../api/config";
@@ -51,6 +51,10 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
   const [catalogUserAccessToken, setCatalogUserAccessToken] = useState('');
   const [showWebhookModal, setShowWebhookModal] = useState(false);
   const [webhookConfigId, setWebhookConfigId] = useState(null);
+  const [selectedConfigForWebhook, setSelectedConfigForWebhook] = useState(null);
+  const [forwardUrl, setForwardUrl] = useState('');
+  const [savingForwardUrl, setSavingForwardUrl] = useState(false);
+  const [webhookActiveTab, setWebhookActiveTab] = useState('forwarding'); // 'forwarding' | 'meta'
   const [callbackUrl, setCallbackUrl] = useState(() => {
     return localStorage.getItem('meta_callback_url') || '';
   });
@@ -575,7 +579,10 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
   };
 
   const handleSetWebhookClick = async (config) => {
+    setSelectedConfigForWebhook(config);
     setWebhookConfigId(config.id);
+    setForwardUrl(config.webhookForwardUrl || '');
+    setWebhookActiveTab('forwarding');
     
     // Check saved URL for this config or globally
     const saved = localStorage.getItem(`meta_callback_url_${config.id}`) || localStorage.getItem('meta_callback_url');
@@ -597,6 +604,23 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
       console.warn("Could not query Meta for current webhook callback URL:", err);
     } finally {
       setFetchingCurrentWebhook(false);
+    }
+  };
+
+  const handleSaveForwardUrl = async () => {
+    if (!webhookConfigId) return;
+    setSavingForwardUrl(true);
+    try {
+      const clean = forwardUrl ? forwardUrl.trim() : '';
+      await updateWebhookForwardUrl(webhookConfigId, clean);
+      showSuccess(clean ? `Forwarding URL configured for ${selectedConfigForWebhook?.name || 'config'}!` : 'Forwarding cleared. Webhooks handled locally.');
+      setMasterConfigs(prev => prev.map(c => c.id === webhookConfigId ? { ...c, webhookForwardUrl: clean || null } : c));
+      setShowWebhookModal(false);
+    } catch (err) {
+      console.error(err);
+      showError(err.message || 'Failed to update forwarding URL');
+    } finally {
+      setSavingForwardUrl(false);
     }
   };
 
@@ -1373,14 +1397,20 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                     <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#1c1e21', marginBottom: '4px' }}>
                       {config.name}
                     </div>
-                    <div style={{ fontSize: '14px', color: '#1c1e21', marginBottom: '10px' }}>
+                    <div style={{ fontSize: '14px', color: '#1c1e21', marginBottom: config.webhookForwardUrl ? '4px' : '10px' }}>
                       Phone number ID: <span style={{ color: '#005ed6', cursor: 'pointer' }} title="Copy ID" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(config.phoneNumberId); showSuccess('Phone ID copied to clipboard!'); }}>{config.phoneNumberId}</span>
                     </div>
+
+                    {config.webhookForwardUrl && (
+                      <div style={{ fontSize: '11px', color: '#059669', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '3px 8px', borderRadius: '4px', marginBottom: '10px', wordBreak: 'break-all' }}>
+                        🔗 <strong>Forwarding:</strong> {config.webhookForwardUrl}
+                      </div>
+                    )}
 
                     {/* Primary Actions */}
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button onClick={() => handleSubscribeWABA(config)} style={{ padding: '4px 10px', fontSize: '12px', background: '#25d366', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Subscribe</button>
-                      <button onClick={() => handleSetWebhookClick(config)} style={{ padding: '4px 10px', fontSize: '12px', background: '#1877f2', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Set Webhook</button>
+                      <button onClick={() => handleSetWebhookClick(config)} style={{ padding: '4px 10px', fontSize: '12px', background: '#1877f2', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Webhook Settings</button>
                     </div>
                   </div>
                 </div>
@@ -1637,81 +1667,178 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
 
       {showWebhookModal && (
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content" style={{ maxWidth: '580px' }}>
             <div className="modal-header">
-              <h2>Set Meta Webhook Callback URL</h2>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '18px' }}>
+                  Webhook Settings: {selectedConfigForWebhook?.name || 'Config'}
+                </h2>
+                <span style={{ fontSize: '12px', color: '#65676b' }}>
+                  Phone Number ID: <strong>{selectedConfigForWebhook?.phoneNumberId}</strong>
+                </span>
+              </div>
               <button onClick={() => setShowWebhookModal(false)} className="close-btn">
                 <X size={20} />
               </button>
             </div>
+
+            {/* Modal Tabs */}
+            <div style={{ display: 'flex', borderBottom: '1px solid #e4e6eb', marginTop: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setWebhookActiveTab('forwarding')}
+                style={{
+                  flex: 1,
+                  padding: '10px 14px',
+                  background: 'none',
+                  border: 'none',
+                  borderBottom: webhookActiveTab === 'forwarding' ? '2px solid #1877f2' : '2px solid transparent',
+                  fontWeight: webhookActiveTab === 'forwarding' ? '600' : '400',
+                  color: webhookActiveTab === 'forwarding' ? '#1877f2' : '#65676b',
+                  cursor: 'pointer',
+                  fontSize: '13px'
+                }}
+              >
+                🔗 External Forwarding (This Tenant)
+              </button>
+              <button
+                type="button"
+                onClick={() => setWebhookActiveTab('meta')}
+                style={{
+                  flex: 1,
+                  padding: '10px 14px',
+                  background: 'none',
+                  border: 'none',
+                  borderBottom: webhookActiveTab === 'meta' ? '2px solid #1877f2' : '2px solid transparent',
+                  fontWeight: webhookActiveTab === 'meta' ? '600' : '400',
+                  color: webhookActiveTab === 'meta' ? '#1877f2' : '#65676b',
+                  cursor: 'pointer',
+                  fontSize: '13px'
+                }}
+              >
+                ⚙️ Meta Developer Webhook (Global)
+              </button>
+            </div>
             
-            <div style={{ padding: '20px 0' }}>
-              <p style={{ marginBottom: '14px', color: '#4b4f56', fontSize: '13px', lineHeight: '1.5' }}>
-                Enter an external webhook URL if you want another project to receive Meta events.
-                <br />
-                <strong>Leave empty to automatically use your main WhatsApp webhook URL:</strong>
-                <br />
-                <code style={{ background: '#f0f2f5', padding: '3px 8px', borderRadius: '4px', fontSize: '12px', color: '#1877f2', display: 'inline-block', marginTop: '4px' }}>
-                  https://whatsapp.api.luisant.cloud/whatsapp/webhook
-                </code>
-              </p>
-              <div className="form-group">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <label style={{ fontWeight: '600', fontSize: '13px' }}>
-                    Callback URL <span style={{ fontWeight: 'normal', color: '#65676b', fontSize: '12px' }}>(Leave empty for main URL)</span>
-                  </label>
-                  {fetchingCurrentWebhook && (
-                    <span style={{ fontSize: '12px', color: '#1877f2' }}>Checking active URL in Meta...</span>
-                  )}
-                </div>
-                <input
-                  type="text"
-                  placeholder="Leave empty for main: https://whatsapp.api.luisant.cloud/whatsapp/webhook"
-                  value={callbackUrl}
-                  onChange={(e) => setCallbackUrl(e.target.value)}
-                  style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ccd0d5', fontSize: '13px', boxSizing: 'border-box' }}
-                />
-                <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    onClick={() => setCallbackUrl('')}
-                    style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '4px', border: '1px solid #1877f2', background: '#e7f3ff', cursor: 'pointer', color: '#1877f2', fontWeight: 'bold' }}
-                  >
-                    ✕ Clear / Leave Empty (Use Main URL)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCallbackUrl('https://whatsapp.api.luisant.cloud/whatsapp/webhook')}
-                    style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '4px', border: '1px solid #ccd0d5', background: '#f0f2f5', cursor: 'pointer', color: '#1c1e21' }}
-                  >
-                    Main Dashboard URL
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCallbackUrl('https://enquiry.api.luisant.cloud/api/webhook')}
-                    style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '4px', border: '1px solid #ccd0d5', background: '#f0f2f5', cursor: 'pointer', color: '#1c1e21' }}
-                  >
-                    Enquiry Bot URL
-                  </button>
-                </div>
-              </div>
+            <div style={{ padding: '16px 0 0 0' }}>
+              {webhookActiveTab === 'forwarding' ? (
+                <div>
+                  <p style={{ margin: '0 0 14px 0', color: '#4b4f56', fontSize: '13px', lineHeight: '1.5' }}>
+                    Forward incoming messages and delivery receipts for <strong>{selectedConfigForWebhook?.name}</strong> to an external project (e.g. Enquiry Bot or custom CRM).
+                  </p>
+                  
+                  <div className="form-group">
+                    <label style={{ fontWeight: '600', fontSize: '13px', display: 'block', marginBottom: '6px' }}>
+                      External Forwarding Destination URL
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. https://enquiry.api.luisant.cloud/api/webhook"
+                      value={forwardUrl}
+                      onChange={(e) => setForwardUrl(e.target.value)}
+                      style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ccd0d5', fontSize: '13px', boxSizing: 'border-box' }}
+                    />
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => setForwardUrl('https://enquiry.api.luisant.cloud/api/webhook')}
+                        style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '4px', border: '1px solid #1877f2', background: '#e7f3ff', cursor: 'pointer', color: '#1877f2', fontWeight: 'bold' }}
+                      >
+                        Use Enquiry Bot URL
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setForwardUrl('https://dailykurtis.api.luisant.cloud/whatsapp/webhook')}
+                        style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '4px', border: '1px solid #ccd0d5', background: '#f0f2f5', cursor: 'pointer', color: '#1c1e21' }}
+                      >
+                        Use Daily-Kurtis URL
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setForwardUrl('')}
+                        style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '4px', border: '1px solid #ccd0d5', background: '#f0f2f5', cursor: 'pointer', color: '#65676b' }}
+                      >
+                        ✕ Clear (No Forwarding)
+                      </button>
+                    </div>
+                  </div>
 
-              <div style={{ marginTop: '14px', padding: '10px 12px', background: '#f0f9eb', border: '1px solid #c2e7b0', borderRadius: '6px', fontSize: '12px', color: '#276717', lineHeight: '1.4' }}>
-                ℹ️ <strong>Active Setting:</strong> {callbackUrl && callbackUrl.trim() && callbackUrl.trim() !== 'https://whatsapp.api.luisant.cloud/whatsapp/webhook' ? (
-                  <span>Will update Meta to external project: <strong>{callbackUrl.trim()}</strong></span>
-                ) : (
-                  <span>Will configure Meta with your default main URL (<strong>https://whatsapp.api.luisant.cloud/whatsapp/webhook</strong>).</span>
-                )}
-              </div>
+                  <div style={{ marginTop: '14px', padding: '10px 12px', background: forwardUrl?.trim() ? '#ecfdf5' : '#f0f2f5', border: `1px solid ${forwardUrl?.trim() ? '#a7f3d0' : '#e4e6eb'}`, borderRadius: '6px', fontSize: '12px', color: forwardUrl?.trim() ? '#065f46' : '#65676b', lineHeight: '1.4' }}>
+                    {forwardUrl?.trim() ? (
+                      <span>
+                        ✅ <strong>Active Forwarding:</strong> Incoming webhooks for Phone ID <strong>{selectedConfigForWebhook?.phoneNumberId}</strong> will be forwarded to <strong>{forwardUrl.trim()}</strong>.
+                      </span>
+                    ) : (
+                      <span>
+                        ℹ️ <strong>Direct Processing:</strong> Webhooks for this number will be processed entirely inside WhatsApp Dashboard.
+                      </span>
+                    )}
+                  </div>
 
-              <div className="form-actions" style={{ marginTop: '20px' }}>
-                <button type="button" onClick={() => setShowWebhookModal(false)} className="btn-secondary">
-                  Cancel
-                </button>
-                <button type="button" onClick={submitSetWebhook} className="btn-primary" disabled={settingWebhook}>
-                  {settingWebhook ? 'Saving...' : (callbackUrl && callbackUrl.trim() && callbackUrl.trim() !== 'https://whatsapp.api.luisant.cloud/whatsapp/webhook' ? 'Set External Webhook URL' : 'Save (Use Main URL)')}
-                </button>
-              </div>
+                  <div className="form-actions" style={{ marginTop: '20px' }}>
+                    <button type="button" onClick={() => setShowWebhookModal(false)} className="btn-secondary">
+                      Cancel
+                    </button>
+                    <button type="button" onClick={handleSaveForwardUrl} className="btn-primary" disabled={savingForwardUrl}>
+                      {savingForwardUrl ? 'Saving...' : 'Save Forwarding URL'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p style={{ margin: '0 0 14px 0', color: '#4b4f56', fontSize: '13px', lineHeight: '1.5' }}>
+                    This sets the global Meta App webhook subscription.
+                    <br />
+                    <strong>Leave empty to automatically use your main default URL:</strong>
+                    <br />
+                    <code style={{ background: '#f0f2f5', padding: '3px 8px', borderRadius: '4px', fontSize: '12px', color: '#1877f2', display: 'inline-block', marginTop: '4px' }}>
+                      https://whatsapp.api.luisant.cloud/whatsapp/webhook
+                    </code>
+                  </p>
+                  <div className="form-group">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label style={{ fontWeight: '600', fontSize: '13px' }}>
+                        Meta Callback URL <span style={{ fontWeight: 'normal', color: '#65676b', fontSize: '12px' }}>(Leave empty for default)</span>
+                      </label>
+                      {fetchingCurrentWebhook && (
+                        <span style={{ fontSize: '12px', color: '#1877f2' }}>Checking active URL in Meta...</span>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Leave empty for default: https://whatsapp.api.luisant.cloud/whatsapp/webhook"
+                      value={callbackUrl}
+                      onChange={(e) => setCallbackUrl(e.target.value)}
+                      style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ccd0d5', fontSize: '13px', boxSizing: 'border-box' }}
+                    />
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => setCallbackUrl('')}
+                        style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '4px', border: '1px solid #1877f2', background: '#e7f3ff', cursor: 'pointer', color: '#1877f2', fontWeight: 'bold' }}
+                      >
+                        ✕ Clear / Leave Empty (Use Main URL)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCallbackUrl('https://whatsapp.api.luisant.cloud/whatsapp/webhook')}
+                        style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '4px', border: '1px solid #ccd0d5', background: '#f0f2f5', cursor: 'pointer', color: '#1c1e21' }}
+                      >
+                        Main Dashboard URL
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="form-actions" style={{ marginTop: '20px' }}>
+                    <button type="button" onClick={() => setShowWebhookModal(false)} className="btn-secondary">
+                      Cancel
+                    </button>
+                    <button type="button" onClick={submitSetWebhook} className="btn-primary" disabled={settingWebhook}>
+                      {settingWebhook ? 'Saving...' : (callbackUrl && callbackUrl.trim() && callbackUrl.trim() !== 'https://whatsapp.api.luisant.cloud/whatsapp/webhook' ? 'Set Custom Meta Webhook' : 'Save Meta Webhook (Use Main URL)')}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -41,6 +41,11 @@ export class CreateMasterConfigDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiProperty({ description: 'External Webhook URL to forward incoming events to', required: false })
+  @IsOptional()
+  @IsString()
+  webhookForwardUrl?: string;
 }
 
 export class UpdateMasterConfigDto {
@@ -83,4 +88,9 @@ export class UpdateMasterConfigDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiProperty({ description: 'External Webhook URL to forward incoming events to', required: false })
+  @IsOptional()
+  @IsString()
+  webhookForwardUrl?: string;
 }

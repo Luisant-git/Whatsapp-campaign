@@ -621,4 +621,13 @@ export class MasterConfigService {
 
     return { callbackUrl: '' };
   }
+
+  async updateWebhookForwardUrl(id: number, webhookForwardUrl: string, tenantContext: TenantContext) {
+    const prisma = this.getPrisma(tenantContext);
+    const cleanUrl = webhookForwardUrl && webhookForwardUrl.trim() ? webhookForwardUrl.trim() : null;
+    return prisma.masterConfig.update({
+      where: { id },
+      data: { webhookForwardUrl: cleanUrl },
+    });
+  }
 }

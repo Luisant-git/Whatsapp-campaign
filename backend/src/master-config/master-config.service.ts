@@ -546,13 +546,17 @@ export class MasterConfigService {
       throw new BadRequestException('Meta App ID and App Secret must be configured');
     }
 
+    // Default main webhook URL if empty
+    const defaultWebhookUrl = process.env.META_DEFAULT_WEBHOOK_URL || 'https://whatsapp.api.luisant.cloud/whatsapp/webhook';
+    const targetCallbackUrl = (callbackUrl && callbackUrl.trim()) ? callbackUrl.trim() : defaultWebhookUrl;
+
     // Set Webhook for App
     const subscribeUrl = `https://graph.facebook.com/v20.0/${appId}/subscriptions?access_token=${appId}|${appSecret}`;
     
     // Prepare url parameters
     const params = new URLSearchParams({
       object: 'whatsapp_business_account',
-      callback_url: callbackUrl,
+      callback_url: targetCallbackUrl,
       verify_token: verifyToken,
       fields: 'messages'
     });

@@ -601,17 +601,22 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
   };
 
   const submitSetWebhook = async () => {
-    if (!callbackUrl || !callbackUrl.trim()) {
-      showError('Please enter a callback URL');
-      return;
-    }
-    const cleanUrl = callbackUrl.trim();
+    const DEFAULT_URL = 'https://whatsapp.api.luisant.cloud/whatsapp/webhook';
+    const cleanUrl = callbackUrl ? callbackUrl.trim() : '';
+    const finalUrl = cleanUrl || DEFAULT_URL;
+
     setSettingWebhook(true);
     try {
-      await setAppWebhook(webhookConfigId, cleanUrl);
-      localStorage.setItem(`meta_callback_url_${webhookConfigId}`, cleanUrl);
-      localStorage.setItem('meta_callback_url', cleanUrl);
-      showSuccess('Successfully configured App Webhook URL in Meta!');
+      await setAppWebhook(webhookConfigId, finalUrl);
+      if (cleanUrl && cleanUrl !== DEFAULT_URL) {
+        localStorage.setItem(`meta_callback_url_${webhookConfigId}`, cleanUrl);
+        localStorage.setItem('meta_callback_url', cleanUrl);
+        showSuccess(`Configured external Webhook URL in Meta: ${cleanUrl}`);
+      } else {
+        localStorage.removeItem(`meta_callback_url_${webhookConfigId}`);
+        localStorage.removeItem('meta_callback_url');
+        showSuccess(`Main webhook URL active: ${DEFAULT_URL}`);
+      }
       setShowWebhookModal(false);
     } catch (error) {
       console.error(error);
@@ -1641,46 +1646,70 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
             </div>
             
             <div style={{ padding: '20px 0' }}>
-              <p style={{ marginBottom: '16px', color: '#666' }}>
-                This will update your Meta App's webhook callback URL. Ensure your endpoint is ready to receive webhook verification.
+              <p style={{ marginBottom: '14px', color: '#4b4f56', fontSize: '13px', lineHeight: '1.5' }}>
+                Enter an external webhook URL if you want another project to receive Meta events.
+                <br />
+                <strong>Leave empty to automatically use your main WhatsApp webhook URL:</strong>
+                <br />
+                <code style={{ background: '#f0f2f5', padding: '3px 8px', borderRadius: '4px', fontSize: '12px', color: '#1877f2', display: 'inline-block', marginTop: '4px' }}>
+                  https://whatsapp.api.luisant.cloud/whatsapp/webhook
+                </code>
               </p>
               <div className="form-group">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <label style={{ fontWeight: '600' }}>Callback URL *</label>
+                  <label style={{ fontWeight: '600', fontSize: '13px' }}>
+                    Callback URL <span style={{ fontWeight: 'normal', color: '#65676b', fontSize: '12px' }}>(Leave empty for main URL)</span>
+                  </label>
                   {fetchingCurrentWebhook && (
                     <span style={{ fontSize: '12px', color: '#1877f2' }}>Checking active URL in Meta...</span>
                   )}
                 </div>
                 <input
                   type="text"
-                  placeholder="https://whatsapp.api.luisant.cloud/whatsapp/webhook"
+                  placeholder="Leave empty for main: https://whatsapp.api.luisant.cloud/whatsapp/webhook"
                   value={callbackUrl}
                   onChange={(e) => setCallbackUrl(e.target.value)}
-                  style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ccd0d5', fontSize: '13px', boxSizing: 'border-box' }}
                 />
-                <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setCallbackUrl('')}
+                    style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '4px', border: '1px solid #1877f2', background: '#e7f3ff', cursor: 'pointer', color: '#1877f2', fontWeight: 'bold' }}
+                  >
+                    ✕ Clear / Leave Empty (Use Main URL)
+                  </button>
                   <button
                     type="button"
                     onClick={() => setCallbackUrl('https://whatsapp.api.luisant.cloud/whatsapp/webhook')}
-                    style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #ccd0d5', background: '#f0f2f5', cursor: 'pointer', color: '#1c1e21' }}
+                    style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '4px', border: '1px solid #ccd0d5', background: '#f0f2f5', cursor: 'pointer', color: '#1c1e21' }}
                   >
-                    Use WhatsApp Dashboard URL
+                    Main Dashboard URL
                   </button>
                   <button
                     type="button"
                     onClick={() => setCallbackUrl('https://enquiry.api.luisant.cloud/api/webhook')}
-                    style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #ccd0d5', background: '#f0f2f5', cursor: 'pointer', color: '#1c1e21' }}
+                    style={{ fontSize: '11px', padding: '5px 10px', borderRadius: '4px', border: '1px solid #ccd0d5', background: '#f0f2f5', cursor: 'pointer', color: '#1c1e21' }}
                   >
-                    Use Enquiry Bot URL
+                    Enquiry Bot URL
                   </button>
                 </div>
               </div>
-              <div className="form-actions" style={{ marginTop: '24px' }}>
+
+              <div style={{ marginTop: '14px', padding: '10px 12px', background: '#f0f9eb', border: '1px solid #c2e7b0', borderRadius: '6px', fontSize: '12px', color: '#276717', lineHeight: '1.4' }}>
+                ℹ️ <strong>Active Setting:</strong> {callbackUrl && callbackUrl.trim() && callbackUrl.trim() !== 'https://whatsapp.api.luisant.cloud/whatsapp/webhook' ? (
+                  <span>Will update Meta to external project: <strong>{callbackUrl.trim()}</strong></span>
+                ) : (
+                  <span>Will configure Meta with your default main URL (<strong>https://whatsapp.api.luisant.cloud/whatsapp/webhook</strong>).</span>
+                )}
+              </div>
+
+              <div className="form-actions" style={{ marginTop: '20px' }}>
                 <button type="button" onClick={() => setShowWebhookModal(false)} className="btn-secondary">
                   Cancel
                 </button>
                 <button type="button" onClick={submitSetWebhook} className="btn-primary" disabled={settingWebhook}>
-                  {settingWebhook ? 'Saving...' : 'Set Webhook URL'}
+                  {settingWebhook ? 'Saving...' : (callbackUrl && callbackUrl.trim() && callbackUrl.trim() !== 'https://whatsapp.api.luisant.cloud/whatsapp/webhook' ? 'Set External Webhook URL' : 'Save (Use Main URL)')}
                 </button>
               </div>
             </div>

@@ -85,24 +85,13 @@ export class WhatsappSessionService {
           console.log('Found nested quick reply:', nestedQuickReply);
           const buttons = nestedQuickReply.buttons as any[];
           
-          // Send attached media URLs as separate messages first
-          if ((nestedQuickReply as any).mediaUrls && (nestedQuickReply as any).mediaUrls.length > 0 && sendMediaCallback) {
-            for (const url of (nestedQuickReply as any).mediaUrls) {
-              if (!url) continue;
-              const isVideo = /\.(mp4|avi|mov)$/i.test(url);
-              const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i.test(url);
-              const mediaType = isDocument ? 'document' : isVideo ? 'video' : 'image';
-              await sendMediaCallback(from, url, mediaType);
-            }
-          }
-          
-          
-          const isUrl = buttons[0] && typeof buttons[0] === 'object' && buttons[0].type === 'url';
+          const isUrl = buttons && buttons[0] && typeof buttons[0] === 'object' && buttons[0].type === 'url';
           if (isUrl && sendUrlButtonCallback) {
             const btnText = buttons[0].text || 'Click Here';
             const btnUrl = buttons[0].url || '';
             const message = nestedQuickReply.response || 'Please click the link below:';
             await sendUrlButtonCallback(from, nestedQuickReply.title || '', message, btnText, btnUrl);
+            await this.sendAttachedMedia(from, (nestedQuickReply as any).mediaUrls, sendMediaCallback);
             return true;
           }
           
@@ -112,6 +101,7 @@ export class WhatsappSessionService {
             if (message) {
               await sendCallback(from, message);
             }
+            await this.sendAttachedMedia(from, (nestedQuickReply as any).mediaUrls, sendMediaCallback);
             return true; // Handled
           }
           
@@ -120,6 +110,7 @@ export class WhatsappSessionService {
           const title = nestedQuickReply.title || '';
           const response = nestedQuickReply.response || 'Please select an option:';
           await sendButtonsCallback(from, title, response, buttonTexts);
+          await this.sendAttachedMedia(from, (nestedQuickReply as any).mediaUrls, sendMediaCallback);
           return true; // Handled
         }
 
@@ -147,17 +138,6 @@ export class WhatsappSessionService {
         const buttons = quickReply.buttons as any[];
         const sendSeparately = quickReply.sendSeparately || false;
         
-        // Send attached media URLs as separate messages first
-        if ((quickReply as any).mediaUrls && (quickReply as any).mediaUrls.length > 0 && sendMediaCallback) {
-          for (const url of (quickReply as any).mediaUrls) {
-            if (!url) continue;
-            const isVideo = /\.(mp4|avi|mov)$/i.test(url);
-            const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i.test(url) || url.includes('drive.google.com');
-            const mediaType = isDocument ? 'document' : isVideo ? 'video' : 'image';
-            await sendMediaCallback(from, url, mediaType);
-          }
-        }
-        
         // Check if it's a menu type (list message)
         const firstBtn = buttons && buttons[0];
         const isMenu = firstBtn && typeof firstBtn === 'object' && firstBtn.type === 'menu';
@@ -170,6 +150,7 @@ export class WhatsappSessionService {
           const btnUrl = firstBtn.url || '';
           const message = quickReply.response || 'Please click the link below:';
           await sendUrlButtonCallback(from, quickReply.title || '', message, btnText, btnUrl);
+          await this.sendAttachedMedia(from, (quickReply as any).mediaUrls, sendMediaCallback);
           return true;
         }
 
@@ -191,6 +172,7 @@ export class WhatsappSessionService {
             // Send combined
             await sendListCallback(from, quickReply.title || '', message, menuName, menuItems);
           }
+          await this.sendAttachedMedia(from, (quickReply as any).mediaUrls, sendMediaCallback);
           return true;
         }
         
@@ -205,6 +187,7 @@ export class WhatsappSessionService {
           // Then send buttons as separate message
           const buttonTexts = buttons.map(btn => typeof btn === 'string' ? btn : btn.text);
           await sendButtonsCallback(from, '', 'Please select an option:', buttonTexts);
+          await this.sendAttachedMedia(from, (quickReply as any).mediaUrls, sendMediaCallback);
           return true; // Handled
         }
         
@@ -214,6 +197,7 @@ export class WhatsappSessionService {
           if (message) {
             await sendCallback(from, message);
           }
+          await this.sendAttachedMedia(from, (quickReply as any).mediaUrls, sendMediaCallback);
           return true; // Handled
         }
         
@@ -222,6 +206,7 @@ export class WhatsappSessionService {
         const title = quickReply.title || '';
         const response = quickReply.response || 'Please select an option:';
         await sendButtonsCallback(from, title, response, buttonTexts);
+        await this.sendAttachedMedia(from, (quickReply as any).mediaUrls, sendMediaCallback);
         return true; // Handled
       }
     }
@@ -322,5 +307,31 @@ export class WhatsappSessionService {
     }
 
     return false;
+  }
+
+  private async sendAttachedMedia(
+    from: string,
+    mediaUrls: string[] | undefined,
+    sendMediaCallback?: (
+      to: string,
+      mediaUrl: string,
+      mediaType: string,
+    ) => Promise<any>,
+  ) {
+    if (!mediaUrls || !Array.isArray(mediaUrls) || mediaUrls.length === 0 || !sendMediaCallback) {
+      return;
+    }
+    for (const rawUrl of mediaUrls) {
+      if (!rawUrl || !rawUrl.trim()) continue;
+      const url = rawUrl.trim();
+      const isVideo = /\.(mp4|avi|mov)$/i.test(url);
+      const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i.test(url) || url.includes('drive.google.com');
+      const mediaType = isDocument ? 'document' : isVideo ? 'video' : 'image';
+      try {
+        await sendMediaCallback(from, url, mediaType);
+      } catch (err) {
+        console.error('[SessionService] Error sending attached media:', url, err);
+      }
+    }
   }
 }

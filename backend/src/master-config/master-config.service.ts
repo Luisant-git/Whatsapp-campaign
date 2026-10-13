@@ -405,16 +405,32 @@ export class MasterConfigService {
 
   async findAll(tenantContext: TenantContext) {
     const prisma = this.getPrisma(tenantContext);
-    return prisma.masterConfig.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+    try {
+      await prisma.$executeRawUnsafe('ALTER TABLE "MasterConfig" ADD COLUMN IF NOT EXISTS "webhookForwardUrl" TEXT;');
+    } catch (e) {}
+    try {
+      return await prisma.masterConfig.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+    } catch (err) {
+      console.warn('Fallback raw query for masterConfig:', err.message);
+      return await prisma.$queryRawUnsafe('SELECT * FROM "MasterConfig" ORDER BY "createdAt" DESC;');
+    }
   }
 
   async findOne(id: number, tenantContext: TenantContext) {
     const prisma = this.getPrisma(tenantContext);
-    return prisma.masterConfig.findUnique({
-      where: { id },
-    });
+    try {
+      await prisma.$executeRawUnsafe('ALTER TABLE "MasterConfig" ADD COLUMN IF NOT EXISTS "webhookForwardUrl" TEXT;');
+    } catch (e) {}
+    try {
+      return await prisma.masterConfig.findUnique({
+        where: { id },
+      });
+    } catch (err) {
+      const rows: any = await prisma.$queryRawUnsafe('SELECT * FROM "MasterConfig" WHERE id = $1 LIMIT 1;', id);
+      return rows?.[0] || null;
+    }
   }
 
   async update(id: number, updateDto: UpdateMasterConfigDto, tenantContext: TenantContext) {

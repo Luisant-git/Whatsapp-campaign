@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { getMasterConfigs, createMasterConfig, updateMasterConfig, deleteMasterConfig, subscribeToWABA, setAppWebhook } from "../api/masterConfig";
 import { getAllSettings } from "../api/auth";
 import { useToast } from '../contexts/ToastContext';
 import { API_BASE_URL } from "../api/config";
 import { Plus, Trash2, Eye, EyeOff, Wifi, Facebook, X } from "lucide-react";
 import { getMetaRate, META_PRICING_SOURCE, META_PRICING_EFFECTIVE_DATE, META_PRICING_RATES } from "../utils/metaPricing";
+import MetaCalendarPicker from "./MetaCalendarPicker";
 
 const MasterConfig = ({ tenantId: propTenantId }) => {
   const { showSuccess, showError, showConfirm } = useToast();
@@ -179,18 +180,29 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
   const [analyticsData, setAnalyticsData] = useState([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   
-  const [analyticsRange, setAnalyticsRange] = useState({ label: 'Last 30 days', days: 30 });
+  const [analyticsRange, setAnalyticsRange] = useState({ label: 'Last 7 days', days: 7 });
   const [analyticsCurrency, setAnalyticsCurrency] = useState('INR');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showWabaPicker, setShowWabaPicker] = useState(false);
+  const analyticsDatePickerRef = useRef(null);
+
+  // Close date picker on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (analyticsDatePickerRef.current && !analyticsDatePickerRef.current.contains(e.target)) {
+        setShowDatePicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const fetchAnalytics = async (range) => {
     if (!centralConnection) return;
     setAnalyticsLoading(true);
     try {
-      const end = new Date();
-      const start = new Date();
-      start.setDate(end.getDate() - (range.days - 1));
+      const end = range.customEnd || new Date();
+      const start = range.customStart || (() => { const s = new Date(); s.setDate(s.getDate() - (range.days - 1)); return s; })();
       
       const startDate = start.toISOString();
       const endDate = end.toISOString();
@@ -200,7 +212,6 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
       });
       if (response.ok) {
         const data = await response.json();
-        // data.data is the array of data points
         setAnalyticsData(data.data || []);
         if (data.currency) setAnalyticsCurrency(data.currency);
       }
@@ -215,7 +226,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
     if (centralConnection && centralConnection.connectionStatus === 'CONNECTED') {
       fetchAnalytics(analyticsRange);
     }
-  }, [centralConnection?.id, analyticsRange.days]);
+  }, [centralConnection?.id, analyticsRange]);
 
   const [syncingCentral, setSyncingCentral] = useState(false);
 
@@ -1051,38 +1062,12 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
               {/* Analytics Row */}
               <div style={{ borderTop: '1px solid #ccd0d5', padding: '20px', background: '#ffffff' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-                  <h4 style={{ margin: 0, fontSize: '13px', color: '#606770', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Message Pricing & Usage Analytics</h4>
+                  <h4 style={{ margin: 0, fontSize: '13px', color: '#606770', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Message Pricing &amp; Usage Analytics</h4>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ position: 'relative' }}>
-                      <button 
-                        onClick={() => setShowDatePicker(!showDatePicker)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', border: '1px solid #ccd0d5', borderRadius: '4px', background: '#ffffff', cursor: 'pointer', fontSize: '14px', color: '#1c1e21', fontWeight: '500' }}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1c1e21" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                        {analyticsRange.label}
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1c1e21" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
-                      </button>
-
-                      {showDatePicker && (
-                        <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', width: '220px', background: '#ffffff', border: '1px solid #ccd0d5', borderRadius: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 100, padding: '8px 0' }}>
-                          {[
-                            { label: 'Last 7 days', days: 7 },
-                            { label: 'Last 30 days', days: 30 },
-                            { label: 'Last 60 days', days: 60 },
-                            { label: 'Last 90 days', days: 90 }
-                          ].map(range => (
-                            <div 
-                              key={range.label}
-                              onClick={() => { setAnalyticsRange(range); setShowDatePicker(false); }}
-                              style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', background: analyticsRange.label === range.label ? '#f5f6f7' : 'transparent' }}
-                            >
-                              <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: analyticsRange.label === range.label ? '5px solid #1877f2' : '1px solid #ccd0d5', background: '#fff' }}></div>
-                              <span style={{ fontSize: '14px', color: '#1c1e21' }}>{range.label}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <MetaCalendarPicker 
+                      value={analyticsRange} 
+                      onChange={(newRange) => setAnalyticsRange(newRange)} 
+                    />
                     {analyticsLoading && <span style={{ fontSize: '12px', color: '#1877f2', fontWeight: '600' }}>Loading...</span>}
                   </div>
                 </div>
@@ -1184,22 +1169,57 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
 
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-                          <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', padding: '16px', background: '#fff' }}>
-                            <div style={{ fontSize: '13px', color: '#606770', fontWeight: '600', marginBottom: '8px' }}>Messages sent</div>
-                            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totalDelivered}</div>
+                        {/* ── 5 NEW METRIC CARDS ── */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
+                          {/* All messages */}
+                          <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', padding: '16px', background: '#fff', borderTop: '3px solid #1877f2' }}>
+                            <div style={{ fontSize: '12px', color: '#606770', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>All messages</div>
+                            <div style={{ fontSize: '28px', fontWeight: '700', color: '#1c1e21' }}>{analyticsLoading ? '…' : totalDelivered}</div>
                           </div>
-                          <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', padding: '16px', background: '#fff' }}>
-                            <div style={{ fontSize: '13px', color: '#606770', fontWeight: '600', marginBottom: '8px' }}>Messages delivered</div>
-                            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>{totalDelivered}</div>
+                          {/* Messages delivered */}
+                          <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', padding: '16px', background: '#fff', borderTop: '3px solid #10b981' }}>
+                            <div style={{ fontSize: '12px', color: '#606770', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Messages delivered</div>
+                            <div style={{ fontSize: '28px', fontWeight: '700', color: '#1c1e21' }}>{analyticsLoading ? '…' : totalDelivered}</div>
                           </div>
-                          <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', padding: '16px', background: '#fff' }}>
-                            <div style={{ fontSize: '13px', color: '#606770', fontWeight: '600', marginBottom: '8px' }}>Messages read</div>
-                            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>0 <span style={{ fontSize: '14px', color: '#606770', fontWeight: 'normal' }}>(0%)</span></div>
-                          </div>
-                          <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', padding: '16px', background: '#fff' }}>
-                            <div style={{ fontSize: '13px', color: '#606770', fontWeight: '600', marginBottom: '8px' }}>Unique replies</div>
-                            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1c1e21' }}>0</div>
+                          {/* Free messages delivered */}
+                          {(() => {
+                            const freeCount = rows.filter(r => r.category === 'SERVICE').reduce((s, r) => s + r.messages, 0);
+                            return (
+                              <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', padding: '16px', background: '#fff', borderTop: '3px solid #047857' }}>
+                                <div style={{ fontSize: '12px', color: '#606770', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Free messages delivered</div>
+                                <div style={{ fontSize: '28px', fontWeight: '700', color: '#047857' }}>{analyticsLoading ? '…' : freeCount}</div>
+                              </div>
+                            );
+                          })()}
+                          {/* Paid messages delivered */}
+                          {(() => {
+                            const paidCount = rows.filter(r => r.category !== 'SERVICE').reduce((s, r) => s + r.messages, 0);
+                            return (
+                              <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', padding: '16px', background: '#fff', borderTop: '3px solid #6366f1' }}>
+                                <div style={{ fontSize: '12px', color: '#606770', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Paid messages delivered</div>
+                                <div style={{ fontSize: '28px', fontWeight: '700', color: '#6366f1' }}>{analyticsLoading ? '…' : paidCount}</div>
+                              </div>
+                            );
+                          })()}
+                          {/* Approximate total charges */}
+                          <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', padding: '16px', background: '#fff', borderTop: '3px solid #d97706' }}>
+                            <div style={{ fontSize: '12px', color: '#606770', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Approximate total charges</div>
+                            <div style={{ fontSize: '28px', fontWeight: '700', color: '#1c1e21' }}>
+                              {analyticsLoading ? '…' : (() => {
+                                let est = 0; let canCalc = true;
+                                rows.filter(r => r.category !== 'SERVICE').forEach(r => {
+                                  if (r.hasSpend) { est += r.spend; }
+                                  else {
+                                    const mRate = META_PRICING_RATES[r.country !== 'Unknown' ? r.country : recipientMarket]?.[r.category];
+                                    if (mRate && typeof mRate.rate === 'number') est += mRate.rate * r.messages;
+                                    else canCalc = false;
+                                  }
+                                });
+                                return canCalc
+                                  ? <span>{currencySymbol}{est.toFixed(2)} <span style={{ fontSize:'13px',color:'#d97706',fontWeight:'500' }}>(Est.)</span></span>
+                                  : <span style={{ fontSize:'14px',color:'#d97706' }}>Pending</span>;
+                              })()}
+                            </div>
                           </div>
                         </div>
 

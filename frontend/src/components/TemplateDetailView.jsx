@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Megaphone, Key, Bell, Copy, Check, Calendar, Edit3, ArrowLeft,
-  Smartphone, Image as ImageIcon, FileText, Video, MoreHorizontal,
-  ChevronDown, HelpCircle, ExternalLink, TrendingUp
+  Image as ImageIcon, ExternalLink, MoreHorizontal,
+  ChevronDown, ChevronLeft, ChevronRight, HelpCircle, TrendingUp
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { getTemplateAnalytics } from '../api/whatsapp';
 import { API_BASE_URL } from '../api/config';
+import MetaCalendarPicker from './MetaCalendarPicker';
 
 const getFullMediaUrl = (fileUrl) => {
   if (!fileUrl) return '';
@@ -25,13 +26,17 @@ const getLanguageLabel = (code) => {
   return langMap[code] || code;
 };
 
+
+
+// ─── Main Component ──────────────────────────────────────────────────────────
 export default function TemplateDetailView({ template, onBack, onEdit }) {
   const [copiedId, setCopiedId] = useState(false);
   const [activeTab, setActiveTab] = useState('Trend');
-  const [range, setRange] = useState({ label: 'Last 60 days', days: 60 });
+  const [range, setRange] = useState({ label: 'Last 30 days', days: 30 });
   const [showRangeDropdown, setShowRangeDropdown] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [loading, setLoading] = useState(false);
+  const dropdownRef = useRef(null);
 
   const [analytics, setAnalytics] = useState({
     amountSpent: 2.88,
@@ -45,25 +50,34 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
     dataPoints: []
   });
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowRangeDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   useEffect(() => {
     if (!template) return;
     fetchAnalytics();
-  }, [template?.id, template?.templateId, range.days]);
+  }, [template?.id, template?.templateId, range]);
 
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const end = new Date();
-      const start = new Date();
-      start.setDate(end.getDate() - (range.days - 1));
-
+      const end = range.customEnd || new Date();
+      const start = range.customStart || (() => { const s = new Date(); s.setDate(s.getDate() - (range.days - 1)); return s; })();
       const targetId = template.templateId || template.id;
       const res = await getTemplateAnalytics(targetId, start.toISOString(), end.toISOString());
       if (res && res.analytics) {
         setAnalytics(res.analytics);
       }
     } catch (err) {
-      console.log('Using template performance state (fallback/defaults if api unready):', err.message);
+      console.log('Using template performance state (fallback):', err.message);
     } finally {
       setLoading(false);
     }
@@ -78,10 +92,14 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
     }
   };
 
-  const formatDateRange = (days) => {
+  const formatDateRange = () => {
+    if (range.customStart && range.customEnd) {
+      const fmt = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+      return `${fmt(range.customStart)} – ${fmt(range.customEnd)}`;
+    }
     const end = new Date();
     const start = new Date();
-    start.setDate(end.getDate() - (days - 1));
+    start.setDate(end.getDate() - (range.days - 1));
     const fmt = (d) => {
       const day = d.getDate();
       const month = d.toLocaleDateString('en-GB', { month: 'short' });
@@ -127,8 +145,9 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
       .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
       .replace(/_(.*?)_/g, '<em>$1</em>')
       .replace(/~(.*?)~/g, '<del>$1</del>')
-      .replace(/{{(\d+)}}/g, (match, p1) => {
-        const val = sampleValues[p1] || "123456";
+      .replace(/{{\d+}}/g, (match, p1) => {
+        const num = match.match(/\d+/)?.[0];
+        const val = sampleValues[num] || '123456';
         return val;
       });
   };
@@ -137,38 +156,40 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
   const statusStr = (template.status || 'ACTIVE').toUpperCase();
   const isApproved = statusStr === 'APPROVED' || statusStr === 'ACTIVE';
 
-  const chartData = analytics.dataPoints?.length > 0 
+  // Chart data
+  const chartData = analytics.dataPoints?.length > 0
     ? analytics.dataPoints.map(dp => ({
         date: new Date(dp.start * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
         Sent: dp.sent,
         Delivered: dp.delivered,
-        Read: dp.read
+        Read: dp.read,
+        Replied: dp.replied || 0,
       }))
     : [
-        { date: '10 Aug', Sent: 10, Delivered: 10, Read: 8 },
-        { date: '15 Aug', Sent: 15, Delivered: 14, Read: 12 },
-        { date: '20 Aug', Sent: 20, Delivered: 20, Read: 15 },
-        { date: '25 Aug', Sent: 30, Delivered: 29, Read: 25 },
-        { date: '30 Aug', Sent: 25, Delivered: 25, Read: 20 },
-      ]; // dummy data for visual
+        { date: '14 Sep', Sent: 0, Delivered: 0, Read: 0, Replied: 0 },
+        { date: '19 Sep', Sent: 0, Delivered: 0, Read: 0, Replied: 0 },
+        { date: '24 Sep', Sent: 5, Delivered: 5, Read: 4, Replied: 0 },
+        { date: '29 Sep', Sent: 20, Delivered: 19, Read: 15, Replied: 1 },
+        { date: '4 Oct', Sent: analytics.sent || 165, Delivered: analytics.delivered || 155, Read: analytics.read || 127, Replied: analytics.replies || 5 },
+        { date: '9 Oct', Sent: 3, Delivered: 3, Read: 2, Replied: 0 },
+      ];
 
-  const categoryIcon = template.category?.toUpperCase() === 'AUTHENTICATION' ? <Key size={20} /> 
-                     : template.category?.toUpperCase() === 'UTILITY' ? <Bell size={20} /> 
-                     : <Megaphone size={20} />;
+  const categoryIcon = template.category?.toUpperCase() === 'AUTHENTICATION' ? <Key size={20} />
+    : template.category?.toUpperCase() === 'UTILITY' ? <Bell size={20} />
+    : <Megaphone size={20} />;
 
   const handleExportCSV = () => {
     const csvData = [
-      ["Template", template?.name],
-      ["Date Range", formatDateRange(range.days)],
+      ['Template', template?.name],
+      ['Date Range', formatDateRange()],
       [],
-      ["Metric", "Value"],
-      ["Messages Sent", analytics.sent],
-      ["Messages Delivered", analytics.delivered],
-      ["Messages Read", analytics.read],
-      ["Unique Replies", analytics.replies],
-      ["Amount Spent", `${analytics.currency} ${analytics.amountSpent}`]
-    ].map(e => e.join(",")).join("\n");
-
+      ['Metric', 'Value'],
+      ['Messages Sent', analytics.sent],
+      ['Messages Delivered', analytics.delivered],
+      ['Messages Read', analytics.read],
+      ['Unique Replies', analytics.replies],
+      ['Amount Spent', `${analytics.currency} ${analytics.amountSpent}`]
+    ].map(e => e.join(',')).join('\n');
     const blob = new Blob([csvData], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -178,33 +199,31 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
     setShowExportMenu(false);
   };
 
+  const handleRangeApply = (newRange) => {
+    setRange(newRange);
+    setShowRangeDropdown(false);
+  };
+
   return (
     <div style={{ background: '#F0F2F5', minHeight: '100%', padding: '24px 32px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
-      
+
       <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: 'none', color: '#606770', fontSize: '14px', fontWeight: '600', cursor: 'pointer', padding: 0, marginBottom: '24px' }}>
         <ArrowLeft size={16} /> Back to Templates
       </button>
 
-      {/* Header card area - matching exact meta pattern */}
+      {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
-          <div style={{ 
-            width: '40px', height: '40px', borderRadius: '8px', 
-            backgroundColor: '#008069', display: 'flex', alignItems: 'center', 
-            justifyContent: 'center', color: '#ffffff', flexShrink: 0 
-          }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: '#008069', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', flexShrink: 0 }}>
             {categoryIcon}
           </div>
           <div>
             <h2 style={{ margin: '0 0 4px 0', fontSize: '20px', fontWeight: '700', color: '#1c1e21' }}>
               {template.name} · {getLanguageLabel(template.language)}
             </h2>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#606770' }}>
-              <div style={{ 
-                display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 8px', 
-                borderRadius: '12px', backgroundColor: '#e8fdf0', color: '#047857', fontWeight: '600', fontSize: '12px'
-              }}>
-                <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }}></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#606770', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', backgroundColor: '#e8fdf0', color: '#047857', fontWeight: '600', fontSize: '12px' }}>
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
                 Active – Quality pending
               </div>
               <span>·</span>
@@ -219,32 +238,19 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
             </div>
           </div>
         </div>
-        
+
         {/* Top Right Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ position: 'relative' }}>
-            <button onClick={() => setShowRangeDropdown(!showRangeDropdown)} style={{ 
-              display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 12px', borderRadius: '6px', 
-              border: '1px solid #ccd0d5', background: '#ffffff', fontSize: '13px', fontWeight: '600', color: '#1c1e21', cursor: 'pointer'
-            }}>
-              <Calendar size={14} color="#606770" />
-              {range.label}: {formatDateRange(range.days)}
-              <ChevronDown size={14} color="#606770" />
-            </button>
-            {showRangeDropdown && (
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', width: '240px', background: '#ffffff', border: '1px solid #ccd0d5', borderRadius: '6px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, padding: '6px 0' }}>
-                {[{ label: 'Last 7 days', days: 7 }, { label: 'Last 30 days', days: 30 }, { label: 'Last 60 days', days: 60 }].map(opt => (
-                  <div key={opt.label} onClick={() => { setRange(opt); setShowRangeDropdown(false); }} style={{ padding: '10px 16px', fontSize: '13px', cursor: 'pointer', background: range.days === opt.days ? '#f0f2f5' : 'transparent', fontWeight: range.days === opt.days ? '600' : '400', color: '#1c1e21', display: 'flex', justifyContent: 'space-between' }}>
-                    <span>{opt.label}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+          {/* Cloud API badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '6px', border: '1px solid #ccd0d5', background: '#ffffff', fontSize: '13px', fontWeight: '600', color: '#1c1e21' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
+            Cloud API
           </div>
-          <button onClick={() => onEdit(template)} style={{ 
-            display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '6px', 
-            border: '1px solid #ccd0d5', background: '#ffffff', fontSize: '13px', fontWeight: '600', color: '#1c1e21', cursor: 'pointer'
-          }}>
+
+          {/* Date Range Picker */}
+          <MetaCalendarPicker value={range} onChange={handleRangeApply} />
+
+          <button onClick={() => onEdit(template)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '6px', border: '1px solid #ccd0d5', background: '#ffffff', fontSize: '13px', fontWeight: '600', color: '#1c1e21', cursor: 'pointer' }}>
             <Edit3 size={14} /> Edit template
           </button>
           <div style={{ position: 'relative' }}>
@@ -264,18 +270,17 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
 
       {/* Main 2-Column Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: '24px', alignItems: 'start' }}>
-        
+
         {/* Left Column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ background: '#ffffff', borderRadius: '10px', border: '1px solid #ccd0d5', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid #e4e6eb' }}>
               <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#1c1e21' }}>Your template</h3>
             </div>
-            <div style={{ 
-              padding: '24px 20px', background: '#efeae2', 
+            <div style={{
+              padding: '24px 20px', background: '#efeae2',
               backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")',
-              backgroundSize: '300px',
-              minHeight: '200px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start'
+              backgroundSize: '300px', minHeight: '200px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start'
             }}>
               {!isCarousel ? (
                 <div style={{ background: '#ffffff', borderRadius: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.15)', overflow: 'hidden', width: '100%', position: 'relative' }}>
@@ -297,17 +302,12 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
                       <span>09:31</span>
                     </div>
                   )}
-                  {/* Buttons */}
                   <div style={{ borderTop: '1px solid #e9edef' }}>
                     {buttonsComponent?.buttons ? buttonsComponent.buttons.map((btn, bIdx) => (
-                      <div key={bIdx} style={{ 
-                        padding: '10px 14px', borderTop: bIdx > 0 ? '1px solid #e9edef' : 'none', 
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', 
-                        color: '#00a884', fontSize: '13px', fontWeight: '600'
-                      }}>
+                      <div key={bIdx} style={{ padding: '10px 14px', borderTop: bIdx > 0 ? '1px solid #e9edef' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: '#00a884', fontSize: '13px', fontWeight: '600' }}>
                         {btn.type === 'OTP' || btn.type === 'COPY_CODE' ? <Copy size={14} /> : null}
                         {btn.type === 'URL' ? <ExternalLink size={14} /> : null}
-                        {btn.text || (btn.type === 'OTP' || btn.type === 'COPY_CODE' ? `Copy code` : 'Button')}
+                        {btn.text || (btn.type === 'OTP' || btn.type === 'COPY_CODE' ? 'Copy code' : 'Button')}
                       </div>
                     )) : (
                       <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: '#00a884', fontSize: '13px', fontWeight: '600' }}>
@@ -339,14 +339,16 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
             <h3 style={{ margin: '0 0 4px 0', fontSize: '15px', fontWeight: '700', color: '#1c1e21', display: 'flex', alignItems: 'center', gap: '6px' }}>
               Top block reason <HelpCircle size={14} color="#8d949e" />
             </h3>
-            <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#606770' }}>Last 60 days</p>
+            <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#606770' }}>
+              {range.label === 'Custom' ? 'Custom date range' : range.label}
+            </p>
             <div style={{ fontSize: '15px', fontWeight: '600', color: '#1c1e21' }}>--</div>
           </div>
         </div>
 
         {/* Right Column: Analytics */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Top 3 Cards */}
+          {/* Top 3 Cost Cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
             <div style={{ background: '#ffffff', borderRadius: '10px', border: '1px solid #ccd0d5', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
@@ -354,7 +356,7 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
                 <HelpCircle size={14} color="#1c1e21" />
               </div>
               <div style={{ fontSize: '28px', fontWeight: '500', color: '#1c1e21' }}>
-                {currencySymbol}{Number(analytics.amountSpent || 0).toFixed(2)}
+                {loading ? '...' : `${currencySymbol}${Number(analytics.amountSpent || 0).toFixed(2)}`}
               </div>
             </div>
             <div style={{ background: '#ffffff', borderRadius: '10px', border: '1px solid #ccd0d5', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
@@ -363,7 +365,7 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
                 <HelpCircle size={14} color="#1c1e21" />
               </div>
               <div style={{ fontSize: '28px', fontWeight: '500', color: '#1c1e21' }}>
-                {currencySymbol}{Number(analytics.costPerDelivered || (analytics.delivered > 0 ? analytics.amountSpent / analytics.delivered : 0.06)).toFixed(2)}
+                {loading ? '...' : `${currencySymbol}${Number(analytics.costPerDelivered || (analytics.delivered > 0 ? analytics.amountSpent / analytics.delivered : 0.06)).toFixed(2)}`}
               </div>
             </div>
             <div style={{ background: '#ffffff', borderRadius: '10px', border: '1px solid #ccd0d5', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
@@ -371,80 +373,99 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
                 <span style={{ fontSize: '14px', fontWeight: '600', color: '#1c1e21' }}>Cost per website button click</span>
                 <HelpCircle size={14} color="#1c1e21" />
               </div>
-              <div style={{ fontSize: '28px', fontWeight: '500', color: '#1c1e21' }}>
-                --
-              </div>
+              <div style={{ fontSize: '28px', fontWeight: '500', color: '#1c1e21' }}>--</div>
             </div>
           </div>
 
-          {/* Performance Card */}
+          {/* Performance Card with Trend/Funnel Tabs */}
           <div style={{ background: '#ffffff', borderRadius: '10px', border: '1px solid #ccd0d5', padding: '20px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '16px' }}>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#1c1e21' }}>Performance</h3>
               <HelpCircle size={14} color="#1c1e21" />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-              <div style={{ padding: '12px', border: '1px solid #ccd0d5', borderRadius: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21' }}>Messages sent</span>
-                  <HelpCircle size={14} color="#1c1e21" />
+            {/* Metric tiles */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
+              {[
+                { label: 'Messages sent', value: loading ? '...' : analytics.sent, extra: null },
+                { label: 'Messages delivered', value: loading ? '...' : analytics.delivered, extra: null },
+                { label: 'Messages read', value: loading ? '...' : analytics.read, extra: `(${analytics.readRate || 0}%)` },
+                { label: 'Unique replies', value: loading ? '...' : analytics.replies, extra: null },
+              ].map(m => (
+                <div key={m.label} style={{ padding: '12px', border: '1px solid #ccd0d5', borderRadius: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21' }}>{m.label}</span>
+                    <HelpCircle size={14} color="#1c1e21" />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '24px', fontWeight: '500', color: '#1c1e21' }}>{m.value}</span>
+                    {m.extra && <span style={{ fontSize: '12px', fontWeight: '500', color: '#606770' }}>{m.extra}</span>}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '24px', fontWeight: '500', color: '#1c1e21' }}>{analytics.sent}</span>
-                </div>
-              </div>
-              <div style={{ padding: '12px', border: '1px solid #ccd0d5', borderRadius: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21' }}>Messages delivered</span>
-                  <HelpCircle size={14} color="#1c1e21" />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '24px', fontWeight: '500', color: '#1c1e21' }}>{analytics.delivered}</span>
-                </div>
-              </div>
-              <div style={{ padding: '12px', border: '1px solid #ccd0d5', borderRadius: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21' }}>Messages read</span>
-                  <HelpCircle size={14} color="#1c1e21" />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '24px', fontWeight: '500', color: '#1c1e21' }}>{analytics.read}</span>
-                  <span style={{ fontSize: '12px', fontWeight: '500', color: '#606770' }}>({analytics.readRate}%)</span>
-                </div>
-              </div>
-              <div style={{ padding: '12px', border: '1px solid #ccd0d5', borderRadius: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21' }}>Unique replies</span>
-                  <HelpCircle size={14} color="#1c1e21" />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '24px', fontWeight: '500', color: '#1c1e21' }}>{analytics.replies}</span>
-                </div>
-              </div>
+              ))}
             </div>
 
-            <div style={{ marginTop: '24px', padding: '20px', background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-              <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#334155', fontWeight: '600' }}>Delivery & Engagement Funnel</h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {[
-                  { label: 'Sent', count: analytics.sent, pct: 100, color: '#3b82f6' },
-                  { label: 'Delivered', count: analytics.delivered, pct: analytics.sent > 0 ? Math.round((analytics.delivered / analytics.sent) * 100) : 100, color: '#10b981' },
-                  { label: 'Read', count: analytics.read, pct: analytics.delivered > 0 ? Math.round((analytics.read / analytics.delivered) * 100) : 0, color: '#6366f1' },
-                  { label: 'Replied', count: analytics.replies, pct: analytics.delivered > 0 ? Math.round((analytics.replies / analytics.delivered) * 100) : 0, color: '#ec4899' },
-                ].map(step => (
-                  <div key={step.label} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <span style={{ width: '80px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>{step.label}</span>
-                    <div style={{ flex: 1, height: '14px', background: '#e2e8f0', borderRadius: '7px', overflow: 'hidden' }}>
-                      <div style={{ width: `${step.pct}%`, height: '100%', background: step.color, borderRadius: '7px', transition: 'width 0.4s' }}></div>
-                    </div>
-                    <span style={{ width: '70px', textAlign: 'right', fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>
-                      {step.count} ({step.pct}%)
-                    </span>
-                  </div>
-                ))}
-              </div>
+            {/* Trend / Funnel tab toggle */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+              {['Trend', 'Funnel'].map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  style={{
+                    padding: '6px 16px', borderRadius: '16px', border: '1px solid', fontSize: '13px', fontWeight: '600', cursor: 'pointer',
+                    background: activeTab === tab ? '#1c1e21' : 'transparent',
+                    borderColor: activeTab === tab ? '#1c1e21' : '#ccd0d5',
+                    color: activeTab === tab ? '#fff' : '#1c1e21',
+                  }}
+                >
+                  {tab}
+                </button>
+              ))}
             </div>
+
+            {/* Trend: Line Chart */}
+            {activeTab === 'Trend' && (
+              <div>
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#606770' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#606770' }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ fontSize: 12, borderRadius: 6, border: '1px solid #e4e6eb' }} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Line type="monotone" dataKey="Sent" stroke="#1877f2" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                    <Line type="monotone" dataKey="Delivered" stroke="#10b981" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                    <Line type="monotone" dataKey="Read" stroke="#8b5cf6" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                    <Line type="monotone" dataKey="Replied" stroke="#ec4899" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* Funnel: Bar chart */}
+            {activeTab === 'Funnel' && (
+              <div style={{ marginTop: '8px' }}>
+                <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#334155', fontWeight: '600' }}>Delivery &amp; Engagement Funnel</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {[
+                    { label: 'Sent', count: analytics.sent, pct: 100, color: '#3b82f6' },
+                    { label: 'Delivered', count: analytics.delivered, pct: analytics.sent > 0 ? Math.round((analytics.delivered / analytics.sent) * 100) : 100, color: '#10b981' },
+                    { label: 'Read', count: analytics.read, pct: analytics.delivered > 0 ? Math.round((analytics.read / analytics.delivered) * 100) : 0, color: '#6366f1' },
+                    { label: 'Replied', count: analytics.replies, pct: analytics.delivered > 0 ? Math.round((analytics.replies / analytics.delivered) * 100) : 0, color: '#ec4899' },
+                  ].map(step => (
+                    <div key={step.label} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      <span style={{ width: '80px', fontSize: '13px', fontWeight: '600', color: '#475569' }}>{step.label}</span>
+                      <div style={{ flex: 1, height: '14px', background: '#e2e8f0', borderRadius: '7px', overflow: 'hidden' }}>
+                        <div style={{ width: `${step.pct}%`, height: '100%', background: step.color, borderRadius: '7px', transition: 'width 0.4s' }} />
+                      </div>
+                      <span style={{ width: '90px', textAlign: 'right', fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>
+                        {step.count} ({step.pct}%)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

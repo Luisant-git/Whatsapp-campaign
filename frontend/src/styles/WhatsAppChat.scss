@@ -342,6 +342,7 @@
           margin-bottom: 5px;
           display: flex;
           align-items: center;
+          justify-content: space-between;
           gap: 8px;
 
           .chat-name-text {
@@ -363,6 +364,7 @@
           min-width: 20px;
           text-align: center;
           flex-shrink: 0;
+          margin-left: auto;
         }
 
         .chat-last-msg {
@@ -1878,13 +1880,21 @@
 .wa-label-tabs {
   display: flex;
   align-items: center;
-  justify-content: center;  /* NEW */
+  justify-content: flex-start;
   gap: 6px;
   padding: 6px 10px;
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  align-self: center;       /* OPTIONAL: center the whole block */
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-wrap: nowrap;
+  width: 100%;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* NORMAL TAB */

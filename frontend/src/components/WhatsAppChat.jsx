@@ -1722,7 +1722,6 @@ const WhatsAppChat = () => {
               <span className="chat-name-text">
                 {chat.name || chat.phone}
               </span>
-              {chat.unreadCount > 0 && <span className="unread-badge">{chat.unreadCount}</span>}
             </div>
             <div style={{ fontSize: '12px', color: '#667781', marginTop: '2px' }}>
               {chat.phone}

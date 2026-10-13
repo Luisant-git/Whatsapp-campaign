@@ -834,38 +834,56 @@
 
 /* cards  */
 .template-status-cards {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin: 20px 0;
-  overflow-x: auto;
-  padding-bottom: 4px;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+  width: 100%;
+}
+
+@media (max-width: 1360px) {
+  .template-status-cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  .template-status-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
 }
 
 .template-status-card {
   background: white;
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 10px;
+  padding: 12px 10px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   transition: all 0.2s ease;
-  min-height: 84px;
-  flex: 1 1 180px;
-  min-width: 160px;
+  min-height: 68px;
+  min-width: 0;
+  cursor: pointer;
+  user-select: none;
 }
 
 .template-status-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.template-status-card.active {
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25), 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .template-status-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -895,21 +913,25 @@
 .template-status-content {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .template-status-content h3 {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 11.5px;
+  font-weight: 600;
   color: #64748b;
-  margin: 0 0 4px;
+  margin: 0 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .template-status-number {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: #1e293b;
   margin: 0;
-  line-height: 1.2;
+  line-height: 1.1;
 }
 
 /* Carousel Navigation Buttons */

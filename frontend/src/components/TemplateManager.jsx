@@ -92,6 +92,7 @@ const TemplateManager = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('ALL');
+  const [filterStatus, setFilterStatus] = useState('ALL');
   const [uploadedFile, setUploadedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [validationError, setValidationError] = useState(null);
@@ -1202,7 +1203,8 @@ const TemplateManager = () => {
 
   const filteredTemplates = templates.filter(t => 
     (searchTerm === '' || t.name.toLowerCase().includes(searchTerm.toLowerCase())) &&
-    (filterCategory === 'ALL' || t.category === filterCategory)
+    (filterCategory === 'ALL' || t.category === filterCategory) &&
+    (filterStatus === 'ALL' || (t.status || '').toUpperCase() === filterStatus)
   );
 
   const getVariablesFromText = (text) => {
@@ -1587,87 +1589,40 @@ const TemplateManager = () => {
         </button>
       </div>
       <div className="template-status-cards">
-  <div className="template-status-card all">
-    <div className="template-status-icon all">
-      <Layout size={22} />
-    </div>
-    <div className="template-status-content">
-      <h3>All Templates</h3>
-      <p className="template-status-number">{allCount}</p>
-    </div>
-  </div>
-
-  <div className="template-status-card pending">
-    <div className="template-status-icon pending">
-      <Clock size={22} />
-    </div>
-    <div className="template-status-content">
-      <h3>Pending</h3>
-      <p className="template-status-number">{pendingCount}</p>
-    </div>
-  </div>
-
-  <div className="template-status-card approved">
-    <div className="template-status-icon approved">
-      <CheckCircle2 size={22} />
-    </div>
-    <div className="template-status-content">
-      <h3>Approved</h3>
-      <p className="template-status-number">{approvedCount}</p>
-    </div>
-  </div>
-
-  <div className="template-status-card rejected">
-    <div className="template-status-icon rejected">
-      <X size={22} />
-    </div>
-    <div className="template-status-content">
-      <h3>Rejected</h3>
-      <p className="template-status-number">{rejectedCount}</p>
-    </div>
-  </div>
-
-  <div className="template-status-card" style={{ borderLeft: '3px solid #f59e0b', background: '#fff' }}>
-    <div className="template-status-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-    </div>
-    <div className="template-status-content">
-      <h3>Paused</h3>
-      <p className="template-status-number">{pausedCount}</p>
-    </div>
-  </div>
-
-  <div className="template-status-card" style={{ borderLeft: '3px solid #6b7280', background: '#fff' }}>
-    <div className="template-status-icon" style={{ background: '#f3f4f6', color: '#6b7280' }}>
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-    </div>
-    <div className="template-status-content">
-      <h3>Disabled</h3>
-      <p className="template-status-number">{disabledCount}</p>
-    </div>
-  </div>
-
-  <div className="template-status-card" style={{ borderLeft: '3px solid #8b5cf6', background: '#fff' }}>
-    <div className="template-status-icon" style={{ background: '#ede9fe', color: '#7c3aed' }}>
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-    </div>
-    <div className="template-status-content">
-      <h3>In Appeal</h3>
-      <p className="template-status-number">{inAppealCount}</p>
-    </div>
-  </div>
-
-  <div className="template-status-card" style={{ borderLeft: '3px solid #94a3b8', background: '#fff' }}>
-    <div className="template-status-icon" style={{ background: '#f1f5f9', color: '#64748b' }}>
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-    </div>
-    <div className="template-status-content">
-      <h3>Draft</h3>
-      <p className="template-status-number">{draftCount}</p>
-    </div>
-  </div>
-
-</div>
+        {[
+          { key: 'ALL', label: 'All Templates', count: allCount, icon: <Layout size={18} />, color: '#2563eb', bg: '#dbeafe' },
+          { key: 'PENDING', label: 'Pending', count: pendingCount, icon: <Clock size={18} />, color: '#d97706', bg: '#fef3c7' },
+          { key: 'ACTIVE', label: 'Approved', count: approvedCount, icon: <CheckCircle2 size={18} />, color: '#16a34a', bg: '#dcfce7' },
+          { key: 'REJECTED', label: 'Rejected', count: rejectedCount, icon: <X size={18} />, color: '#dc2626', bg: '#fee2e2' },
+          { key: 'PAUSED', label: 'Paused', count: pausedCount, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>, color: '#f59e0b', bg: '#fef3c7' },
+          { key: 'DISABLED', label: 'Disabled', count: disabledCount, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>, color: '#6b7280', bg: '#f3f4f6' },
+          { key: 'IN_APPEAL', label: 'In Appeal', count: inAppealCount, icon: <AlertCircle size={18} />, color: '#7c3aed', bg: '#ede9fe' },
+          { key: 'DRAFT', label: 'Draft', count: draftCount, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>, color: '#64748b', bg: '#f1f5f9' },
+        ].map(card => {
+          const isSelected = filterStatus === card.key;
+          return (
+            <div
+              key={card.key}
+              onClick={() => setFilterStatus(isSelected && card.key !== 'ALL' ? 'ALL' : card.key)}
+              className={`template-status-card ${isSelected ? 'active' : ''}`}
+              style={{
+                borderLeft: `3px solid ${card.color}`,
+                background: isSelected ? '#f8fafc' : '#ffffff',
+                cursor: 'pointer'
+              }}
+              title={`Click to filter by ${card.label}`}
+            >
+              <div className="template-status-icon" style={{ background: card.bg, color: card.color }}>
+                {card.icon}
+              </div>
+              <div className="template-status-content">
+                <h3>{card.label}</h3>
+                <p className="template-status-number">{card.count}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {selectedTab === 0 && (
         <div className="templates-list-container">

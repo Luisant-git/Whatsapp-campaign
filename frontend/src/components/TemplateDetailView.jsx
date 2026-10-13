@@ -212,16 +212,38 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
       </button>
 
       {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: '280px', flex: '1 1 auto' }}>
+      <div style={{ marginBottom: '24px' }}>
+        {/* Title + controls all in one row, no wrap */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'nowrap', overflow: 'hidden' }}>
           <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: '#008069', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', flexShrink: 0 }}>
             {categoryIcon}
           </div>
-          <div>
-            <h2 style={{ margin: '0 0 4px 0', fontSize: '20px', fontWeight: '700', color: '#1c1e21', lineHeight: '1.2' }}>
-              {template.name} · {getLanguageLabel(template.language)}
-            </h2>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#606770', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'nowrap' }}>
+              <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#1c1e21', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {template.name} · {getLanguageLabel(template.language)}
+              </h2>
+              {/* Controls inline with title */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, flexWrap: 'nowrap' }}>
+                <MetaCalendarPicker value={range} onChange={handleRangeApply} />
+                <button onClick={() => onEdit(template)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '6px', border: '1px solid #ccd0d5', background: '#ffffff', fontSize: '13px', fontWeight: '600', color: '#1c1e21', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  <Edit3 size={14} /> Edit template
+                </button>
+                <div style={{ position: 'relative' }}>
+                  <button onClick={() => setShowExportMenu(!showExportMenu)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '7px 10px', borderRadius: '6px', border: '1px solid #ccd0d5', background: '#ffffff', color: '#606770', cursor: 'pointer' }}>
+                    <MoreHorizontal size={15} />
+                  </button>
+                  {showExportMenu && (
+                    <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', width: '180px', background: '#ffffff', border: '1px solid #ccd0d5', borderRadius: '6px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, padding: '6px 0' }}>
+                      <div onClick={handleExportCSV} style={{ padding: '10px 16px', fontSize: '13px', cursor: 'pointer', color: '#1c1e21', fontWeight: '500' }}>
+                        Export insights
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#606770', marginTop: '4px', flexWrap: 'nowrap', overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', backgroundColor: '#e8fdf0', color: '#047857', fontWeight: '600', fontSize: '12px', whiteSpace: 'nowrap' }}>
                 <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
                 Active – Quality pending
@@ -236,34 +258,6 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
                 {copiedId ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Top Right Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', flexShrink: 0 }}>
-          {/* Cloud API badge - hidden */}
-          {/* <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '6px', border: '1px solid #ccd0d5', background: '#ffffff', fontSize: '13px', fontWeight: '600', color: '#1c1e21', whiteSpace: 'nowrap', flexShrink: 0 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
-            Cloud API
-          </div> */}
-
-          {/* Date Range Picker */}
-          <MetaCalendarPicker value={range} onChange={handleRangeApply} />
-
-          <button onClick={() => onEdit(template)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '6px', border: '1px solid #ccd0d5', background: '#ffffff', fontSize: '13px', fontWeight: '600', color: '#1c1e21', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
-            <Edit3 size={14} /> Edit template
-          </button>
-          <div style={{ position: 'relative', flexShrink: 0 }}>
-            <button onClick={() => setShowExportMenu(!showExportMenu)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '7px 10px', borderRadius: '6px', border: '1px solid #ccd0d5', background: '#ffffff', color: '#606770', cursor: 'pointer', flexShrink: 0 }}>
-              <MoreHorizontal size={15} />
-            </button>
-            {showExportMenu && (
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', width: '180px', background: '#ffffff', border: '1px solid #ccd0d5', borderRadius: '6px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, padding: '6px 0' }}>
-                <div onClick={handleExportCSV} style={{ padding: '10px 16px', fontSize: '13px', cursor: 'pointer', color: '#1c1e21', fontWeight: '500' }}>
-                  Export insights
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

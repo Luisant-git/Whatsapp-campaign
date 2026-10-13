@@ -376,17 +376,64 @@
 
         .chat-labels {
           display: flex;
-          gap: 4px;
+          align-items: center;
+          gap: 5px;
           margin-top: 4px;
-          flex-wrap: wrap;
+          flex-wrap: nowrap;
+          overflow: hidden;
+          max-width: 100%;
 
           .label-tag {
-            font-size: 11px;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            height: 18px;
+            line-height: 18px;
+            padding: 0 6px;
+            border-radius: 4px;
+            font-size: 10.5px;
             font-weight: 500;
             letter-spacing: 0.2px;
+            color: #ffffff;
+            white-space: nowrap;
+            max-width: 140px;
+            flex-shrink: 1;
+            min-width: 0;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+            transition: opacity 0.15s ease;
+
+            &:hover {
+              opacity: 0.92;
+            }
+
+            .label-tag-icon {
+              flex-shrink: 0;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+
+            .label-tag-text {
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+          }
+
+          .label-more-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            color: #54656f;
+            background: #e9edef;
+            flex-shrink: 0;
+            cursor: default;
+            white-space: nowrap;
           }
         }
       }

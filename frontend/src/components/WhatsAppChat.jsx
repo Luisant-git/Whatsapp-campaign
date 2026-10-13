@@ -5,7 +5,7 @@ import { getMessages, sendMessage, sendMediaMessage, getLabels, updateLabels, ge
 import '../styles/WhatsAppChat.scss';
 import { contactAPI } from '../api/contact';
 import { groupAPI } from '../api/group';
-import { Users, UserCheck, MoreVertical, Loader2, ChevronRight, ChevronLeft, Check, CheckCheck } from 'lucide-react';
+import { Users, UserCheck, MoreVertical, Loader2, ChevronRight, ChevronLeft, Check, CheckCheck, Tag } from 'lucide-react';
 import { getTenantSubUsers } from "../api/subuser";
 import EmojiPicker from 'emoji-picker-react';
 
@@ -1717,8 +1717,8 @@ const WhatsAppChat = () => {
           }}
         >
           <div className="chat-avatar">{chat.phone.slice(-4)}</div>
-          <div className="chat-info" style={{ paddingRight: '100px' }}>
-            <div className="chat-phone">
+          <div className="chat-info">
+            <div className="chat-phone" style={{ paddingRight: userType !== "subuser" ? '75px' : '0' }}>
               <span className="chat-name-text">
                 {chat.name || chat.phone}
               </span>
@@ -1747,15 +1747,27 @@ const WhatsAppChat = () => {
             <div className="chat-last-msg">{chat.lastMessage}</div>
             {chatLabels[chat.phone]?.length > 0 && (
               <div className="chat-labels">
-                {chatLabels[chat.phone].map(label => (
+                {chatLabels[chat.phone].slice(0, 2).map(label => (
                   <span
                     key={label}
                     className="label-tag"
                     style={{ backgroundColor: labelColors[label] || '#9e9e9e' }}
+                    title={label}
                   >
-                    {label}
+                    <span className="label-tag-icon">
+                      <Tag size={10} strokeWidth={2.4} />
+                    </span>
+                    <span className="label-tag-text">{label}</span>
                   </span>
                 ))}
+                {chatLabels[chat.phone].length > 2 && (
+                  <span
+                    className="label-more-badge"
+                    title={chatLabels[chat.phone].slice(2).join(', ')}
+                  >
+                    +{chatLabels[chat.phone].length - 2}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -1980,9 +1992,37 @@ const WhatsAppChat = () => {
                 {!isSelectionMode ? (
                   <>
                     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#111b21', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {selectedChatData?.name || selectedChat}
-                      </h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#111b21', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {selectedChatData?.name || selectedChat}
+                        </h3>
+                        {chatLabels[selectedChat]?.length > 0 && (
+                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            {chatLabels[selectedChat].map(label => (
+                              <span
+                                key={label}
+                                className="label-tag"
+                                style={{
+                                  backgroundColor: labelColors[label] || '#9e9e9e',
+                                  fontSize: '11px',
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                  color: 'white',
+                                  fontWeight: '500',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  height: '18px'
+                                }}
+                                title={label}
+                              >
+                                <Tag size={9} strokeWidth={2.4} />
+                                {label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                       <div style={{ fontSize: '12px', color: '#667781', marginTop: '2px' }}>
                         {selectedChat}
                       </div>

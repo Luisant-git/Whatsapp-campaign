@@ -238,7 +238,7 @@
   background-color: white;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  overflow-x: auto;
 
   table {
     width: 100%;
@@ -320,6 +320,7 @@
               background-color: #ffedd5;
               color: #c2410c;
               border: 1px solid #fed7aa;
+              white-space: nowrap;
             }
 
             &.stopped {
@@ -546,5 +547,40 @@
 
   p {
     margin: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .campaigns-container {
+    padding: 12px;
+  }
+
+  .campaigns-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+
+    .campaigns-controls {
+      width: 100%;
+      flex-wrap: wrap;
+
+      .phone-filter {
+        min-width: unset;
+        flex: 1;
+      }
+    }
+  }
+
+  .campaigns-table table {
+    th, td {
+      padding: 10px 12px;
+      font-size: 12px;
+    }
+  }
+
+  .status-badge {
+    font-size: 11px !important;
+    padding: 3px 6px !important;
+    white-space: nowrap;
   }
 }

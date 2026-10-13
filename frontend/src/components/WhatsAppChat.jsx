@@ -1716,7 +1716,7 @@ const WhatsAppChat = () => {
             setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 100);
           }}
         >
-          <div className="chat-avatar">{chat.phone.slice(-4)}</div>
+          <div className="chat-avatar" style={{ position: 'relative' }}>{chat.phone.slice(-4)}{chat.unreadCount > 0 && (<span className="unread-badge" style={{ position: 'absolute', top: '-5px', right: '-6px' }}>{chat.unreadCount}</span>)}</div>
           <div className="chat-info">
             <div className="chat-phone" style={{ paddingRight: userType !== "subuser" ? '75px' : '0' }}>
               <span className="chat-name-text">

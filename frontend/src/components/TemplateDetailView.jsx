@@ -241,11 +241,11 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
 
         {/* Top Right Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', flexShrink: 0 }}>
-          {/* Cloud API badge */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '6px', border: '1px solid #ccd0d5', background: '#ffffff', fontSize: '13px', fontWeight: '600', color: '#1c1e21', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          {/* Cloud API badge - hidden */}
+          {/* <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '6px', border: '1px solid #ccd0d5', background: '#ffffff', fontSize: '13px', fontWeight: '600', color: '#1c1e21', whiteSpace: 'nowrap', flexShrink: 0 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
             Cloud API
-          </div>
+          </div> */}
 
           {/* Date Range Picker */}
           <MetaCalendarPicker value={range} onChange={handleRangeApply} />

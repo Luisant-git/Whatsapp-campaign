@@ -154,7 +154,21 @@ export class WhatsappController {
 
     // Forward to Ananda Honda
     require('axios').post('https://api.anandahonda.cloud/whatsapp/webhook', body)
-      .catch((e: any) => console.log('Webhook Forwarding failed:', e.message));
+      .catch((e: any) => console.log('Ananda Honda forwarding info:', e.message));
+
+    // Forward to Enquiry Bot (Kanakku Customer Enquire) with loop protection
+    const isFromEnquiryBot1 = req.headers['x-forwarded-from'] === 'enquiry-bot' || req.headers['x-forwarded-by'] === 'enquiry';
+    if (!isFromEnquiryBot1) {
+      require('axios').post('https://enquiry.api.luisant.cloud/api/webhook', body, {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-forwarded-from': 'whatsapp-dashboard',
+        },
+        timeout: 8000,
+      })
+      .then(() => console.log('✅ Forwarded webhook to Enquiry Bot (enquiry.api.luisant.cloud)'))
+      .catch((e: any) => console.log('Enquiry Bot forwarding info:', e.message));
+    }
 
     // Respond immediately to WhatsApp
     setImmediate(() => {
@@ -359,7 +373,21 @@ export class WhatsappController {
     }
 
     require('axios').post('https://api.anandahonda.cloud/whatsapp/webhook', body)
-      .catch((e: any) => console.log('Webhook Forwarding failed:', e.message));
+      .catch((e: any) => console.log('Ananda Honda forwarding info:', e.message));
+
+    // Forward to Enquiry Bot (Kanakku Customer Enquire) with loop protection
+    const isFromEnquiryBot2 = req.headers['x-forwarded-from'] === 'enquiry-bot' || req.headers['x-forwarded-by'] === 'enquiry';
+    if (!isFromEnquiryBot2) {
+      require('axios').post('https://enquiry.api.luisant.cloud/api/webhook', body, {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-forwarded-from': 'whatsapp-dashboard',
+        },
+        timeout: 8000,
+      })
+      .then(() => console.log('✅ Forwarded webhook to Enquiry Bot (enquiry.api.luisant.cloud)'))
+      .catch((e: any) => console.log('Enquiry Bot forwarding info:', e.message));
+    }
 
     setImmediate(() => {
       this.processWebhookWithoutTokenAsync(body).catch(error => {

@@ -1709,10 +1709,10 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                   padding: '12px 18px',
                   background: 'none',
                   border: 'none',
-                  borderBottom: webhookActiveTab === 'meta' ? '2px solid #25d366' : '2px solid transparent',
+                  borderBottom: webhookActiveTab === 'meta' ? '2px solid #1877F2' : '2px solid transparent',
                   marginBottom: '-2px',
                   fontWeight: webhookActiveTab === 'meta' ? '600' : '500',
-                  color: webhookActiveTab === 'meta' ? '#25d366' : '#64748b',
+                  color: webhookActiveTab === 'meta' ? '#1877F2' : '#64748b',
                   cursor: 'pointer',
                   fontSize: '13px',
                   transition: 'all 0.15s ease'
@@ -1798,9 +1798,9 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                     <p style={{ margin: 0, color: '#64748b', fontSize: '13px', lineHeight: '1.5' }}>
                       Configure the global Meta App webhook subscription. Leave empty to automatically use your default WhatsApp Dashboard endpoint.
                     </p>
-                    <div style={{ padding: '10px 12px', background: '#f8fafc', borderRadius: '6px', fontSize: '12px', color: '#475569', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ padding: '10px 12px', background: '#f0f7ff', borderRadius: '6px', fontSize: '12px', color: '#475569', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ color: '#94a3b8' }}>Default URL:</span>
-                      <code style={{ color: '#25d366', fontWeight: '600' }}>
+                      <code style={{ color: '#1877F2', fontWeight: '600' }}>
                         https://whatsapp.api.luisant.cloud/whatsapp/webhook
                       </code>
                     </div>
@@ -1812,7 +1812,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                         Meta Callback URL
                       </label>
                       {fetchingCurrentWebhook && (
-                        <span style={{ fontSize: '12px', color: '#25d366' }}>Checking Meta subscription...</span>
+                        <span style={{ fontSize: '12px', color: '#1877F2' }}>Checking Meta subscription...</span>
                       )}
                     </div>
                     <input
@@ -1831,7 +1831,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                         transition: 'border-color 0.2s',
                         background: '#fff'
                       }}
-                      onFocus={(e) => e.target.style.borderColor = '#25d366'}
+                      onFocus={(e) => e.target.style.borderColor = '#1877F2'}
                       onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
                     />
                     <small style={{ color: '#94a3b8', fontSize: '12px', marginTop: '2px' }}>
@@ -1843,8 +1843,26 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                     <button type="button" onClick={() => setShowWebhookModal(false)} className="btn-secondary">
                       Cancel
                     </button>
-                    <button type="button" onClick={submitSetWebhook} className="btn-primary" disabled={settingWebhook}>
-                      {settingWebhook ? 'Saving...' : (callbackUrl && callbackUrl.trim() && callbackUrl.trim() !== 'https://whatsapp.api.luisant.cloud/whatsapp/webhook' ? 'Set Custom Meta Webhook' : 'Save Meta Webhook (Use Main URL)')}
+                    <button
+                      type="button"
+                      onClick={submitSetWebhook}
+                      className="btn-primary"
+                      disabled={settingWebhook}
+                      style={{
+                        backgroundColor: '#1877F2',
+                        borderColor: '#1877F2',
+                        color: '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <Facebook size={16} />
+                      {settingWebhook
+                        ? 'Saving...'
+                        : (callbackUrl && callbackUrl.trim() && callbackUrl.trim() !== 'https://whatsapp.api.luisant.cloud/whatsapp/webhook'
+                            ? 'Set Custom Meta Webhook'
+                            : 'Save Meta Webhook (Use Main URL)')}
                     </button>
                   </div>
                 </>

@@ -1625,23 +1625,27 @@ const TemplateManager = () => {
           <table className="templates-table">
             <thead>
               <tr>
-                <th>Template Name</th>
-                <th>Category</th>
-                <th>Status</th>
-                <th>Language</th>
-                <th>Date Submitted</th>
-                <th>Reject Reason</th>
-                <th></th>
-              </tr>
+                  <th>Template Name</th>
+                  <th>Category</th>
+                  <th>Status</th>
+                  {/* <th>Language</th> */}
+                  <th>Reject Reason</th>
+                  <th></th>
+                </tr>
             </thead>
             <tbody>
               {filteredTemplates.map(template => (
                 <tr key={template.id}>
                   <td>
                     <div className="template-name-cell">
-                      <span className="template-name" onClick={() => setViewingTemplate(template)} style={{cursor: 'pointer', color: '#1877f2', fontWeight: '600'}} title="Click to view template details & analytics">
-                        {template.name}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap' }}>
+                        <span className="template-name" onClick={() => setViewingTemplate(template)} style={{cursor: 'pointer', color: '#1877f2', fontWeight: '600'}} title="Click to view template details & analytics">
+                          {template.name}
+                        </span>
+                        <span style={{ fontSize: 11, color: '#8d949e', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                          {formatDateTime(template.createdAt)}
+                        </span>
+                      </div>
                       <span className="template-id">ID: {template.id || template.templateId}</span>
                     </div>
                   </td>
@@ -1724,13 +1728,13 @@ const TemplateManager = () => {
                       <span style={{marginLeft: 6}}>{template.status || 'IN_REVIEW'}</span>
                     </span>
                   </td>
-                  <td>
+                  {/* <td>
                     <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
                       <Globe size={14} color="#8d949e" />
                       {getLanguageLabel(template.language)}
                     </div>
-                  </td>
-                  <td>{formatDateTime(template.createdAt)}</td>
+                  </td> */}
+                  {/* <td>{formatDateTime(template.createdAt)}</td> */}
                   <td>
                     {(template.status || '').toUpperCase() === 'REJECTED' ? (
                       <button 

@@ -835,37 +835,30 @@
 /* cards  */
 .template-status-cards {
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
   margin: 18px 0;
   width: 100%;
 }
 
-@media (max-width: 1360px) {
-  .template-status-cards {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
-  }
-}
-
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .template-status-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    gap: 12px;
   }
 }
 
 .template-status-card {
   background: white;
-  border-radius: 10px;
-  padding: 12px 10px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  padding: 16px 18px;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 14px;
   transition: all 0.2s ease;
-  min-height: 68px;
+  min-height: 72px;
   min-width: 0;
   cursor: pointer;
   user-select: none;
@@ -873,17 +866,17 @@
 
 .template-status-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.09);
 }
 
 .template-status-card.active {
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25), 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 0 0 2px #2563eb, 0 4px 14px rgba(0, 0, 0, 0.09);
 }
 
 .template-status-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -917,17 +910,17 @@
 }
 
 .template-status-content h3 {
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 600;
   color: #64748b;
-  margin: 0 0 2px;
+  margin: 0 0 3px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .template-status-number {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   color: #1e293b;
   margin: 0;

@@ -1590,14 +1590,10 @@ const TemplateManager = () => {
       </div>
       <div className="template-status-cards">
         {[
-          { key: 'ALL', label: 'All Templates', count: allCount, icon: <Layout size={18} />, color: '#2563eb', bg: '#dbeafe' },
-          { key: 'PENDING', label: 'Pending', count: pendingCount, icon: <Clock size={18} />, color: '#d97706', bg: '#fef3c7' },
-          { key: 'ACTIVE', label: 'Approved', count: approvedCount, icon: <CheckCircle2 size={18} />, color: '#16a34a', bg: '#dcfce7' },
-          { key: 'REJECTED', label: 'Rejected', count: rejectedCount, icon: <X size={18} />, color: '#dc2626', bg: '#fee2e2' },
-          { key: 'PAUSED', label: 'Paused', count: pausedCount, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>, color: '#f59e0b', bg: '#fef3c7' },
-          { key: 'DISABLED', label: 'Disabled', count: disabledCount, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>, color: '#6b7280', bg: '#f3f4f6' },
-          { key: 'IN_APPEAL', label: 'In Appeal', count: inAppealCount, icon: <AlertCircle size={18} />, color: '#7c3aed', bg: '#ede9fe' },
-          { key: 'DRAFT', label: 'Draft', count: draftCount, icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>, color: '#64748b', bg: '#f1f5f9' },
+          { key: 'ALL', label: 'All Templates', count: allCount, icon: <Layout size={20} />, color: '#2563eb', bg: '#dbeafe' },
+          { key: 'ACTIVE', label: 'Approved', count: approvedCount, icon: <CheckCircle2 size={20} />, color: '#16a34a', bg: '#dcfce7' },
+          { key: 'PENDING', label: 'Pending', count: pendingCount, icon: <Clock size={20} />, color: '#d97706', bg: '#fef3c7' },
+          { key: 'REJECTED', label: 'Rejected', count: rejectedCount, icon: <X size={20} />, color: '#dc2626', bg: '#fee2e2' },
         ].map(card => {
           const isSelected = filterStatus === card.key;
           return (
@@ -1606,7 +1602,7 @@ const TemplateManager = () => {
               onClick={() => setFilterStatus(isSelected && card.key !== 'ALL' ? 'ALL' : card.key)}
               className={`template-status-card ${isSelected ? 'active' : ''}`}
               style={{
-                borderLeft: `3px solid ${card.color}`,
+                border: 'none',
                 background: isSelected ? '#f8fafc' : '#ffffff',
                 cursor: 'pointer'
               }}

@@ -834,10 +834,12 @@
 
 /* cards  */
 .template-status-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   margin: 20px 0;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 
 .template-status-card {
@@ -851,6 +853,8 @@
   gap: 12px;
   transition: all 0.2s ease;
   min-height: 84px;
+  flex: 1 1 180px;
+  min-width: 160px;
 }
 
 .template-status-card:hover {

@@ -315,6 +315,13 @@
               border: 1px solid #ddd6fe;
             }
 
+            &.paused_outside_hours,
+            &.paused_outside_hours_status {
+              background-color: #ffedd5;
+              color: #c2410c;
+              border: 1px solid #fed7aa;
+            }
+
             &.stopped {
               background-color: #e5e7eb;
               color: #374151;

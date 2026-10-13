@@ -29,9 +29,9 @@ const Campaigns = ({ onResendFailed }) => {
     fetchCampaigns();
   }, [selectedSettingsName]);
 
-  // Auto-refresh when any campaign is in 'running' state to reflect real-time counts
+  // Auto-refresh when any campaign is in 'running' or 'paused_outside_hours' state to reflect real-time counts
   useEffect(() => {
-    const hasRunning = campaigns.some(c => c.status === 'running');
+    const hasRunning = campaigns.some(c => c.status === 'running' || c.status === 'paused_outside_hours' || c.status === 'PAUSED_OUTSIDE_HOURS');
     if (!hasRunning) return;
 
     const interval = setInterval(() => {
@@ -304,8 +304,23 @@ const Campaigns = ({ onResendFailed }) => {
                 <td>{campaign.templateName}</td>
                 <td>{campaign.group?.name || '—'}</td>
                 <td>
-                  <span className={`status-badge ${campaign.status}`} title={campaign.status === 'paused_night' ? 'Night pause: Messages held until 8:00 AM IST to respect customer sleeping hours' : ''}>
-                    {campaign.status === 'paused_night' ? '🌙 PAUSED (NIGHT - 8 AM)' : (campaign.status ? campaign.status.toUpperCase() : 'UNKNOWN')}
+                  <span
+                    className={`status-badge ${(campaign.status || '').toLowerCase()}`}
+                    title={
+                      campaign.status === 'paused_night'
+                        ? 'Night pause: Messages held until 8:00 AM IST to respect customer sleeping hours'
+                        : campaign.status === 'paused_outside_hours' || campaign.status === 'PAUSED_OUTSIDE_HOURS'
+                        ? 'Outside sending hours: Messages paused and will automatically resume when sending window opens (8:00 AM - 8:00 PM IST)'
+                        : ''
+                    }
+                  >
+                    {campaign.status === 'paused_night' ? (
+                      '🌙 PAUSED (NIGHT - 8 AM)'
+                    ) : (campaign.status === 'paused_outside_hours' || campaign.status === 'PAUSED_OUTSIDE_HOURS') ? (
+                      '🕒 PAUSED (OUTSIDE HOURS)'
+                    ) : (
+                      (campaign.status ? campaign.status.toUpperCase() : 'UNKNOWN')
+                    )}
                   </span>
                 </td>
                 <td className="results" style={{ verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
@@ -326,16 +341,18 @@ const Campaigns = ({ onResendFailed }) => {
                   {new Date(campaign.createdAt).toLocaleDateString()}
                 </td>
                 <td className="actions">
-                  {campaign.status === 'running' && (
+                  {(campaign.status === 'running' || campaign.status === 'paused_outside_hours' || campaign.status === 'PAUSED_OUTSIDE_HOURS') && (
                     <>
-                      <button
-                        onClick={() => handlePauseCampaign(campaign.id)}
-                        disabled={loading}
-                        className="pause-btn"
-                        title="Pause Campaign"
-                      >
-                        <Pause size={16} />
-                      </button>
+                      {campaign.status === 'running' && (
+                        <button
+                          onClick={() => handlePauseCampaign(campaign.id)}
+                          disabled={loading}
+                          className="pause-btn"
+                          title="Pause Campaign"
+                        >
+                          <Pause size={16} />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleStopCampaign(campaign.id)}
                         disabled={loading}
@@ -346,19 +363,23 @@ const Campaigns = ({ onResendFailed }) => {
                       </button>
                     </>
                   )}
-                  {(campaign.status === 'paused' || campaign.status === 'paused_night') && (
+                  {(campaign.status === 'paused' || campaign.status === 'paused_night' || campaign.status === 'paused_outside_hours' || campaign.status === 'PAUSED_OUTSIDE_HOURS') && (
                     <button
                       onClick={() => handleResumeCampaign(campaign.id)}
                       disabled={loading}
                       className="resume-btn"
-                      title={campaign.status === 'paused_night' ? 'Resume Campaign Now (Override Night Pause)' : 'Resume Campaign'}
+                      title={
+                        campaign.status === 'paused_night' || campaign.status === 'paused_outside_hours' || campaign.status === 'PAUSED_OUTSIDE_HOURS'
+                          ? 'Resume Campaign Now (Override Hours Window)'
+                          : 'Resume Campaign'
+                      }
                     >
                       <Play size={16} />
                     </button>
                   )}
                   <button
                     onClick={() => handleRerunCampaign(campaign.id)}
-                    disabled={loading || campaign.status === 'running' || campaign.status === 'paused' || campaign.status === 'paused_night'}
+                    disabled={loading || campaign.status === 'running' || campaign.status === 'paused' || campaign.status === 'paused_night' || campaign.status === 'paused_outside_hours' || campaign.status === 'PAUSED_OUTSIDE_HOURS'}
                     className="rerun-btn"
                     title="Rerun Campaign"
                   >

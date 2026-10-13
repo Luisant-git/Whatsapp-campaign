@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Edit, ChevronDown, Upload, Loader, Zap, Link, FileText, Image, File, ExternalLink, Info, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Edit, ChevronDown, Upload, Loader, Zap, Link, FileText, Image, File, ExternalLink, Info, AlertCircle, X } from 'lucide-react';
 import { uploadFile } from '../api/whatsapp';
 import { API_BASE_URL } from '../api/config';
 import { useToast } from '../contexts/ToastContext';
@@ -50,7 +50,24 @@ const QuickReply = () => {
   const [saving, setSaving] = useState(false);
   const [uploadingMediaIndex, setUploadingMediaIndex] = useState(null);
   const [useQuickReply, setUseQuickReply] = useState(true);
+  const [showMediaLimitsHelp, setShowMediaLimitsHelp] = useState(false);
+  const mediaLimitsRef = useRef(null);
   const responseTextareaRef = useRef(null);
+
+  // Close media limits popover on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (mediaLimitsRef.current && !mediaLimitsRef.current.contains(e.target)) {
+        setShowMediaLimitsHelp(false);
+      }
+    };
+    if (showMediaLimitsHelp) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMediaLimitsHelp]);
 
   const insertText = (before, after) => {
     const textarea = responseTextareaRef.current;
@@ -581,47 +598,133 @@ const QuickReply = () => {
 
               <div className="form-group">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <label style={{ margin: 0 }}>Attached Documents / PDFs (Optional)</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label style={{ margin: 0 }}>Attached Documents / PDFs (Optional)</label>
+                    
+                    {/* (i) Info Icon with Popover */}
+                    <div style={{ position: 'relative' }} ref={mediaLimitsRef}>
+                      <button
+                        type="button"
+                        onClick={() => setShowMediaLimitsHelp(!showMediaLimitsHelp)}
+                        title="Click to view Media Best Practices & Meta Limits"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '18px',
+                          height: '18px',
+                          borderRadius: '50%',
+                          background: showMediaLimitsHelp ? '#0284c7' : '#e0f2fe',
+                          color: showMediaLimitsHelp ? '#ffffff' : '#0284c7',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: 0,
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <Info size={12} />
+                      </button>
+
+                      {showMediaLimitsHelp && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 'calc(100% + 8px)',
+                            left: 0,
+                            zIndex: 1000,
+                            width: '360px',
+                            background: '#ffffff',
+                            borderRadius: '10px',
+                            border: '1px solid #e2e8f0',
+                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                            padding: '16px',
+                            color: '#1e293b'
+                          }}
+                        >
+                          {/* Popover Header */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#e0f2fe', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0284c7' }}>
+                                <Info size={14} />
+                              </div>
+                              <span style={{ fontWeight: '700', fontSize: '13.5px', color: '#0f172a' }}>
+                                Media Best Practices &amp; Meta Limits
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setShowMediaLimitsHelp(false)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '2px', display: 'flex' }}
+                              title="Close"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+
+                          {/* Popover Content */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px', lineHeight: '1.45' }}>
+                            <div style={{ background: '#f8fafc', padding: '8px 10px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
+                              <div style={{ fontWeight: '700', color: '#334155', marginBottom: '2px' }}>Recommended Quantity:</div>
+                              <div style={{ color: '#475569' }}>
+                                <strong>1 – 3 files</strong> per trigger (optimal customer mobile experience; max safe is <strong>5 files</strong> to avoid chat spam/rate limits).
+                              </div>
+                            </div>
+
+                            <div style={{ background: '#f8fafc', padding: '8px 10px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
+                              <div style={{ fontWeight: '700', color: '#334155', marginBottom: '2px' }}>Recommended Size:</div>
+                              <div style={{ color: '#475569' }}>
+                                Under <strong>15 MB</strong> per file for instant mobile downloading.
+                              </div>
+                            </div>
+
+                            <div>
+                              <div style={{ fontWeight: '700', color: '#334155', marginBottom: '6px' }}>Meta Max Limits:</div>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+                                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '5px 8px', fontSize: '11.5px', color: '#1e293b' }}>
+                                  📄 <strong>PDF / Doc:</strong> 100 MB
+                                </div>
+                                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '5px 8px', fontSize: '11.5px', color: '#1e293b' }}>
+                                  🎬 <strong>Videos:</strong> 16 MB
+                                </div>
+                                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '5px 8px', fontSize: '11.5px', color: '#1e293b' }}>
+                                  🖼️ <strong>Images:</strong> 5 MB
+                                </div>
+                                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '5px 8px', fontSize: '11.5px', color: '#1e293b' }}>
+                                  🎵 <strong>Audio:</strong> 16 MB
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700 }}>
                     {formData.mediaUrls.filter(u => u && u.trim()).length} File(s)
                   </span>
                 </div>
-                <small style={{ display: 'block', marginBottom: '10px', color: '#64748b', fontSize: '13px' }}>
-                  Upload PDFs, brochures, or images. They will be sent to the user when this quick reply triggers.
-                </small>
 
-                {/* ── Recommended File Size, Quantity & Meta Limits Notice ── */}
-                <div className="qr-recommended-notice">
-                  <div className="qr-notice-header">
-                    <Info size={17} color="#16a34a" style={{ flexShrink: 0 }} />
-                    <span className="qr-notice-title">Media Best Practices & Meta Limits</span>
-                  </div>
-
-                  <div className="qr-notice-grid">
-                    <div className="qr-notice-item">
-                      <span className="qr-notice-label">Recommended Quantity:</span>
-                      <span className="qr-notice-val">
-                        <strong>1 – 3 files</strong> per trigger (Optimal customer mobile experience; max safe is <strong>5 files</strong> to avoid chat spam/rate limits).
-                      </span>
-                    </div>
-
-                    <div className="qr-notice-item">
-                      <span className="qr-notice-label">Recommended Size:</span>
-                      <span className="qr-notice-val">
-                        Under <strong>15 MB</strong> per file for instant mobile downloading.
-                      </span>
-                    </div>
-
-                    <div className="qr-notice-item">
-                      <span className="qr-notice-label">Meta Max Limits:</span>
-                      <span className="qr-notice-badges">
-                        <span className="qr-limit-pill">📄 <strong>PDF / Doc:</strong> 100 MB</span>
-                        <span className="qr-limit-pill">🎬 <strong>Videos:</strong> 16 MB</span>
-                        <span className="qr-limit-pill">🖼️ <strong>Images:</strong> 5 MB</span>
-                        <span className="qr-limit-pill">🎵 <strong>Audio:</strong> 16 MB</span>
-                      </span>
-                    </div>
-                  </div>
+                {/* Neat and clean single-line info */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px', fontSize: '12.5px', color: '#64748b' }}>
+                  <span>Recommended: <strong>1 – 3 files</strong> · under <strong>15 MB</strong> per file</span>
+                  <span>·</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowMediaLimitsHelp(!showMediaLimitsHelp)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      color: '#0284c7',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    View Meta limits
+                  </button>
                 </div>
 
                 <div className="qr-media-list">

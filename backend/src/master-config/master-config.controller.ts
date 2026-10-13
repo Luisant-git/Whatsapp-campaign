@@ -119,4 +119,11 @@ export class MasterConfigController {
     }
     return this.masterConfigService.setAppWebhook(parseInt(id), callbackUrl, tenantContext);
   }
+
+  @Get(':id/get-webhook')
+  @ApiOperation({ summary: 'Get current App Webhook URL from Meta' })
+  @ApiResponse({ status: 200, description: 'Successfully retrieved current app webhook from Meta' })
+  async getAppWebhook(@TenantContext() tenantContext: TenantContextType, @Param('id') id: string) {
+    return this.masterConfigService.getAppWebhook(parseInt(id), tenantContext);
+  }
 }

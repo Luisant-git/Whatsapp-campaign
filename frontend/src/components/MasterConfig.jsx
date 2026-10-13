@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { getMasterConfigs, createMasterConfig, updateMasterConfig, deleteMasterConfig, subscribeToWABA, setAppWebhook } from "../api/masterConfig";
+import { getMasterConfigs, createMasterConfig, updateMasterConfig, deleteMasterConfig, subscribeToWABA, setAppWebhook, getAppWebhook } from "../api/masterConfig";
 import { getAllSettings } from "../api/auth";
 import { useToast } from '../contexts/ToastContext';
 import { API_BASE_URL } from "../api/config";
@@ -51,7 +51,10 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
   const [catalogUserAccessToken, setCatalogUserAccessToken] = useState('');
   const [showWebhookModal, setShowWebhookModal] = useState(false);
   const [webhookConfigId, setWebhookConfigId] = useState(null);
-  const [callbackUrl, setCallbackUrl] = useState('https://enquiry.api.luisant.cloud/api/webhook');
+  const [callbackUrl, setCallbackUrl] = useState(() => {
+    return localStorage.getItem('meta_callback_url') || '';
+  });
+  const [fetchingCurrentWebhook, setFetchingCurrentWebhook] = useState(false);
   const [settingWebhook, setSettingWebhook] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [recipientMarket, setRecipientMarket] = useState('IN');
@@ -571,19 +574,43 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
     }
   };
 
-  const handleSetWebhookClick = (config) => {
+  const handleSetWebhookClick = async (config) => {
     setWebhookConfigId(config.id);
+    
+    // Check saved URL for this config or globally
+    const saved = localStorage.getItem(`meta_callback_url_${config.id}`) || localStorage.getItem('meta_callback_url');
+    if (saved) {
+      setCallbackUrl(saved);
+    }
+    
     setShowWebhookModal(true);
+    setFetchingCurrentWebhook(true);
+
+    try {
+      const info = await getAppWebhook(config.id);
+      if (info && info.callbackUrl) {
+        setCallbackUrl(info.callbackUrl);
+        localStorage.setItem(`meta_callback_url_${config.id}`, info.callbackUrl);
+        localStorage.setItem('meta_callback_url', info.callbackUrl);
+      }
+    } catch (err) {
+      console.warn("Could not query Meta for current webhook callback URL:", err);
+    } finally {
+      setFetchingCurrentWebhook(false);
+    }
   };
 
   const submitSetWebhook = async () => {
-    if (!callbackUrl) {
+    if (!callbackUrl || !callbackUrl.trim()) {
       showError('Please enter a callback URL');
       return;
     }
+    const cleanUrl = callbackUrl.trim();
     setSettingWebhook(true);
     try {
-      await setAppWebhook(webhookConfigId, callbackUrl);
+      await setAppWebhook(webhookConfigId, cleanUrl);
+      localStorage.setItem(`meta_callback_url_${webhookConfigId}`, cleanUrl);
+      localStorage.setItem('meta_callback_url', cleanUrl);
       showSuccess('Successfully configured App Webhook URL in Meta!');
       setShowWebhookModal(false);
     } catch (error) {
@@ -1618,14 +1645,35 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                 This will update your Meta App's webhook callback URL. Ensure your endpoint is ready to receive webhook verification.
               </p>
               <div className="form-group">
-                <label>Callback URL *</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontWeight: '600' }}>Callback URL *</label>
+                  {fetchingCurrentWebhook && (
+                    <span style={{ fontSize: '12px', color: '#1877f2' }}>Checking active URL in Meta...</span>
+                  )}
+                </div>
                 <input
                   type="text"
-                  placeholder="https://your-api.com/webhook"
+                  placeholder="https://whatsapp.api.luisant.cloud/whatsapp/webhook"
                   value={callbackUrl}
                   onChange={(e) => setCallbackUrl(e.target.value)}
-                  style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px' }}
+                  style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', boxSizing: 'border-box' }}
                 />
+                <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setCallbackUrl('https://whatsapp.api.luisant.cloud/whatsapp/webhook')}
+                    style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #ccd0d5', background: '#f0f2f5', cursor: 'pointer', color: '#1c1e21' }}
+                  >
+                    Use WhatsApp Dashboard URL
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCallbackUrl('https://enquiry.api.luisant.cloud/api/webhook')}
+                    style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #ccd0d5', background: '#f0f2f5', cursor: 'pointer', color: '#1c1e21' }}
+                  >
+                    Use Enquiry Bot URL
+                  </button>
+                </div>
               </div>
               <div className="form-actions" style={{ marginTop: '24px' }}>
                 <button type="button" onClick={() => setShowWebhookModal(false)} className="btn-secondary">

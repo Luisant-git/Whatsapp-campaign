@@ -93,6 +93,18 @@ export const setAppWebhook = async (id, callbackUrl) => {
   return await response.json();
 };
 
+export const getAppWebhook = async (id) => {
+  const response = await fetch(`${API_BASE_URL}/master-config/${id}/get-webhook`, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    return { callbackUrl: '' };
+  }
+
+  return await response.json();
+};
+
 export const getCentralConnectionAnalytics = async (start, end) => {
   let url = `${API_BASE_URL}/master-config/central-connection/analytics`;
   const params = [];

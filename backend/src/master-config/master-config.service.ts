@@ -588,4 +588,33 @@ export class MasterConfigService {
       );
     }
   }
+
+  async getAppWebhook(id: number, tenantContext: TenantContext) {
+    const prisma = this.getPrisma(tenantContext);
+    const config = await prisma.masterConfig.findUnique({ where: { id } });
+
+    const appId = (process.env.META_APP_ID || (config && config.appId) || '').trim();
+    const appSecret = (process.env.META_APP_SECRET || (config && config.appSecret) || '').trim();
+
+    if (!appId || !appSecret) {
+      return { callbackUrl: '' };
+    }
+
+    try {
+      const response = await fetch(
+        `https://graph.facebook.com/v20.0/${appId}/subscriptions?access_token=${appId}|${appSecret}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        const sub = (data.data || []).find((s: any) => s.object === 'whatsapp_business_account') || (data.data || [])[0];
+        if (sub && sub.callback_url) {
+          return { callbackUrl: sub.callback_url, active: sub.active };
+        }
+      }
+    } catch (err) {
+      console.warn(`Failed to fetch current webhook from Meta: ${err.message}`);
+    }
+
+    return { callbackUrl: '' };
+  }
 }

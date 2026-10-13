@@ -1402,8 +1402,18 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                     </div>
 
                     {config.webhookForwardUrl && (
-                      <div style={{ fontSize: '11px', color: '#059669', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '3px 8px', borderRadius: '4px', marginBottom: '10px', wordBreak: 'break-all' }}>
-                        🔗 <strong>Forwarding:</strong> {config.webhookForwardUrl}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', padding: '7px 10px', marginBottom: '10px' }}>
+                        <span style={{ fontSize: '14px' }}>🔗</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '11px', fontWeight: '700', color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Forwarding Active</div>
+                          <div style={{ fontSize: '12px', color: '#166534', wordBreak: 'break-all', marginTop: '1px' }}>{config.webhookForwardUrl}</div>
+                        </div>
+                        <button
+                          onClick={() => handleSetWebhookClick(config)}
+                          style={{ flexShrink: 0, padding: '4px 8px', fontSize: '11px', fontWeight: '700', background: '#dcfce7', color: '#15803d', border: '1px solid #86efac', borderRadius: '4px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        >
+                          Edit
+                        </button>
                       </div>
                     )}
 

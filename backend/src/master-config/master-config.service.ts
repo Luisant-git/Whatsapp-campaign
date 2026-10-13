@@ -625,7 +625,10 @@ export class MasterConfigService {
   async updateWebhookForwardUrl(id: number, webhookForwardUrl: string, tenantContext: TenantContext) {
     const prisma = this.getPrisma(tenantContext);
     const cleanUrl = webhookForwardUrl && webhookForwardUrl.trim() ? webhookForwardUrl.trim() : null;
-    return prisma.masterConfig.update({
+    try {
+      await prisma.$executeRawUnsafe('ALTER TABLE "MasterConfig" ADD COLUMN IF NOT EXISTS "webhookForwardUrl" TEXT;');
+    } catch (e) {}
+    return (prisma.masterConfig as any).update({
       where: { id },
       data: { webhookForwardUrl: cleanUrl },
     });

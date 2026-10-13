@@ -792,13 +792,17 @@ export class WhatsappService {
         const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
         const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
 
-        const config = await tenantClient.masterConfig.findFirst({
-          where: { phoneNumberId, isActive: true },
-          select: { webhookForwardUrl: true },
-        });
+        try {
+          const config = await (tenantClient.masterConfig as any).findFirst({
+            where: { phoneNumberId, isActive: true },
+            select: { webhookForwardUrl: true },
+          });
 
-        if (config?.webhookForwardUrl) {
-          return config.webhookForwardUrl.trim();
+          if (config?.webhookForwardUrl) {
+            return config.webhookForwardUrl.trim();
+          }
+        } catch (e) {
+          // Ignore if column or config not found on this tenant
         }
       }
       return null;

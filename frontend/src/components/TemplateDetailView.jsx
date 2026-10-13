@@ -212,26 +212,26 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
       </button>
 
       {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: '280px', flex: '1 1 auto' }}>
           <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: '#008069', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', flexShrink: 0 }}>
             {categoryIcon}
           </div>
           <div>
-            <h2 style={{ margin: '0 0 4px 0', fontSize: '20px', fontWeight: '700', color: '#1c1e21' }}>
+            <h2 style={{ margin: '0 0 4px 0', fontSize: '20px', fontWeight: '700', color: '#1c1e21', lineHeight: '1.2' }}>
               {template.name} · {getLanguageLabel(template.language)}
             </h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#606770', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', backgroundColor: '#e8fdf0', color: '#047857', fontWeight: '600', fontSize: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', backgroundColor: '#e8fdf0', color: '#047857', fontWeight: '600', fontSize: '12px', whiteSpace: 'nowrap' }}>
                 <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
                 Active – Quality pending
               </div>
               <span>·</span>
-              <span>{template.category ? template.category.charAt(0) + template.category.slice(1).toLowerCase() : 'Authentication'}</span>
+              <span style={{ whiteSpace: 'nowrap' }}>{template.category ? template.category.charAt(0) + template.category.slice(1).toLowerCase() : 'Authentication'}</span>
               <span>·</span>
-              <span>Updated on {new Date(template.updatedAt || Date.now()).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+              <span style={{ whiteSpace: 'nowrap' }}>Updated on {new Date(template.updatedAt || Date.now()).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
               <span>·</span>
-              <div onClick={handleCopyId} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', color: '#1877f2', fontWeight: '500' }}>
+              <div onClick={handleCopyId} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', color: '#1877f2', fontWeight: '500', whiteSpace: 'nowrap' }}>
                 <span>ID: {template.templateId || template.id}</span>
                 {copiedId ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
               </div>
@@ -240,9 +240,9 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
         </div>
 
         {/* Top Right Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', flexShrink: 0 }}>
           {/* Cloud API badge */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '6px', border: '1px solid #ccd0d5', background: '#ffffff', fontSize: '13px', fontWeight: '600', color: '#1c1e21' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '6px', border: '1px solid #ccd0d5', background: '#ffffff', fontSize: '13px', fontWeight: '600', color: '#1c1e21', whiteSpace: 'nowrap', flexShrink: 0 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
             Cloud API
           </div>
@@ -250,11 +250,11 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
           {/* Date Range Picker */}
           <MetaCalendarPicker value={range} onChange={handleRangeApply} />
 
-          <button onClick={() => onEdit(template)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '6px', border: '1px solid #ccd0d5', background: '#ffffff', fontSize: '13px', fontWeight: '600', color: '#1c1e21', cursor: 'pointer' }}>
+          <button onClick={() => onEdit(template)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '6px', border: '1px solid #ccd0d5', background: '#ffffff', fontSize: '13px', fontWeight: '600', color: '#1c1e21', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
             <Edit3 size={14} /> Edit template
           </button>
-          <div style={{ position: 'relative' }}>
-            <button onClick={() => setShowExportMenu(!showExportMenu)} style={{ padding: '7px 10px', borderRadius: '6px', border: '1px solid #ccd0d5', background: '#ffffff', color: '#606770', cursor: 'pointer' }}>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <button onClick={() => setShowExportMenu(!showExportMenu)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '7px 10px', borderRadius: '6px', border: '1px solid #ccd0d5', background: '#ffffff', color: '#606770', cursor: 'pointer', flexShrink: 0 }}>
               <MoreHorizontal size={15} />
             </button>
             {showExportMenu && (
@@ -268,8 +268,8 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
         </div>
       </div>
 
-      {/* Main 2-Column Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: '24px', alignItems: 'start' }}>
+      {/* Main Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '24px', alignItems: 'start' }}>
 
         {/* Left Column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -347,12 +347,12 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
         </div>
 
         {/* Right Column: Analytics */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
           {/* Top 3 Cost Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
             <div style={{ background: '#ffffff', borderRadius: '10px', border: '1px solid #ccd0d5', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                <span style={{ fontSize: '14px', fontWeight: '600', color: '#1c1e21' }}>Amount spent</span>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: '#1c1e21', whiteSpace: 'nowrap' }}>Amount spent</span>
                 <HelpCircle size={14} color="#1c1e21" />
               </div>
               <div style={{ fontSize: '28px', fontWeight: '500', color: '#1c1e21' }}>
@@ -385,7 +385,7 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
             </div>
 
             {/* Metric tiles */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px', marginBottom: '20px' }}>
               {[
                 { label: 'Messages sent', value: loading ? '...' : analytics.sent, extra: null },
                 { label: 'Messages delivered', value: loading ? '...' : analytics.delivered, extra: null },
@@ -394,10 +394,10 @@ export default function TemplateDetailView({ template, onBack, onEdit }) {
               ].map(m => (
                 <div key={m.label} style={{ padding: '12px', border: '1px solid #ccd0d5', borderRadius: '6px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21' }}>{m.label}</span>
+                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#1c1e21', whiteSpace: 'nowrap' }}>{m.label}</span>
                     <HelpCircle size={14} color="#1c1e21" />
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '24px', fontWeight: '500', color: '#1c1e21' }}>{m.value}</span>
                     {m.extra && <span style={{ fontSize: '12px', fontWeight: '500', color: '#606770' }}>{m.extra}</span>}
                   </div>

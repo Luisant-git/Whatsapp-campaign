@@ -127,11 +127,6 @@
   background: #f9fafb;
 }
 
-.template-status-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
 
 /* Carousel Navigation Buttons */
 .carousel-nav-btn {
@@ -845,6 +840,13 @@
   .template-status-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+  }
+}
+
+@media (max-width: 540px) {
+  .template-status-cards {
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
 }
 

@@ -376,11 +376,13 @@ export default function MetaCalendarPicker({
           border: '1px solid #ced0d4',
           borderRadius: '6px',
           cursor: 'pointer',
-          fontSize: '14px',
+          fontSize: '13px',
           fontWeight: '500',
           color: '#050505',
           boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-          userSelect: 'none'
+          userSelect: 'none',
+          whiteSpace: 'nowrap',
+          flexShrink: 0
         }}
       >
         {/* Calendar Icon matching Meta screenshot */}
@@ -412,11 +414,11 @@ export default function MetaCalendarPicker({
             background: '#ffffff',
             border: '1px solid #ccd0d5',
             borderRadius: '8px',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
             zIndex: 1000,
             display: 'flex',
-            minWidth: '730px',
-            overflow: 'hidden'
+            minWidth: 'min(730px, 95vw)',
+            maxWidth: 'calc(100vw - 24px)',
+            overflowX: 'auto'
           }}
         >
           {/* Left Presets Sidebar */}

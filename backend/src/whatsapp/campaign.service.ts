@@ -106,14 +106,49 @@ export class CampaignService {
         contacts: true,
         group: true,
         settings: true,
+        messages: {
+          select: { status: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    return campaigns.map(c => ({
-      ...c,
-      statusLabel: formatCampaignStatusLabel(c.status),
-    }));
+    return campaigns.map(c => {
+      let successCount = c.successCount || 0;
+      let failedCount = c.failedCount || 0;
+
+      if (c.messages && c.messages.length > 0) {
+        const msgSuccess = c.messages.filter(m => ['sent', 'delivered', 'read'].includes(m.status)).length;
+        const msgFailed = c.messages.filter(m => m.status === 'failed').length;
+
+        // If currently running or database counts were 0 despite messages existing, use live counts
+        if (c.status === 'running' || (successCount === 0 && failedCount === 0)) {
+          successCount = msgSuccess;
+          failedCount = msgFailed;
+        }
+      }
+
+      const totalCount = c.totalCount || c.contacts?.length || 0;
+      let status = c.status;
+
+      // Auto-heal status if all messages finished but status remained 'running'
+      if (status === 'running' && totalCount > 0 && (successCount + failedCount) >= totalCount) {
+        status = 'completed';
+        this.prisma.campaign.update({
+          where: { id: c.id },
+          data: { status: 'completed', successCount, failedCount }
+        }).catch(() => {});
+      }
+
+      return {
+        ...c,
+        status,
+        totalCount,
+        successCount,
+        failedCount,
+        statusLabel: formatCampaignStatusLabel(status),
+      };
+    });
   }
 
   async updateCampaign(id: number, updateCampaignDto: UpdateCampaignDto, userId: number) {
@@ -436,6 +471,15 @@ export class CampaignService {
 
 
       this.logger.log(`Batch ${batchIndex + 1} completed. Success: ${successCount}, Failed: ${failedCount}`);
+      // Persist real-time progress after each batch
+      try {
+        await this.prisma.campaign.update({
+          where: { id },
+          data: { successCount, failedCount }
+        });
+      } catch (countUpdateErr) {
+        this.logger.warn(`Failed to update intermediate counts for campaign ${id}: ${countUpdateErr.message}`);
+      }
       } catch (batchError) {
         this.logger.error(`Critical error processing batch ${batchIndex + 1}:`, batchError.message);
       }

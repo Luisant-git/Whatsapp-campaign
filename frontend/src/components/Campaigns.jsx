@@ -29,6 +29,18 @@ const Campaigns = ({ onResendFailed }) => {
     fetchCampaigns();
   }, [selectedSettingsName]);
 
+  // Auto-refresh when any campaign is in 'running' state to reflect real-time counts
+  useEffect(() => {
+    const hasRunning = campaigns.some(c => c.status === 'running');
+    if (!hasRunning) return;
+
+    const interval = setInterval(() => {
+      fetchCampaigns();
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [campaigns, selectedSettingsName]);
+
   const fetchPhoneNumbers = async () => {
     try {
       const data = await getAllSettings();
@@ -296,10 +308,19 @@ const Campaigns = ({ onResendFailed }) => {
                     {campaign.status === 'paused_night' ? '🌙 PAUSED (NIGHT - 8 AM)' : (campaign.status ? campaign.status.toUpperCase() : 'UNKNOWN')}
                   </span>
                 </td>
-                <td className="results">
-                  <div>Total: {campaign.totalCount}</div>
-                  <div className="success">Success: {campaign.successCount}</div>
-                  <div className="failed">Failed: {campaign.failedCount}</div>
+                <td className="results" style={{ verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                  <div className="result-row total" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', lineHeight: '1.4' }}>
+                    <span className="label" style={{ color: '#64748b', fontSize: '12px', minWidth: '52px' }}>Total:</span>
+                    <strong className="count" style={{ color: '#0f172a', fontWeight: '700' }}>{campaign.totalCount ?? 0}</strong>
+                  </div>
+                  <div className="result-row success" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', lineHeight: '1.4' }}>
+                    <span className="label" style={{ color: '#16a34a', fontSize: '12px', fontWeight: '600', minWidth: '52px' }}>Success:</span>
+                    <strong className="count" style={{ color: '#16a34a', fontWeight: '700' }}>{campaign.successCount ?? 0}</strong>
+                  </div>
+                  <div className="result-row failed" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', lineHeight: '1.4' }}>
+                    <span className="label" style={{ color: '#dc2626', fontSize: '12px', fontWeight: '600', minWidth: '52px' }}>Failed:</span>
+                    <strong className="count" style={{ color: '#dc2626', fontWeight: '700' }}>{campaign.failedCount ?? 0}</strong>
+                  </div>
                 </td>
                 <td className="created-date">
                   {new Date(campaign.createdAt).toLocaleDateString()}

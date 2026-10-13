@@ -321,13 +321,53 @@
             }
           }
 
+          &.results,
           .results {
+            white-space: nowrap;
+            line-height: 1.35;
+
+            .result-row {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              font-size: 13px;
+
+              .label {
+                font-size: 12px;
+                font-weight: 500;
+              }
+
+              .count {
+                font-weight: 700;
+              }
+
+              &.total {
+                color: #334155;
+                .label { color: #64748b; }
+                .count { color: #0f172a; font-weight: 700; }
+              }
+
+              &.success {
+                color: #15803d;
+                .label { color: #16a34a; font-weight: 600; }
+                .count { color: #16a34a; font-weight: 700; }
+              }
+
+              &.failed {
+                color: #b91c1c;
+                .label { color: #dc2626; font-weight: 600; }
+                .count { color: #dc2626; font-weight: 700; }
+              }
+            }
+
             .success {
               color: #16a34a;
+              font-weight: 700;
             }
 
             .failed {
               color: #dc2626;
+              font-weight: 700;
             }
           }
 

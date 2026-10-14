@@ -172,6 +172,7 @@
       border-bottom: 1px solid #f0f0f0;
       transition: background 0.2s;
       position: relative;
+      z-index: 1;
 
       &:hover {
         background: #f5f5f5;
@@ -179,6 +180,10 @@
 
       &.active {
         background: #e8f5e9;
+      }
+
+      &.menu-open {
+        z-index: 100 !important;
       }
 
       .chat-actions-container {
@@ -189,6 +194,10 @@
         align-items: center;
         gap: 2px;
         z-index: 5;
+
+        &.menu-active {
+          z-index: 101 !important;
+        }
 
         .chat-action-btn {
           position: relative;
@@ -217,11 +226,12 @@
           position: absolute;
           top: calc(100% + 4px);
           right: 0;
-          background: white;
+          background: #ffffff !important;
           border-radius: 8px;
           box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
-          padding: 4px 0;
-          z-index: 100;
+          border: 1px solid #e0e0e0;
+          padding: 6px 0;
+          z-index: 9999 !important;
           min-width: 180px;
         }
       }
@@ -251,11 +261,12 @@
         position: absolute;
         right: 40px;
         top: 10px;
-        background: white;
+        background: #ffffff !important;
         border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
+        border: 1px solid #e0e0e0;
         padding: 4px 0;
-        z-index: 100;
+        z-index: 9999 !important;
         min-width: 180px;
 
         .label-option {

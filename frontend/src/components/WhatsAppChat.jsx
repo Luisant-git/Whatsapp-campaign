@@ -1692,10 +1692,12 @@ const WhatsAppChat = () => {
   ) : (
     filteredChats.map(chat => {
       const chatKey = `${chat.phone}_${chat.businessNumber || 'unknown'}`;
+      const isMenuOpen = showLabelMenu === chat.phone || showGroupMenu === chat.phone || showUserMenu === chat.phone;
       return (
         <div
           key={chatKey}
-          className={`chat-item ${selectedChat === chat.phone ? 'active' : ''} ${chat.unreadCount > 0 ? 'unread' : ''}`}
+          className={`chat-item ${selectedChat === chat.phone ? 'active' : ''} ${chat.unreadCount > 0 ? 'unread' : ''} ${isMenuOpen ? 'menu-open' : ''}`}
+          style={isMenuOpen ? { zIndex: 100 } : undefined}
           onClick={() => {
             console.log('Opening chat:', chat.phone);
             setSelectedChat(chat.phone);
@@ -1740,23 +1742,6 @@ const WhatsAppChat = () => {
                 <span className="unread-badge">{chat.unreadCount}</span>
               )}
             </div>
-            {/* Business Number Display in Chat List - COMMENTED OUT
-            {chat.businessNumber && (
-              <div
-                style={{
-                  fontSize: '11px',
-                  color: '#00a884',
-                  fontWeight: '500',
-                  marginTop: '2px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '3px',
-                }}
-              >
-                <span>{chat.businessNumber}</span>
-              </div>
-            )}
-            */}
             <div className="chat-last-msg">{chat.lastMessage}</div>
             {chatLabels[chat.phone]?.length > 0 && (
               <div className="chat-labels">
@@ -1787,8 +1772,11 @@ const WhatsAppChat = () => {
 
           {userType !== "subuser" && (
             <div
-              className="chat-actions-container"
-              onClick={(e) => e.stopPropagation()}
+              className={`chat-actions-container ${isMenuOpen ? 'menu-active' : ''}`}
+              style={isMenuOpen ? { zIndex: 101 } : undefined}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
             >
               <div style={{ position: "relative" }}>
                 <button
@@ -1799,6 +1787,7 @@ const WhatsAppChat = () => {
                   }}
                   onClick={async (e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     const phone = chat.phone;
                     if (showUserMenu === phone) {
                       setShowUserMenu(null);
@@ -1822,10 +1811,18 @@ const WhatsAppChat = () => {
                       </div>
                     ) : (
                       subUsers.map((u) => (
-                        <div key={u.id} className="label-option">
+                        <div 
+                          key={u.id} 
+                          className="label-option"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleUserForPhone(chat.phone, u.id);
+                          }}
+                        >
                           <input
                             type="checkbox"
                             checked={(phoneUserId[chat.phone] || "") === u.id}
+                            onClick={(e) => e.stopPropagation()}
                             onChange={() => handleToggleUserForPhone(chat.phone, u.id)}
                           />
                           <span>{u.email}</span>
@@ -1845,6 +1842,7 @@ const WhatsAppChat = () => {
                   }}
                   onClick={async (e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     const phone = chat.phone;
                     if (showGroupMenu === phone) {
                       setShowGroupMenu(null);
@@ -1868,10 +1866,18 @@ const WhatsAppChat = () => {
                       </div>
                     ) : (
                       groups.map((g) => (
-                        <div key={g.id} className="label-option">
+                        <div 
+                          key={g.id} 
+                          className="label-option"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleGroupForPhone(chat.phone, g.id);
+                          }}
+                        >
                           <input
                             type="checkbox"
                             checked={(phoneGroupId[chat.phone] || "") === g.id}
+                            onClick={(e) => e.stopPropagation()}
                             onChange={() => handleToggleGroupForPhone(chat.phone, g.id)}
                           />
                           <span>{g.name}</span>
@@ -1891,6 +1897,7 @@ const WhatsAppChat = () => {
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     setShowLabelMenu(showLabelMenu === chat.phone ? null : chat.phone);
                   }}
                 >
@@ -1902,10 +1909,18 @@ const WhatsAppChat = () => {
                 {showLabelMenu === chat.phone && (
                   <div className="label-menu" onClick={(e) => e.stopPropagation()}>
                     {availableLabels.map((label) => (
-                      <div key={label} className="label-option">
+                      <div 
+                        key={label} 
+                        className="label-option"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleLabel(chat.phone, label);
+                        }}
+                      >
                         <input
                           type="checkbox"
                           checked={chatLabels[chat.phone]?.includes(label) || false}
+                          onClick={(e) => e.stopPropagation()}
                           onChange={() => toggleLabel(chat.phone, label)}
                         />
                         <span style={{ color: labelColors[label] || "#9e9e9e" }}>
@@ -1922,6 +1937,7 @@ const WhatsAppChat = () => {
       );
     })
   )}
+
 
   {loadingChats && (
     <div

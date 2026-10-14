@@ -1203,24 +1203,126 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                     const rows = Array.from(rowsMap.values()).sort((a, b) => a.category.localeCompare(b.category));
                     const currencySymbol = analyticsCurrency === 'INR' ? '₹' : (analyticsCurrency || '₹');
                     
-                    const getPublishedRate = (marketCode, cat) => {
-                      if (cat === 'SERVICE') return 'Free (Service)';
-                      // If the API didn't return a country, we use the fallback dropdown selected by user
-                      const actualMarket = marketCode !== 'Unknown' ? marketCode : recipientMarket;
-                      const metaRate = ((market, category) => META_PRICING_RATES[market]?.[category])(actualMarket, cat);
-                      if (metaRate && metaRate.rate !== undefined && metaRate.rate !== null) {
-                        const symbol = metaRate.currency === 'INR' ? '₹' : metaRate.currency === 'USD' ? '$' : metaRate.currency === 'GBP' ? '£' : metaRate.currency === 'BRL' ? 'R$' : metaRate.currency;
-                        return `${symbol} ${metaRate.rate.toFixed(4)} / msg`;
+                    const getRateInfo = (marketCode, cat) => {
+                      const upperCat = (cat || '').toUpperCase();
+                      if (upperCat === 'SERVICE') {
+                        return { isService: true, isFree: true, rate: 0, formattedRate: 'Free (Service)', symbol: currencySymbol };
                       }
-                      return 'Pricing unavailable';
+                      const actualMarket = marketCode !== 'Unknown' ? marketCode : recipientMarket;
+                      const metaRate = getMetaRate(actualMarket, upperCat);
+                      if (metaRate && typeof metaRate.rate === 'number') {
+                        const symbol = metaRate.currency === 'INR' ? '₹' : metaRate.currency === 'USD' ? '$' : metaRate.currency === 'GBP' ? '£' : metaRate.currency === 'BRL' ? 'R$' : (metaRate.currency || currencySymbol);
+                        return {
+                          isService: false,
+                          isFree: false,
+                          rate: metaRate.rate,
+                          rateWithTax: metaRate.rateWithTax,
+                          currency: metaRate.currency,
+                          symbol,
+                          formattedRate: `${symbol} ${metaRate.rate.toFixed(4)}`
+                        };
+                      }
+                      return { isService: false, isFree: false, rate: null, formattedRate: 'Pricing unavailable', symbol: currencySymbol };
                     };
 
-                    const formatCategory = (cat) => {
-                      if (cat === 'MARKETING') return 'Marketing';
-                      if (cat === 'UTILITY') return 'Utility';
-                      if (cat === 'AUTHENTICATION') return 'Authentication';
-                      if (cat === 'SERVICE') return 'Service';
-                      return cat;
+                    const getCategoryMeta = (cat) => {
+                      const upper = (cat || '').toUpperCase();
+                      if (upper === 'MARKETING') {
+                        return {
+                          name: 'Marketing',
+                          dotColor: '#1877f2',
+                          badgeBg: '#e7f3ff',
+                          badgeColor: '#1877f2',
+                          badgeText: 'Marketing'
+                        };
+                      }
+                      if (upper === 'UTILITY') {
+                        return {
+                          name: 'Utility',
+                          dotColor: '#d97706',
+                          badgeBg: '#fef3c7',
+                          badgeColor: '#b45309',
+                          badgeText: 'Utility'
+                        };
+                      }
+                      if (upper === 'AUTHENTICATION') {
+                        return {
+                          name: 'Authentication',
+                          dotColor: '#7c3aed',
+                          badgeBg: '#f3e8ff',
+                          badgeColor: '#7e22ce',
+                          badgeText: 'Authentication'
+                        };
+                      }
+                      if (upper === 'SERVICE') {
+                        return {
+                          name: 'Service',
+                          dotColor: '#059669',
+                          badgeBg: '#e6f7ec',
+                          badgeColor: '#0d8a3e',
+                          badgeText: 'Service'
+                        };
+                      }
+                      return {
+                        name: cat,
+                        dotColor: '#65676b',
+                        badgeBg: '#f0f2f5',
+                        badgeColor: '#65676b',
+                        badgeText: cat
+                      };
+                    };
+
+                    const MetaInfoTooltip = ({ title, text }) => {
+                      const [show, setShow] = useState(false);
+                      return (
+                        <div 
+                          style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
+                          onMouseEnter={() => setShow(true)}
+                          onMouseLeave={() => setShow(false)}
+                        >
+                          <svg 
+                            width="15" 
+                            height="15" 
+                            viewBox="0 0 24 24" 
+                            fill={show ? "#1877f2" : "#65676b"} 
+                            style={{ flexShrink: 0, cursor: 'pointer', transition: 'fill 0.15s ease' }}
+                          >
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                          </svg>
+                          {show && (
+                            <div style={{
+                              position: 'absolute',
+                              bottom: 'calc(100% + 8px)',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              backgroundColor: '#1c1e21',
+                              color: '#ffffff',
+                              padding: '10px 14px',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                              lineHeight: '1.45',
+                              width: '240px',
+                              boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+                              zIndex: 9999,
+                              pointerEvents: 'none',
+                              whiteSpace: 'normal',
+                              textAlign: 'left'
+                            }}>
+                              {title && <div style={{ fontWeight: '700', marginBottom: '4px', color: '#ffffff', fontSize: '13px' }}>{title}</div>}
+                              <div style={{ color: '#e4e6eb' }}>{text}</div>
+                              <div style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                borderWidth: '6px',
+                                borderStyle: 'solid',
+                                borderColor: '#1c1e21 transparent transparent transparent'
+                              }} />
+                            </div>
+                          )}
+                        </div>
+                      );
                     };
 
                     return (
@@ -1231,27 +1333,15 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                         </div>
 
                         {/* ── META THEME METRIC CARDS ── */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px' }}>
                           {/* All message deliveries */}
-                          <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', color: '#1c1e21', fontWeight: '500' }}>
+                          <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#1c1e21', fontWeight: '500' }}>
                               <span>All message deliveries</span>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="#1c1e21" style={{ flexShrink: 0, cursor: 'help' }} title="Total messages delivered across all categories">
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-                              </svg>
-                            </div>
-                            <div style={{ fontSize: '24px', fontWeight: '700', color: '#1c1e21', marginTop: '12px' }}>
-                              {analyticsLoading ? '…' : (totalDelivered || 0).toLocaleString()}
-                            </div>
-                          </div>
-
-                          {/* Messages delivered */}
-                          <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', color: '#1c1e21', fontWeight: '500' }}>
-                              <span>Messages delivered</span>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="#1c1e21" style={{ flexShrink: 0, cursor: 'help' }} title="Total delivered messages">
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-                              </svg>
+                              <MetaInfoTooltip 
+                                title="All message deliveries"
+                                text="Total messages delivered to customers across all categories (Marketing, Utility, Authentication, and Service) in the selected time period."
+                              />
                             </div>
                             <div style={{ fontSize: '24px', fontWeight: '700', color: '#1c1e21', marginTop: '12px' }}>
                               {analyticsLoading ? '…' : (totalDelivered || 0).toLocaleString()}
@@ -1260,14 +1350,15 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
 
                           {/* Free customer service deliveries */}
                           {(() => {
-                            const freeCount = rows.filter(r => r.category === 'SERVICE').reduce((s, r) => s + r.messages, 0);
+                            const freeCount = rows.filter(r => (r.category || '').toUpperCase() === 'SERVICE').reduce((s, r) => s + r.messages, 0);
                             return (
-                              <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', color: '#1c1e21', fontWeight: '500' }}>
+                              <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#1c1e21', fontWeight: '500' }}>
                                   <span>Free customer service deliveries</span>
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="#1c1e21" style={{ flexShrink: 0, cursor: 'help' }} title="Free customer service messages within the 24h window">
-                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-                                  </svg>
+                                  <MetaInfoTooltip 
+                                    title="Free customer service deliveries"
+                                    text="Conversations initiated by customers where business replies within the 24-hour service window are free (up to 1,000 free service conversations per month)."
+                                  />
                                 </div>
                                 <div style={{ fontSize: '24px', fontWeight: '700', color: '#1c1e21', marginTop: '12px' }}>
                                   {analyticsLoading ? '…' : freeCount.toLocaleString()}
@@ -1278,14 +1369,15 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
 
                           {/* Paid messages delivered */}
                           {(() => {
-                            const paidCount = rows.filter(r => r.category !== 'SERVICE').reduce((s, r) => s + r.messages, 0);
+                            const paidCount = rows.filter(r => (r.category || '').toUpperCase() !== 'SERVICE').reduce((s, r) => s + r.messages, 0);
                             return (
-                              <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', color: '#1c1e21', fontWeight: '500' }}>
+                              <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#1c1e21', fontWeight: '500' }}>
                                   <span>Paid messages delivered</span>
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="#1c1e21" style={{ flexShrink: 0, cursor: 'help' }} title="Billable marketing, utility and authentication messages">
-                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-                                  </svg>
+                                  <MetaInfoTooltip 
+                                    title="Paid messages delivered"
+                                    text="Billable message deliveries across Marketing, Utility, and Authentication, or Service messages outside the 1,000 monthly free tier."
+                                  />
                                 </div>
                                 <div style={{ fontSize: '24px', fontWeight: '700', color: '#1c1e21', marginTop: '12px' }}>
                                   {analyticsLoading ? '…' : paidCount.toLocaleString()}
@@ -1295,112 +1387,218 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                           })()}
 
                           {/* Approximate charges */}
-                          <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', color: '#1c1e21', fontWeight: '500' }}>
+                          <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#1c1e21', fontWeight: '500' }}>
                               <span>Approximate charges</span>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="#1c1e21" style={{ flexShrink: 0, cursor: 'help' }} title="Estimated or actual Meta WhatsApp charges">
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-                              </svg>
+                              <MetaInfoTooltip 
+                                title="Approximate charges"
+                                text="Estimated total charges based on official Meta rate cards. Official invoices and taxes (18% GST in India) are billed directly in Meta Business Manager."
+                              />
                             </div>
                             <div style={{ fontSize: '24px', fontWeight: '700', color: '#1c1e21', marginTop: '12px' }}>
                               {analyticsLoading ? '…' : (() => {
-                                let est = 0; let canCalc = true;
-                                rows.filter(r => r.category !== 'SERVICE').forEach(r => {
-                                  if (r.hasSpend) { est += r.spend; }
-                                  else {
-                                    const mRate = META_PRICING_RATES[r.country !== 'Unknown' ? r.country : recipientMarket]?.[r.category];
-                                    if (mRate && typeof mRate.rate === 'number') est += mRate.rate * r.messages;
-                                    else canCalc = false;
+                                let est = 0; 
+                                let canCalc = true;
+                                let chargeSymbol = currencySymbol;
+                                rows.forEach(r => {
+                                  if (r.hasSpend) { 
+                                    est += r.spend; 
+                                  } else {
+                                    const rInfo = getRateInfo(r.country, r.category);
+                                    if (rInfo.isService) {
+                                      // Free service tier
+                                    } else if (rInfo.rate !== null) {
+                                      est += (rInfo.rate * r.messages);
+                                      chargeSymbol = rInfo.symbol;
+                                    } else {
+                                      canCalc = false;
+                                    }
                                   }
                                 });
                                 return canCalc
-                                  ? <span>{currencySymbol} {est.toFixed(2)}</span>
+                                  ? <span>{chargeSymbol} {est.toFixed(2)}</span>
                                   : <span style={{ color: '#65676b', fontSize: '20px', fontWeight: '600' }}>Pending</span>;
                               })()}
                             </div>
                           </div>
                         </div>
 
-                        <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', overflow: 'hidden' }}>
+                        {/* ── META THEME USAGE BREAKDOWN TABLE ── */}
+                        <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', overflow: 'hidden', background: '#ffffff', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
                           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
-                            <thead style={{ background: '#f5f6f7', borderBottom: '1px solid #ccd0d5' }}>
+                            <thead style={{ background: '#f5f6f7', borderBottom: '1px solid #ced0d4' }}>
                               <tr>
-                                <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600' }}>Category</th>
-                                
-                                <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600', textAlign: 'right' }}>Messages</th>
-                                <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600', textAlign: 'right' }}>Unit Rate</th>
-                                <th style={{ padding: '12px 16px', color: '#606770', fontWeight: '600', textAlign: 'right' }}>Spend</th>
+                                <th style={{ padding: '12px 16px', color: '#65676b', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Category</th>
+                                <th style={{ padding: '12px 16px', color: '#65676b', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Messages</th>
+                                <th style={{ padding: '12px 16px', color: '#65676b', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Unit Rate</th>
+                                <th style={{ padding: '12px 16px', color: '#65676b', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Spend</th>
                               </tr>
                             </thead>
                             <tbody>
                               {rows.length === 0 ? (
                                 <tr>
-                                  <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#606770' }}>No analytics data available for this period.</td>
-                                </tr>
-                              ) : rows.map((row, idx) => (
-                                <tr key={idx} style={{ borderBottom: idx < rows.length - 1 ? '1px solid #e4e6eb' : 'none' }}>
-                                  <td style={{ padding: '12px 16px', fontWeight: '500', color: '#1c1e21' }}>{formatCategory(row.category)}</td>
-                                  
-                                  <td style={{ padding: '12px 16px', color: '#1c1e21', textAlign: 'right' }}>{row.messages}</td>
-                                  <td style={{ padding: '12px 16px', color: '#606770', textAlign: 'right' }}>{getPublishedRate(row.country, row.category)}</td>
-                                  <td style={{ padding: '12px 16px', color: '#1c1e21', textAlign: 'right' }}>
-                                    {!row.hasSpend ? (() => {
-                                      const metaRate = ((market, category) => META_PRICING_RATES[market]?.[category])(row.country !== 'Unknown' ? row.country : recipientMarket, row.category);
-                                      if (row.category === 'SERVICE' || row.category === 'Service' || row.category === 'service') {
-                                        return <span style={{ color: '#047857' }}>{currencySymbol} 0.00</span>;
-                                      }
-                                      if (metaRate && typeof metaRate.rate === 'number') {
-                                        const symbol = metaRate.currency === 'INR' ? '₹' : metaRate.currency === 'USD' ? '$' : metaRate.currency === 'GBP' ? '£' : metaRate.currency === 'BRL' ? 'R$' : metaRate.currency;
-                                        return <span style={{ color: '#606770' }}>~{symbol} {(metaRate.rate * row.messages).toFixed(4)} <span style={{fontSize: '11px'}}>(Est.)</span></span>;
-                                      }
-                                      return <span style={{ color: '#d97706' }}>Pending / Unavailable</span>;
-                                    })() : (
-                                      row.spend === 0 ? <span style={{ color: '#047857' }}>{currencySymbol} 0.00</span> : `${currencySymbol} ${row.spend.toFixed(2)}`
-                                    )}
+                                  <td colSpan={4} style={{ padding: '32px 16px', textAlign: 'center', color: '#65676b', fontSize: '14px' }}>
+                                    No analytics data available for this period.
                                   </td>
                                 </tr>
-                              ))}
+                              ) : rows.map((row, idx) => {
+                                const catMeta = getCategoryMeta(row.category);
+                                const rateInfo = getRateInfo(row.country, row.category);
+
+                                return (
+                                  <tr 
+                                    key={idx} 
+                                    style={{ 
+                                      borderBottom: idx < rows.length - 1 ? '1px solid #ebedf0' : 'none',
+                                      transition: 'background-color 0.15s ease' 
+                                    }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f7f8fa'; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#ffffff'; }}
+                                  >
+                                    {/* Category Cell */}
+                                    <td style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                      <span style={{ 
+                                        width: '8px', 
+                                        height: '8px', 
+                                        borderRadius: '50%', 
+                                        backgroundColor: catMeta.dotColor, 
+                                        flexShrink: 0 
+                                      }} />
+                                      <span style={{ fontWeight: '600', color: '#1c1e21', fontSize: '14px' }}>
+                                        {catMeta.name}
+                                      </span>
+                                      <span style={{ 
+                                        fontSize: '11px', 
+                                        fontWeight: '600', 
+                                        padding: '2px 8px', 
+                                        borderRadius: '12px', 
+                                        backgroundColor: catMeta.badgeBg, 
+                                        color: catMeta.badgeColor,
+                                        letterSpacing: '0.3px'
+                                      }}>
+                                        {catMeta.badgeText}
+                                      </span>
+                                    </td>
+                                    
+                                    {/* Messages Cell */}
+                                    <td style={{ padding: '14px 16px', color: '#1c1e21', fontWeight: '600', textAlign: 'right', fontSize: '14px' }}>
+                                      {(row.messages || 0).toLocaleString()}
+                                    </td>
+
+                                    {/* Unit Rate Cell */}
+                                    <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                                      {rateInfo.isService ? (
+                                        <span style={{ 
+                                          display: 'inline-flex', 
+                                          alignItems: 'center', 
+                                          padding: '3px 10px', 
+                                          borderRadius: '12px', 
+                                          fontSize: '12px', 
+                                          fontWeight: '600', 
+                                          backgroundColor: '#e6f7ec', 
+                                          color: '#0d8a3e' 
+                                        }}>
+                                          Free (Service)
+                                        </span>
+                                      ) : rateInfo.rate !== null ? (
+                                        <span style={{ color: '#4b5563', fontWeight: '500', fontSize: '13px' }}>
+                                          {rateInfo.formattedRate}
+                                        </span>
+                                      ) : (
+                                        <span style={{ color: '#65676b', fontSize: '13px' }}>Pricing unavailable</span>
+                                      )}
+                                    </td>
+
+                                    {/* Spend Cell */}
+                                    <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                                      {rateInfo.isService ? (
+                                        <span style={{ color: '#0d8a3e', fontWeight: '600', fontSize: '14px' }}>
+                                          {currencySymbol} 0.00
+                                        </span>
+                                      ) : row.hasSpend ? (
+                                        <span style={{ color: '#1c1e21', fontWeight: '600', fontSize: '14px' }}>
+                                          {currencySymbol} {row.spend.toFixed(2)}
+                                        </span>
+                                      ) : rateInfo.rate !== null ? (
+                                        <span style={{ color: '#1c1e21', fontWeight: '600', fontSize: '14px' }}>
+                                          {rateInfo.symbol} {(rateInfo.rate * row.messages).toFixed(2)}
+                                        </span>
+                                      ) : (
+                                        <span style={{ color: '#d97706', fontSize: '13px', fontWeight: '500' }}>Pending</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
                             </tbody>
-                            <tfoot style={{ background: '#f8f9fa', borderTop: '2px solid #ccd0d5' }}>
+                            <tfoot style={{ background: '#f7f8fa', borderTop: '2px solid #ced0d4' }}>
                               <tr>
-                                <td colSpan={3} style={{ padding: '16px', fontWeight: 'bold', color: '#1c1e21', fontSize: '15px' }}>Total Spend (Reported + Estimated)</td>
-                                <td style={{ padding: '16px', fontWeight: 'bold', textAlign: 'right', fontSize: '15px' }}>
-                                  {hasMissingCost ? (() => {
+                                <td colSpan={3} style={{ padding: '16px', fontWeight: '700', color: '#1c1e21', fontSize: '14px' }}>
+                                  Total Spend (Reported + Estimated)
+                                </td>
+                                <td style={{ padding: '16px', fontWeight: '700', textAlign: 'right', fontSize: '15px' }}>
+                                  {(() => {
                                     let estTotal = 0;
                                     let allCalculable = true;
-                                    let estCurrency = currencySymbol;
+                                    let estSymbol = currencySymbol;
+
                                     rows.forEach(r => {
                                       if (r.hasSpend) {
                                         estTotal += r.spend;
                                       } else {
-                                        const metaRate = ((market, category) => META_PRICING_RATES[market]?.[category])(r.country !== 'Unknown' ? r.country : recipientMarket, r.category);
-                                        if (r.category === 'SERVICE' || r.category === 'Service' || r.category === 'service') {
-                                          // Add 0 for service
-                                        } else if (metaRate && typeof metaRate.rate === 'number') {
-                                          estTotal += (metaRate.rate * r.messages);
-                                          estCurrency = metaRate.currency === 'INR' ? '₹' : metaRate.currency === 'USD' ? '$' : metaRate.currency === 'GBP' ? '£' : metaRate.currency === 'BRL' ? 'R$' : metaRate.currency;
+                                        const rInfo = getRateInfo(r.country, r.category);
+                                        if (rInfo.isService) {
+                                          // Service is free
+                                        } else if (rInfo.rate !== null) {
+                                          estTotal += (rInfo.rate * r.messages);
+                                          estSymbol = rInfo.symbol;
                                         } else {
                                           allCalculable = false;
                                         }
                                       }
                                     });
+
                                     if (allCalculable) {
-                                      return <span style={{ color: '#1c1e21', fontSize: '15px', fontWeight: 'bold' }}>~{estCurrency} {estTotal.toFixed(2)}</span>;
+                                      return (
+                                        <span style={{ color: '#1c1e21', fontSize: '15px', fontWeight: '700' }}>
+                                          {estSymbol} {estTotal.toFixed(2)}
+                                        </span>
+                                      );
                                     }
-                                    return <span style={{ color: '#d97706', fontSize: '14px', fontWeight: '500' }}>Pending / Unavailable</span>;
-                                  })() : (
-                                    <span style={{ color: '#047857' }}>{currencySymbol} {totalCost.toFixed(2)}</span>
-                                  )}
+                                    return <span style={{ color: '#65676b', fontSize: '14px', fontWeight: '500' }}>Pending / Unavailable</span>;
+                                  })()}
                                 </td>
                               </tr>
                             </tfoot>
                           </table>
                         </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#606770', flexWrap: 'wrap', gap: '16px', marginTop: '8px' }}>
-                          <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#4b5563', flex: 1 }}>* Actual Meta spend may be delayed or unavailable. A missing cost value does not mean the messages were free. Zero cost is shown only when explicitly reported by Meta or confirmed by applicable pricing rules. Estimates are indicative and are not an official invoice.</div>
-                          <a href="https://business.facebook.com/wa/manage/home/" target="_blank" rel="noopener noreferrer" style={{ backgroundColor: '#1877f2', color: '#ffffff', padding: '10px 16px', borderRadius: '6px', textDecoration: 'none', fontWeight: 'bold', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 4px rgba(24,119,242,0.2)', transition: 'background-color 0.2s', whiteSpace: 'nowrap' }}>
-                            View current pricing <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                        {/* Meta Notice & Action Link */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#65676b', flexWrap: 'wrap', gap: '16px', marginTop: '4px' }}>
+                          <div style={{ fontSize: '13px', color: '#65676b', flex: 1, lineHeight: '1.4' }}>
+                            Usage is billed directly by Meta. Invoices and official card charges are managed in your Meta Business Manager. Estimates are based on official Meta rate cards.
+                          </div>
+                          <a 
+                            href="https://business.facebook.com/wa/manage/home/" 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            style={{ 
+                              backgroundColor: '#1877f2', 
+                              color: '#ffffff', 
+                              padding: '9px 16px', 
+                              borderRadius: '6px', 
+                              textDecoration: 'none', 
+                              fontWeight: '600', 
+                              fontSize: '13px', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '6px', 
+                              boxShadow: '0 1px 2px rgba(24,119,242,0.2)', 
+                              transition: 'background-color 0.2s', 
+                              whiteSpace: 'nowrap' 
+                            }}
+                          >
+                            View WhatsApp pricing on Meta <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                           </a>
                         </div>
                       </div>

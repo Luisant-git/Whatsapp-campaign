@@ -42,8 +42,13 @@ export const META_PRICING_RATES = {
 export const getMetaRate = (countryCode, category) => {
   const market = META_PRICING_RATES[countryCode];
   if (!market) return null;
-  const rate = market[category];
-  if (rate === undefined || rate === null) return null;
+  const rawRate = market[category];
+  if (rawRate === undefined || rawRate === null) return null;
   const tax = market.taxMultiplier || 1;
-  return { rate: rate * tax, currency: market.currency };
+  return { 
+    rate: rawRate, 
+    rateWithTax: Number((rawRate * tax).toFixed(4)), 
+    currency: market.currency,
+    taxMultiplier: tax 
+  };
 };

@@ -74,16 +74,29 @@ export class ContactService {
 
     if (existing) {
       if (data.upsert) {
-        return await prisma.contact.update({
+        const updateData: any = {
+          name: data.name || existing.name,
+          ...(groupId !== undefined ? { groupId } : {}),
+          email: data.email || existing.email,
+          place: data.place || existing.place,
+          isActive: true,
+        };
+        if (data.dob) updateData.dob = new Date(data.dob);
+        if (data.anniversary) updateData.anniversary = new Date(data.anniversary);
+        if (data.variable2 !== undefined && data.variable2 !== null) updateData.variable2 = String(data.variable2);
+        if (data.variable3 !== undefined && data.variable3 !== null) updateData.variable3 = String(data.variable3);
+        if (data.variable4 !== undefined && data.variable4 !== null) updateData.variable4 = String(data.variable4);
+        if (data.variable5 !== undefined && data.variable5 !== null) updateData.variable5 = String(data.variable5);
+        if (data.variable6 !== undefined && data.variable6 !== null) updateData.variable6 = String(data.variable6);
+
+        const updated = await prisma.contact.update({
           where: { id: existing.id },
-          data: {
-            name: data.name || existing.name,
-            ...(groupId ? { groupId } : {}),
-            email: data.email || existing.email,
-            place: data.place || existing.place,
-          },
+          data: updateData,
           include: { group: true },
         });
+
+        await this.attachAutomationToContact(prisma, updated);
+        return updated;
       }
       throw new ConflictException(
         `A contact with phone number ${phone} already exists`,
@@ -115,6 +128,147 @@ export class ContactService {
     await this.attachAutomationToContact(prisma, contact);
 
     return contact;
+  }
+
+  async bulkImport(
+    dto: { contacts: any[]; groupId?: number; upsert?: boolean },
+    tenantContext: TenantContext,
+  ) {
+    const prisma = this.getPrisma(tenantContext);
+    const { contacts, groupId, upsert = true } = dto;
+
+    if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
+      return { total: 0, created: 0, updated: 0, skipped: 0, invalid: 0 };
+    }
+
+    const targetGroupId = groupId ? Number(groupId) : undefined;
+
+    // Clean and validate
+    const validRows: any[] = [];
+    let invalidCount = 0;
+
+    for (const c of contacts) {
+      const rawPhone = String(c.phone || '').replace(/\D/g, '');
+      if (!/^[6-9]\d{9}$/.test(rawPhone) && rawPhone.length !== 12) {
+        invalidCount++;
+        continue;
+      }
+      const formattedPhone = this.formatPhoneNumber(rawPhone);
+      validRows.push({
+        ...c,
+        formattedPhone,
+        name: String(c.name || '').trim() || formattedPhone,
+        email: c.email || null,
+        place: c.place || null,
+        dob: c.dob ? new Date(c.dob) : null,
+        anniversary: c.anniversary ? new Date(c.anniversary) : null,
+        groupId: c.groupId ? Number(c.groupId) : targetGroupId,
+        variable2: c.variable2 != null ? String(c.variable2) : null,
+        variable3: c.variable3 != null ? String(c.variable3) : null,
+        variable4: c.variable4 != null ? String(c.variable4) : null,
+        variable5: c.variable5 != null ? String(c.variable5) : null,
+        variable6: c.variable6 != null ? String(c.variable6) : null,
+      });
+    }
+
+    if (validRows.length === 0) {
+      return { total: contacts.length, created: 0, updated: 0, skipped: 0, invalid: invalidCount };
+    }
+
+    // Deduplicate within the uploaded batch keeping the last row
+    const uniqueMap = new Map<string, any>();
+    for (const row of validRows) {
+      uniqueMap.set(row.formattedPhone, row);
+    }
+
+    const phones = Array.from(uniqueMap.keys());
+    const existingContacts = await prisma.contact.findMany({
+      where: { phone: { in: phones } },
+      select: { id: true, phone: true, name: true, groupId: true },
+    });
+
+    const existingMap = new Map(existingContacts.map((c: any) => [c.phone, c]));
+
+    let createdCount = 0;
+    let updatedCount = 0;
+    let skippedCount = 0;
+
+    const toCreate: any[] = [];
+    const toUpdate: { id: number; data: any }[] = [];
+
+    for (const [phone, row] of uniqueMap.entries()) {
+      const existing: any = existingMap.get(phone);
+      if (existing) {
+        if (upsert) {
+          const updateData: any = {
+            name: row.name || existing.name,
+            ...(row.groupId !== undefined ? { groupId: row.groupId } : {}),
+            isActive: true,
+          };
+          if (row.email) updateData.email = row.email;
+          if (row.place) updateData.place = row.place;
+          if (row.dob) updateData.dob = row.dob;
+          if (row.anniversary) updateData.anniversary = row.anniversary;
+          if (row.variable2 != null) updateData.variable2 = row.variable2;
+          if (row.variable3 != null) updateData.variable3 = row.variable3;
+          if (row.variable4 != null) updateData.variable4 = row.variable4;
+          if (row.variable5 != null) updateData.variable5 = row.variable5;
+          if (row.variable6 != null) updateData.variable6 = row.variable6;
+
+          toUpdate.push({ id: existing.id, data: updateData });
+        } else {
+          skippedCount++;
+        }
+      } else {
+        toCreate.push({
+          name: row.name,
+          phone,
+          email: row.email,
+          place: row.place,
+          dob: row.dob,
+          anniversary: row.anniversary,
+          groupId: row.groupId || null,
+          variable2: row.variable2,
+          variable3: row.variable3,
+          variable4: row.variable4,
+          variable5: row.variable5,
+          variable6: row.variable6,
+          isActive: true,
+        });
+      }
+    }
+
+    if (toCreate.length > 0) {
+      const createRes = await prisma.contact.createMany({
+        data: toCreate,
+        skipDuplicates: true,
+      });
+      createdCount = createRes.count;
+    }
+
+    if (toUpdate.length > 0) {
+      const chunkSize = 50;
+      for (let i = 0; i < toUpdate.length; i += chunkSize) {
+        const chunk = toUpdate.slice(i, i + chunkSize);
+        await Promise.all(
+          chunk.map((item) =>
+            prisma.contact.update({
+              where: { id: item.id },
+              data: item.data,
+            }),
+          ),
+        );
+      }
+      updatedCount = toUpdate.length;
+    }
+
+    return {
+      total: contacts.length,
+      created: createdCount,
+      updated: updatedCount,
+      skipped: skippedCount,
+      invalid: invalidCount,
+    };
   }
 
 

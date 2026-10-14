@@ -64,6 +64,14 @@ export class ContactController {
     return this.contactService.create(createContactDto, tenantContext);
   }
 
+  @Post('bulk-import')
+  bulkImport(
+    @Body() body: { contacts: any[]; groupId?: number; upsert?: boolean },
+    @TenantContext() tenantContext: TenantContextType,
+  ) {
+    return this.contactService.bulkImport(body, tenantContext);
+  }
+
   @Get()
   findAll(
     @TenantContext() tenantContext: TenantContextType,

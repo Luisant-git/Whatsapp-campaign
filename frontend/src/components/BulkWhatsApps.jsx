@@ -3,7 +3,9 @@ import {
   IoCheckmarkOutline,
   IoCloseSharp,
   IoSendSharp,
+  IoCloudUploadOutline,
 } from "react-icons/io5";
+import * as XLSX from "xlsx";
 import { sendBulkMessages } from "../api/whatsapp";
 import { getAllSettings, getSettings } from "../api/auth";
 import { groupAPI } from "../api/group";
@@ -25,6 +27,8 @@ const BulkWhatsApp = () => {
   const [selectedGroup, setSelectedGroup] = useState("");
   const [groupContactsCount, setGroupContactsCount] = useState(0);
   const [settings, setSettings] = useState([]);
+  const [campaignFileName, setCampaignFileName] = useState("");
+  const [excelLoadedCount, setExcelLoadedCount] = useState(0);
 
   const daysOfWeek = [
     { value: "sunday", label: "Sunday" },
@@ -72,6 +76,15 @@ const BulkWhatsApp = () => {
       if (window.composeCampaignData.campaignName) {
         setCampaignName(window.composeCampaignData.campaignName);
       }
+      if (window.composeCampaignData.groupId) {
+        const gid = String(window.composeCampaignData.groupId);
+        setSelectedGroup(gid);
+        groupAPI.getContacts(gid).then((resp) => {
+          if (resp.data && resp.data.length > 0) {
+            setGroupContactsCount(resp.data.length);
+          }
+        }).catch(() => {});
+      }
       delete window.composeCampaignData;
     }
     if (window.resendFailedData) {
@@ -110,6 +123,70 @@ const BulkWhatsApp = () => {
     if (type === 'ampm') ampm = val;
     let h24 = (h % 12) + (ampm === 'PM' ? 12 : 0);
     setScheduledTime(`${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+  };
+
+  const handleCampaignExcelUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setCampaignFileName(file.name);
+    const reader = new FileReader();
+
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws, { defval: "" });
+
+        if (!data || data.length === 0) {
+          showError("Uploaded file is empty");
+          return;
+        }
+
+        const parsedContacts = [];
+        const seenPhones = new Set();
+
+        data.forEach((row) => {
+          const keys = Object.keys(row);
+          const phoneKey = keys.find((k) =>
+            /phone|mobile|contact|cell|number|ph/i.test(k.trim())
+          );
+          const nameKey = keys.find((k) =>
+            /name|customer|client|fullname/i.test(k.trim())
+          );
+
+          let rawPhone = phoneKey ? String(row[phoneKey] || "").trim() : "";
+          let name = nameKey ? String(row[nameKey] || "").trim() : "";
+
+          // Clean phone number (keep digits and optional leading +)
+          const cleanPhone = rawPhone.replace(/[^0-9+]/g, "");
+          if (cleanPhone && !seenPhones.has(cleanPhone)) {
+            seenPhones.add(cleanPhone);
+            parsedContacts.push({ phone: cleanPhone, name });
+          }
+        });
+
+        if (parsedContacts.length === 0) {
+          showError("No valid phone numbers found in file. Ensure a column has Phone, Mobile, or Contact.");
+          return;
+        }
+
+        const lines = parsedContacts
+          .map((c) => (c.name ? `${c.phone}, ${c.name}` : c.phone))
+          .join("\n");
+        setPhoneNumbers(lines);
+        setExcelLoadedCount(parsedContacts.length);
+        showSuccess(`Loaded ${parsedContacts.length} contacts from ${file.name}`);
+      } catch (err) {
+        console.error("Error reading campaign Excel:", err);
+        showError("Failed to parse Excel file. Please check format.");
+      }
+    };
+
+    reader.readAsBinaryString(file);
+    e.target.value = "";
   };
 
   const handleSendBulkMessages = async () => {
@@ -472,8 +549,41 @@ const BulkWhatsApp = () => {
           </div>
 
 
-          {/* Manual Numbers */}
+          {/* Filtered Excel / CSV Upload or Manual Numbers */}
           <div className="manual-input-section">
+            {/* Quick Excel Upload Card */}
+            <div style={{ marginBottom: '14px', padding: '14px', border: '2px dashed #00b686', borderRadius: '10px', backgroundColor: '#f0fdf4', textAlign: 'center' }}>
+              <input
+                type="file"
+                id="campaign-excel-upload"
+                accept=".xlsx,.xls,.csv"
+                style={{ display: 'none' }}
+                onChange={handleCampaignExcelUpload}
+              />
+              <label htmlFor="campaign-excel-upload" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                <IoCloudUploadOutline size={28} color="#00b686" />
+                <span style={{ fontSize: '14px', fontWeight: '600', color: '#008069' }}>
+                  {campaignFileName ? `Loaded: ${campaignFileName} (${excelLoadedCount} contacts)` : 'Upload Filtered Customer Excel / CSV File'}
+                </span>
+                <span style={{ fontSize: '12px', color: '#65676b' }}>
+                  Easily load specific dress shop customers (.xlsx, .xls, .csv) directly into this campaign
+                </span>
+              </label>
+              {campaignFileName && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCampaignFileName('');
+                    setExcelLoadedCount(0);
+                    setPhoneNumbers('');
+                  }}
+                  style={{ marginTop: '8px', padding: '4px 10px', fontSize: '12px', borderRadius: '4px', border: '1px solid #d1d5db', background: 'white', cursor: 'pointer', color: '#ef4444' }}
+                >
+                  Clear uploaded file
+                </button>
+              )}
+            </div>
+
             <div className="form-group">
               <label className="form-label">
                 Phone Numbers with Customer Names (one per line)

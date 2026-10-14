@@ -587,7 +587,7 @@ function App() {
             {/* Content based on activeView */}
             {activeView === "chats" && <WhatsAppChat />}
             {activeView === "bulk" && <BulkWhatsApp />}
-            {activeView === "contacts" && <Contact />}
+            {activeView === "contacts" && <Contact onNavigate={setActiveView} />}
             {activeView === "assignedcontact" && <AssignedContacts/>}
             {activeView === "blacklist" && <Blacklist />}
             {activeView === "ungroupedcontact" && <UngroupedContact />}

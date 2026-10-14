@@ -1716,18 +1716,29 @@ const WhatsAppChat = () => {
             setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 100);
           }}
         >
-          <div className="chat-avatar" style={{ position: 'relative' }}>{chat.phone.slice(-4)}{chat.unreadCount > 0 && (<span className="unread-badge" style={{ position: 'absolute', top: '-5px', right: '-6px' }}>{chat.unreadCount}</span>)}</div>
+          <div className="chat-avatar">{chat.phone.slice(-4)}</div>
           <div className="chat-info">
-            <div className="chat-phone" style={{ paddingRight: userType !== "subuser" ? '75px' : '0' }}>
-              <span className="chat-name-text">
+            <div className="chat-phone" style={{ paddingRight: userType !== "subuser" ? '98px' : '0' }}>
+              <span className="chat-name-text" title={chat.name || chat.phone}>
                 {chat.name || chat.phone}
+              </span>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginTop: '2px',
+                minHeight: '20px',
+                paddingRight: '4px',
+              }}
+            >
+              <span style={{ fontSize: '12px', color: '#667781', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {chat.phone}
               </span>
               {chat.unreadCount > 0 && (
                 <span className="unread-badge">{chat.unreadCount}</span>
               )}
-            </div>
-            <div style={{ fontSize: '12px', color: '#667781', marginTop: '2px' }}>
-              {chat.phone}
             </div>
             {/* Business Number Display in Chat List - COMMENTED OUT
             {chat.businessNumber && (
@@ -1776,21 +1787,16 @@ const WhatsAppChat = () => {
 
           {userType !== "subuser" && (
             <div
-              style={{
-                position: "absolute",
-                top: 15,
-                right: 10,
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
+              className="chat-actions-container"
               onClick={(e) => e.stopPropagation()}
             >
               <div style={{ position: "relative" }}>
                 <button
-                  className="label-menu-btn user-menu-btn"
+                  className="chat-action-btn user-menu-btn"
                   title="Assign User"
-                  style={{ top: -5, right: 60 }}
+                  style={{
+                    color: phoneUserId[chat.phone] ? "#25d366" : "#8696a0",
+                  }}
                   onClick={async (e) => {
                     e.stopPropagation();
                     const phone = chat.phone;
@@ -1805,7 +1811,7 @@ const WhatsAppChat = () => {
                     await preloadAssignedUser(phone);
                   }}
                 >
-                  <UserCheck size={18} />
+                  <UserCheck size={17} />
                 </button>
 
                 {showUserMenu === chat.phone && (
@@ -1832,9 +1838,11 @@ const WhatsAppChat = () => {
 
               <div style={{ position: "relative" }}>
                 <button
-                  className="group-menu-btn label-menu-btn"
+                  className="chat-action-btn group-menu-btn"
                   title="Set group"
-                  style={{ right: 35, top: -5 }}
+                  style={{
+                    color: phoneGroupId[chat.phone] ? "#25d366" : "#8696a0",
+                  }}
                   onClick={async (e) => {
                     e.stopPropagation();
                     const phone = chat.phone;
@@ -1846,7 +1854,7 @@ const WhatsAppChat = () => {
                     await preloadGroupForPhone(phone);
                   }}
                 >
-                  <Users size={18} />
+                  <Users size={17} />
                 </button>
 
                 {showGroupMenu === chat.phone && (
@@ -1876,14 +1884,17 @@ const WhatsAppChat = () => {
 
               <div style={{ position: "relative" }}>
                 <button
-                  className="label-menu-btn"
-                  style={{ top: -5 }}
+                  className="chat-action-btn label-menu-btn"
+                  title="Labels"
+                  style={{
+                    color: chatLabels[chat.phone]?.length > 0 ? "#25d366" : "#8696a0",
+                  }}
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowLabelMenu(showLabelMenu === chat.phone ? null : chat.phone);
                   }}
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z" />
                   </svg>
                 </button>

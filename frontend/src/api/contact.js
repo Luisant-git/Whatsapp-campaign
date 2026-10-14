@@ -28,6 +28,9 @@ export const contactAPI = {
   create: (data) =>
     axios.post(`${API_BASE_URL}/contact`, data, { withCredentials: true }),
 
+  bulkImport: (data) =>
+    axios.post(`${API_BASE_URL}/contact/bulk-import`, data, { withCredentials: true }),
+
   update: (id, data) =>
     axios.patch(`${API_BASE_URL}/contact/${id}`, data, { withCredentials: true }),
 

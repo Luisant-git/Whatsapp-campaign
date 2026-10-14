@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Trash2,
   RotateCcw,
+  Send,
 } from "lucide-react";
 import Select from "react-select";
 
@@ -26,7 +27,7 @@ import * as XLSX from "xlsx";
 import { useToast } from "../contexts/ToastContext";
 import { IoCheckmarkDoneCircleOutline, IoCloseCircleOutline, IoCloudUploadOutline } from "react-icons/io5";
 
-export default function Contact() {
+export default function Contact({ onNavigate }) {
   const [tab, setTab] = useState("active"); // "active" | "trash"
 
   const [contacts, setContacts] = useState([]);
@@ -74,6 +75,7 @@ export default function Contact() {
   const [fileName, setFileName] = useState("");
   const [selectedGroupIdForImport, setSelectedGroupIdForImport] = useState("");
   const [importing, setImporting] = useState(false);
+  const [importUpsertMode, setImportUpsertMode] = useState(true);
 
   const { showSuccess, showError, showInfo } = useToast();
 
@@ -500,91 +502,72 @@ export default function Contact() {
 
     setImporting(true);
 
-    let successCount = 0;
-    let failCount = 0;
-    const duplicateNumbers = [];
-    const invalidNumbers = []; // <— track invalid (non 10-digit) phones
-
     // helper: map group name -> id
     const groupNameToId = new Map(
       groups.map((g) => [g.name.toLowerCase(), g.id])
     );
 
     try {
-      for (const c of uploadedData) {
-        try {
-          // Normalize phone to digits only
-          const rawPhone = String(c.phone || "").replace(/\D/g, "");
+      const targetGroupId = selectedGroupIdForImport ? Number(selectedGroupIdForImport) : undefined;
+      const contactsToImport = uploadedData.map((c) => {
+        const rawPhone = String(c.phone || "").replace(/\D/g, "");
+        const matchedGroupId = c.group
+          ? groupNameToId.get(String(c.group).toLowerCase())
+          : null;
+        return {
+          name: c.name,
+          phone: rawPhone,
+          email: c.email || undefined,
+          place: c.place || undefined,
+          dob: c.dob || undefined,
+          anniversary: c.anniversary || undefined,
+          groupId: matchedGroupId || targetGroupId || undefined,
+          variable2: c.variable2 || undefined,
+          variable3: c.variable3 || undefined,
+          variable4: c.variable4 || undefined,
+          variable5: c.variable5 || undefined,
+          variable6: c.variable6 || undefined,
+        };
+      });
 
-          // Skip if not exactly 10 digits
-          if (!/^[6-9]\d{9}$/.test(rawPhone)) {
-            invalidNumbers.push(c.phone || rawPhone || "(empty)");
-            failCount++;
-            continue; // do NOT call the API for this row
-          }
+      const res = await contactAPI.bulkImport({
+        contacts: contactsToImport,
+        groupId: targetGroupId,
+        upsert: importUpsertMode,
+      });
 
-          const groupId =
-            (c.group
-              ? groupNameToId.get(String(c.group).toLowerCase())
-              : null) || (selectedGroupIdForImport || null);
+      const { total, created, updated, skipped, invalid } = res.data || {};
 
-          await contactAPI.create({
-            name: c.name,
-            phone: rawPhone, // use cleaned 10‑digit phone
-            email: c.email || undefined,
-            place: c.place || undefined,
-            dob: c.dob || undefined,
-            anniversary: c.anniversary || undefined,
-            groupId: groupId || undefined,
-            variable2: c.variable2 || undefined,
-            variable3: c.variable3 || undefined,
-            variable4: c.variable4 || undefined,
-            variable5: c.variable5 || undefined,
-            variable6: c.variable6 || undefined,
-          });
-
-          successCount++;
-        } catch (err) {
-          const msg = err.response?.data?.message || err.message || "";
-          if (/already exists/i.test(msg) || /duplicate/i.test(msg)) {
-            duplicateNumbers.push(c.phone);
-          }
-          failCount++;
+      if (created > 0 || updated > 0) {
+        let msg = `Successfully imported: ${created} new contact${created !== 1 ? 's' : ''} added`;
+        if (updated > 0) {
+          msg += `, ${updated} existing contact${updated !== 1 ? 's' : ''} updated & assigned to group`;
         }
+        showSuccess(msg);
+      } else if (skipped > 0) {
+        showInfo(`${skipped} duplicate contact${skipped !== 1 ? 's' : ''} skipped.`);
+      } else {
+        showError("No contacts were imported.");
       }
+
+      if (invalid > 0) {
+        showError(`${invalid} invalid phone number${invalid !== 1 ? 's' : ''} (not 10 digits) skipped.`);
+      }
+
+      if (selectedGroupIdForImport) {
+        setSelectedGroupFilterId(selectedGroupIdForImport);
+      }
+    } catch (err) {
+      console.error("Bulk import failed:", err);
+      showError(err.response?.data?.message || err.message || "Failed to import contacts");
     } finally {
       setImporting(false);
-    }
-
-    setUploadedData([]);
-    setFileName("");
-    setShowBulkModal(false);
-
-    setTab("active");
-    setPage(1);
-
-    await fetchContacts(1, limit, searchQuery, selectedGroupFilterId);
-
-    // ✅ Show toast AFTER UI stabilizes
-    if (successCount > 0) {
-      showSuccess(
-        `Imported ${successCount} contact${successCount > 1 ? "s" : ""}`
-      );
-    }
-
-    if (duplicateNumbers.length > 0) {
-      showError(`Already registered: ${duplicateNumbers.join(", ")}`);
-    }
-
-    if (invalidNumbers.length > 0) {
-      showError(
-        `Invalid phone (not 10 digits): ${invalidNumbers.join(", ")}`
-      );
-    }
-
-
-    if (failCount >= 10) {
-      showError(`${failCount} contacts failed to import.`);
+      setUploadedData([]);
+      setFileName("");
+      setShowBulkModal(false);
+      setTab("active");
+      setPage(1);
+      await fetchContacts(1, limit, searchQuery, selectedGroupIdForImport || selectedGroupFilterId);
     }
   };
 
@@ -866,6 +849,44 @@ export default function Contact() {
               {tab === "active" ? "View Trash" : "View Contacts"}
             </span>
           </button>
+
+          {/* Quick Launch Campaign for Filtered Group */}
+          {selectedGroupFilterId && selectedGroupFilterId !== "ungrouped" && tab === "active" && (
+            <button
+              className="btn-primary"
+              style={{
+                backgroundColor: "#008069",
+                borderColor: "#008069",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "13px",
+                fontWeight: "600",
+                padding: "8px 14px",
+                borderRadius: "8px",
+                cursor: "pointer",
+                color: "#ffffff",
+              }}
+              onClick={() => {
+                const groupObj = groups.find((g) => String(g.id) === String(selectedGroupFilterId));
+                window.composeCampaignData = {
+                  campaignName: groupObj ? `${groupObj.name} Campaign` : "Campaign",
+                  groupId: selectedGroupFilterId,
+                };
+                if (onNavigate) {
+                  onNavigate("bulk");
+                } else {
+                  localStorage.setItem("activeView", "bulk");
+                  window.location.reload();
+                }
+              }}
+              title="Launch a WhatsApp campaign to all contacts in this group"
+            >
+              <Send size={15} />
+              <span>Send Campaign to Group</span>
+            </button>
+          )}
+
           {/* Delete / Restore selected */}
           {tab === "active" ? (
             <>
@@ -1404,6 +1425,45 @@ export default function Contact() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Duplicate Handling Mode for Campaign Targeting */}
+              <div style={{ marginTop: '14px', marginBottom: '14px', background: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <label style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b', marginBottom: '8px', display: 'block' }}>
+                  If contact already exists in database:
+                </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', cursor: 'pointer', color: '#0f172a' }}>
+                    <input
+                      type="radio"
+                      name="importUpsertMode"
+                      checked={importUpsertMode}
+                      onChange={() => setImportUpsertMode(true)}
+                      style={{ marginTop: '3px', accentColor: '#10b981' }}
+                    />
+                    <span>
+                      <strong style={{ color: '#047857' }}>Update details &amp; assign to selected group</strong>
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>
+                        Recommended for campaigns: moves existing customers into this group without duplicate errors.
+                      </div>
+                    </span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', cursor: 'pointer', color: '#475569' }}>
+                    <input
+                      type="radio"
+                      name="importUpsertMode"
+                      checked={!importUpsertMode}
+                      onChange={() => setImportUpsertMode(false)}
+                      style={{ marginTop: '3px', accentColor: '#10b981' }}
+                    />
+                    <span>
+                      <strong>Skip duplicates</strong>
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>
+                        Keep existing contacts unchanged; only import new phone numbers.
+                      </div>
+                    </span>
+                  </label>
+                </div>
               </div>
 
               <div className="modal-actions">

@@ -1224,43 +1224,85 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                     };
 
                     return (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                        {/* ── 5 NEW METRIC CARDS ── */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
-                          {/* All messages */}
-                          <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', padding: '16px', background: '#fff', borderTop: '3px solid #1877f2' }}>
-                            <div style={{ fontSize: '12px', color: '#606770', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>All messages</div>
-                            <div style={{ fontSize: '28px', fontWeight: '700', color: '#1c1e21' }}>{analyticsLoading ? '…' : totalDelivered}</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        {/* Section Title */}
+                        <div style={{ fontSize: '18px', fontWeight: '700', color: '#1c1e21' }}>
+                          Insights this month
+                        </div>
+
+                        {/* ── META THEME METRIC CARDS ── */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                          {/* All message deliveries */}
+                          <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', color: '#1c1e21', fontWeight: '500' }}>
+                              <span>All message deliveries</span>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="#1c1e21" style={{ flexShrink: 0, cursor: 'help' }} title="Total messages delivered across all categories">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                              </svg>
+                            </div>
+                            <div style={{ fontSize: '24px', fontWeight: '700', color: '#1c1e21', marginTop: '12px' }}>
+                              {analyticsLoading ? '…' : (totalDelivered || 0).toLocaleString()}
+                            </div>
                           </div>
+
                           {/* Messages delivered */}
-                          <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', padding: '16px', background: '#fff', borderTop: '3px solid #10b981' }}>
-                            <div style={{ fontSize: '12px', color: '#606770', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Messages delivered</div>
-                            <div style={{ fontSize: '28px', fontWeight: '700', color: '#1c1e21' }}>{analyticsLoading ? '…' : totalDelivered}</div>
+                          <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', color: '#1c1e21', fontWeight: '500' }}>
+                              <span>Messages delivered</span>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="#1c1e21" style={{ flexShrink: 0, cursor: 'help' }} title="Total delivered messages">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                              </svg>
+                            </div>
+                            <div style={{ fontSize: '24px', fontWeight: '700', color: '#1c1e21', marginTop: '12px' }}>
+                              {analyticsLoading ? '…' : (totalDelivered || 0).toLocaleString()}
+                            </div>
                           </div>
-                          {/* Free messages delivered */}
+
+                          {/* Free customer service deliveries */}
                           {(() => {
                             const freeCount = rows.filter(r => r.category === 'SERVICE').reduce((s, r) => s + r.messages, 0);
                             return (
-                              <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', padding: '16px', background: '#fff', borderTop: '3px solid #047857' }}>
-                                <div style={{ fontSize: '12px', color: '#606770', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Free messages delivered</div>
-                                <div style={{ fontSize: '28px', fontWeight: '700', color: '#047857' }}>{analyticsLoading ? '…' : freeCount}</div>
+                              <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', color: '#1c1e21', fontWeight: '500' }}>
+                                  <span>Free customer service deliveries</span>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="#1c1e21" style={{ flexShrink: 0, cursor: 'help' }} title="Free customer service messages within the 24h window">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                                  </svg>
+                                </div>
+                                <div style={{ fontSize: '24px', fontWeight: '700', color: '#1c1e21', marginTop: '12px' }}>
+                                  {analyticsLoading ? '…' : freeCount.toLocaleString()}
+                                </div>
                               </div>
                             );
                           })()}
+
                           {/* Paid messages delivered */}
                           {(() => {
                             const paidCount = rows.filter(r => r.category !== 'SERVICE').reduce((s, r) => s + r.messages, 0);
                             return (
-                              <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', padding: '16px', background: '#fff', borderTop: '3px solid #6366f1' }}>
-                                <div style={{ fontSize: '12px', color: '#606770', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Paid messages delivered</div>
-                                <div style={{ fontSize: '28px', fontWeight: '700', color: '#6366f1' }}>{analyticsLoading ? '…' : paidCount}</div>
+                              <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', color: '#1c1e21', fontWeight: '500' }}>
+                                  <span>Paid messages delivered</span>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="#1c1e21" style={{ flexShrink: 0, cursor: 'help' }} title="Billable marketing, utility and authentication messages">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                                  </svg>
+                                </div>
+                                <div style={{ fontSize: '24px', fontWeight: '700', color: '#1c1e21', marginTop: '12px' }}>
+                                  {analyticsLoading ? '…' : paidCount.toLocaleString()}
+                                </div>
                               </div>
                             );
                           })()}
-                          {/* Approximate total charges */}
-                          <div style={{ border: '1px solid #ccd0d5', borderRadius: '8px', padding: '16px', background: '#fff', borderTop: '3px solid #d97706' }}>
-                            <div style={{ fontSize: '12px', color: '#606770', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Approximate total charges</div>
-                            <div style={{ fontSize: '28px', fontWeight: '700', color: '#1c1e21' }}>
+
+                          {/* Approximate charges */}
+                          <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', color: '#1c1e21', fontWeight: '500' }}>
+                              <span>Approximate charges</span>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="#1c1e21" style={{ flexShrink: 0, cursor: 'help' }} title="Estimated or actual Meta WhatsApp charges">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                              </svg>
+                            </div>
+                            <div style={{ fontSize: '24px', fontWeight: '700', color: '#1c1e21', marginTop: '12px' }}>
                               {analyticsLoading ? '…' : (() => {
                                 let est = 0; let canCalc = true;
                                 rows.filter(r => r.category !== 'SERVICE').forEach(r => {
@@ -1272,8 +1314,8 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                                   }
                                 });
                                 return canCalc
-                                  ? <span>{currencySymbol}{est.toFixed(2)} <span style={{ fontSize:'13px',color:'#d97706',fontWeight:'500' }}>(Est.)</span></span>
-                                  : <span style={{ fontSize:'14px',color:'#d97706' }}>Pending</span>;
+                                  ? <span>{currencySymbol} {est.toFixed(2)}</span>
+                                  : <span style={{ color: '#65676b', fontSize: '20px', fontWeight: '600' }}>Pending</span>;
                               })()}
                             </div>
                           </div>

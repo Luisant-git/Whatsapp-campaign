@@ -1404,6 +1404,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                     {config.webhookForwardUrl && (
                       <div style={{ marginBottom: '8px' }}>
                         <div
+                          title={`Forwarding to: ${config.webhookForwardUrl}`}
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -1414,39 +1415,24 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                             padding: '3px 10px',
                             fontSize: '11px',
                             color: '#047857',
-                            maxWidth: '100%',
                             boxSizing: 'border-box'
                           }}
                         >
                           <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981', flexShrink: 0 }} />
                           <span style={{ fontWeight: '700', whiteSpace: 'nowrap' }}>Forwarding Active</span>
-                          <span
-                            style={{
-                              color: '#065f46',
-                              fontSize: '11px',
-                              maxWidth: '160px',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                              opacity: 0.85
-                            }}
-                            title={config.webhookForwardUrl}
-                          >
-                            &bull; {config.webhookForwardUrl}
-                          </span>
+                          <span style={{ opacity: 0.6, fontSize: '11px' }}>-</span>
                           <button
                             onClick={() => handleSetWebhookClick(config)}
                             title="Edit webhook forwarding"
                             style={{
                               background: 'none',
                               border: 'none',
-                              padding: '0 2px',
+                              padding: 0,
                               cursor: 'pointer',
                               color: '#047857',
                               fontWeight: '700',
                               fontSize: '11px',
                               textDecoration: 'underline',
-                              marginLeft: '2px',
                               flexShrink: 0
                             }}
                           >

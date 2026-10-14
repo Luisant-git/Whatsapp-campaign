@@ -1402,18 +1402,57 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                     </div>
 
                     {config.webhookForwardUrl && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', padding: '7px 10px', marginBottom: '10px' }}>
-                        <span style={{ fontSize: '14px' }}>🔗</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '11px', fontWeight: '700', color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Forwarding Active</div>
-                          <div style={{ fontSize: '12px', color: '#166534', wordBreak: 'break-all', marginTop: '1px' }}>{config.webhookForwardUrl}</div>
-                        </div>
-                        <button
-                          onClick={() => handleSetWebhookClick(config)}
-                          style={{ flexShrink: 0, padding: '4px 8px', fontSize: '11px', fontWeight: '700', background: '#dcfce7', color: '#15803d', border: '1px solid #86efac', borderRadius: '4px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      <div style={{ marginBottom: '8px' }}>
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: '#e8fdf0',
+                            border: '1px solid #a7f3d0',
+                            borderRadius: '14px',
+                            padding: '3px 10px',
+                            fontSize: '11px',
+                            color: '#047857',
+                            maxWidth: '100%',
+                            boxSizing: 'border-box'
+                          }}
                         >
-                          Edit
-                        </button>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981', flexShrink: 0 }} />
+                          <span style={{ fontWeight: '700', whiteSpace: 'nowrap' }}>Forwarding Active</span>
+                          <span
+                            style={{
+                              color: '#065f46',
+                              fontSize: '11px',
+                              maxWidth: '160px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              opacity: 0.85
+                            }}
+                            title={config.webhookForwardUrl}
+                          >
+                            &bull; {config.webhookForwardUrl}
+                          </span>
+                          <button
+                            onClick={() => handleSetWebhookClick(config)}
+                            title="Edit webhook forwarding"
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              padding: '0 2px',
+                              cursor: 'pointer',
+                              color: '#047857',
+                              fontWeight: '700',
+                              fontSize: '11px',
+                              textDecoration: 'underline',
+                              marginLeft: '2px',
+                              flexShrink: 0
+                            }}
+                          >
+                            Edit
+                          </button>
+                        </div>
                       </div>
                     )}
 
@@ -1692,44 +1731,66 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
               </button>
             </div>
 
-            {/* Modal Tabs */}
-            <div className="tabs" style={{ display: 'flex', borderBottom: '2px solid #f1f5f9', padding: '0 24px', background: '#fafbfc' }}>
-              <button
-                type="button"
-                onClick={() => setWebhookActiveTab('forwarding')}
+            {/* Modal Switch Button (Segmented Switch without border line) */}
+            <div style={{ padding: '16px 24px 0 24px' }}>
+              <div
                 style={{
-                  padding: '12px 18px',
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: webhookActiveTab === 'forwarding' ? '2px solid #25d366' : '2px solid transparent',
-                  marginBottom: '-2px',
-                  fontWeight: webhookActiveTab === 'forwarding' ? '600' : '500',
-                  color: webhookActiveTab === 'forwarding' ? '#25d366' : '#64748b',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  transition: 'all 0.15s ease'
+                  display: 'flex',
+                  background: '#f1f5f9',
+                  padding: '4px',
+                  borderRadius: '10px',
+                  gap: '4px'
                 }}
               >
-                External Forwarding
-              </button>
-              <button
-                type="button"
-                onClick={() => setWebhookActiveTab('meta')}
-                style={{
-                  padding: '12px 18px',
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: webhookActiveTab === 'meta' ? '2px solid #1877F2' : '2px solid transparent',
-                  marginBottom: '-2px',
-                  fontWeight: webhookActiveTab === 'meta' ? '600' : '500',
-                  color: webhookActiveTab === 'meta' ? '#1877F2' : '#64748b',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                Meta Developer Webhook
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setWebhookActiveTab('forwarding')}
+                  style={{
+                    flex: 1,
+                    padding: '9px 14px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: webhookActiveTab === 'forwarding' ? '#25d366' : 'transparent',
+                    color: webhookActiveTab === 'forwarding' ? '#ffffff' : '#64748b',
+                    fontWeight: webhookActiveTab === 'forwarding' ? '600' : '500',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    boxShadow: webhookActiveTab === 'forwarding' ? '0 2px 6px rgba(37, 211, 102, 0.35)' : 'none',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <span style={{ fontSize: '13px' }}>🔁</span>
+                  External Forwarding
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWebhookActiveTab('meta')}
+                  style={{
+                    flex: 1,
+                    padding: '9px 14px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: webhookActiveTab === 'meta' ? '#1877f2' : 'transparent',
+                    color: webhookActiveTab === 'meta' ? '#ffffff' : '#64748b',
+                    fontWeight: webhookActiveTab === 'meta' ? '600' : '500',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    boxShadow: webhookActiveTab === 'meta' ? '0 2px 6px rgba(24, 119, 242, 0.35)' : 'none',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <span style={{ fontSize: '13px' }}>🌐</span>
+                  Meta Developer Webhook
+                </button>
+              </div>
             </div>
             
             <div className="settings-form" style={{ padding: '24px', gap: '20px' }}>

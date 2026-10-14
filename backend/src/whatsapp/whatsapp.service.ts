@@ -2352,52 +2352,68 @@ export class WhatsappService {
 
         const updateData: any = { status: finalStatus };
 
-        if (errorMessage) {
-          updateData.errorDetails = errorMessage;
-        }
-
         if (pricingPayload && typeof pricingPayload === 'object') {
           if (typeof pricingPayload.billable === 'boolean') updateData.billable = pricingPayload.billable;
           if (typeof pricingPayload.pricing_model === 'string') updateData.pricingModel = pricingPayload.pricing_model;
           if (typeof pricingPayload.category === 'string') updateData.pricingCategory = pricingPayload.category;
         }
 
-        await tenantClient.whatsAppMessage.update({
-          where: { id: existingMessage.id },
-          data: updateData
-        });
+        try {
+          await tenantClient.whatsAppMessage.update({
+            where: { id: existingMessage.id },
+            data: updateData
+          });
+        } catch (msgUpdateErr: any) {
+          this.logger.error(`Error updating whatsAppMessage status for ${messageId}:`, msgUpdateErr?.message || msgUpdateErr);
+        }
       }
 
       // Also update CampaignMessage if it exists, independently
-      const campaignMessage = await tenantClient.campaignMessage.findFirst({
-        where: { messageId }
-      });
-
-      if (campaignMessage) {
-        let errorMessage: string | null = null;
-        if (status === 'failed' && errorDetails && errorDetails.length > 0) {
-          errorMessage = errorDetails[0].message || errorDetails[0].title || 'Unknown error';
-        }
-
-        const currentCampaignStatusLevel = statusHierarchy[campaignMessage.status] || 0;
-        let finalCampaignStatus = campaignMessage.status;
-
-        if (status === 'failed') {
-          if (campaignMessage.status !== 'delivered' && campaignMessage.status !== 'read') {
-            finalCampaignStatus = 'failed';
-          }
-        } else if (newStatusLevel >= currentCampaignStatusLevel) {
-          finalCampaignStatus = status;
-        }
-
-        const campaignUpdateData: any = { status: finalCampaignStatus };
-        if (errorMessage) {
-          campaignUpdateData.error = errorMessage;
-        }
-        await tenantClient.campaignMessage.update({
-          where: { id: campaignMessage.id },
-          data: campaignUpdateData
+      try {
+        const campaignMessage = await tenantClient.campaignMessage.findFirst({
+          where: { messageId }
         });
+
+        if (campaignMessage) {
+          let errorMessage: string | null = null;
+          if (status === 'failed' && errorDetails) {
+            if (Array.isArray(errorDetails) && errorDetails.length > 0) {
+              const err = errorDetails[0];
+              const codePrefix = err.code ? `[Meta Code ${err.code}] ` : '';
+              const details = err.error_data?.details || err.message || err.title || 'Delivery failed by Meta';
+              errorMessage = `${codePrefix}${details}`;
+            } else if (typeof errorDetails === 'object') {
+              const codePrefix = (errorDetails as any).code ? `[Meta Code ${(errorDetails as any).code}] ` : '';
+              const details = (errorDetails as any).error_data?.details || (errorDetails as any).message || (errorDetails as any).title || JSON.stringify(errorDetails);
+              errorMessage = `${codePrefix}${details}`;
+            } else if (typeof errorDetails === 'string') {
+              errorMessage = errorDetails;
+            }
+          }
+
+          const currentCampaignStatusLevel = statusHierarchy[campaignMessage.status] || 0;
+          let finalCampaignStatus = campaignMessage.status;
+
+          if (status === 'failed') {
+            if (campaignMessage.status !== 'delivered' && campaignMessage.status !== 'read') {
+              finalCampaignStatus = 'failed';
+            }
+          } else if (newStatusLevel >= currentCampaignStatusLevel) {
+            finalCampaignStatus = status;
+          }
+
+          const campaignUpdateData: any = { status: finalCampaignStatus };
+          if (errorMessage) {
+            campaignUpdateData.error = errorMessage;
+          }
+          await tenantClient.campaignMessage.update({
+            where: { id: campaignMessage.id },
+            data: campaignUpdateData
+          });
+          this.logger.log(`Updated campaignMessage for ${messageId} to status: ${finalCampaignStatus}, error: ${errorMessage}`);
+        }
+      } catch (campErr: any) {
+        this.logger.error(`Error updating campaignMessage for ${messageId}:`, campErr?.message || campErr);
       }
     } catch (error) {
       this.logger.error(`Error updating message status for ${messageId}:`, error.stack);

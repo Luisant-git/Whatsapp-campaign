@@ -20,11 +20,18 @@ export class CentralPrismaService
   private isReconnecting = false;
 
   constructor() {
+    const rawUrl = process.env.CENTRAL_DATABASE_URL || '';
+    const poolUrl = rawUrl.includes('connection_limit')
+      ? rawUrl
+      : rawUrl.includes('?')
+        ? `${rawUrl}&connection_limit=10&pool_timeout=20`
+        : `${rawUrl}?connection_limit=10&pool_timeout=20`;
+
     super({
       log: ['error', 'warn'],
       datasources: {
         db: {
-          url: process.env.CENTRAL_DATABASE_URL,
+          url: poolUrl,
         },
       },
     });
@@ -43,13 +50,23 @@ export class CentralPrismaService
         this.rejectReady = reject;
       });
 
-      try {
-        await this.$disconnect();
-        await this.delay(1500);
-        await this.connectAndVerify();
-      } catch (err) {
-        this.logger.error('❌ Global recovery failed:', err);
+      for (let retry = 1; retry <= 3; retry++) {
+        try {
+          this.logger.warn(`🔄 Attempting DB reconnection (${retry}/3)...`);
+          await this.$disconnect().catch(() => {});
+          await this.delay(1500 * retry);
+          await this.connectAndVerify();
+          this.logger.log('✅ Central DB reconnected successfully!');
+          return;
+        } catch (err) {
+          this.logger.error(`❌ Central DB reconnection attempt ${retry} failed:`, err);
+        }
       }
+
+      this.logger.error(
+        '❌ Global recovery failed after 3 attempts. Exiting process to allow PM2 to restart fresh...',
+      );
+      process.exit(1);
     });
   }
 
@@ -91,7 +108,10 @@ export class CentralPrismaService
       } catch (pingErr: any) {
         const notReady =
           pingErr?.message?.includes('Engine is not yet connected') ||
-          pingErr?.message?.includes('engine is not yet connected');
+          pingErr?.message?.includes('engine is not yet connected') ||
+          pingErr?.message?.includes('terminating connection') ||
+          pingErr?.message?.includes('Connection terminated') ||
+          pingErr?.code === '57P01';
 
         if (notReady) {
           this.logger.warn(

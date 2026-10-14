@@ -162,24 +162,29 @@ export class TenantPrismaService implements OnModuleDestroy {
       try {
         const oldClient = this.clients.get(id);
         if (oldClient) {
-          await oldClient.$disconnect();
+          await oldClient.$disconnect().catch(() => {});
           this.clients.delete(id);
         }
 
-        await this.delay(1000);
+        let lastErr: any = null;
+        for (let attempt = 1; attempt <= 5; attempt++) {
+          try {
+            await this.delay(1000 * attempt);
+            const newClient = this.createClient(id, dbUrl);
+            await newClient.$connect();
+            await newClient.$queryRaw`SELECT 1`;
+            this.clients.set(id, newClient);
+            this.logger.log(`🔄 Tenant ${id} reconnected successfully (attempt ${attempt}/5)`);
+            return;
+          } catch (err) {
+            lastErr = err;
+            this.logger.warn(`⏳ Tenant ${id} reconnect attempt ${attempt}/5 failed: ${err?.message || err}`);
+          }
+        }
 
-        const newClient = this.createClient(id, dbUrl);
-        
-        // ✅ Verify connection BEFORE replacing client
-        await newClient.$connect();
-        await newClient.$queryRaw`SELECT 1`;
-        
-        // ✅ Only set after verification succeeds
-        this.clients.set(id, newClient);
-
-        this.logger.log(`🔄 Tenant ${id} reconnected successfully`);
+        throw lastErr;
       } catch (err) {
-        this.logger.error(`❌ Tenant ${id} reconnect failed`, err);
+        this.logger.error(`❌ Tenant ${id} reconnect failed completely:`, err);
         throw err;
       } finally {
         this.reconnecting.delete(id);

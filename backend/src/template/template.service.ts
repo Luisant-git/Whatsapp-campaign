@@ -474,27 +474,70 @@ export class TemplateService {
       if (wabaId && accessToken) {
         const startTs = Math.floor(startDate.getTime() / 1000);
         const endTs = Math.floor(endDate.getTime() / 1000);
-        const metaUrl = `https://graph.facebook.com/${this.apiVersion}/${wabaId}?fields=template_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).limit(100)&access_token=${accessToken}`;
-        const metaRes = await axios.get(metaUrl, { timeout: 8000 });
-        const metaData = metaRes.data?.template_analytics?.data || [];
-        metaData.forEach((item: any) => {
-          const tId = item.template_id;
-          let metaDelivered = 0;
-          let metaRead = 0;
-          item.data_points?.forEach((dp: any) => {
-            metaDelivered += (dp.delivered || 0);
-            metaRead += (dp.read || 0);
-          });
-          if (metaDelivered > 0) {
-            const matched = templates.find((t: any) => String(t.templateId) === String(tId) || String(t.id) === String(tId));
-            if (matched) {
-              statsMap[matched.name] = {
-                delivered: metaDelivered,
-                read: metaRead,
-              };
+
+        // Find all templates that have a valid Meta templateId (numeric string)
+        const validTemplates = templates.filter(
+          (t: any) => t.templateId && /^\d+$/.test(String(t.templateId).trim())
+        );
+
+        if (validTemplates.length > 0) {
+          const processAnalyticsData = (analyticsDataArr: any[]) => {
+            analyticsDataArr.forEach((item: any) => {
+              const itemTid = item.template_id;
+              item.data_points?.forEach((dp: any) => {
+                const tId = dp.template_id || itemTid;
+                if (!tId) return;
+                const delivered = dp.delivered || 0;
+                const read = dp.read || 0;
+
+                const matched = templates.find(
+                  (t: any) => String(t.templateId) === String(tId) || String(t.id) === String(tId)
+                );
+                if (matched) {
+                  if (!statsMap[matched.name]) {
+                    statsMap[matched.name] = { delivered: 0, read: 0 };
+                  }
+                  statsMap[matched.name].delivered += delivered;
+                  statsMap[matched.name].read += read;
+                }
+              });
+            });
+          };
+
+          // Batch query in chunks of 30 template IDs
+          const batchSize = 30;
+          for (let i = 0; i < validTemplates.length; i += batchSize) {
+            const batch = validTemplates.slice(i, i + batchSize);
+            const idsParam = batch.map((t: any) => `'${String(t.templateId).trim()}'`).join(',');
+            const metaUrl = `https://graph.facebook.com/${this.apiVersion}/${wabaId}?fields=template_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).limit(100).template_ids([${idsParam}])&access_token=${accessToken}`;
+
+            try {
+              const metaRes = await axios.get(metaUrl, { timeout: 8000 });
+              const metaData = metaRes.data?.template_analytics?.data || [];
+
+              // Reset stats for templates in this batch so Meta authoritative metrics replace local DB stats
+              batch.forEach((t: any) => {
+                statsMap[t.name] = { delivered: 0, read: 0 };
+              });
+              processAnalyticsData(metaData);
+            } catch (batchErr) {
+              // If batch call fails (e.g. invalid/deleted ID in batch), query individually with Promise.allSettled
+              await Promise.allSettled(
+                batch.map(async (tpl: any) => {
+                  try {
+                    const singleUrl = `https://graph.facebook.com/${this.apiVersion}/${wabaId}?fields=template_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).limit(100).template_ids(['${String(tpl.templateId).trim()}'])&access_token=${accessToken}`;
+                    const singleRes = await axios.get(singleUrl, { timeout: 6000 });
+                    const singleData = singleRes.data?.template_analytics?.data || [];
+                    statsMap[tpl.name] = { delivered: 0, read: 0 };
+                    processAnalyticsData(singleData);
+                  } catch (singleErr) {
+                    // Gracefully retain local DB fallback if Meta single template query also fails
+                  }
+                })
+              );
             }
           }
-        });
+        }
       }
     } catch (metaErr) {
       // Gracefully continue with local database stats if Meta API call fails or is throttled

@@ -1448,7 +1448,8 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                             <thead style={{ background: '#f5f6f7', borderBottom: '1px solid #ced0d4' }}>
                               <tr>
                                 <th style={{ padding: '12px 16px', color: '#65676b', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Category</th>
-                                <th style={{ padding: '12px 16px', color: '#65676b', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Messages</th>
+                                <th style={{ padding: '12px 16px', color: '#65676b', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Delivered Messages</th>
+                                <th style={{ padding: '12px 16px', color: '#65676b', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Paid Messages</th>
                                 <th style={{ padding: '12px 16px', color: '#65676b', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Unit Rate</th>
                                 <th style={{ padding: '12px 16px', color: '#65676b', fontWeight: '600', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Spend</th>
                               </tr>
@@ -1482,9 +1483,14 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                                     </span>
                                   </td>
                                   
-                                  {/* Messages Cell */}
+                                  {/* Delivered Messages Cell */}
                                   <td style={{ padding: '14px 16px', color: '#1c1e21', fontWeight: '600', textAlign: 'right', fontSize: '14px' }}>
                                     {(row.messages || 0).toLocaleString()}
+                                  </td>
+
+                                  {/* Paid Messages Cell */}
+                                  <td style={{ padding: '14px 16px', color: row.paidMessages > 0 ? '#1c1e21' : '#65676b', fontWeight: '600', textAlign: 'right', fontSize: '14px' }}>
+                                    {(row.paidMessages || 0).toLocaleString()}
                                   </td>
 
                                   {/* Unit Rate Cell */}
@@ -1520,9 +1526,16 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                             </tbody>
                             <tfoot style={{ background: '#f7f8fa', borderTop: '2px solid #ced0d4' }}>
                               <tr>
-                                <td colSpan={3} style={{ padding: '16px', fontWeight: '700', color: '#1c1e21', fontSize: '14px' }}>
-                                  Total Approximate Charges (Reported + Estimated)
+                                <td style={{ padding: '16px', fontWeight: '700', color: '#1c1e21', fontSize: '14px' }}>
+                                  Total (Reported + Estimated)
                                 </td>
+                                <td style={{ padding: '16px', fontWeight: '700', textAlign: 'right', fontSize: '14px', color: '#1c1e21' }}>
+                                  {totalDelivered.toLocaleString()}
+                                </td>
+                                <td style={{ padding: '16px', fontWeight: '700', textAlign: 'right', fontSize: '14px', color: '#1c1e21' }}>
+                                  {totalPaid.toLocaleString()}
+                                </td>
+                                <td style={{ padding: '16px' }}></td>
                                 <td style={{ padding: '16px', fontWeight: '700', textAlign: 'right', fontSize: '15px', color: '#1c1e21' }}>
                                   {currencySymbol} {totalCharges.toFixed(2)} {analyticsCurrency || 'INR'}
                                 </td>
@@ -1532,8 +1545,8 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                         </div>
 
                         {/* Meta Notice & Action Link */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#65676b', flexWrap: 'wrap', gap: '16px', marginTop: '4px' }}>
-                          <div style={{ fontSize: '13px', color: '#65676b', flex: 1, lineHeight: '1.4' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', color: '#1c1e21', flexWrap: 'wrap', gap: '16px', marginTop: '8px' }}>
+                          <div style={{ fontSize: '16px', color: '#1c1e21', fontWeight: '700', flex: 1, lineHeight: '1.5' }}>
                             Usage is billed directly by Meta. Invoices and official card charges are managed in your Meta Business Manager. Estimates are based on official Meta rate cards.
                           </div>
                           <a 
@@ -1543,11 +1556,11 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                             style={{ 
                               backgroundColor: '#1877f2', 
                               color: '#ffffff', 
-                              padding: '9px 16px', 
+                              padding: '10px 18px', 
                               borderRadius: '6px', 
                               textDecoration: 'none', 
-                              fontWeight: '600', 
-                              fontSize: '13px', 
+                              fontWeight: '700', 
+                              fontSize: '14px', 
                               display: 'flex', 
                               alignItems: 'center', 
                               gap: '6px', 

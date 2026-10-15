@@ -52,6 +52,7 @@ export class QuickReplyService {
     buttons: string[],
     sendSeparately: boolean = false,
     mediaUrls: string[] = [],
+    isActive: boolean = true,
   ) {
     const prisma = await this.getPrisma(userId);
     return prisma.quickReply.create({
@@ -62,6 +63,7 @@ export class QuickReplyService {
         buttons,
         sendSeparately,
         mediaUrls,
+        isActive: isActive !== false,
       },
     });
   }
@@ -102,6 +104,17 @@ export class QuickReplyService {
     } catch {
       return false;
     }
+  }
+
+  async toggleQuickReply(id: number, userId: number, isActive?: boolean) {
+    const prisma = await this.getPrisma(userId);
+    const existing = await prisma.quickReply.findUnique({ where: { id } });
+    if (!existing) throw new Error('Quick reply not found');
+    const newStatus = isActive !== undefined ? isActive : !existing.isActive;
+    return prisma.quickReply.update({
+      where: { id },
+      data: { isActive: newStatus },
+    });
   }
 
   async getAllQuickReplies(userId: number) {

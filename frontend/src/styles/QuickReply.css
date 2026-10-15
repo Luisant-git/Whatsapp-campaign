@@ -604,11 +604,59 @@
 }
 
 /* Enhanced Standard Modal UI */
+.modal-content.quick-reply-modal,
+.settings-container.quick-reply-full-width ~ .modal-overlay .modal-content,
 .modal-content {
-  max-width: 650px !important;
+  width: 95% !important;
+  max-width: 900px !important;
+  border-radius: 14px;
+  box-shadow: 0 14px 45px rgba(0,0,0,0.15);
+  padding: 28px 36px !important;
+}
+
+.wa-reply-card.on-hold {
+  opacity: 0.85;
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.wa-reply-card.on-hold .wa-card-header {
+  background: #f1f5f9;
+}
+
+.wa-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
   border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-  padding: 30px !important;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.wa-status-badge.active {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.wa-status-badge.active:hover {
+  background: #bbf7d0;
+  transform: translateY(-1px);
+}
+
+.wa-status-badge.hold {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.wa-status-badge.hold:hover {
+  background: #fde68a;
+  transform: translateY(-1px);
 }
 
 .modal-header h2 {

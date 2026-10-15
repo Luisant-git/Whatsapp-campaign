@@ -13,13 +13,18 @@ export class QuickReplyController {
   }
 
   @Post()
-  addQuickReply(@Session() session: any, @Body() body: { title: string; response: string; triggers: string[]; buttons: string[]; sendSeparately?: boolean; mediaUrls?: string[] }) {
-    return this.quickReplyService.addQuickReply(session.user.id, body.title, body.response, body.triggers, body.buttons, body.sendSeparately, body.mediaUrls);
+  addQuickReply(@Session() session: any, @Body() body: { title: string; response: string; triggers: string[]; buttons: string[]; sendSeparately?: boolean; mediaUrls?: string[]; isActive?: boolean }) {
+    return this.quickReplyService.addQuickReply(session.user.id, body.title, body.response, body.triggers, body.buttons, body.sendSeparately, body.mediaUrls, body.isActive);
   }
 
   @Put(':id')
   updateQuickReply(@Session() session: any, @Param('id') id: string, @Body() body: { title: string; response: string; triggers: string[]; buttons: string[]; isActive: boolean; sendSeparately?: boolean; mediaUrls?: string[] }) {
     return this.quickReplyService.updateQuickReply(parseInt(id), session.user.id, body.title, body.response, body.triggers, body.buttons, body.isActive, body.sendSeparately, body.mediaUrls);
+  }
+
+  @Put(':id/toggle')
+  toggleQuickReply(@Session() session: any, @Param('id') id: string, @Body() body: { isActive?: boolean }) {
+    return this.quickReplyService.toggleQuickReply(parseInt(id), session.user.id, body.isActive);
   }
 
   @Delete(':id')

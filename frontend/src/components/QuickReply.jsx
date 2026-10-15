@@ -44,7 +44,8 @@ const QuickReply = () => {
     menuButtonText: '',
     buttons: [''],
     mediaUrls: [''],
-    sendSeparately: false
+    sendSeparately: false,
+    isActive: true
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -137,7 +138,8 @@ const QuickReply = () => {
       menuButtonText: '',
       buttons: [''],
       mediaUrls: [''],
-      sendSeparately: false
+      sendSeparately: false,
+      isActive: true
     });
     setEditingId(null);
     setShowForm(false);
@@ -356,7 +358,7 @@ const QuickReply = () => {
           buttons: buttonData,
           mediaUrls: formData.mediaUrls.filter(url => url.trim()),
           sendSeparately: formData.sendSeparately,
-          isActive: true
+          isActive: formData.isActive !== false
         })
       });
 
@@ -374,12 +376,53 @@ const QuickReply = () => {
     }
   };
 
+  const handleToggleHold = async (reply) => {
+    const newStatus = reply.isActive === false ? true : false;
+    // Optimistic update
+    setQuickReplies(prev => prev.map(r => r.id === reply.id ? { ...r, isActive: newStatus } : r));
+    try {
+      const response = await fetch(`${API_BASE_URL}/quick-reply/${reply.id}/toggle`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ isActive: newStatus })
+      });
+      if (response.ok) {
+        showSuccess(newStatus ? 'Quick reply activated (Enabled)' : 'Quick reply put on hold (Disabled)');
+      } else {
+        // Fallback to standard update route
+        const fallbackRes = await fetch(`${API_BASE_URL}/quick-reply/${reply.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            title: reply.title || '',
+            response: reply.response || '',
+            triggers: reply.triggers || [],
+            buttons: reply.buttons || [],
+            mediaUrls: reply.mediaUrls || [],
+            sendSeparately: reply.sendSeparately || false,
+            isActive: newStatus
+          })
+        });
+        if (fallbackRes.ok) {
+          showSuccess(newStatus ? 'Quick reply activated (Enabled)' : 'Quick reply put on hold (Disabled)');
+        } else {
+          setQuickReplies(prev => prev.map(r => r.id === reply.id ? { ...r, isActive: reply.isActive } : r));
+          showError('Failed to update status');
+        }
+      }
+    } catch (err) {
+      setQuickReplies(prev => prev.map(r => r.id === reply.id ? { ...r, isActive: reply.isActive } : r));
+      showError('Failed to update status');
+    }
+  };
+
   const handleEdit = (quickReply) => {
     // Check if it's a menu type
     const firstBtn = quickReply.buttons[0];
     const isMenu = firstBtn && typeof firstBtn === 'object' && firstBtn.type === 'menu';
     const isUrl = firstBtn && typeof firstBtn === 'object' && firstBtn.type === 'url';
-    
     
     if (isMenu) {
       setFormData({
@@ -393,7 +436,8 @@ const QuickReply = () => {
         urlButtonLink: '',
         buttons: firstBtn.menuItems || [''],
         mediaUrls: quickReply.mediaUrls?.length ? quickReply.mediaUrls : [''],
-        sendSeparately: quickReply.sendSeparately || false
+        sendSeparately: quickReply.sendSeparately || false,
+        isActive: quickReply.isActive !== false
       });
     } else if (isUrl) {
       setFormData({
@@ -407,10 +451,10 @@ const QuickReply = () => {
         urlButtonLink: firstBtn.url || '',
         buttons: [''],
         mediaUrls: quickReply.mediaUrls?.length ? quickReply.mediaUrls : [''],
-        sendSeparately: quickReply.sendSeparately || false
+        sendSeparately: quickReply.sendSeparately || false,
+        isActive: quickReply.isActive !== false
       });
     } else {
-
       // Normal buttons
       const buttons = quickReply.buttons.map(btn => 
         typeof btn === 'string' ? btn : btn.text || ''
@@ -424,7 +468,8 @@ const QuickReply = () => {
         menuButtonText: '',
         buttons: buttons.length > 0 ? buttons : [''],
         mediaUrls: quickReply.mediaUrls?.length ? quickReply.mediaUrls : [''],
-        sendSeparately: quickReply.sendSeparately || false
+        sendSeparately: quickReply.sendSeparately || false,
+        isActive: quickReply.isActive !== false
       });
     }
     setEditingId(quickReply.id);
@@ -470,17 +515,38 @@ const QuickReply = () => {
           <p className="no-replies">No quick replies configured yet.</p>
         ) : (
           <div className="replies-grid">
-            {quickReplies.map((reply) => (
-              <div key={reply.id} className="wa-reply-card">
+            {quickReplies.map((reply) => {
+              const isOnHold = reply.isActive === false;
+              return (
+              <div key={reply.id} className={`wa-reply-card ${isOnHold ? 'on-hold' : ''}`}>
                 <div className="wa-card-header">
                   <div className="wa-triggers">
-                    <Zap size={14} style={{ color: '#f5a623' }} />
+                    <Zap size={14} style={{ color: isOnHold ? '#94a3b8' : '#f5a623' }} />
                     <span style={{ marginRight: '6px' }}>Triggers:</span>
                     <div className="wa-triggers-badges">
                       {reply.triggers.map((t, i) => <span key={i} className="wa-trigger-badge">{t}</span>)}
                     </div>
                   </div>
-                  <div className="wa-actions">
+                  <div className="wa-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleHold(reply)}
+                      className={`wa-status-badge ${!isOnHold ? 'active' : 'hold'}`}
+                      title={!isOnHold ? 'Click to put on Hold (Disable)' : 'Click to Enable (Activate)'}
+                      style={{ border: 'none', cursor: 'pointer' }}
+                    >
+                      {!isOnHold ? (
+                        <>
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#16a34a', display: 'inline-block' }} />
+                          Active
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#d97706', display: 'inline-block' }} />
+                          On Hold
+                        </>
+                      )}
+                    </button>
                     <button onClick={() => handleEdit(reply)} className="btn-icon-action" title="Edit">
                       <Edit size={16} />
                     </button>
@@ -489,6 +555,22 @@ const QuickReply = () => {
                     </button>
                   </div>
                 </div>
+
+                {isOnHold && (
+                  <div style={{
+                    background: '#fffbeb',
+                    borderBottom: '1px solid #fde68a',
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    color: '#92400e',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontWeight: 500
+                  }}>
+                    <span>⏸️ <strong>On Hold (Disabled):</strong> This quick reply will not trigger automatically on incoming messages.</span>
+                  </div>
+                )}
 
                 <div className="wa-card-body">
                   <div className="wa-bubble">
@@ -572,20 +654,85 @@ const QuickReply = () => {
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
       {showForm && (
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content quick-reply-modal">
             <div className="modal-header">
               <h2>{editingId ? 'Edit Quick Reply' : 'Add Quick Reply'}</h2>
               <button onClick={resetForm} className="close-btn">×</button>
             </div>
             
             <div className="settings-form">
+              {/* Quick Reply Status (Hold / Active) */}
+              <div className="form-group" style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '12px 18px',
+                background: formData.isActive !== false ? '#f0fdf4' : '#fffbeb',
+                border: `1.5px solid ${formData.isActive !== false ? '#86efac' : '#fde68a'}`,
+                borderRadius: '10px',
+                marginBottom: '20px'
+              }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#1e293b' }}>
+                      Status:
+                    </span>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '3px 10px',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      background: formData.isActive !== false ? '#dcfce7' : '#fef3c7',
+                      color: formData.isActive !== false ? '#15803d' : '#b45309',
+                      border: `1px solid ${formData.isActive !== false ? '#bbf7d0' : '#fde68a'}`
+                    }}>
+                      <span style={{
+                        width: '7px',
+                        height: '7px',
+                        borderRadius: '50%',
+                        background: formData.isActive !== false ? '#16a34a' : '#d97706',
+                        display: 'inline-block'
+                      }} />
+                      {formData.isActive !== false ? 'Active (Enabled)' : 'On Hold (Disabled)'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                    {formData.isActive !== false
+                      ? 'Enabled: Incoming customer messages matching trigger keywords will automatically trigger this reply.'
+                      : 'On Hold (Disabled): This quick reply is paused and will not trigger until re-enabled.'}
+                  </div>
+                </div>
+                <label style={{ margin: 0, position: 'relative', display: 'inline-block', width: '48px', height: '26px', cursor: 'pointer', flexShrink: 0 }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.isActive !== false}
+                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                    style={{ opacity: 0, width: 0, height: 0 }}
+                  />
+                  <span style={{
+                    position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
+                    background: formData.isActive !== false ? '#16a34a' : '#cbd5e1', transition: '0.2s', borderRadius: '26px'
+                  }}>
+                    <span style={{
+                      position: 'absolute', content: '""', height: '20px', width: '20px',
+                      left: formData.isActive !== false ? '25px' : '3px', bottom: '3px', background: 'white', transition: '0.2s', borderRadius: '50%',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                    }} />
+                  </span>
+                </label>
+              </div>
+
               <div className="form-group">
                 <label>Trigger Words (comma separated)</label>
                 <input

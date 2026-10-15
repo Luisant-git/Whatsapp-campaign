@@ -438,7 +438,8 @@ export class TemplateService {
     let template = await tenantClient.messageTemplate.findFirst({
       where: { templateId },
     });
-    if (!template && !isNaN(Number(templateId))) {
+    const isInt4Id = !isNaN(Number(templateId)) && Number.isInteger(Number(templateId)) && Number(templateId) > 0 && Number(templateId) <= 2147483647;
+    if (!template && isInt4Id) {
       template = await tenantClient.messageTemplate.findFirst({
         where: { id: Number(templateId) },
       });
@@ -486,12 +487,12 @@ export class TemplateService {
 
     if (wabaId && accessToken && metaTemplateId) {
       try {
-        const url = `https://graph.facebook.com/${this.apiVersion}/${wabaId}?fields=currency,template_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).template_ids(['${metaTemplateId}'])&access_token=${accessToken}`;
-        const res = await axios.get(url, { timeout: 10000 });
-        console.log('Template Analytics Meta Data:', JSON.stringify(res.data?.template_analytics?.data, null, 2));
-        currency = res.data?.currency || 'INR';
+        // Request up to 100 daily data points so 30-day windows don't get truncated by Meta's default 25-point limit
+        let url: string | null = `https://graph.facebook.com/${this.apiVersion}/${wabaId}?fields=currency,template_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).limit(100).template_ids(['${metaTemplateId}'])&access_token=${accessToken}`;
         
-        // Instead of taking [0], merge all data objects since edited templates return multiple
+        const res = await axios.get(url, { timeout: 10000 });
+        currency = res.data?.currency || 'INR';
+
         const analyticsDataArr = res.data?.template_analytics?.data || [];
         if (analyticsDataArr.length > 0) {
           metaAnalytics = { data_points: [] };
@@ -500,6 +501,39 @@ export class TemplateService {
               metaAnalytics.data_points.push(...item.data_points);
             }
           });
+
+          // Follow next page if exists
+          let nextUrl = res.data?.template_analytics?.paging?.next;
+          while (nextUrl) {
+            try {
+              const nextRes = await axios.get(nextUrl, { timeout: 10000 });
+              const nextDataArr = nextRes.data?.data || [];
+              if (nextDataArr.length === 0) break;
+              nextDataArr.forEach((item: any) => {
+                if (item.data_points) {
+                  metaAnalytics.data_points.push(...item.data_points);
+                }
+              });
+              nextUrl = nextRes.data?.paging?.next;
+            } catch (pageErr) {
+              break;
+            }
+          }
+        } else {
+          // Fallback: Try direct edge /template_analytics
+          try {
+            const edgeUrl = `https://graph.facebook.com/${this.apiVersion}/${wabaId}/template_analytics?start=${startTs}&end=${endTs}&granularity=DAILY&template_ids=${metaTemplateId}&limit=100&access_token=${accessToken}`;
+            const edgeRes = await axios.get(edgeUrl, { timeout: 10000 });
+            const edgeDataArr = edgeRes.data?.data || [];
+            if (edgeDataArr.length > 0) {
+              metaAnalytics = { data_points: [] };
+              edgeDataArr.forEach((item: any) => {
+                if (item.data_points) {
+                  metaAnalytics.data_points.push(...item.data_points);
+                }
+              });
+            }
+          } catch (edgeErr) {}
         }
       } catch (err: any) {
         console.warn(`Failed to fetch Meta template_analytics for ${metaTemplateId}:`, err?.response?.data || err?.message);
@@ -549,6 +583,29 @@ export class TemplateService {
 
       if (delivered > 0 && amountSpent > 0) {
         costPerDelivered = Number((amountSpent / delivered).toFixed(2));
+      }
+    } else {
+      // Fallback: If Meta template insights are disabled for this WABA,
+      // aggregate metrics from tenant's local campaigns using this template
+      try {
+        const campaigns = await tenantClient.campaign.findMany({
+          where: { templateName: template.name },
+          include: { messages: true },
+        });
+
+        if (campaigns && campaigns.length > 0) {
+          campaigns.forEach((cmp: any) => {
+            cmp.messages?.forEach((msg: any) => {
+              sent += 1;
+              const st = (msg.status || '').toLowerCase();
+              if (st === 'delivered' || st === 'read') delivered += 1;
+              if (st === 'read') read += 1;
+              if (st === 'replied') replied += 1;
+            });
+          });
+        }
+      } catch (e) {
+        // Safe fallback if campaign tables are empty or query fails
       }
     }
 
@@ -601,8 +658,9 @@ export class TemplateService {
       where: { templateId },
     });
 
-    if (!template && !isNaN(Number(templateId))) {
-      // Try finding by database id only if templateId is a valid number
+    const isInt4Id = !isNaN(Number(templateId)) && Number.isInteger(Number(templateId)) && Number(templateId) > 0 && Number(templateId) <= 2147483647;
+    if (!template && isInt4Id) {
+      // Try finding by database id only if templateId is a valid number that fits in INT4
       template = await tenantClient.messageTemplate.findFirst({
         where: { id: Number(templateId) },
       });
@@ -968,8 +1026,9 @@ export class TemplateService {
       where: { templateId },
     });
 
-    if (!template && !isNaN(Number(templateId))) {
-      // Try finding by database id only if templateId is a valid number
+    const isInt4Id = !isNaN(Number(templateId)) && Number.isInteger(Number(templateId)) && Number(templateId) > 0 && Number(templateId) <= 2147483647;
+    if (!template && isInt4Id) {
+      // Try finding by database id only if templateId is a valid number that fits in INT4
       template = await tenantClient.messageTemplate.findFirst({
         where: { id: Number(templateId) },
       });

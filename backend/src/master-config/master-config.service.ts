@@ -374,15 +374,15 @@ export class MasterConfigService {
       endTs = Math.floor(now.getTime() / 1000);
     }
 
-    let url = `https://graph.facebook.com/v21.0/${connection.wabaId}?fields=currency,pricing_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).dimensions(["PRICING_CATEGORY","COUNTRY","TIER"]),conversation_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).dimensions(["CONVERSATION_CATEGORY"])&access_token=${accessToken}`;
+    let url = `https://graph.facebook.com/v21.0/${connection.wabaId}?fields=currency,pricing_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).dimensions(["PRICING_CATEGORY","COUNTRY","TIER"]),analytics.start(${startTs}).end(${endTs}).granularity(DAY)&access_token=${accessToken}`;
     
     try {
       let response = await fetch(url);
       let data = await response.json();
       
       if (data.error) {
-        // Fallback without PHONE dimension
-        url = `https://graph.facebook.com/v21.0/${connection.wabaId}?fields=currency,pricing_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).dimensions(["PRICING_CATEGORY"]),conversation_analytics.start(${startTs}).end(${endTs}).granularity(DAILY)&access_token=${accessToken}`;
+        // Fallback without TIER/COUNTRY dimension
+        url = `https://graph.facebook.com/v21.0/${connection.wabaId}?fields=currency,pricing_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).dimensions(["PRICING_CATEGORY"]),analytics.start(${startTs}).end(${endTs}).granularity(DAY)&access_token=${accessToken}`;
         response = await fetch(url);
         data = await response.json();
       }
@@ -394,41 +394,64 @@ export class MasterConfigService {
       const analyticsObj = data.pricing_analytics || data.conversation_analytics || { data: [] };
       console.log('WABA Analytics Data from Meta:', JSON.stringify(analyticsObj, null, 2));
 
-      // Calculate totalSent and totalReceived from tenant database within the date range
+      // 1. Authoritative sent and delivered counts directly from Meta WABA analytics
+      let metaTotalSent = 0;
+      let metaTotalDelivered = 0;
+      if (data.analytics?.data_points && Array.isArray(data.analytics.data_points)) {
+        data.analytics.data_points.forEach((dp: any) => {
+          metaTotalSent += (dp.sent || 0);
+          metaTotalDelivered += (dp.delivered || 0);
+        });
+      }
+
+      // 2. Calculate local sent and received counts as fallback
       const prisma = this.getPrisma(tenantContext);
-      let totalSent = 0;
+      let localSent = 0;
       let totalReceived = 0;
       try {
         const startDate = new Date(startTs * 1000);
         const endDate = new Date(endTs * 1000);
 
-        const sentRes: any[] = await prisma.$queryRawUnsafe(
+        const sentRes: any = await prisma.$queryRawUnsafe(
           `SELECT COUNT(*)::int as count FROM "CampaignMessage" WHERE "createdAt" >= $1 AND "createdAt" <= $2`,
           startDate,
           endDate
-        );
-        totalSent += Number(sentRes?.[0]?.count || 0);
+        ).catch(() => []);
+        localSent += Number(sentRes?.[0]?.count || 0);
 
-        const autoRes: any[] = await prisma.$queryRawUnsafe(
+        const autoRes: any = await prisma.$queryRawUnsafe(
           `SELECT COUNT(*)::int as count FROM "RunDailyAutomationLog" WHERE "sentAt" >= $1 AND "sentAt" <= $2`,
           startDate,
           endDate
-        );
-        totalSent += Number(autoRes?.[0]?.count || 0);
+        ).catch(() => []);
+        localSent += Number(autoRes?.[0]?.count || 0);
 
-        const recvRes: any[] = await prisma.$queryRawUnsafe(
-          `SELECT COUNT(*)::int as count FROM "ChatMessage" WHERE "isFromUser" = true AND "createdAt" >= $1 AND "createdAt" <= $2`,
+        // Fetch received inbound WhatsApp messages from WhatsAppMessage table
+        const waRecvRes: any = await prisma.$queryRawUnsafe(
+          `SELECT COUNT(*)::int as count FROM "WhatsAppMessage" WHERE LOWER(direction) IN ('inbound', 'incoming') AND "createdAt" >= $1 AND "createdAt" <= $2`,
           startDate,
           endDate
-        );
-        totalReceived += Number(recvRes?.[0]?.count || 0);
+        ).catch(() => []);
+        totalReceived = Number(waRecvRes?.[0]?.count || 0);
+
+        if (totalReceived === 0) {
+          const chatRecvRes: any = await prisma.$queryRawUnsafe(
+            `SELECT COUNT(*)::int as count FROM "ChatMessage" WHERE "isFromUser" = true AND "createdAt" >= $1 AND "createdAt" <= $2`,
+            startDate,
+            endDate
+          ).catch(() => []);
+          totalReceived = Number(chatRecvRes?.[0]?.count || 0);
+        }
       } catch (e) {
         console.warn('Error calculating local sent/received counts:', e.message);
       }
 
+      const totalSent = metaTotalSent > 0 ? metaTotalSent : localSent;
+
       return {
         ...analyticsObj,
         totalSent,
+        totalDelivered: metaTotalDelivered > 0 ? metaTotalDelivered : undefined,
         totalReceived,
         currency: data.currency || 'INR'
       };

@@ -10,6 +10,7 @@ const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const PRESETS = [
   { label: 'Auto-detected', days: 7, subtitle: 'Last 7 days' },
   { label: 'Last 7 days', days: 7 },
+  { label: 'This month', isCurrentMonth: true },
   { label: 'Last 30 days', days: 30 },
   { label: 'Last 60 days', days: 60 },
   { label: 'Last 90 days', days: 90 },
@@ -56,6 +57,16 @@ export default function MetaCalendarPicker({
 
   // Calculate initial start and end from value
   const getInitialRange = (val) => {
+    if (val?.isCurrentMonth || val?.label === 'This month') {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = stripTime(now);
+      return {
+        start,
+        end,
+        preset: 'This month'
+      };
+    }
     if (val?.customStart && val?.customEnd) {
       return {
         start: stripTime(val.customStart),
@@ -128,7 +139,14 @@ export default function MetaCalendarPicker({
     setSelectedPreset(p.label);
     setIsPicking(false);
     setHoverDate(null);
-    if (p.days > 0) {
+    if (p.isCurrentMonth) {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = stripTime(now);
+      setTempStart(start);
+      setTempEnd(end);
+      setLeftMonth(new Date(start.getFullYear(), start.getMonth(), 1));
+    } else if (p.days > 0) {
       const end = stripTime(new Date());
       const start = new Date(end);
       start.setDate(start.getDate() - (p.days - 1));
@@ -194,6 +212,7 @@ export default function MetaCalendarPicker({
       onChange({
         label: selectedPreset,
         days: preset?.days || 0,
+        isCurrentMonth: selectedPreset === 'This month',
         customStart: finalStart,
         customEnd: finalEnd
       });

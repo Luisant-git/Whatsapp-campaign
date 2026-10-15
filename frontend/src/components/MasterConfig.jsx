@@ -188,7 +188,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsSummary, setAnalyticsSummary] = useState({ totalSent: 0, totalReceived: 0 });
   
-  const [analyticsRange, setAnalyticsRange] = useState({ label: 'Last 7 days', days: 7 });
+  const [analyticsRange, setAnalyticsRange] = useState({ label: 'This month', isCurrentMonth: true });
   const [analyticsCurrency, setAnalyticsCurrency] = useState('INR');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showWabaPicker, setShowWabaPicker] = useState(false);
@@ -209,8 +209,21 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
     if (!centralConnection) return;
     setAnalyticsLoading(true);
     try {
-      const end = range.customEnd || new Date();
-      const start = range.customStart || (() => { const s = new Date(); s.setDate(s.getDate() - (range.days - 1)); return s; })();
+      let start = new Date();
+      let end = new Date();
+
+      if (range?.isCurrentMonth || range?.label === 'This month') {
+        start = new Date(start.getFullYear(), start.getMonth(), 1, 0, 0, 0, 0);
+        end = range.customEnd || new Date();
+      } else if (range?.customStart && range?.customEnd) {
+        start = new Date(range.customStart);
+        end = new Date(range.customEnd);
+      } else {
+        const days = range?.days || 7;
+        start.setDate(start.getDate() - (days - 1));
+        start.setHours(0, 0, 0, 0);
+        end = new Date();
+      }
       
       const startDate = start.toISOString();
       const endDate = end.toISOString();

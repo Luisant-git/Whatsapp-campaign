@@ -6,9 +6,9 @@ export const META_PRICING_RATES = {
   IN: {
     name: 'India',
     currency: 'INR',
-    MARKETING: 0.8640,
+    MARKETING: 0.8631,
     MARKETING_LITE: 0.0000,
-    UTILITY: 0.3540,
+    UTILITY: 0.1150,
     AUTHENTICATION: 0.1150,
     AUTHENTICATION_INTL: 2.3000,
     AI_PROVIDER: 0.0000,

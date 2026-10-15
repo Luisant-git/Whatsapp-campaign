@@ -1389,7 +1389,38 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                             </div>
                           </div>
 
-                          {/* 3. Paid messages delivered */}
+                          {/* 3. Free messages delivered */}
+                          <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#1c1e21', fontWeight: '500' }}>
+                              <span>Free messages delivered</span>
+                              <MetaInfoTooltip 
+                                title="Free messages delivered"
+                                text="Messages delivered to customers that are free of charge, including customer service conversations within the 24-hour customer window and free entry point conversations."
+                              />
+                            </div>
+                            <div style={{ fontSize: '24px', fontWeight: '700', color: '#1c1e21', marginTop: '12px' }}>
+                              {analyticsLoading ? '…' : (rows.find(r => r.key === 'SERVICE')?.messages || 0).toLocaleString()}
+                            </div>
+                            {/* Breakdown List */}
+                            <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #ebedf0', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', color: '#65676b' }}>
+                                  <span style={{ display: 'inline-block', width: '12px', borderTop: '2px dashed #00a3e0', marginRight: '6px' }} />
+                                  <span>Free customer service</span>
+                                </div>
+                                <span style={{ fontWeight: '600', color: '#1c1e21' }}>{(rows.find(r => r.key === 'SERVICE')?.messages || 0).toLocaleString()}</span>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', color: '#65676b' }}>
+                                  <span style={{ display: 'inline-block', width: '12px', borderTop: '2px dashed #8b5cf6', marginRight: '6px' }} />
+                                  <span>Free entry point</span>
+                                </div>
+                                <span style={{ fontWeight: '600', color: '#1c1e21' }}>0</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 4. Paid messages delivered */}
                           <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#1c1e21', fontWeight: '500' }}>
                               <span>Paid messages delivered</span>

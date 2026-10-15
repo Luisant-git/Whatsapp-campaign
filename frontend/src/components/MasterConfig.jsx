@@ -1177,7 +1177,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
 
                     const catTotals = {};
                     OFFICIAL_META_CATEGORIES.forEach(c => {
-                      catTotals[c.key] = { messages: 0, spend: 0, hasSpend: false };
+                      catTotals[c.key] = { delivered: 0, paid: 0, spend: 0, hasSpend: false };
                     });
 
                     if (analyticsData && analyticsData.length > 0) {
@@ -1201,7 +1201,14 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                           else if (typeof dp.metrics?.amount_spent === 'number') cost = dp.metrics.amount_spent;
 
                           if (catTotals[catKey]) {
-                            catTotals[catKey].messages += count;
+                            catTotals[catKey].delivered += count;
+                            
+                            // Determine paid count
+                            // In Meta, Service is free within 24hr window
+                            const isFree = catKey === 'SERVICE' || dp.tier === 'FREE' || dp.is_free === true;
+                            const paidAmt = isFree ? 0 : (typeof dp.paid_volume === 'number' ? dp.paid_volume : typeof dp.paid_conversations === 'number' ? dp.paid_conversations : count);
+                            catTotals[catKey].paid += paidAmt;
+
                             if (cost !== undefined) {
                               catTotals[catKey].spend += cost;
                               catTotals[catKey].hasSpend = true;
@@ -1233,15 +1240,18 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                     };
 
                     let totalDelivered = 0;
+                    let totalPaid = 0;
                     let totalCharges = 0;
 
                     const rows = OFFICIAL_META_CATEGORIES.map(c => {
-                      const data = catTotals[c.key] || { messages: 0, spend: 0, hasSpend: false };
+                      const data = catTotals[c.key] || { delivered: 0, paid: 0, spend: 0, hasSpend: false };
                       const rateInfo = getRateInfo(c.key);
                       const rate = rateInfo.rate || 0;
-                      const calculatedSpend = data.hasSpend ? data.spend : Number((data.messages * rate).toFixed(2));
+                      const paidMessages = c.key === 'SERVICE' ? 0 : (data.paid > 0 ? data.paid : data.delivered);
+                      const calculatedSpend = data.hasSpend ? data.spend : Number((paidMessages * rate).toFixed(2));
                       
-                      totalDelivered += data.messages;
+                      totalDelivered += data.delivered;
+                      totalPaid += paidMessages;
                       totalCharges += calculatedSpend;
 
                       return {
@@ -1249,15 +1259,13 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                         category: c.key,
                         name: c.name,
                         color: c.color,
-                        messages: data.messages,
+                        messages: data.delivered,
+                        paidMessages: paidMessages,
                         rateInfo,
                         spend: calculatedSpend,
                         hasSpend: data.hasSpend
                       };
                     });
-
-                    const freeCount = rows.find(r => r.key === 'SERVICE')?.messages || 0;
-                    const paidCount = totalDelivered - freeCount;
 
                     const MetaInfoTooltip = ({ title, text }) => {
                       const [show, setShow] = useState(false);
@@ -1320,41 +1328,47 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                         </div>
 
                         {/* ── META THEME METRIC CARDS ── */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px' }}>
-                          {/* All messages sent */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+                          {/* 1. All messages */}
                           <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#1c1e21', fontWeight: '500' }}>
-                              <span>All messages sent</span>
+                              <span>All messages</span>
                               <MetaInfoTooltip 
-                                title="All messages sent"
-                                text="Total outbound messages dispatched to customers across all campaigns, automations, and chats in the selected period."
+                                title="All messages"
+                                text="Overview of all messaging volume across your account, including total messages sent, messages confirmed delivered to recipients, and inbound replies received."
                               />
                             </div>
-                            <div style={{ fontSize: '24px', fontWeight: '700', color: '#1c1e21', marginTop: '12px' }}>
-                              {analyticsLoading ? '…' : Math.max(analyticsSummary?.totalSent || 0, totalDelivered || 0).toLocaleString()}
+                            
+                            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '10px', borderBottom: '1px solid #ebedf0' }}>
+                                <span style={{ fontSize: '13px', color: '#65676b' }}>Messages sent</span>
+                                <span style={{ fontSize: '15px', fontWeight: '700', color: '#1c1e21' }}>
+                                  {analyticsLoading ? '…' : Math.max(analyticsSummary?.totalSent || 0, totalDelivered || 0).toLocaleString()}
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '10px', borderBottom: '1px solid #ebedf0' }}>
+                                <span style={{ fontSize: '13px', color: '#65676b' }}>Messages delivered</span>
+                                <span style={{ fontSize: '15px', fontWeight: '700', color: '#1c1e21' }}>
+                                  {analyticsLoading ? '…' : (totalDelivered || 0).toLocaleString()}
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '13px', color: '#65676b' }}>Messages received</span>
+                                <span style={{ fontSize: '15px', fontWeight: '700', color: '#1c1e21' }}>
+                                  {analyticsLoading ? '…' : (analyticsSummary?.totalReceived || 0).toLocaleString()}
+                                </span>
+                              </div>
                             </div>
                           </div>
 
-                          {/* Messages received */}
+                          {/* 2. Messages delivered */}
                           <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#1c1e21', fontWeight: '500' }}>
-                              <span>Messages received</span>
+                              <span>Messages delivered</span>
                               <MetaInfoTooltip 
-                                title="Messages received"
-                                text="Total inbound customer messages and replies received in the selected period."
-                              />
-                            </div>
-                            <div style={{ fontSize: '24px', fontWeight: '700', color: '#1c1e21', marginTop: '12px' }}>
-                              {analyticsLoading ? '…' : (analyticsSummary?.totalReceived || 0).toLocaleString()}
-                            </div>
-                          </div>
-
-                          {/* All message deliveries */}
-                          <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#1c1e21', fontWeight: '500' }}>
-                              <span>All message deliveries</span>
-                              <MetaInfoTooltip 
-                                title="All message deliveries"
+                                title="Messages delivered"
                                 text="Total messages delivered to customers across all categories (Marketing, Utility, Authentication, and Service) in the selected time period."
                               />
                             </div>
@@ -1375,21 +1389,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                             </div>
                           </div>
 
-                          {/* Free customer service deliveries */}
-                          <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#1c1e21', fontWeight: '500' }}>
-                              <span>Free customer service deliveries</span>
-                              <MetaInfoTooltip 
-                                title="Free customer service deliveries"
-                                text="Conversations initiated by customers where business replies within the 24-hour service window are free (up to 1,000 free service conversations per month)."
-                              />
-                            </div>
-                            <div style={{ fontSize: '24px', fontWeight: '700', color: '#1c1e21', marginTop: '12px' }}>
-                              {analyticsLoading ? '…' : freeCount.toLocaleString()}
-                            </div>
-                          </div>
-
-                          {/* Paid messages delivered */}
+                          {/* 3. Paid messages delivered */}
                           <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#1c1e21', fontWeight: '500' }}>
                               <span>Paid messages delivered</span>
@@ -1399,11 +1399,23 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                               />
                             </div>
                             <div style={{ fontSize: '24px', fontWeight: '700', color: '#1c1e21', marginTop: '12px' }}>
-                              {analyticsLoading ? '…' : paidCount.toLocaleString()}
+                              {analyticsLoading ? '…' : (totalPaid || 0).toLocaleString()}
+                            </div>
+                            {/* Breakdown List */}
+                            <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #ebedf0', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              {rows.map(r => (
+                                <div key={r.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', color: '#65676b' }}>
+                                    <span style={{ display: 'inline-block', width: '12px', borderTop: `2px dashed ${r.color}`, marginRight: '6px' }} />
+                                    <span>{r.name}</span>
+                                  </div>
+                                  <span style={{ fontWeight: '600', color: '#1c1e21' }}>{(r.paidMessages || 0).toLocaleString()}</span>
+                                </div>
+                              ))}
                             </div>
                           </div>
 
-                          {/* Approximate total charges */}
+                          {/* 4. Approximate total charges */}
                           <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#1c1e21', fontWeight: '500' }}>
                               <span>Approximate total charges</span>

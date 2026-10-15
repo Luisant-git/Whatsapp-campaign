@@ -349,7 +349,13 @@ export class TemplateService {
     }
   }
 
-  async getTemplates(userId: number, status?: TemplateStatus, category?: TemplateCategory) {
+  async getTemplates(
+    userId: number,
+    status?: TemplateStatus,
+    category?: TemplateCategory,
+    start?: string,
+    end?: string,
+  ) {
     const { tenantClient } = await this.getTenantWithCredentials(userId);
     const where: any = {
       status: {
@@ -377,17 +383,33 @@ export class TemplateService {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Aggregate delivered and read metrics per template from campaigns and automation logs
+    // Date range filter for metrics (default: last 7 days)
+    let startDate: Date;
+    let endDate: Date;
+    if (start && end) {
+      startDate = new Date(start);
+      endDate = new Date(end);
+    } else {
+      endDate = new Date();
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - 6);
+      startDate.setHours(0, 0, 0, 0);
+    }
+
+    // Aggregate delivered and read metrics per template from campaigns and automation logs within the date range
     const statsMap: Record<string, { delivered: number; read: number }> = {};
     try {
-      const campaignStats: any[] = await tenantClient.$queryRawUnsafe(`
-        SELECT c."templateName",
+      const campaignStats: any[] = await tenantClient.$queryRawUnsafe(
+        `SELECT c."templateName",
                COUNT(CASE WHEN LOWER(m.status) IN ('delivered', 'read') THEN 1 END)::int as delivered,
                COUNT(CASE WHEN LOWER(m.status) = 'read' THEN 1 END)::int as read
         FROM "Campaign" c
         JOIN "CampaignMessage" m ON m."campaignId" = c.id
-        GROUP BY c."templateName"
-      `);
+        WHERE m."createdAt" >= $1 AND m."createdAt" <= $2
+        GROUP BY c."templateName"`,
+        startDate,
+        endDate
+      );
       if (campaignStats && Array.isArray(campaignStats)) {
         campaignStats.forEach((row) => {
           if (row.templateName) {
@@ -403,13 +425,16 @@ export class TemplateService {
     }
 
     try {
-      const autoStats: any[] = await tenantClient.$queryRawUnsafe(`
-        SELECT l."templateName",
+      const autoStats: any[] = await tenantClient.$queryRawUnsafe(
+        `SELECT l."templateName",
                COUNT(CASE WHEN LOWER(l.status) IN ('delivered', 'read') THEN 1 END)::int as delivered,
                COUNT(CASE WHEN LOWER(l.status) = 'read' THEN 1 END)::int as read
         FROM "RunDailyAutomationLog" l
-        GROUP BY l."templateName"
-      `);
+        WHERE l."sentAt" >= $1 AND l."sentAt" <= $2
+        GROUP BY l."templateName"`,
+        startDate,
+        endDate
+      );
       if (autoStats && Array.isArray(autoStats)) {
         autoStats.forEach((row) => {
           if (row.templateName) {

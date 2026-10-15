@@ -36,8 +36,10 @@ export class TemplateController {
     @Session() session: any,
     @Query('status') status?: TemplateStatus,
     @Query('category') category?: TemplateCategory,
+    @Query('start') start?: string,
+    @Query('end') end?: string,
   ) {
-    return this.templateService.getTemplates(session.tenantId, status, category);
+    return this.templateService.getTemplates(session.tenantId, status, category, start, end);
   }
 
   @Get('capabilities')

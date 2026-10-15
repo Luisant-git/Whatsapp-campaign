@@ -31,6 +31,7 @@ import {
   BarChart2
 } from 'lucide-react';
 import TemplateDetailView from './TemplateDetailView';
+import MetaCalendarPicker from './MetaCalendarPicker';
 import '../styles/TemplateManager.css';
 import { API_BASE_URL } from '../api/config';
 
@@ -83,6 +84,7 @@ const getFullMediaUrl = (fileUrl) => {
 
 const TemplateManager = () => {
   const [templates, setTemplates] = useState([]);
+  const [dateRange, setDateRange] = useState({ label: 'Auto-detected', days: 7 });
   const [templateLibrary, setTemplateLibrary] = useState(null);
   const [selectedTab, setSelectedTab] = useState(0);
   const [openDialog, setOpenDialog] = useState(false);
@@ -285,9 +287,28 @@ const TemplateManager = () => {
     }
   };
 
-  const fetchTemplates = async () => {
+  const fetchTemplates = async (range = dateRange) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/templates`, {
+      let startStr = '';
+      let endStr = '';
+      if (range?.customStart && range?.customEnd) {
+        startStr = new Date(range.customStart).toISOString();
+        endStr = new Date(range.customEnd).toISOString();
+      } else {
+        const days = range?.days || 7;
+        const end = new Date();
+        const start = new Date();
+        start.setDate(start.getDate() - (days - 1));
+        start.setHours(0, 0, 0, 0);
+        startStr = start.toISOString();
+        endStr = end.toISOString();
+      }
+
+      const params = new URLSearchParams();
+      if (startStr) params.append('start', startStr);
+      if (endStr) params.append('end', endStr);
+
+      const response = await fetch(`${API_BASE_URL}/templates?${params.toString()}`, {
         credentials: "include"
       });
       if (response.ok) {
@@ -1562,7 +1583,14 @@ const TemplateManager = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="filter-group">
+        <div className="filter-group" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <MetaCalendarPicker 
+            value={dateRange} 
+            onChange={(newRange) => {
+              setDateRange(newRange);
+              fetchTemplates(newRange);
+            }} 
+          />
           <select 
             className="filter-select"
             value={filterCategory}
@@ -1628,8 +1656,18 @@ const TemplateManager = () => {
                 <th>Template Name</th>
                 <th>Category</th>
                 <th>Status</th>
-                <th>Messages delivered</th>
-                <th>Read rate</th>
+                <th>
+                  <div>Messages delivered</div>
+                  <div style={{ fontSize: 10, color: '#8d949e', fontWeight: 500, textTransform: 'none', letterSpacing: 'normal' }}>
+                    {dateRange.label === 'Auto-detected' ? 'Last 7 days' : dateRange.label}
+                  </div>
+                </th>
+                <th>
+                  <div>Read rate</div>
+                  <div style={{ fontSize: 10, color: '#8d949e', fontWeight: 500, textTransform: 'none', letterSpacing: 'normal' }}>
+                    {dateRange.label === 'Auto-detected' ? 'Last 7 days' : dateRange.label}
+                  </div>
+                </th>
                 <th>Last edited date and time</th>
                 <th>Reject Reason</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>

@@ -8,6 +8,7 @@ const MONTH_NAMES = [
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const PRESETS = [
+  { label: 'Auto-detected', days: 7, subtitle: 'Last 7 days' },
   { label: 'Last 7 days', days: 7 },
   { label: 'Last 30 days', days: 30 },
   { label: 'Last 60 days', days: 60 },
@@ -43,7 +44,7 @@ const formatDateLabel = (d) => {
 };
 
 export default function MetaCalendarPicker({
-  value = { label: 'Last 7 days', days: 7 },
+  value = { label: 'Auto-detected', days: 7 },
   onChange,
   timeZoneLabel = 'Dates are shown in Kolkata Time'
 }) {
@@ -476,10 +477,13 @@ export default function MetaCalendarPicker({
                     style={{
                       fontSize: '14px',
                       color: '#050505',
-                      fontWeight: isSelected ? '500' : '400'
+                      fontWeight: isSelected ? '600' : '400'
                     }}
                   >
                     {p.label}
+                    {p.subtitle && (
+                      <span style={{ fontSize: '12px', color: '#65676b', marginLeft: '6px' }}>({p.subtitle})</span>
+                    )}
                   </span>
                 </div>
               );

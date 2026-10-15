@@ -450,6 +450,56 @@ export class TemplateService {
       // Gracefully continue if table does not exist
     }
 
+    // Attempt to enrich/override stats with authoritative Meta template_analytics
+    try {
+      let wabaId: string | null = null;
+      let accessToken: string | null = null;
+
+      if (isCentralMetaCredentialEnabled()) {
+        try {
+          const metaConfig = await this.metaCredentialService.getMetaConfig(userId);
+          wabaId = metaConfig.wabaId;
+          accessToken = metaConfig.accessToken;
+        } catch (e) {}
+      }
+
+      if (!wabaId || !accessToken) {
+        try {
+          const { masterConfig } = await this.getTenantWithCredentials(userId);
+          wabaId = masterConfig?.wabaId;
+          accessToken = masterConfig?.accessToken;
+        } catch (e) {}
+      }
+
+      if (wabaId && accessToken) {
+        const startTs = Math.floor(startDate.getTime() / 1000);
+        const endTs = Math.floor(endDate.getTime() / 1000);
+        const metaUrl = `https://graph.facebook.com/${this.apiVersion}/${wabaId}?fields=template_analytics.start(${startTs}).end(${endTs}).granularity(DAILY).limit(100)&access_token=${accessToken}`;
+        const metaRes = await axios.get(metaUrl, { timeout: 8000 });
+        const metaData = metaRes.data?.template_analytics?.data || [];
+        metaData.forEach((item: any) => {
+          const tId = item.template_id;
+          let metaDelivered = 0;
+          let metaRead = 0;
+          item.data_points?.forEach((dp: any) => {
+            metaDelivered += (dp.delivered || 0);
+            metaRead += (dp.read || 0);
+          });
+          if (metaDelivered > 0) {
+            const matched = templates.find((t: any) => String(t.templateId) === String(tId) || String(t.id) === String(tId));
+            if (matched) {
+              statsMap[matched.name] = {
+                delivered: metaDelivered,
+                read: metaRead,
+              };
+            }
+          }
+        });
+      }
+    } catch (metaErr) {
+      // Gracefully continue with local database stats if Meta API call fails or is throttled
+    }
+
     return templates.map((t: any) => {
       const stat = statsMap[t.name];
       const delivered = stat ? stat.delivered : 0;

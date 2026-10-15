@@ -32,7 +32,7 @@ const getLanguageLabel = (code) => {
 export default function TemplateDetailView({ template, onBack, onEdit }) {
   const [copiedId, setCopiedId] = useState(false);
   const [activeTab, setActiveTab] = useState('Trend');
-  const [range, setRange] = useState({ label: 'Last 30 days', days: 30 });
+  const [range, setRange] = useState({ label: 'Auto-detected', days: 7 });
   const [showRangeDropdown, setShowRangeDropdown] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [loading, setLoading] = useState(false);

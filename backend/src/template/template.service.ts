@@ -603,6 +603,16 @@ export class TemplateService {
               if (st === 'replied') replied += 1;
             });
           });
+
+          // Estimate spend using Meta rate card if Meta didn't provide cost
+          if (delivered > 0 && amountSpent === 0) {
+            const cat = (template.category || '').toUpperCase();
+            const rate = cat === 'MARKETING' ? 0.7265 : cat === 'UTILITY' ? 0.3082 : cat === 'AUTHENTICATION' ? 0.11 : 0;
+            if (rate > 0) {
+              amountSpent = Number((delivered * rate).toFixed(2));
+              costPerDelivered = Number(rate.toFixed(2));
+            }
+          }
         }
       } catch (e) {
         // Safe fallback if campaign tables are empty or query fails

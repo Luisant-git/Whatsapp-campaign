@@ -372,9 +372,70 @@ export class TemplateService {
 
     if (category) where.category = category;
 
-    return tenantClient.messageTemplate.findMany({
+    const templates = await tenantClient.messageTemplate.findMany({
       where,
       orderBy: { createdAt: 'desc' },
+    });
+
+    // Aggregate delivered and read metrics per template from campaigns and automation logs
+    const statsMap: Record<string, { delivered: number; read: number }> = {};
+    try {
+      const campaignStats: any[] = await tenantClient.$queryRawUnsafe(`
+        SELECT c."templateName",
+               COUNT(CASE WHEN LOWER(m.status) IN ('delivered', 'read') THEN 1 END)::int as delivered,
+               COUNT(CASE WHEN LOWER(m.status) = 'read' THEN 1 END)::int as read
+        FROM "Campaign" c
+        JOIN "CampaignMessage" m ON m."campaignId" = c.id
+        GROUP BY c."templateName"
+      `);
+      if (campaignStats && Array.isArray(campaignStats)) {
+        campaignStats.forEach((row) => {
+          if (row.templateName) {
+            statsMap[row.templateName] = {
+              delivered: Number(row.delivered || 0),
+              read: Number(row.read || 0),
+            };
+          }
+        });
+      }
+    } catch (err) {
+      // Gracefully continue if query fails
+    }
+
+    try {
+      const autoStats: any[] = await tenantClient.$queryRawUnsafe(`
+        SELECT l."templateName",
+               COUNT(CASE WHEN LOWER(l.status) IN ('delivered', 'read') THEN 1 END)::int as delivered,
+               COUNT(CASE WHEN LOWER(l.status) = 'read' THEN 1 END)::int as read
+        FROM "RunDailyAutomationLog" l
+        GROUP BY l."templateName"
+      `);
+      if (autoStats && Array.isArray(autoStats)) {
+        autoStats.forEach((row) => {
+          if (row.templateName) {
+            if (!statsMap[row.templateName]) {
+              statsMap[row.templateName] = { delivered: 0, read: 0 };
+            }
+            statsMap[row.templateName].delivered += Number(row.delivered || 0);
+            statsMap[row.templateName].read += Number(row.read || 0);
+          }
+        });
+      }
+    } catch (err) {
+      // Gracefully continue if table does not exist
+    }
+
+    return templates.map((t: any) => {
+      const stat = statsMap[t.name];
+      const delivered = stat ? stat.delivered : 0;
+      const read = stat ? stat.read : 0;
+      const readRate = delivered > 0 ? Math.round((read / delivered) * 100) : null;
+      return {
+        ...t,
+        messagesDelivered: delivered,
+        readRate: readRate,
+        lastEditedAt: t.updatedAt || t.createdAt,
+      };
     });
   }
 

@@ -393,8 +393,43 @@ export class MasterConfigService {
 
       const analyticsObj = data.pricing_analytics || data.conversation_analytics || { data: [] };
       console.log('WABA Analytics Data from Meta:', JSON.stringify(analyticsObj, null, 2));
+
+      // Calculate totalSent and totalReceived from tenant database within the date range
+      const prisma = this.getPrisma(tenantContext);
+      let totalSent = 0;
+      let totalReceived = 0;
+      try {
+        const startDate = new Date(startTs * 1000);
+        const endDate = new Date(endTs * 1000);
+
+        const sentRes: any[] = await prisma.$queryRawUnsafe(
+          `SELECT COUNT(*)::int as count FROM "CampaignMessage" WHERE "createdAt" >= $1 AND "createdAt" <= $2`,
+          startDate,
+          endDate
+        );
+        totalSent += Number(sentRes?.[0]?.count || 0);
+
+        const autoRes: any[] = await prisma.$queryRawUnsafe(
+          `SELECT COUNT(*)::int as count FROM "RunDailyAutomationLog" WHERE "sentAt" >= $1 AND "sentAt" <= $2`,
+          startDate,
+          endDate
+        );
+        totalSent += Number(autoRes?.[0]?.count || 0);
+
+        const recvRes: any[] = await prisma.$queryRawUnsafe(
+          `SELECT COUNT(*)::int as count FROM "ChatMessage" WHERE "isFromUser" = true AND "createdAt" >= $1 AND "createdAt" <= $2`,
+          startDate,
+          endDate
+        );
+        totalReceived += Number(recvRes?.[0]?.count || 0);
+      } catch (e) {
+        console.warn('Error calculating local sent/received counts:', e.message);
+      }
+
       return {
         ...analyticsObj,
+        totalSent,
+        totalReceived,
         currency: data.currency || 'INR'
       };
     } catch (e) {

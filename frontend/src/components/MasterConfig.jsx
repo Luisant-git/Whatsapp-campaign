@@ -186,6 +186,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
 
   const [analyticsData, setAnalyticsData] = useState([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsSummary, setAnalyticsSummary] = useState({ totalSent: 0, totalReceived: 0 });
   
   const [analyticsRange, setAnalyticsRange] = useState({ label: 'Last 7 days', days: 7 });
   const [analyticsCurrency, setAnalyticsCurrency] = useState('INR');
@@ -221,6 +222,10 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
         const data = await response.json();
         setAnalyticsData(data.data || []);
         if (data.currency) setAnalyticsCurrency(data.currency);
+        setAnalyticsSummary({
+          totalSent: data.totalSent || 0,
+          totalReceived: data.totalReceived || 0
+        });
       }
     } catch (error) {
       console.error("Failed to fetch analytics:", error);
@@ -1334,6 +1339,34 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
 
                         {/* ── META THEME METRIC CARDS ── */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px' }}>
+                          {/* All messages sent */}
+                          <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#1c1e21', fontWeight: '500' }}>
+                              <span>All messages sent</span>
+                              <MetaInfoTooltip 
+                                title="All messages sent"
+                                text="Total outbound messages dispatched to customers across all campaigns, automations, and chats in the selected period."
+                              />
+                            </div>
+                            <div style={{ fontSize: '24px', fontWeight: '700', color: '#1c1e21', marginTop: '12px' }}>
+                              {analyticsLoading ? '…' : Math.max(analyticsSummary?.totalSent || 0, totalDelivered || 0).toLocaleString()}
+                            </div>
+                          </div>
+
+                          {/* Messages received */}
+                          <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#1c1e21', fontWeight: '500' }}>
+                              <span>Messages received</span>
+                              <MetaInfoTooltip 
+                                title="Messages received"
+                                text="Total inbound customer messages and replies received in the selected period."
+                              />
+                            </div>
+                            <div style={{ fontSize: '24px', fontWeight: '700', color: '#1c1e21', marginTop: '12px' }}>
+                              {analyticsLoading ? '…' : (analyticsSummary?.totalReceived || 0).toLocaleString()}
+                            </div>
+                          </div>
+
                           {/* All message deliveries */}
                           <div style={{ border: '1px solid #ced0d4', borderRadius: '8px', padding: '16px 20px', background: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#1c1e21', fontWeight: '500' }}>

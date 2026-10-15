@@ -1398,17 +1398,20 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                             <div style={{ fontSize: '24px', fontWeight: '700', color: '#1c1e21', marginTop: '12px' }}>
                               {analyticsLoading ? '…' : (() => {
                                 let est = 0; 
+                                let estWithTax = 0;
                                 let canCalc = true;
                                 let chargeSymbol = currencySymbol;
                                 rows.forEach(r => {
                                   if (r.hasSpend) { 
                                     est += r.spend; 
+                                    estWithTax += r.spend;
                                   } else {
                                     const rInfo = getRateInfo(r.country, r.category);
                                     if (rInfo.isService) {
                                       // Free service tier
                                     } else if (rInfo.rate !== null) {
                                       est += (rInfo.rate * r.messages);
+                                      estWithTax += ((rInfo.rateWithTax || rInfo.rate) * r.messages);
                                       chargeSymbol = rInfo.symbol;
                                     } else {
                                       canCalc = false;
@@ -1416,7 +1419,16 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                                   }
                                 });
                                 return canCalc
-                                  ? <span>{chargeSymbol} {est.toFixed(2)}</span>
+                                  ? (
+                                    <div>
+                                      <span>{chargeSymbol} {est.toFixed(2)}</span>
+                                      {estWithTax > est && (
+                                        <div style={{ fontSize: '12px', color: '#65676b', fontWeight: '500', marginTop: '4px' }}>
+                                          Total with 18% GST: <strong>{chargeSymbol} {estWithTax.toFixed(2)}</strong>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )
                                   : <span style={{ color: '#65676b', fontSize: '20px', fontWeight: '600' }}>Pending</span>;
                               })()}
                             </div>
@@ -1456,7 +1468,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#ffffff'; }}
                                   >
                                     {/* Category Cell */}
-                                    <td style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <td style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                       <span style={{ 
                                         width: '8px', 
                                         height: '8px', 
@@ -1464,19 +1476,16 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                                         backgroundColor: catMeta.dotColor, 
                                         flexShrink: 0 
                                       }} />
-                                      <span style={{ fontWeight: '600', color: '#1c1e21', fontSize: '14px' }}>
-                                        {catMeta.name}
-                                      </span>
                                       <span style={{ 
-                                        fontSize: '11px', 
+                                        fontSize: '12px', 
                                         fontWeight: '600', 
-                                        padding: '2px 8px', 
+                                        padding: '3px 10px', 
                                         borderRadius: '12px', 
                                         backgroundColor: catMeta.badgeBg, 
                                         color: catMeta.badgeColor,
                                         letterSpacing: '0.3px'
                                       }}>
-                                        {catMeta.badgeText}
+                                        {catMeta.name}
                                       </span>
                                     </td>
                                     
@@ -1501,9 +1510,16 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                                           Free (Service)
                                         </span>
                                       ) : rateInfo.rate !== null ? (
-                                        <span style={{ color: '#4b5563', fontWeight: '500', fontSize: '13px' }}>
-                                          {rateInfo.formattedRate}
-                                        </span>
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                          <span style={{ color: '#1c1e21', fontWeight: '600', fontSize: '13px' }}>
+                                            {rateInfo.formattedRate}
+                                          </span>
+                                          {rateInfo.rateWithTax && rateInfo.rateWithTax > rateInfo.rate && (
+                                            <span style={{ color: '#65676b', fontSize: '11px' }}>
+                                              ({rateInfo.symbol} {rateInfo.rateWithTax.toFixed(4)} with GST)
+                                            </span>
+                                          )}
+                                        </div>
                                       ) : (
                                         <span style={{ color: '#65676b', fontSize: '13px' }}>Pricing unavailable</span>
                                       )}
@@ -1520,9 +1536,16 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                                           {currencySymbol} {row.spend.toFixed(2)}
                                         </span>
                                       ) : rateInfo.rate !== null ? (
-                                        <span style={{ color: '#1c1e21', fontWeight: '600', fontSize: '14px' }}>
-                                          {rateInfo.symbol} {(rateInfo.rate * row.messages).toFixed(2)}
-                                        </span>
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                          <span style={{ color: '#1c1e21', fontWeight: '600', fontSize: '14px' }}>
+                                            {rateInfo.symbol} {(rateInfo.rate * row.messages).toFixed(2)}
+                                          </span>
+                                          {rateInfo.rateWithTax && rateInfo.rateWithTax > rateInfo.rate && (
+                                            <span style={{ color: '#65676b', fontSize: '11px' }}>
+                                              ({rateInfo.symbol} {(rateInfo.rateWithTax * row.messages).toFixed(2)} with GST)
+                                            </span>
+                                          )}
+                                        </div>
                                       ) : (
                                         <span style={{ color: '#d97706', fontSize: '13px', fontWeight: '500' }}>Pending</span>
                                       )}
@@ -1539,18 +1562,21 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                                 <td style={{ padding: '16px', fontWeight: '700', textAlign: 'right', fontSize: '15px' }}>
                                   {(() => {
                                     let estTotal = 0;
+                                    let estTotalWithTax = 0;
                                     let allCalculable = true;
                                     let estSymbol = currencySymbol;
 
                                     rows.forEach(r => {
                                       if (r.hasSpend) {
                                         estTotal += r.spend;
+                                        estTotalWithTax += r.spend;
                                       } else {
                                         const rInfo = getRateInfo(r.country, r.category);
                                         if (rInfo.isService) {
                                           // Service is free
                                         } else if (rInfo.rate !== null) {
                                           estTotal += (rInfo.rate * r.messages);
+                                          estTotalWithTax += ((rInfo.rateWithTax || rInfo.rate) * r.messages);
                                           estSymbol = rInfo.symbol;
                                         } else {
                                           allCalculable = false;
@@ -1560,9 +1586,16 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
 
                                     if (allCalculable) {
                                       return (
-                                        <span style={{ color: '#1c1e21', fontSize: '15px', fontWeight: '700' }}>
-                                          {estSymbol} {estTotal.toFixed(2)}
-                                        </span>
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                          <span style={{ color: '#1c1e21', fontSize: '15px', fontWeight: '700' }}>
+                                            {estSymbol} {estTotal.toFixed(2)}
+                                          </span>
+                                          {estTotalWithTax > estTotal && (
+                                            <span style={{ color: '#65676b', fontSize: '12px', fontWeight: '500', marginTop: '2px' }}>
+                                              {estSymbol} {estTotalWithTax.toFixed(2)} with GST
+                                            </span>
+                                          )}
+                                        </div>
                                       );
                                     }
                                     return <span style={{ color: '#65676b', fontSize: '14px', fontWeight: '500' }}>Pending / Unavailable</span>;

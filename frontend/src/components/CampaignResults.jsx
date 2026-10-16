@@ -320,9 +320,8 @@ const CampaignResults = ({ campaignId, onBack }) => {
                 </svg>
               </div>
               <div className="card-content">
-                <h3>Sent (Dispatched)</h3>
+                <h3>Sent</h3>
                 <span className="summary-number">{results.filter(r => ['sent', 'delivered', 'read'].includes(r.status)).length}</span>
-                <small style={{ fontSize: '11px', color: '#64748b' }}>Accepted by Meta</small>
               </div>
             </div>
             <div className="summary-card delivered">
@@ -332,9 +331,8 @@ const CampaignResults = ({ campaignId, onBack }) => {
                 </svg>
               </div>
               <div className="card-content">
-                <h3>Delivered (Phone ✓✓)</h3>
+                <h3>Delivered</h3>
                 <span className="summary-number">{results.filter(r => ['delivered', 'read'].includes(r.status)).length}</span>
-                <small style={{ fontSize: '11px', color: '#10b981' }}>Device Online</small>
               </div>
             </div>
             <div className="summary-card read">
@@ -345,11 +343,10 @@ const CampaignResults = ({ campaignId, onBack }) => {
                 </svg>
               </div>
               <div className="card-content">
-                <h3>Read (Opened ✓✓)</h3>
+                <h3>Read</h3>
                 <span className="summary-number">
                   {results.filter(r => r.status === 'read').length}
                 </span>
-                <small style={{ fontSize: '11px', color: '#8b5cf6' }}>Chat Viewed</small>
               </div>
             </div>
             <div className="summary-card failed">
@@ -361,7 +358,6 @@ const CampaignResults = ({ campaignId, onBack }) => {
               <div className="card-content">
                 <h3>Failed</h3>
                 <span className="summary-number">{results.filter(r => r.status === 'failed').length}</span>
-                <small style={{ fontSize: '11px', color: '#ef4444' }}>Not Billed</small>
               </div>
             </div>
             <div className="summary-card responded">

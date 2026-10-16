@@ -286,11 +286,8 @@ const Analytics = () => {
                 <CheckCircle size={24} />
               </div>
               <div className="stat-content">
-                <h3>Successfully Dispatched</h3>
+                <h3>Successful Deliveries</h3>
                 <p className="stat-number">{analytics?.successfulDeliveries || 0}</p>
-                <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '2px' }}>
-                  Accepted by Meta (Sent + Delivered + Read)
-                </span>
               </div>
             </div>
 

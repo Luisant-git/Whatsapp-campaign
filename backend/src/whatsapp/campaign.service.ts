@@ -681,6 +681,99 @@ export class CampaignService {
       }
     }
 
+    // Sync any pending/sent messages with latest delivery/read statuses from whatsAppMessage
+    if (messages.length > 0) {
+      try {
+        const pendingMessages = messages.filter((m: any) => m.status === 'sent' || m.status === 'queued');
+        if (pendingMessages.length > 0) {
+          const phoneList = pendingMessages.flatMap((m: any) => {
+            const clean = m.phone.replace(/\D/g, '');
+            return [m.phone, clean, `+${clean}`, clean.startsWith('91') ? clean.substring(2) : clean];
+          });
+          const messageIdList = pendingMessages.map((m: any) => m.messageId).filter(Boolean);
+
+          const latestSentMessages = await client.whatsAppMessage.findMany({
+            where: {
+              OR: [
+                ...(messageIdList.length > 0 ? [{ messageId: { in: messageIdList } }] : []),
+                { to: { in: phoneList } }
+              ],
+              direction: 'outgoing',
+              status: { in: ['delivered', 'read'] }
+            },
+            orderBy: { createdAt: 'desc' }
+          });
+
+          if (latestSentMessages.length > 0) {
+            const statusMapByMsgId = new Map<string, string>();
+            const statusMapByPhone = new Map<string, any>();
+
+            for (const sm of latestSentMessages) {
+              if (sm.messageId && !statusMapByMsgId.has(sm.messageId)) {
+                statusMapByMsgId.set(sm.messageId, sm.status);
+              }
+              const cleanTo = sm.to.replace(/\D/g, '');
+              if (!statusMapByPhone.has(cleanTo)) {
+                statusMapByPhone.set(cleanTo, sm);
+              }
+            }
+
+            const updatesToPersist: Promise<any>[] = [];
+
+            for (const msg of messages) {
+              if (msg.status === 'sent' || msg.status === 'queued') {
+                const cleanPhone = msg.phone.replace(/\D/g, '');
+                const newStatus = (msg.messageId && statusMapByMsgId.get(msg.messageId)) ||
+                                  statusMapByPhone.get(cleanPhone)?.status;
+
+                if (newStatus && newStatus !== msg.status) {
+                  msg.status = newStatus;
+                  const matchingSm = statusMapByPhone.get(cleanPhone);
+                  if (matchingSm?.messageId && !msg.messageId) {
+                    msg.messageId = matchingSm.messageId;
+                  }
+                  updatesToPersist.push(
+                    client.campaignMessage.update({
+                      where: { id: msg.id },
+                      data: {
+                        status: newStatus,
+                        ...(matchingSm?.messageId && !msg.messageId ? { messageId: matchingSm.messageId } : {})
+                      }
+                    }).catch(() => {})
+                  );
+                }
+              }
+            }
+
+            if (updatesToPersist.length > 0) {
+              await Promise.all(updatesToPersist);
+
+              // Keep campaign summary counts updated
+              const successCount = messages.filter((m: any) => ['sent', 'delivered', 'read'].includes(m.status)).length;
+              const failedCount = messages.filter((m: any) => m.status === 'failed').length;
+              await client.campaign.update({
+                where: { id },
+                data: { successCount, failedCount }
+              }).catch(() => {});
+            }
+          }
+        }
+      } catch (syncErr: any) {
+        this.logger.warn(`Could not sync campaign statuses with whatsAppMessage: ${syncErr.message}`);
+      }
+    }
+
+    // Resolve customer names from campaign contacts or global contacts if missing
+    const contactNameMap = new Map<string, string>();
+    if (campaign.contacts && campaign.contacts.length > 0) {
+      for (const c of campaign.contacts) {
+        const clean = c.phone.replace(/\D/g, '');
+        if (c.name && c.name.trim() && !['null', 'undefined', 'n/a'].includes(c.name.trim().toLowerCase())) {
+          contactNameMap.set(clean, c.name.trim());
+        }
+      }
+    }
+
     const earliestDate = messages.reduce((min: any, m: any) => m.createdAt < min ? m.createdAt : min, messages[0]?.createdAt || new Date());
     const allPhoneVariations = new Set<string>();
     const phoneVariationMap = new Map<string, string>();
@@ -724,9 +817,14 @@ export class CampaignService {
     }
 
     const results = messages.map((message: any) => {
+      const clean = message.phone.replace(/\D/g, '');
+      const resolvedName = (message.name && !['null', 'undefined', 'n/a'].includes(message.name.trim().toLowerCase()))
+        ? message.name
+        : (contactNameMap.get(clean) || null);
+
       const lastResponse = responseByPhone.get(message.phone) || null;
       return {
-        name: message.name,
+        name: resolvedName,
         phone: message.phone,
         status: message.status,
         error: message.error,

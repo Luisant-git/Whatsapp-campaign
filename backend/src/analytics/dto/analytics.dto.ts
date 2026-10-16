@@ -43,4 +43,16 @@ export class AnalyticsDto {
     delivered: number;
     failed: number;
   }>;
+
+  @ApiProperty({ description: 'List of available message template names for filtering', required: false })
+  availableTemplates?: string[];
+
+  @ApiProperty({ description: 'Messages in selected period filter', required: false })
+  periodMessages?: number;
+
+  @ApiProperty({ description: 'Applied date preset', required: false })
+  selectedPreset?: string;
+
+  @ApiProperty({ description: 'Applied template filter', required: false })
+  selectedTemplate?: string;
 }

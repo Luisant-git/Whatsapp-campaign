@@ -14,22 +14,71 @@ export class AnalyticsService {
   async getAnalytics(
     tenantContext: TenantContext,
     settingsName?: string,
+    templateName?: string,
+    datePreset?: string,
+    startDate?: string,
+    endDate?: string,
   ): Promise<AnalyticsDto> {
     const prisma = this.getPrisma(tenantContext);
-    // Start of Today (UTC Safe)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    
+    // Start of Today (local/server)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
 
-    // Base filter
-    let campaignFilter: any = {};
+    // Compute Date Range from Preset or Custom Dates
+    let dateFilter: { gte?: Date; lte?: Date } | null = null;
+    const now = new Date();
 
-    // Filter by settingsName (Fixed)
-    if (settingsName) {
+    if (datePreset === 'today') {
+      dateFilter = { gte: todayStart, lte: todayEnd };
+    } else if (datePreset === 'yesterday') {
+      const yStart = new Date(now);
+      yStart.setDate(yStart.getDate() - 1);
+      yStart.setHours(0, 0, 0, 0);
+      const yEnd = new Date(now);
+      yEnd.setDate(yEnd.getDate() - 1);
+      yEnd.setHours(23, 59, 59, 999);
+      dateFilter = { gte: yStart, lte: yEnd };
+    } else if (datePreset === 'last_7_days') {
+      const start = new Date(now);
+      start.setDate(start.getDate() - 6);
+      start.setHours(0, 0, 0, 0);
+      dateFilter = { gte: start, lte: todayEnd };
+    } else if (datePreset === 'last_30_days') {
+      const start = new Date(now);
+      start.setDate(start.getDate() - 29);
+      start.setHours(0, 0, 0, 0);
+      dateFilter = { gte: start, lte: todayEnd };
+    } else if (datePreset === 'this_month') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      dateFilter = { gte: start, lte: todayEnd };
+    } else if (startDate || endDate) {
+      dateFilter = {};
+      if (startDate) {
+        const s = new Date(startDate);
+        s.setHours(0, 0, 0, 0);
+        dateFilter.gte = s;
+      }
+      if (endDate) {
+        const e = new Date(endDate);
+        e.setHours(23, 59, 59, 999);
+        dateFilter.lte = e;
+      }
+    }
+
+    // Base campaign filter (for templates and settings)
+    const campaignConditions: any[] = [];
+
+    if (templateName && templateName.trim() !== '') {
+      campaignConditions.push({ templateName: templateName.trim() });
+    }
+
+    if (settingsName && settingsName.trim() !== '') {
       const settings = await prisma.whatsAppSettings.findFirst({
-        where: { name: settingsName },
+        where: { name: settingsName.trim() },
       });
-
-      // If settings not found: return empty safely
       if (!settings) {
         return {
           totalMessages: 0,
@@ -41,27 +90,49 @@ export class AnalyticsService {
           totalGroups: 0,
           totalMessageTemplates: 0,
           totalBroadcasts: 0,
-          messagesByStatus: {
-            sent: 0,
-            delivered: 0,
-            read: 0,
-            failed: 0,
-          },
+          messagesByStatus: { sent: 0, delivered: 0, read: 0, failed: 0 },
           dailyStats: this.getEmptyDailyStats(),
+          availableTemplates: [],
+          periodMessages: 0,
+          selectedPreset: datePreset,
+          selectedTemplate: templateName,
         };
       }
-
-      campaignFilter.campaign = {
+      campaignConditions.push({
         OR: [
           { settingsId: settings.id },
           { templateName: settings.templateName },
         ],
-      };
+      });
     }
 
-    // Run all queries in parallel
+    const campaignSubFilter = campaignConditions.length > 0 ? { AND: campaignConditions } : undefined;
+
+    // Filter without date (for overall counts & today's messages)
+    const baseFilterWithoutDate: any = {};
+    if (campaignSubFilter) {
+      baseFilterWithoutDate.campaign = campaignSubFilter;
+    }
+
+    // Filter WITH date applied (for period messages, deliveries, rate)
+    const activeFilterWithDate: any = { ...baseFilterWithoutDate };
+    if (dateFilter) {
+      activeFilterWithDate.createdAt = dateFilter;
+    }
+
+    // Fetch list of templates for dropdown selection
+    const rawTemplates = await prisma.messageTemplate.findMany({
+      where: { status: { not: 'ARCHIVED' } },
+      select: { name: true },
+      distinct: ['name'],
+      orderBy: { name: 'asc' },
+    });
+    const availableTemplates = rawTemplates.map((t: any) => t.name).filter(Boolean);
+
+    // Run parallel metric queries
     const [
-      totalMessages,
+      overallMessages,
+      periodMessages,
       todayMessages,
       successfulDeliveries,
       failedMessages,
@@ -72,33 +143,40 @@ export class AnalyticsService {
       messagesByStatus,
       dailyStats,
     ] = await Promise.all([
-      this.getTotalMessages(prisma, campaignFilter),
-      this.getTodayMessages(prisma, today, campaignFilter),
-      this.getSuccessfulDeliveries(prisma, campaignFilter),
-      this.getFailedMessages(prisma, campaignFilter),
+      this.getTotalMessages(prisma, baseFilterWithoutDate),
+      this.getTotalMessages(prisma, activeFilterWithDate),
+      this.getTodayMessages(prisma, todayStart, baseFilterWithoutDate),
+      this.getSuccessfulDeliveries(prisma, activeFilterWithDate),
+      this.getFailedMessages(prisma, activeFilterWithDate),
       this.getTotalContacts(prisma),
       this.getTotalGroups(prisma),
       this.getTotalMessageTemplates(prisma),
-      this.getTotalBroadcasts(prisma, settingsName),
-      this.getMessagesByStatus(prisma, campaignFilter),
-      this.getDailyStats(prisma, campaignFilter),
+      this.getTotalBroadcasts(prisma, settingsName, templateName),
+      this.getMessagesByStatus(prisma, activeFilterWithDate),
+      this.getDailyStats(prisma, baseFilterWithoutDate),
     ]);
-    const deliveryRate =
-      totalMessages > 0 ? (successfulDeliveries / totalMessages) * 100 : 0;
 
-      return {
-        totalMessages,
-        todayMessages,
-        successfulDeliveries,
-        failedMessages,
-        deliveryRate: Math.round(deliveryRate * 100) / 100,
-        totalContacts,
-        totalGroups,
-        totalMessageTemplates,
-        totalBroadcasts,
-        messagesByStatus,
-        dailyStats,
-      };
+    // Use periodMessages for delivery rate if date filter is active, otherwise overallMessages
+    const totalToRate = dateFilter ? periodMessages : overallMessages;
+    const deliveryRate = totalToRate > 0 ? (successfulDeliveries / totalToRate) * 100 : 0;
+
+    return {
+      totalMessages: overallMessages,
+      periodMessages,
+      todayMessages,
+      successfulDeliveries,
+      failedMessages,
+      deliveryRate: Math.round(deliveryRate * 100) / 100,
+      totalContacts,
+      totalGroups,
+      totalMessageTemplates,
+      totalBroadcasts,
+      messagesByStatus,
+      dailyStats,
+      availableTemplates,
+      selectedPreset: datePreset || 'all',
+      selectedTemplate: templateName || '',
+    };
   }
 
   // ---------------- HELPERS ----------------
@@ -243,29 +321,30 @@ export class AnalyticsService {
     });
   }
   
-  private async getTotalBroadcasts(prisma: any, settingsName?: string): Promise<number> {
-    if (settingsName) {
-      const settings = await prisma.whatsAppSettings.findFirst({
-        where: { name: settingsName },
-      });
-  
-      if (!settings) return 0;
-  
-      return prisma.campaign.count({
-        where: {
-          status: { in: ['completed', 'sent'] },
-          OR: [
-            { settingsId: settings.id },
-            { templateName: settings.templateName },
-          ],
-        },
-      });
+  private async getTotalBroadcasts(prisma: any, settingsName?: string, templateName?: string): Promise<number> {
+    const whereClause: any = {
+      status: { in: ['completed', 'sent', 'running'] },
+    };
+
+    if (templateName && templateName.trim() !== '') {
+      whereClause.templateName = templateName.trim();
     }
-  
+
+    if (settingsName && settingsName.trim() !== '') {
+      const settings = await prisma.whatsAppSettings.findFirst({
+        where: { name: settingsName.trim() },
+      });
+
+      if (!settings) return 0;
+
+      whereClause.OR = [
+        { settingsId: settings.id },
+        { templateName: settings.templateName },
+      ];
+    }
+
     return prisma.campaign.count({
-      where: {
-        status: { in: ['completed', 'sent'] },
-      },
+      where: whereClause,
     });
   }
 }

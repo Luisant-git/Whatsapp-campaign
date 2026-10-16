@@ -26,9 +26,12 @@ const BulkWhatsApp = () => {
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState("");
   const [groupContactsCount, setGroupContactsCount] = useState(0);
-  const [settings, setSettings] = useState([]);
   const [campaignFileName, setCampaignFileName] = useState("");
   const [excelLoadedCount, setExcelLoadedCount] = useState(0);
+  const [previewContacts, setPreviewContacts] = useState([]);
+  const [previewFileName, setPreviewFileName] = useState("");
+  const [previewSearch, setPreviewSearch] = useState("");
+  const [showExcelPreviewModal, setShowExcelPreviewModal] = useState(false);
 
   const daysOfWeek = [
     { value: "sunday", label: "Sunday" },
@@ -223,13 +226,11 @@ const BulkWhatsApp = () => {
           return;
         }
 
-        const lines = parsedContacts
-          .map((c) => (c.name ? `${c.phone},${c.name}` : c.phone))
-          .join("\n");
-        setPhoneNumbers(lines);
-        setCampaignFileName(file.name);
-        setExcelLoadedCount(parsedContacts.length);
-        showSuccess(`Loaded ${parsedContacts.length} contacts from ${file.name}`);
+        // Open Confirmation Preview Modal
+        setPreviewContacts(parsedContacts);
+        setPreviewFileName(file.name);
+        setPreviewSearch("");
+        setShowExcelPreviewModal(true);
       } catch (err) {
         console.error("Error reading campaign Excel:", err);
         setCampaignFileName("");
@@ -240,6 +241,24 @@ const BulkWhatsApp = () => {
 
     reader.readAsArrayBuffer(file);
     e.target.value = "";
+  };
+
+  const handleConfirmExcelContacts = () => {
+    const lines = previewContacts
+      .map((c) => (c.name ? `${c.phone},${c.name}` : c.phone))
+      .join("\n");
+    setPhoneNumbers(lines);
+    setCampaignFileName(previewFileName);
+    setExcelLoadedCount(previewContacts.length);
+    setShowExcelPreviewModal(false);
+    showSuccess(`Successfully loaded ${previewContacts.length} contacts from ${previewFileName}`);
+  };
+
+  const handleCancelExcelPreview = () => {
+    setShowExcelPreviewModal(false);
+    setPreviewContacts([]);
+    setPreviewFileName("");
+    setPreviewSearch("");
   };
 
   const handleSendBulkMessages = async () => {
@@ -722,6 +741,229 @@ const BulkWhatsApp = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Excel Contacts Confirmation Preview Modal */}
+        {showExcelPreviewModal && (
+          <div className="modal-overlay" onClick={handleCancelExcelPreview}>
+            <div
+              className="modal-content"
+              style={{ maxWidth: '640px', width: '92%' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-header">
+                <div className="modal-title-section">
+                  <h2>Review Uploaded Contacts</h2>
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      background: '#e0f2fe',
+                      color: '#0369a1',
+                      padding: '3px 10px',
+                      borderRadius: '12px',
+                      fontWeight: '700',
+                    }}
+                  >
+                    {previewContacts.length} Contacts
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="close-btn"
+                  onClick={handleCancelExcelPreview}
+                >
+                  <IoCloseSharp size={20} />
+                </button>
+              </div>
+
+              <div
+                className="modal-body"
+                style={{ maxHeight: '65vh', overflowY: 'auto', padding: '16px 20px' }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
+                    Source File: <strong style={{ color: '#0f172a' }}>{previewFileName}</strong>
+                  </p>
+                  <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: '600' }}>
+                    ✓ Ready to send
+                  </span>
+                </div>
+
+                {/* Quick Search */}
+                <div style={{ marginBottom: '12px' }}>
+                  <input
+                    type="text"
+                    placeholder="Search by contact name or phone..."
+                    value={previewSearch}
+                    onChange={(e) => setPreviewSearch(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+
+                {/* Contacts Preview Table */}
+                <div
+                  style={{
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '6px',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <table
+                    style={{
+                      width: '100%',
+                      borderCollapse: 'collapse',
+                      fontSize: '13px',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <thead
+                      style={{
+                        background: '#f8fafc',
+                        borderBottom: '1px solid #e2e8f0',
+                      }}
+                    >
+                      <tr>
+                        <th
+                          style={{
+                            padding: '8px 12px',
+                            color: '#64748b',
+                            fontWeight: '600',
+                            width: '40px',
+                          }}
+                        >
+                          #
+                        </th>
+                        <th
+                          style={{
+                            padding: '8px 12px',
+                            color: '#64748b',
+                            fontWeight: '600',
+                          }}
+                        >
+                          Contact Name
+                        </th>
+                        <th
+                          style={{
+                            padding: '8px 12px',
+                            color: '#64748b',
+                            fontWeight: '600',
+                          }}
+                        >
+                          Phone Number
+                        </th>
+                        <th
+                          style={{
+                            padding: '8px 12px',
+                            color: '#64748b',
+                            fontWeight: '600',
+                            textAlign: 'right',
+                          }}
+                        >
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewContacts
+                        .filter((c) => {
+                          if (!previewSearch) return true;
+                          const s = previewSearch.toLowerCase();
+                          return (
+                            (c.name && c.name.toLowerCase().includes(s)) ||
+                            (c.phone && c.phone.includes(s))
+                          );
+                        })
+                        .slice(0, 100)
+                        .map((c, idx) => (
+                          <tr
+                            key={idx}
+                            style={{
+                              borderBottom: '1px solid #f1f5f9',
+                              backgroundColor: idx % 2 === 0 ? 'white' : '#fcfcfd',
+                            }}
+                          >
+                            <td style={{ padding: '8px 12px', color: '#94a3b8' }}>
+                              {idx + 1}
+                            </td>
+                            <td
+                              style={{
+                                padding: '8px 12px',
+                                fontWeight: '500',
+                                color: c.name ? '#0f172a' : '#94a3b8',
+                              }}
+                            >
+                              {c.name || 'N/A'}
+                            </td>
+                            <td
+                              style={{
+                                padding: '8px 12px',
+                                fontFamily: 'monospace',
+                                color: '#0284c7',
+                                fontWeight: '600',
+                              }}
+                            >
+                              {c.phone}
+                            </td>
+                            <td style={{ padding: '8px 12px', textAlign: 'right' }}>
+                              <span
+                                style={{
+                                  background: '#dcfce7',
+                                  color: '#166534',
+                                  padding: '2px 8px',
+                                  borderRadius: '10px',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                }}
+                              >
+                                Ready
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                  {previewContacts.length > 100 && (
+                    <div
+                      style={{
+                        padding: '8px 12px',
+                        textAlign: 'center',
+                        fontSize: '12px',
+                        color: '#64748b',
+                        background: '#f8fafc',
+                      }}
+                    >
+                      Showing first 100 of {previewContacts.length} contacts
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  onClick={handleCancelExcelPreview}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="save-btn"
+                  onClick={handleConfirmExcelContacts}
+                  style={{ background: '#008069' }}
+                >
+                  Confirm & Use {previewContacts.length} Contacts
+                </button>
+              </div>
             </div>
           </div>
         )}

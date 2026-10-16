@@ -88,10 +88,20 @@ export const getProfile = async () => {
   return data;
 };
 // ... rest of your exports remain the same
-export const getAnalytics = async (settingsName = null) => {
-  const url = settingsName
-    ? `${API_BASE_URL}/analytics?settingsName=${encodeURIComponent(settingsName)}`
-    : `${API_BASE_URL}/analytics`;
+export const getAnalytics = async (params = {}) => {
+  let query = [];
+  if (typeof params === 'string') {
+    if (params.trim()) query.push(`settingsName=${encodeURIComponent(params.trim())}`);
+  } else if (params && typeof params === 'object') {
+    if (params.settingsName) query.push(`settingsName=${encodeURIComponent(params.settingsName)}`);
+    if (params.templateName) query.push(`templateName=${encodeURIComponent(params.templateName)}`);
+    if (params.datePreset) query.push(`datePreset=${encodeURIComponent(params.datePreset)}`);
+    if (params.startDate) query.push(`startDate=${encodeURIComponent(params.startDate)}`);
+    if (params.endDate) query.push(`endDate=${encodeURIComponent(params.endDate)}`);
+  }
+
+  const queryString = query.length > 0 ? `?${query.join('&')}` : '';
+  const url = `${API_BASE_URL}/analytics${queryString}`;
 
   const response = await fetch(url, {
     credentials: 'include',

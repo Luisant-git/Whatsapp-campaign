@@ -102,6 +102,11 @@ export class ContactController {
     return this.contactService.findTrash(tenantContext);
   }
 
+  @Get('manually-edited')
+  getManuallyEdited(@TenantContext() tenantContext: TenantContextType) {
+    return this.contactService.getManuallyEditedPhones(tenantContext);
+  }
+
   @Patch(':id/restore')
   restore(
     @Param('id') id: string,

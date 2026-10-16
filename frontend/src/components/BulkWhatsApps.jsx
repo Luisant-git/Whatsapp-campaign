@@ -26,6 +26,7 @@ const BulkWhatsApp = () => {
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState("");
   const [groupContactsCount, setGroupContactsCount] = useState(0);
+  const [settings, setSettings] = useState([]);
   const [campaignFileName, setCampaignFileName] = useState("");
   const [excelLoadedCount, setExcelLoadedCount] = useState(0);
   const [previewContacts, setPreviewContacts] = useState([]);

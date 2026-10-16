@@ -560,6 +560,24 @@ export class ContactService {
     return { success: true, message: 'Label removed successfully' };
   }
 
+  async getManuallyEditedPhones(tenantContext: TenantContext): Promise<string[]> {
+    return this.tenantPrisma.executeWithRetry(
+      tenantContext.tenantId,
+      tenantContext.dbUrl,
+      async (prisma) => {
+        try {
+          const labels = await prisma.chatLabel.findMany({
+            where: { manuallyEdited: true },
+            select: { phone: true },
+          });
+          return labels.map((l: any) => l.phone).filter(Boolean);
+        } catch {
+          return [];
+        }
+      }
+    );
+  }
+
   async getCustomLabels(tenantContext: TenantContext) {
     return this.tenantPrisma.executeWithRetry(
       tenantContext.tenantId,

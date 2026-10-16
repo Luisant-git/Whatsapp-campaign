@@ -2367,20 +2367,22 @@ export class WhatsappService {
         }
       }
 
-      const query: any = { messageId };
-      if (phoneNumberId) {
-        query.phoneNumberId = phoneNumberId;
-      }
-
+      // Lookup by unique messageId directly (Meta wamid is globally unique)
       let existingMessage = await tenantClient.whatsAppMessage.findFirst({
-        where: query
+        where: { messageId }
       });
 
       if (!existingMessage && recipientPhone) {
         const cleanPhone = String(recipientPhone).replace(/\D/g, '');
+        const phoneVariants = [
+          recipientPhone,
+          cleanPhone,
+          `+${cleanPhone}`,
+          cleanPhone.startsWith('91') ? cleanPhone.substring(2) : `91${cleanPhone}`
+        ];
         existingMessage = await tenantClient.whatsAppMessage.findFirst({
           where: {
-            to: { in: [recipientPhone, `+${cleanPhone}`, cleanPhone, cleanPhone.startsWith('91') ? cleanPhone.substring(2) : cleanPhone] },
+            to: { in: phoneVariants },
             direction: 'outgoing',
           },
           orderBy: { createdAt: 'desc' }
@@ -2428,22 +2430,29 @@ export class WhatsappService {
 
       // Also update CampaignMessage if it exists, independently
       try {
-        let campaignMessage = await tenantClient.campaignMessage.findFirst({
+        let campaignMessages = await tenantClient.campaignMessage.findMany({
           where: { messageId }
         });
 
-        // Fallback by phone if not found by messageId
-        if (!campaignMessage && recipientPhone) {
+        // Fallback by phone variants if not found by messageId
+        if (campaignMessages.length === 0 && recipientPhone) {
           const cleanPhone = String(recipientPhone).replace(/\D/g, '');
-          campaignMessage = await tenantClient.campaignMessage.findFirst({
+          const phoneVariants = [
+            recipientPhone,
+            cleanPhone,
+            `+${cleanPhone}`,
+            cleanPhone.startsWith('91') ? cleanPhone.substring(2) : `91${cleanPhone}`
+          ];
+          campaignMessages = await tenantClient.campaignMessage.findMany({
             where: {
-              phone: { in: [recipientPhone, `+${cleanPhone}`, cleanPhone, cleanPhone.startsWith('91') ? cleanPhone.substring(2) : cleanPhone] },
+              phone: { in: phoneVariants },
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            take: 10
           });
         }
 
-        if (campaignMessage) {
+        if (campaignMessages.length > 0) {
           let errorMessage: string | null = null;
           if (status === 'failed' && errorDetails) {
             if (Array.isArray(errorDetails) && errorDetails.length > 0) {
@@ -2460,46 +2469,53 @@ export class WhatsappService {
             }
           }
 
-          const currentCampaignStatusLevel = statusHierarchy[campaignMessage.status] || 0;
-          let finalCampaignStatus = campaignMessage.status;
+          const campaignIdsToResync = new Set<number>();
 
-          if (status === 'failed') {
-            if (campaignMessage.status !== 'delivered' && campaignMessage.status !== 'read') {
-              finalCampaignStatus = 'failed';
+          for (const campaignMessage of campaignMessages) {
+            const currentCampaignStatusLevel = statusHierarchy[campaignMessage.status] || 0;
+            let finalCampaignStatus = campaignMessage.status;
+
+            if (status === 'failed') {
+              if (campaignMessage.status !== 'delivered' && campaignMessage.status !== 'read') {
+                finalCampaignStatus = 'failed';
+              }
+            } else if (newStatusLevel >= currentCampaignStatusLevel) {
+              finalCampaignStatus = status;
             }
-          } else if (newStatusLevel >= currentCampaignStatusLevel) {
-            finalCampaignStatus = status;
-          }
 
-          const campaignUpdateData: any = { status: finalCampaignStatus };
-          if (errorMessage) {
-            campaignUpdateData.error = errorMessage;
-          }
-          if (!campaignMessage.messageId || campaignMessage.messageId !== messageId) {
-            campaignUpdateData.messageId = messageId;
-          }
+            const campaignUpdateData: any = { status: finalCampaignStatus };
+            if (errorMessage) {
+              campaignUpdateData.error = errorMessage;
+            }
+            if (!campaignMessage.messageId || campaignMessage.messageId !== messageId) {
+              campaignUpdateData.messageId = messageId;
+            }
 
-          await tenantClient.campaignMessage.update({
-            where: { id: campaignMessage.id },
-            data: campaignUpdateData
-          });
-          this.logger.log(`Updated campaignMessage for ${messageId} (${recipientPhone || 'no-phone'}) to status: ${finalCampaignStatus}`);
-
-          // Also keep Campaign table summary counts synced
-          try {
-            const allCampMsgs = await tenantClient.campaignMessage.groupBy({
-              by: ['status'],
-              where: { campaignId: campaignMessage.campaignId },
-              _count: { id: true }
+            await tenantClient.campaignMessage.update({
+              where: { id: campaignMessage.id },
+              data: campaignUpdateData
             });
-            const successCount = allCampMsgs.filter((m: any) => ['sent', 'delivered', 'read'].includes(m.status)).reduce((acc: number, curr: any) => acc + curr._count.id, 0);
-            const failedCount = allCampMsgs.filter((m: any) => m.status === 'failed').reduce((acc: number, curr: any) => acc + curr._count.id, 0);
-            await tenantClient.campaign.update({
-              where: { id: campaignMessage.campaignId },
-              data: { successCount, failedCount }
-            });
-          } catch (countErr) {
-            // Ignore minor count sync errors
+
+            campaignIdsToResync.add(campaignMessage.campaignId);
+          }
+
+          // Keep Campaign table summary counts synced for each affected campaign
+          for (const campId of campaignIdsToResync) {
+            try {
+              const allCampMsgs = await tenantClient.campaignMessage.groupBy({
+                by: ['status'],
+                where: { campaignId: campId },
+                _count: { id: true }
+              });
+              const successCount = allCampMsgs.filter((m: any) => ['sent', 'delivered', 'read'].includes(m.status)).reduce((acc: number, curr: any) => acc + curr._count.id, 0);
+              const failedCount = allCampMsgs.filter((m: any) => m.status === 'failed').reduce((acc: number, curr: any) => acc + curr._count.id, 0);
+              await tenantClient.campaign.update({
+                where: { id: campId },
+                data: { successCount, failedCount }
+              });
+            } catch (countErr) {
+              // Ignore minor count sync errors
+            }
           }
         }
       } catch (campErr: any) {

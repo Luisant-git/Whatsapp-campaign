@@ -532,8 +532,15 @@ export class CampaignService {
             }
 
             try {
+              const cleanPhone = result.phoneNumber.replace(/\D/g, '');
+              const phoneVariants = [
+                result.phoneNumber,
+                cleanPhone,
+                `+${cleanPhone}`,
+                cleanPhone.startsWith('91') ? cleanPhone.substring(2) : `91${cleanPhone}`
+              ];
               await client.campaignMessage.updateMany({
-                where: { campaignId: id, phone: result.phoneNumber },
+                where: { campaignId: id, phone: { in: phoneVariants } },
                 data: {
                   messageId: result.messageId || null,
                   status: result.success ? 'sent' : 'failed',
@@ -819,8 +826,11 @@ export class CampaignService {
             for (const msg of messages) {
               if (msg.status === 'sent' || msg.status === 'queued') {
                 const cleanPhone = msg.phone.replace(/\D/g, '');
-                const newStatus = (msg.messageId && statusMapByMsgId.get(msg.messageId)) ||
-                                  statusMapByPhone.get(cleanPhone)?.status;
+                const shortPhone = cleanPhone.startsWith('91') ? cleanPhone.substring(2) : cleanPhone;
+                const fullPhone = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
+                const matchingSm = (msg.messageId && statusMapByMsgId.get(msg.messageId)) ? null :
+                                   (statusMapByPhone.get(cleanPhone) || statusMapByPhone.get(shortPhone) || statusMapByPhone.get(fullPhone));
+                const newStatus = (msg.messageId && statusMapByMsgId.get(msg.messageId)) || matchingSm?.status;
 
                 if (newStatus && newStatus !== msg.status) {
                   msg.status = newStatus;

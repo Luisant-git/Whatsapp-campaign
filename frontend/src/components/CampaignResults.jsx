@@ -373,6 +373,44 @@ const CampaignResults = ({ campaignId, onBack }) => {
             </div>
           </div>
 
+          {/* WhatsApp Cloud API Delivery Funnel & Status Notice */}
+          <div className="delivery-insights-banner">
+            <div className="insights-header">
+              <span className="insights-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: '6px' }}>
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="16" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                WhatsApp Cloud API Delivery Status Guide
+              </span>
+              <span className="insights-badge-success">
+                ✓ {results.filter(r => ['sent', 'delivered', 'read'].includes(r.status)).length} of {results.length} Dispatched by Meta
+              </span>
+            </div>
+            <p className="insights-description">
+              Meta has successfully accepted and dispatched all valid messages. In WhatsApp Cloud API, messages show as <strong>SENT (Single Tick ✓)</strong> until the recipient's phone connects to the internet (cellular data / Wi-Fi), at which point Meta automatically updates to <strong>DELIVERED (Double Tick ✓✓)</strong>. Receipts continue to update in real time as recipients open their phones.
+            </p>
+            <div className="insights-legend">
+              <div className="legend-item">
+                <span className="status-badge status-sent">✓ SENT</span>
+                <span>Dispatched to Meta network & queued for device delivery</span>
+              </div>
+              <div className="legend-item">
+                <span className="status-badge status-delivered">✓✓ DELIVERED</span>
+                <span>Confirmed reached customer's physical device</span>
+              </div>
+              <div className="legend-item">
+                <span className="status-badge status-read">✓✓ READ</span>
+                <span>Opened & viewed by recipient</span>
+              </div>
+              <div className="legend-item">
+                <span className="status-badge status-failed">✕ FAILED</span>
+                <span>Unregistered or blocked. Never billed by Meta.</span>
+              </div>
+            </div>
+          </div>
+
           <div className="results-filters">
             <div className="filter-group">
               <label>Status:</label>
@@ -446,7 +484,11 @@ const CampaignResults = ({ campaignId, onBack }) => {
                     <td>{result.phone}</td>
                     <td>
                       <span className={`status-badge ${getStatusColor(result.status)}`}>
-                        {result.status.toUpperCase()}
+                        {result.status === 'sent' && '✓ SENT'}
+                        {result.status === 'delivered' && '✓✓ DELIVERED'}
+                        {result.status === 'read' && '✓✓ READ'}
+                        {result.status === 'failed' && '✕ FAILED'}
+                        {!['sent', 'delivered', 'read', 'failed'].includes(result.status) && result.status.toUpperCase()}
                       </span>
                     </td>
                     <td>

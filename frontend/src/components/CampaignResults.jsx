@@ -36,15 +36,16 @@ const CampaignResults = ({ campaignId, onBack }) => {
     }
   };
 
-  // Auto-refresh every 3 seconds for the first 30 seconds after campaign starts
+  // Auto-refresh every 3 seconds while campaign is running or for at least 60 seconds
   useEffect(() => {
     if (!autoRefresh) return;
 
     const interval = setInterval(() => {
+      const isStillRunning = campaign?.status === 'running' || results.some(r => r.status === 'queued' || r.status === 'pending');
       const timeSinceStart = Date.now() - lastRefresh;
       
-      // Auto-refresh for 30 seconds, then stop
-      if (timeSinceStart < 30000) {
+      // Auto-refresh while campaign is running (up to 5 mins) or for 60 seconds if completed
+      if (isStillRunning ? timeSinceStart < 300000 : timeSinceStart < 60000) {
         fetchCampaignResults(true); // Silent refresh
       } else {
         setAutoRefresh(false);
@@ -52,7 +53,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
     }, 3000); // Refresh every 3 seconds
 
     return () => clearInterval(interval);
-  }, [autoRefresh, lastRefresh, campaignId]);
+  }, [autoRefresh, lastRefresh, campaignId, campaign?.status, results]);
 
   const fetchCampaignResults = async (silent = false) => {
     try {
@@ -238,6 +239,8 @@ const CampaignResults = ({ campaignId, onBack }) => {
       case 'delivered': return 'status-delivered';
       case 'read': return 'status-read';
       case 'failed': return 'status-failed';
+      case 'queued':
+      case 'pending': return 'status-queued';
       default: return 'status-unknown';
     }
   };

@@ -114,7 +114,7 @@ export class MetaLeadsAutomationCronService {
           const campaignService = await this.moduleRef.resolve(CampaignService, contextId, { strict: false });
           for (const camp of nightPausedCampaigns) {
             log(`Auto-resuming night-paused campaign: id=${camp.id}, name="${camp.name}"`);
-            campaignService.runCampaign(camp.id, 0, true).catch((e: any) => {
+            campaignService.runCampaign(camp.id, Number(tenantId), true).catch((e: any) => {
               this.logger.error(`Error auto-resuming campaign ${camp.id}: ${e.message}`);
             });
           }

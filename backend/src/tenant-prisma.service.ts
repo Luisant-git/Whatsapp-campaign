@@ -32,9 +32,12 @@ export class TenantPrismaService implements OnModuleDestroy {
    * Create Prisma client with pooling
    */
   private createClient(tenantId: string, dbUrl: string): TenantPrismaClient {
-    const urlWithPooling = dbUrl.includes('?')
-      ? `${dbUrl}&connection_limit=10&pool_timeout=20`
-      : `${dbUrl}?connection_limit=10&pool_timeout=20`;
+    const defaultPool = process.env.TENANT_DB_POOL_LIMIT || '4';
+    const urlWithPooling = dbUrl.includes('connection_limit')
+      ? dbUrl
+      : dbUrl.includes('?')
+        ? `${dbUrl}&connection_limit=${defaultPool}&pool_timeout=15`
+        : `${dbUrl}?connection_limit=${defaultPool}&pool_timeout=15`;
 
     const client = new TenantPrismaClient({
       datasources: {

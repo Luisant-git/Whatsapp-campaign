@@ -21,6 +21,8 @@ export class WhatsappService {
   private readonly CACHE_TTL = 3600000; // 1 hour
   private phoneCredentialsCache = new Map<string, { phoneNumberId: string; accessToken: string; apiUrl: string; expiresAt: number }>();
   private readonly CREDENTIALS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  private webhookForwardUrlCache = new Map<string, { url: string | null; expiresAt: number }>();
+  private readonly FORWARD_URL_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
   constructor(
     private prisma: PrismaService,
     private centralPrisma: CentralPrismaService,
@@ -722,12 +724,33 @@ export class WhatsappService {
 
   async findAllUsersByPhoneNumberId(phoneNumberId: string): Promise<number[]> {
     try {
-      console.log(`\n🔍 SEARCHING FOR USERS WITH phone_number_id: ${phoneNumberId}`);
+      if (!phoneNumberId) return [];
+
+      // 1. Check in-memory cache
+      const cached = this.phoneNumberIdCache.get(phoneNumberId);
+      if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+        return [cached.tenantId];
+      }
+
+      // 2. Check Central DB mapping (fast indexed lookup!)
+      const mapping = await this.centralPrisma.phoneNumberMapping.findUnique({
+        where: { phoneNumberId }
+      });
+      if (mapping && mapping.tenantId) {
+        this.phoneNumberIdCache.set(phoneNumberId, {
+          tenantId: mapping.tenantId,
+          settingsId: 0,
+          timestamp: Date.now()
+        });
+        return [mapping.tenantId];
+      }
+
+      // 3. Fallback: Scan active tenants only if not found in central mapping
+      console.log(`\n🔍 SEARCHING FOR USERS WITH phone_number_id: ${phoneNumberId} (Fallback scan)`);
       const userIds: number[] = [];
       const tenants = await this.centralPrisma.tenant.findMany({
         where: { isActive: true }
       });
-      console.log(`→ Found ${tenants.length} active tenants to search`);
 
       for (const tenant of tenants) {
         const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
@@ -735,46 +758,44 @@ export class WhatsappService {
 
         let matched = false;
 
-        // Check WhatsApp Settings
         const settings = await tenantClient.whatsAppSettings.findMany({
           where: { phoneNumberId },
           select: { id: true, name: true, phoneNumberId: true }
         });
 
         if (settings.length > 0) {
-          console.log(`  ✅ Tenant ${tenant.id}: Found ${settings.length} WhatsApp Settings`);
-          settings.forEach(s => {
-            console.log(`     - Settings ID: ${s.id}, Name: ${s.name}, PhoneID: ${s.phoneNumberId}`);
-          });
           matched = true;
         }
 
-        // ✅ ALSO CHECK MASTER CONFIG
         const masterConfigs = await tenantClient.masterConfig.findMany({
           where: { phoneNumberId },
           select: { id: true, name: true, phoneNumberId: true }
         });
 
         if (masterConfigs.length > 0) {
-          console.log(`  ✅ Tenant ${tenant.id}: Found ${masterConfigs.length} Master Configs`);
-          masterConfigs.forEach(mc => {
-            console.log(`     - MasterConfig: ${mc.name}, PhoneID: ${mc.phoneNumberId}`);
-          });
           matched = true;
         }
 
         if (matched) {
           userIds.push(tenant.id);
-        } else {
-          console.log(`  ❌ Tenant ${tenant.id}: No matching phone_number_id`);
         }
       }
 
-      // Remove duplicates just in case
       const uniqueUserIds = [...new Set(userIds)];
+      if (uniqueUserIds.length > 0) {
+        const primaryTenantId = uniqueUserIds[0];
+        this.phoneNumberIdCache.set(phoneNumberId, {
+          tenantId: primaryTenantId,
+          settingsId: 0,
+          timestamp: Date.now()
+        });
+        await this.centralPrisma.phoneNumberMapping.upsert({
+          where: { phoneNumberId },
+          update: { tenantId: primaryTenantId },
+          create: { phoneNumberId, tenantId: primaryTenantId }
+        }).catch(err => this.logger.warn(`Failed to auto-upsert phoneNumberMapping for ${phoneNumberId}: ${err.message}`));
+      }
 
-      console.log(`\n📊 TOTAL USERS FOUND: ${uniqueUserIds.length}`);
-      console.log(`User IDs: ${uniqueUserIds.join(', ') || 'NONE'}`);
       return uniqueUserIds;
     } catch (error) {
       this.logger.error('Error finding users by phone number ID:', error);
@@ -784,13 +805,20 @@ export class WhatsappService {
 
   async findWebhookForwardUrlByPhoneNumberId(phoneNumberId: string): Promise<string | null> {
     try {
-      const tenants = await this.centralPrisma.tenant.findMany({
-        where: { isActive: true },
-      });
+      if (!phoneNumberId) return null;
 
-      for (const tenant of tenants) {
-        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-        const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+      // 1. Check in-memory cache
+      const cached = this.webhookForwardUrlCache.get(phoneNumberId);
+      if (cached && Date.now() < cached.expiresAt) {
+        return cached.url;
+      }
+
+      // 2. Resolve single tenant via fast cache/mapping lookup
+      const userIds = await this.findAllUsersByPhoneNumberId(phoneNumberId);
+      if (userIds.length > 0) {
+        const tenantId = userIds[0];
+        const dbUrl = await this.getTenantDbUrl(tenantId);
+        const tenantClient = this.tenantPrisma.getTenantClient(tenantId.toString(), dbUrl);
 
         try {
           const config = await (tenantClient.masterConfig as any).findFirst({
@@ -799,12 +827,16 @@ export class WhatsappService {
           });
 
           if (config?.webhookForwardUrl) {
-            return config.webhookForwardUrl.trim();
+            const url = config.webhookForwardUrl.trim();
+            this.webhookForwardUrlCache.set(phoneNumberId, { url, expiresAt: Date.now() + this.FORWARD_URL_CACHE_TTL });
+            return url;
           }
         } catch (e) {
-          // Ignore if column or config not found on this tenant
+          // Ignore
         }
       }
+
+      this.webhookForwardUrlCache.set(phoneNumberId, { url: null, expiresAt: Date.now() + this.FORWARD_URL_CACHE_TTL });
       return null;
     } catch (err) {
       this.logger.warn(`Failed to find webhookForwardUrl for phone ${phoneNumberId}: ${err.message}`);
@@ -2411,6 +2443,23 @@ export class WhatsappService {
             data: campaignUpdateData
           });
           this.logger.log(`Updated campaignMessage for ${messageId} to status: ${finalCampaignStatus}, error: ${errorMessage}`);
+
+          // Also keep Campaign table summary counts synced
+          try {
+            const allCampMsgs = await tenantClient.campaignMessage.groupBy({
+              by: ['status'],
+              where: { campaignId: campaignMessage.campaignId },
+              _count: { id: true }
+            });
+            const successCount = allCampMsgs.filter((m: any) => ['sent', 'delivered', 'read'].includes(m.status)).reduce((acc: number, curr: any) => acc + curr._count.id, 0);
+            const failedCount = allCampMsgs.filter((m: any) => m.status === 'failed').reduce((acc: number, curr: any) => acc + curr._count.id, 0);
+            await tenantClient.campaign.update({
+              where: { id: campaignMessage.campaignId },
+              data: { successCount, failedCount }
+            });
+          } catch (countErr) {
+            // Ignore minor count sync errors
+          }
         }
       } catch (campErr: any) {
         this.logger.error(`Error updating campaignMessage for ${messageId}:`, campErr?.message || campErr);
@@ -2818,30 +2867,48 @@ export class WhatsappService {
     return results;
   }
 
-  async sendBulkTemplateMessageWithNames(contacts: Array<{ name: string; phone: string }>, templateName: string, userId: number, settingsId?: number, headerImageUrl?: string) {
-    let phoneNumberId: string;
-    let accessToken: string;
-    let apiUrl: string;
+  async sendBulkTemplateMessageWithNames(contacts: Array<{ name: string; phone: string }>, templateName: string, userId: number, settingsId?: number, headerImageUrl?: string, campaignId?: number) {
+    let phoneNumberId = '';
+    let accessToken = '';
+    let apiUrl = '';
 
-    if (isCentralMetaCredentialEnabled()) {
-      // Find assigned phone ID for routing, preserving legacy campaign routing semantics
-      const featureAssignment = await this.prisma.featureAssignment.findFirst();
-      const assignedPhoneId = featureAssignment?.campaigns || undefined;
-
-      const metaConfig = await this.metaCredentialService.getMetaConfig(userId, assignedPhoneId);
-      phoneNumberId = metaConfig.phoneNumberId;
-      accessToken = metaConfig.accessToken;
-      apiUrl = 'https://graph.facebook.com/v20.0';
-    } else {
-      const credentials = await this.getPhoneCredentials('campaigns', userId);
-      phoneNumberId = credentials.phoneNumberId;
-      accessToken = credentials.accessToken;
-      apiUrl = credentials.apiUrl;
-    }
-
-    // Fetch template from tenant DB using userId to get tenant context
+    // Fetch tenant client first
     const tenantDbUrl = await this.getTenantDbUrl(userId);
     const tenantClient = this.tenantPrisma.getTenantClient(userId.toString(), tenantDbUrl);
+
+    // If specific settingsId is provided, load its credentials directly
+    if (settingsId) {
+      try {
+        const specificSetting = await tenantClient.whatsAppSettings.findUnique({
+          where: { id: settingsId }
+        });
+        if (specificSetting && specificSetting.phoneNumberId && specificSetting.accessToken) {
+          phoneNumberId = specificSetting.phoneNumberId;
+          accessToken = specificSetting.accessToken;
+          apiUrl = specificSetting.apiUrl || 'https://graph.facebook.com/v18.0';
+        }
+      } catch (err: any) {
+        this.logger.warn(`Could not load settingsId ${settingsId}: ${err.message}`);
+      }
+    }
+
+    if (!phoneNumberId) {
+      if (isCentralMetaCredentialEnabled()) {
+        // Find assigned phone ID for routing, preserving legacy campaign routing semantics
+        const featureAssignment = await this.prisma.featureAssignment.findFirst();
+        const assignedPhoneId = featureAssignment?.campaigns || undefined;
+
+        const metaConfig = await this.metaCredentialService.getMetaConfig(userId, assignedPhoneId);
+        phoneNumberId = metaConfig.phoneNumberId;
+        accessToken = metaConfig.accessToken;
+        apiUrl = 'https://graph.facebook.com/v20.0';
+      } else {
+        const credentials = await this.getPhoneCredentials('campaigns', userId);
+        phoneNumberId = credentials.phoneNumberId;
+        accessToken = credentials.accessToken;
+        apiUrl = credentials.apiUrl;
+      }
+    }
 
     const dbTemplate = await tenantClient.messageTemplate.findFirst({
       where: { name: templateName },
@@ -3059,9 +3126,40 @@ export class WhatsappService {
           phoneNumberId,
         });
 
+        // Immediately update CampaignMessage if campaignId is present
+        if (campaignId) {
+          try {
+            await tenantClient.campaignMessage.updateMany({
+              where: { campaignId, phone: formattedPhone },
+              data: {
+                messageId: response.data.messages[0].id,
+                status: 'sent',
+                error: null
+              }
+            });
+          } catch (campUpErr: any) {
+            this.logger.warn(`Failed to update campaign message for ${formattedPhone}: ${campUpErr.message}`);
+          }
+        }
+
         results.push({ phoneNumber: formattedPhone, success: true, messageId: response.data.messages[0].id });
       } catch (error) {
         const errorMsg = this.getErrorMessage(error);
+
+        // Immediately update CampaignMessage if campaignId is present
+        if (campaignId) {
+          try {
+            await tenantClient.campaignMessage.updateMany({
+              where: { campaignId, phone: formattedPhone },
+              data: {
+                status: 'failed',
+                error: errorMsg
+              }
+            });
+          } catch (campUpErr: any) {
+            this.logger.warn(`Failed to update campaign message error for ${formattedPhone}: ${campUpErr.message}`);
+          }
+        }
 
         // CRITICAL DEBUG: Log what we're about to return
         this.logger.error(`=== ERROR CAPTURE DEBUG ===`);

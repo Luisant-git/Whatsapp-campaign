@@ -301,6 +301,11 @@
                   color: #991b1b;
                 }
 
+                &.status-queued {
+                  background: #e0f2fe;
+                  color: #0369a1;
+                }
+
                 &.status-skipped {
                   background: #fef3c7;
                   color: #92400e;

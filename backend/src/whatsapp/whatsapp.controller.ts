@@ -288,7 +288,8 @@ export class WhatsappController {
                       change.value.metadata?.phone_number_id,
                       status.errors, // Pass the errors array from webhook
                       status.pricing, // Untrusted payload for individual billing tracking
-                      resolvedTenantId // Direct mapped tenant ID for unambiguous routing
+                      resolvedTenantId, // Direct mapped tenant ID for unambiguous routing
+                      status.recipient_id // Recipient phone for fallback matching
                     );
                   } catch (statusError) {
                     console.error('Error updating status:', statusError);
@@ -468,7 +469,7 @@ export class WhatsappController {
                     }
                     
                     await this.whatsappService.updateMessageStatusWithoutContext(
-                      status.id, status.status, phoneNumberId, status.errors, status.pricing, resolvedTenantId
+                      status.id, status.status, phoneNumberId, status.errors, status.pricing, resolvedTenantId, status.recipient_id
                     );
                   } catch (statusError) {
                     console.error('Error updating status:', statusError);

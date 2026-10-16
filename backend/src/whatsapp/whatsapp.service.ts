@@ -2331,7 +2331,15 @@ export class WhatsappService {
     return dbUrl;
   }
 
-  async updateMessageStatusWithoutContext(messageId: string, status: string, phoneNumberId: string, errorDetails?: any, pricingPayload?: any, tenantId?: number) {
+  async updateMessageStatusWithoutContext(
+    messageId: string,
+    status: string,
+    phoneNumberId: string,
+    errorDetails?: any,
+    pricingPayload?: any,
+    tenantId?: number,
+    recipientPhone?: string,
+  ) {
     if (!tenantId) {
       console.error(`❌ Cannot update message status for ${messageId}: tenantId is strictly required.`);
       return;
@@ -2344,12 +2352,16 @@ export class WhatsappService {
       const dbUrl = await this.getTenantDbUrl(tenantId);
       const tenantClient = this.tenantPrisma.getTenantClient(tenantId.toString(), dbUrl);
 
-      // Verify that this phoneNumberId belongs to this tenant
+      // Verify that this phoneNumberId belongs to this tenant if provided
       if (phoneNumberId) {
         const settings = await tenantClient.whatsAppSettings.findFirst({
           where: { phoneNumberId }
         });
-        if (!settings) {
+        const master = !settings ? await tenantClient.masterConfig.findFirst({
+          where: { phoneNumberId }
+        }) : null;
+
+        if (!settings && !master) {
           console.error(`❌ phoneNumberId '${phoneNumberId}' is not registered to tenant ${tenantId}. Update rejected.`);
           return;
         }
@@ -2360,9 +2372,20 @@ export class WhatsappService {
         query.phoneNumberId = phoneNumberId;
       }
 
-      const existingMessage = await tenantClient.whatsAppMessage.findFirst({
+      let existingMessage = await tenantClient.whatsAppMessage.findFirst({
         where: query
       });
+
+      if (!existingMessage && recipientPhone) {
+        const cleanPhone = String(recipientPhone).replace(/\D/g, '');
+        existingMessage = await tenantClient.whatsAppMessage.findFirst({
+          where: {
+            to: { in: [recipientPhone, `+${cleanPhone}`, cleanPhone, cleanPhone.startsWith('91') ? cleanPhone.substring(2) : cleanPhone] },
+            direction: 'outgoing',
+          },
+          orderBy: { createdAt: 'desc' }
+        });
+      }
 
       if (existingMessage) {
         let errorMessage: string | null = null;
@@ -2383,6 +2406,9 @@ export class WhatsappService {
         }
 
         const updateData: any = { status: finalStatus };
+        if (!existingMessage.messageId || existingMessage.messageId !== messageId) {
+          updateData.messageId = messageId;
+        }
 
         if (pricingPayload && typeof pricingPayload === 'object') {
           if (typeof pricingPayload.billable === 'boolean') updateData.billable = pricingPayload.billable;
@@ -2402,9 +2428,20 @@ export class WhatsappService {
 
       // Also update CampaignMessage if it exists, independently
       try {
-        const campaignMessage = await tenantClient.campaignMessage.findFirst({
+        let campaignMessage = await tenantClient.campaignMessage.findFirst({
           where: { messageId }
         });
+
+        // Fallback by phone if not found by messageId
+        if (!campaignMessage && recipientPhone) {
+          const cleanPhone = String(recipientPhone).replace(/\D/g, '');
+          campaignMessage = await tenantClient.campaignMessage.findFirst({
+            where: {
+              phone: { in: [recipientPhone, `+${cleanPhone}`, cleanPhone, cleanPhone.startsWith('91') ? cleanPhone.substring(2) : cleanPhone] },
+            },
+            orderBy: { createdAt: 'desc' }
+          });
+        }
 
         if (campaignMessage) {
           let errorMessage: string | null = null;
@@ -2438,11 +2475,15 @@ export class WhatsappService {
           if (errorMessage) {
             campaignUpdateData.error = errorMessage;
           }
+          if (!campaignMessage.messageId || campaignMessage.messageId !== messageId) {
+            campaignUpdateData.messageId = messageId;
+          }
+
           await tenantClient.campaignMessage.update({
             where: { id: campaignMessage.id },
             data: campaignUpdateData
           });
-          this.logger.log(`Updated campaignMessage for ${messageId} to status: ${finalCampaignStatus}, error: ${errorMessage}`);
+          this.logger.log(`Updated campaignMessage for ${messageId} (${recipientPhone || 'no-phone'}) to status: ${finalCampaignStatus}`);
 
           // Also keep Campaign table summary counts synced
           try {

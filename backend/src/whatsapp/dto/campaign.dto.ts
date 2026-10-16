@@ -65,9 +65,7 @@ export class UpdateCampaignDto {
   @ApiPropertyOptional({ description: 'Array of contacts', type: [ContactDto] })
   @IsOptional()
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ContactDto)
-  contacts?: ContactDto[];
+  contacts?: any[];
 
   @ApiPropertyOptional({ description: 'Template parameters', type: [String] })
   @IsOptional()

@@ -3,13 +3,13 @@ import { IsString, IsNotEmpty, IsArray, IsOptional, ValidateNested, ArrayMinSize
 import { Type } from 'class-transformer';
 
 export class ContactDto {
-  @ApiProperty({ 
+  @ApiPropertyOptional({ 
     description: 'Contact name',
     example: 'John Doe'
   })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  name: string;
+  name?: string;
 
   @ApiProperty({ 
     description: 'Contact phone number with country code',

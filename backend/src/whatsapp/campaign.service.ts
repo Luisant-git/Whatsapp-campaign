@@ -115,8 +115,43 @@ export class CampaignService {
     });
 
     if (!campaign) throw new NotFoundException('Campaign not found');
+
+    let contacts = campaign.contacts || [];
+
+    // Fallback 1: If contacts are empty but campaign has a groupId, load active contacts from that group
+    if (contacts.length === 0 && campaign.groupId) {
+      const groupContacts = await client.contact.findMany({
+        where: { groupId: campaign.groupId, isActive: true },
+        select: { name: true, phone: true }
+      });
+      if (groupContacts.length > 0) {
+        contacts = groupContacts.map((c: any) => ({
+          name: c.name,
+          phone: c.phone,
+          campaignId: campaign.id
+        }));
+      }
+    }
+
+    // Fallback 2: If contacts are still empty but campaign has messages, load from messages
+    if (contacts.length === 0 && campaign.messages && campaign.messages.length > 0) {
+      const seen = new Set<string>();
+      contacts = [];
+      for (const m of campaign.messages) {
+        if (m.phone && !seen.has(m.phone)) {
+          seen.add(m.phone);
+          contacts.push({
+            name: m.name || m.phone,
+            phone: m.phone,
+            campaignId: campaign.id
+          });
+        }
+      }
+    }
+
     return {
       ...campaign,
+      contacts,
       statusLabel: formatCampaignStatusLabel(campaign.status),
     };
   }
@@ -179,42 +214,103 @@ export class CampaignService {
   async updateCampaign(id: number, updateCampaignDto: UpdateCampaignDto, userId: number) {
     const client = await this.getClient(userId);
     const campaign = await client.campaign.findFirst({
-      where: { id }
+      where: { id },
+      include: { contacts: true, messages: true }
     });
 
     if (!campaign) {
       throw new NotFoundException('Campaign not found');
     }
 
+    // Sanitize contacts: supports strings, objects with phone/phoneNumber/to, formats phones & deduplicates
+    let sanitizedContacts: { name: string; phone: string }[] = [];
+    if (Array.isArray(updateCampaignDto.contacts)) {
+      const seenPhones = new Set<string>();
+      for (const item of updateCampaignDto.contacts) {
+        if (!item) continue;
+        let rawPhone = '';
+        let rawName = '';
+        if (typeof item === 'string') {
+          rawPhone = item;
+          rawName = item;
+        } else if (typeof item === 'object') {
+          rawPhone = item.phone || item.phoneNumber || item.to || '';
+          rawName = item.name !== undefined && item.name !== null ? String(item.name).trim() : '';
+        }
+        if (!rawPhone) continue;
+        const formattedPhone = this.formatPhoneNumber(String(rawPhone).trim());
+        if (formattedPhone && !seenPhones.has(formattedPhone)) {
+          seenPhones.add(formattedPhone);
+          sanitizedContacts.push({
+            name: rawName || formattedPhone,
+            phone: formattedPhone
+          });
+        }
+      }
+    }
+
+    let settingsUpdate: any = {};
+    if (updateCampaignDto.templateName && updateCampaignDto.templateName !== campaign.templateName) {
+      const newSettings = await client.whatsAppSettings.findFirst({
+        where: { templateName: updateCampaignDto.templateName }
+      });
+      if (newSettings) {
+        settingsUpdate = { settingsId: newSettings.id };
+      }
+    }
+
     const scheduleType = updateCampaignDto.scheduleType || campaign.scheduleType;
     const status = scheduleType === 'time-based' ? 'scheduled' : 'draft';
+    const totalCount = updateCampaignDto.contacts !== undefined ? sanitizedContacts.length : campaign.totalCount;
 
-    const updatedCampaign = await client.campaign.update({
+    await client.campaign.update({
       where: { id },
       data: {
         name: updateCampaignDto.name || campaign.name,
         templateName: updateCampaignDto.templateName || campaign.templateName,
         parameters: updateCampaignDto.parameters !== undefined ? updateCampaignDto.parameters : (campaign.parameters || undefined),
-        totalCount: updateCampaignDto.contacts ? updateCampaignDto.contacts.length : campaign.totalCount,
+        totalCount,
+        successCount: 0,
+        failedCount: 0,
         scheduleType,
         scheduledDays: updateCampaignDto.scheduledDays !== undefined ? updateCampaignDto.scheduledDays : campaign.scheduledDays,
         scheduledTime: updateCampaignDto.scheduledTime !== undefined ? updateCampaignDto.scheduledTime : campaign.scheduledTime,
-        status
+        status,
+        ...settingsUpdate,
       }
     });
 
-    if (updateCampaignDto.contacts) {
+    if (updateCampaignDto.contacts !== undefined) {
       await client.campaignContact.deleteMany({
         where: { campaignId: id }
       });
 
-      await client.campaignContact.createMany({
-        data: updateCampaignDto.contacts.map((contact: any) => ({
-          name: contact.name,
-          phone: contact.phone,
-          campaignId: id
-        }))
+      if (sanitizedContacts.length > 0) {
+        await client.campaignContact.createMany({
+          data: sanitizedContacts.map((contact) => ({
+            name: contact.name,
+            phone: contact.phone,
+            campaignId: id
+          }))
+        });
+      }
+
+      // Also reset campaign messages so Campaign Results and rerun immediately match the updated contacts
+      await client.campaignMessage.deleteMany({
+        where: { campaignId: id }
       });
+
+      if (sanitizedContacts.length > 0) {
+        await client.campaignMessage.createMany({
+          data: sanitizedContacts.map((contact) => ({
+            campaignId: id,
+            phone: contact.phone,
+            name: contact.name || null,
+            status: 'queued'
+          })),
+          skipDuplicates: true
+        });
+      }
     }
 
     return this.getCampaign(id, userId);

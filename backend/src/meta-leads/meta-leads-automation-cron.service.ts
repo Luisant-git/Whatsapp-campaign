@@ -45,9 +45,14 @@ export class MetaLeadsAutomationCronService {
       );
       this.logger.debug(`Cron: found ${activeTenants.length} active tenant(s)`);
       for (const tenant of activeTenants) {
-        await this.runForTenant(String(tenant.id),
-          `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`
-        );
+        try {
+          await this.runForTenant(
+            String(tenant.id),
+            `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`
+          );
+        } catch (tenantErr: any) {
+          this.logger.error(`Error running meta leads automation for tenant ${tenant.id}:`, tenantErr?.message || tenantErr);
+        }
       }
     } catch (error) {
       this.logger.error('Failed to run meta leads automation cron', error);

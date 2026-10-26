@@ -21,11 +21,12 @@ export class CentralPrismaService
 
   constructor() {
     const rawUrl = process.env.CENTRAL_DATABASE_URL || '';
+    const defaultPool = process.env.CENTRAL_DB_POOL_LIMIT || '5';
     const poolUrl = rawUrl.includes('connection_limit')
       ? rawUrl
       : rawUrl.includes('?')
-        ? `${rawUrl}&connection_limit=10&pool_timeout=20`
-        : `${rawUrl}?connection_limit=10&pool_timeout=20`;
+        ? `${rawUrl}&connection_limit=${defaultPool}&pool_timeout=20`
+        : `${rawUrl}?connection_limit=${defaultPool}&pool_timeout=20`;
 
     super({
       log: ['error', 'warn'],
@@ -41,33 +42,15 @@ export class CentralPrismaService
       this.rejectReady = reject;
     });
 
-    // 🔥 Global Prisma crash handler
-    (this as any).$on('error', async (e: any) => {
-      this.logger.error('🔥 Prisma global error:', e);
-
-      this.readyPromise = new Promise<void>((resolve, reject) => {
-        this.resolveReady = resolve;
-        this.rejectReady = reject;
-      });
-
-      for (let retry = 1; retry <= 3; retry++) {
-        try {
-          this.logger.warn(`🔄 Attempting DB reconnection (${retry}/3)...`);
-          await this.$disconnect().catch(() => {});
-          await this.delay(1500 * retry);
-          await this.connectAndVerify();
-          this.logger.log('✅ Central DB reconnected successfully!');
-          return;
-        } catch (err) {
-          this.logger.error(`❌ Central DB reconnection attempt ${retry} failed:`, err);
-        }
+    try {
+      if (typeof (this as any).$on === 'function') {
+        (this as any).$on('error', async (e: any) => {
+          this.logger.error('🔥 Prisma central global error:', e?.message || e);
+        });
       }
-
-      this.logger.error(
-        '❌ Global recovery failed after 3 attempts. Exiting process to allow PM2 to restart fresh...',
-      );
-      process.exit(1);
-    });
+    } catch {
+      // Event emitter not active with string log levels
+    }
   }
 
   async onModuleInit() {
@@ -75,10 +58,11 @@ export class CentralPrismaService
   }
 
   async onModuleDestroy() {
-    await this.$disconnect();
+    this.logger.log('🛑 Disconnecting Central Prisma client...');
+    await this.$disconnect().catch(() => {});
   }
 
-  // ✅ Utility delay
+  // Utility delay
   private async delay(ms: number) {
     return new Promise((res) => setTimeout(res, ms));
   }
@@ -92,8 +76,8 @@ export class CentralPrismaService
   ): Promise<void> {
     try {
       await this.$connect();
-    } catch (err) {
-      this.logger.error('❌ Central DB $connect() failed:', err);
+    } catch (err: any) {
+      this.logger.error(`❌ Central DB $connect() failed: ${err?.message || err}`);
       this.rejectReady(err);
       throw err;
     }
@@ -119,7 +103,7 @@ export class CentralPrismaService
           );
           await this.delay(pingIntervalMs);
         } else {
-          this.logger.error('❌ DB ping failed:', pingErr);
+          this.logger.error(`❌ DB ping failed: ${pingErr?.message || pingErr}`);
           this.rejectReady(pingErr);
           throw pingErr;
         }
@@ -135,7 +119,7 @@ export class CentralPrismaService
   }
 
   /**
-   * Execute DB query with retry & auto-reconnect
+   * Execute DB query with retry on transient network errors
    */
   async executeWithRetry<T>(
     operation: (prisma: CentralPrismaService) => Promise<T>,
@@ -156,7 +140,7 @@ export class CentralPrismaService
         return this.executeWithRetry(operation, retries - 1);
       }
 
-      // 🔥 Detect ALL connection failures
+      // Detect connection failures
       const isConnectionTerminated =
         error?.message?.includes(
           'terminating connection due to administrator command',
@@ -188,18 +172,16 @@ export class CentralPrismaService
         });
 
         try {
-          await this.$disconnect();
-          await this.delay(1500);
-
+          await this.delay(1000);
           await this.connectAndVerify();
 
           this.logger.log('🔄 DB reconnected successfully');
           this.isReconnecting = false;
 
           return await operation(this);
-        } catch (reconnectError) {
+        } catch (reconnectError: any) {
           this.isReconnecting = false;
-          this.logger.error('❌ Reconnect failed:', reconnectError);
+          this.logger.error(`❌ Reconnect failed: ${reconnectError?.message || reconnectError}`);
           throw reconnectError;
         }
       }

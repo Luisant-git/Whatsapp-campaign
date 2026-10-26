@@ -6,9 +6,6 @@ import { WhatsappEcommerceService } from './whatsapp-ecommerce.service';
 import { ShoppingSessionService } from './shopping-session.service';
 import { MetaCatalogService } from './meta-catalog.service';
 import { RazorpayService } from './razorpay.service';
-import { PrismaService } from '../prisma.service';
-import { TenantPrismaService } from '../tenant-prisma.service';
-import { CentralPrismaService } from '../central-prisma.service';
 import { FlowMessageModule } from '../flow-message/flow-message.module';
 import { CustomerDetailsFlowModule } from '../customer-details-flow/customer-details-flow.module';
 import { NotificationModule } from '../notifications/notification.module';
@@ -16,7 +13,7 @@ import { NotificationModule } from '../notifications/notification.module';
 @Module({
   imports: [FlowMessageModule, CustomerDetailsFlowModule, NotificationModule],
   controllers: [EcommerceController, WebhookController],
-  providers: [EcommerceService, WhatsappEcommerceService, ShoppingSessionService, MetaCatalogService, RazorpayService, PrismaService, TenantPrismaService, CentralPrismaService],
+  providers: [EcommerceService, WhatsappEcommerceService, ShoppingSessionService, MetaCatalogService, RazorpayService],
   exports: [EcommerceService, WhatsappEcommerceService, MetaCatalogService],
 })
 export class EcommerceModule {}

@@ -1,14 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { TenantPrismaService } from '../tenant-prisma.service';
+import { CentralPrismaService } from '../central-prisma.service';
 import axios from 'axios';
-import { PrismaClient as CentralPrismaClient } from '@prisma/client-central';
 
 @Injectable()
 export class MetaLeadsService {
   private readonly logger = new Logger(MetaLeadsService.name);
-  private centralPrisma = new CentralPrismaClient();
 
-  constructor(private prisma: TenantPrismaService) { }
+  constructor(
+    private prisma: TenantPrismaService,
+    private centralPrisma: CentralPrismaService,
+  ) { }
 
   private async getClient(tenantId: string, dbUrl?: string) {
     const url = dbUrl || process.env.TENANT_DATABASE_URL || '';

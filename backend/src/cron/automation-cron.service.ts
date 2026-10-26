@@ -30,6 +30,7 @@ function getIstMonthDay(date = new Date()) {
 export class AutomationCronService {
   private readonly logger = new Logger(AutomationCronService.name);
   private isRunningRunDailyAutomation = false;
+  private isRunningDeleteOldCampaigns = false;
 
   constructor(
     private centralPrisma: CentralPrismaService,
@@ -41,11 +42,18 @@ export class AutomationCronService {
     timeZone: 'Asia/Kolkata',
   })
   async deleteOldCampaigns() {
+    if (this.isRunningDeleteOldCampaigns) {
+      this.logger.warn('deleteOldCampaigns is already running, skipping...');
+      return;
+    }
+
+    this.isRunningDeleteOldCampaigns = true;
     this.logger.log('Starting old campaign cleanup job...');
-  
-    const tenants = await this.centralPrisma.tenant.findMany({
-      where: { isActive: true },
-    });
+
+    try {
+      const tenants = await this.centralPrisma.tenant.findMany({
+        where: { isActive: true },
+      });
   
     for (const tenant of tenants) {
       try {
@@ -66,6 +74,9 @@ export class AutomationCronService {
           error?.message || error,
         );
       }
+    }
+    } finally {
+      this.isRunningDeleteOldCampaigns = false;
     }
   }
 
@@ -129,15 +140,22 @@ export class AutomationCronService {
         where: { isActive: true },
       });
   
-    for (const tenant of tenants) {
-      const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-      const tenantClient = this.tenantPrisma.getTenantClient(
-        tenant.id.toString(),
-        dbUrl,
-      );
-  
-      await this.runForTenant(tenantClient, tenant.id, tenant.dbName);
-    }
+      for (const tenant of tenants) {
+        try {
+          const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+          const tenantClient = this.tenantPrisma.getTenantClient(
+            tenant.id.toString(),
+            dbUrl,
+          );
+
+          await this.runForTenant(tenantClient, tenant.id, tenant.dbName);
+        } catch (tenantError: any) {
+          this.logger.error(
+            `Error processing daily automation for tenant ${tenant.id} (${tenant.dbName}):`,
+            tenantError?.message || tenantError,
+          );
+        }
+      }
     } finally {
       this.isRunningRunDailyAutomation = false;
     }

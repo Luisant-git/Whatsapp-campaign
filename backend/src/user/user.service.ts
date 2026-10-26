@@ -1,6 +1,6 @@
 import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { CentralPrismaService } from '../central-prisma.service';
-import { PrismaClient as TenantPrisma } from '@prisma/client-tenant';
+import { TenantPrismaService } from '../tenant-prisma.service';
 import { execSync } from 'child_process';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -9,7 +9,10 @@ import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UserService {
-  constructor(private centralPrisma: CentralPrismaService) {}
+  constructor(
+    private centralPrisma: CentralPrismaService,
+    private tenantPrisma: TenantPrismaService,
+  ) {}
 
   async register(createUserDto: CreateUserDto) {
     const existingUser = await this.centralPrisma.tenant.findUnique({
@@ -227,14 +230,10 @@ export class UserService {
       let tenantConfig: any = {};
       try {
         const tenantDbUrl = `postgresql://${domainTenant.dbUser}:${domainTenant.dbPassword}@${domainTenant.dbHost}:${domainTenant.dbPort}/${domainTenant.dbName}`;
-        const tenantPrisma = new TenantPrisma({
-          datasources: { db: { url: tenantDbUrl } },
-        });
-        await tenantPrisma.$connect();
-        tenantConfig = (await tenantPrisma.tenantConfig.findFirst()) || {};
-        await tenantPrisma.$disconnect();
-      } catch (err) {
-        console.error('Error fetching tenant config:', err);
+        const client = this.tenantPrisma.getTenantClient(String(domainTenant.id), tenantDbUrl);
+        tenantConfig = (await client.tenantConfig.findFirst()) || {};
+      } catch (err: any) {
+        console.error('Error fetching tenant config:', err?.message || err);
       }
 
       // Get menu permissions from subscription plan
@@ -314,14 +313,10 @@ export class UserService {
     let tenantConfig: any = {};
     try {
       const tenantDbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-      const tenantPrisma = new TenantPrisma({
-        datasources: { db: { url: tenantDbUrl } },
-      });
-      await tenantPrisma.$connect();
-      tenantConfig = (await tenantPrisma.tenantConfig.findFirst()) || {};
-      await tenantPrisma.$disconnect();
-    } catch (err) {
-      console.error('Error fetching tenant config:', err);
+      const client = this.tenantPrisma.getTenantClient(String(tenant.id), tenantDbUrl);
+      tenantConfig = (await client.tenantConfig.findFirst()) || {};
+    } catch (err: any) {
+      console.error('Error fetching tenant config:', err?.message || err);
     }
   
     // Get menu permissions from subscription plan's menuPermissions array

@@ -3,14 +3,18 @@ import { CreateAdminDto } from './dto/create-admin.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { LoginAdminDto } from './dto/login-admin.dto';
 import { CentralPrismaService } from '../central-prisma.service';
+import { TenantPrismaService } from '../tenant-prisma.service';
 import * as bcrypt from 'bcrypt';
-import { CreateUserDto } from 'src/user/dto/create-user.dto';
-import { UpdateUserDto } from 'src/user/dto/update-user.dto';
+import { CreateUserDto } from '../user/dto/create-user.dto';
+import { UpdateUserDto } from '../user/dto/update-user.dto';
 import { CreateSubUserDto } from './dto/create-subuser.dto';
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: CentralPrismaService) { }
+  constructor(
+    private prisma: CentralPrismaService,
+    private tenantPrisma: TenantPrismaService,
+  ) { }
 
   async register(createAdminDto: CreateAdminDto) {
     const { email, name, password } = createAdminDto;
@@ -122,70 +126,73 @@ export class AdminService {
       },
     });
 
-    const { PrismaClient } = require('@prisma/client-tenant');
+    const usersWithConfig: any[] = [];
+    const batchSize = 5;
 
-    const usersWithConfig = await Promise.all(
-      tenants.map(async (tenant) => {
-        try {
-          const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-          const tenantPrisma = new PrismaClient({
-            datasources: { db: { url: dbUrl } },
-          });
+    for (let i = 0; i < tenants.length; i += batchSize) {
+      const batch = tenants.slice(i, i + batchSize);
+      const batchResults = await Promise.all(
+        batch.map(async (tenant) => {
+          try {
+            const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+            const tenantPrisma = this.tenantPrisma.getTenantClient(
+              String(tenant.id),
+              dbUrl,
+            );
+            const config = await tenantPrisma.tenantConfig.findFirst();
 
-          await tenantPrisma.$connect();
-          const config = await tenantPrisma.tenantConfig.findFirst();
-          await tenantPrisma.$disconnect();
+            return {
+              // keep all tenant fields
+              id: tenant.id,
+              email: tenant.email,
+              name: tenant.name,
+              companyName: tenant.companyName,
+              contactPersonName: tenant.contactPersonName,
+              phoneNumber: tenant.phoneNumber,
+              companyAddress: tenant.companyAddress,
+              city: tenant.city,
+              pincode: tenant.pincode,
+              state: tenant.state,
+              country: tenant.country,
+              subscriptionId: tenant.subscriptionId,
+              subscriptionStartDate: tenant.subscriptionStartDate,
+              subscriptionEndDate: tenant.subscriptionEndDate,
+              subscription: tenant.subscription,
+              isActive: tenant.isActive,
+              createdAt: tenant.createdAt,
 
-          return {
-            // keep all tenant fields
-            id: tenant.id,
-            email: tenant.email,
-            name: tenant.name,
-            companyName: tenant.companyName,
-            contactPersonName: tenant.contactPersonName,
-            phoneNumber: tenant.phoneNumber,
-            companyAddress: tenant.companyAddress,
-            city: tenant.city,
-            pincode: tenant.pincode,
-            state: tenant.state,
-            country: tenant.country,
-            subscriptionId: tenant.subscriptionId,
-            subscriptionStartDate: tenant.subscriptionStartDate,
-            subscriptionEndDate: tenant.subscriptionEndDate,
-            subscription: tenant.subscription,
-            isActive: tenant.isActive,
-            createdAt: tenant.createdAt,
-
-            // add config-based fields
-            aiChatbotEnabled: config?.aiChatbotEnabled || false,
-            useQuickReply: config?.useQuickReply !== false,
-          };
-        } catch (error) {
-          console.error(`Error fetching config for tenant ${tenant.id}:`, error);
-          return {
-            id: tenant.id,
-            email: tenant.email,
-            name: tenant.name,
-            companyName: tenant.companyName,
-            contactPersonName: tenant.contactPersonName,
-            phoneNumber: tenant.phoneNumber,
-            companyAddress: tenant.companyAddress,
-            city: tenant.city,
-            pincode: tenant.pincode,
-            state: tenant.state,
-            country: tenant.country,
-            subscriptionId: tenant.subscriptionId,
-            subscriptionStartDate: tenant.subscriptionStartDate,
-            subscriptionEndDate: tenant.subscriptionEndDate,
-            subscription: tenant.subscription,
-            isActive: tenant.isActive,
-            createdAt: tenant.createdAt,
-            aiChatbotEnabled: false,
-            useQuickReply: true,
-          };
-        }
-      }),
-    );
+              // add config-based fields
+              aiChatbotEnabled: config?.aiChatbotEnabled || false,
+              useQuickReply: config?.useQuickReply !== false,
+            };
+          } catch (error: any) {
+            console.error(`Error fetching config for tenant ${tenant.id}:`, error?.message || error);
+            return {
+              id: tenant.id,
+              email: tenant.email,
+              name: tenant.name,
+              companyName: tenant.companyName,
+              contactPersonName: tenant.contactPersonName,
+              phoneNumber: tenant.phoneNumber,
+              companyAddress: tenant.companyAddress,
+              city: tenant.city,
+              pincode: tenant.pincode,
+              state: tenant.state,
+              country: tenant.country,
+              subscriptionId: tenant.subscriptionId,
+              subscriptionStartDate: tenant.subscriptionStartDate,
+              subscriptionEndDate: tenant.subscriptionEndDate,
+              subscription: tenant.subscription,
+              isActive: tenant.isActive,
+              createdAt: tenant.createdAt,
+              aiChatbotEnabled: false,
+              useQuickReply: true,
+            };
+          }
+        }),
+      );
+      usersWithConfig.push(...batchResults);
+    }
 
     return usersWithConfig;
   }
@@ -335,32 +342,24 @@ export class AdminService {
       throw new Error('Tenant not found');
     }
 
-    // Connect to tenant database
-    const { PrismaClient } = require('@prisma/client-tenant');
     const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-    const tenantPrisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+    const tenantPrisma = this.tenantPrisma.getTenantClient(String(tenant.id), dbUrl);
 
-    try {
-      await tenantPrisma.$connect();
+    // Get or create tenant config
+    const config = await tenantPrisma.tenantConfig.findFirst();
 
-      // Get or create tenant config
-      const config = await tenantPrisma.tenantConfig.findFirst();
-
-      if (config) {
-        await tenantPrisma.tenantConfig.update({
-          where: { id: config.id },
-          data: { aiChatbotEnabled: !config.aiChatbotEnabled },
-        });
-      } else {
-        await tenantPrisma.tenantConfig.create({
-          data: { aiChatbotEnabled: true },
-        });
-      }
-
-      return { message: 'AI Chatbot toggled successfully' };
-    } finally {
-      await tenantPrisma.$disconnect();
+    if (config) {
+      await tenantPrisma.tenantConfig.update({
+        where: { id: config.id },
+        data: { aiChatbotEnabled: !config.aiChatbotEnabled },
+      });
+    } else {
+      await tenantPrisma.tenantConfig.create({
+        data: { aiChatbotEnabled: true },
+      });
     }
+
+    return { message: 'AI Chatbot toggled successfully' };
   }
 
   async toggleUserQuickReply(userId: number) {
@@ -370,32 +369,24 @@ export class AdminService {
       throw new Error('Tenant not found');
     }
 
-    // Connect to tenant database
-    const { PrismaClient } = require('@prisma/client-tenant');
     const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-    const tenantPrisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+    const tenantPrisma = this.tenantPrisma.getTenantClient(String(tenant.id), dbUrl);
 
-    try {
-      await tenantPrisma.$connect();
+    // Get or create tenant config
+    const config = await tenantPrisma.tenantConfig.findFirst();
 
-      // Get or create tenant config
-      const config = await tenantPrisma.tenantConfig.findFirst();
-
-      if (config) {
-        await tenantPrisma.tenantConfig.update({
-          where: { id: config.id },
-          data: { useQuickReply: !config.useQuickReply },
-        });
-      } else {
-        await tenantPrisma.tenantConfig.create({
-          data: { useQuickReply: true },
-        });
-      }
-
-      return { message: 'Quick Reply toggled successfully' };
-    } finally {
-      await tenantPrisma.$disconnect();
+    if (config) {
+      await tenantPrisma.tenantConfig.update({
+        where: { id: config.id },
+        data: { useQuickReply: !config.useQuickReply },
+      });
+    } else {
+      await tenantPrisma.tenantConfig.create({
+        data: { useQuickReply: true },
+      });
     }
+
+    return { message: 'Quick Reply toggled successfully' };
   }
 
 

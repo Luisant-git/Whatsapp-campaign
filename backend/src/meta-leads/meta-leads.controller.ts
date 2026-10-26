@@ -1,8 +1,27 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, Req, UseInterceptors, UploadedFile, Delete, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  Query,
+  Req,
+  UseInterceptors,
+  UploadedFile,
+  Delete,
+  UnauthorizedException,
+  ForbiddenException,
+  NotFoundException,
+  UseGuards,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MetaLeadsService } from './meta-leads.service';
 import { MetaLeadsAutomationCronService } from './meta-leads-automation-cron.service';
 import { getAllowedSendingWindowInfo } from '../utils/campaign-window.util';
+import { CentralPrismaService } from '../central-prisma.service';
+import { TenantPrismaService } from '../tenant-prisma.service';
+import { SessionGuard } from '../auth/session.guard';
 import csv from 'csv-parser';
 import * as crypto from 'crypto';
 
@@ -11,6 +30,8 @@ export class MetaLeadsController {
   constructor(
     private readonly metaLeadsService: MetaLeadsService,
     private readonly automationCronService: MetaLeadsAutomationCronService,
+    private readonly centralPrisma: CentralPrismaService,
+    private readonly tenantPrisma: TenantPrismaService,
   ) { }
 
   @Get('sending-window')
@@ -30,14 +51,10 @@ export class MetaLeadsController {
     // Fallback: manually resolve tenant from header
     const tenantHeader = req.headers['x-tenant-id'];
     if (!tenantHeader) {
-      throw new Error('x-tenant-id header is required');
+      throw new UnauthorizedException('x-tenant-id header is required');
     }
 
-    // Import CentralPrismaService to look up tenant
-    const { CentralPrismaService } = require('../central-prisma.service');
-    const centralPrisma = new CentralPrismaService();
-
-    const tenant = await centralPrisma.executeWithRetry((prisma) =>
+    const tenant = await this.centralPrisma.executeWithRetry((prisma) =>
       prisma.tenant.findFirst({
         where: {
           OR: [
@@ -51,7 +68,7 @@ export class MetaLeadsController {
     );
 
     if (!tenant) {
-      throw new Error(`Tenant not found for: ${tenantHeader}`);
+      throw new NotFoundException(`Tenant not found for: ${tenantHeader}`);
     }
 
     const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
@@ -515,50 +532,52 @@ export class MetaLeadsController {
     }
   }
 
-  // ── Manual trigger / debug endpoint ──────────────────────────────────────
-  // Call GET /meta-leads/automation-run-now?tenantId=YOUR_TENANT_ID
-  // This bypasses session auth — tenantId from the query param is used directly.
-  // Remove or restrict this endpoint after debugging.
+  // ── Manual trigger endpoint with authentication & authorization ──────────
+  // GET /meta-leads/automation-run-now?tenantId=YOUR_TENANT_ID
   @Get('automation-run-now')
+  @UseGuards(SessionGuard)
   async runAutomationNow(@Req() req: any, @Query('tenantId') tenantIdParam?: string) {
     try {
-      let tenantId: string;
-      let dbUrl: string;
+      const sessionTenantId = req.session?.tenantId ? String(req.session.tenantId) : null;
+      const isAdmin = req.session?.userType === 'admin';
 
+      let targetTenantId = sessionTenantId;
       if (tenantIdParam) {
-        // Direct debug path: look up tenant by ID without needing a session
-        const { CentralPrismaService } = require('../central-prisma.service');
-        const cp = new CentralPrismaService();
-        const tenant = await cp.executeWithRetry((p: any) =>
-          p.tenant.findFirst({ where: { id: Number(tenantIdParam), isActive: true } })
-        );
-        if (!tenant) return { ok: false, error: `Tenant ${tenantIdParam} not found or inactive` };
-        tenantId = String(tenant.id);
-        dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-      } else {
-        // Normal path: use session/header
-        const ctx = await this.getTenantContext(req);
-        tenantId = ctx.tenantId;
-        dbUrl = ctx.dbUrl;
+        if (!isAdmin && sessionTenantId !== String(tenantIdParam)) {
+          throw new ForbiddenException('Cannot run automation for other tenants');
+        }
+        targetTenantId = String(tenantIdParam);
       }
+
+      if (!targetTenantId) {
+        throw new UnauthorizedException('Tenant context not found in session');
+      }
+
+      const tenant: any = await this.centralPrisma.executeWithRetry((p: any) =>
+        p.tenant.findFirst({ where: { id: Number(targetTenantId), isActive: true } })
+      );
+      if (!tenant) return { ok: false, error: `Tenant ${targetTenantId} not found or inactive` };
+
+      const tenantId = String(tenant.id);
+      const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
 
       const result = await this.automationCronService.runForTenant(tenantId, dbUrl);
       return { ok: true, tenantId, ...result };
-    } catch (error) {
-      return { ok: false, error: error.message || String(error) };
+    } catch (error: any) {
+      return { ok: false, error: error?.message || String(error) };
     }
   }
 
   // ── Safely resume stuck automation for a group ───────────────────────────
   // GET /meta-leads/automation-resume-stuck?groupId=5
   @Get('automation-resume-stuck')
+  @UseGuards(SessionGuard)
   async resumeStuckAutomation(@Req() req: any, @Query('groupId') groupId: string) {
     try {
       const { tenantId, dbUrl } = await this.getTenantContext(req);
       if (!groupId) return { ok: false, error: 'groupId query param is required' };
 
-      const client = await (this.automationCronService as any).tenantPrisma
-        .getTenantClientReady(tenantId, dbUrl);
+      const client = await this.tenantPrisma.getTenantClientReady(tenantId, dbUrl);
 
       const gid = parseInt(groupId);
       if (isNaN(gid)) return { ok: false, error: 'groupId must be a number' };
@@ -572,21 +591,21 @@ export class MetaLeadsController {
       });
 
       return { ok: true, message: 'Successfully resumed stuck automation. Missing steps will send within 1 minute.' };
-    } catch (error) {
-      return { ok: false, error: error.message || String(error) };
+    } catch (error: any) {
+      return { ok: false, error: error?.message || String(error) };
     }
   }
 
   // ── Reset automation progress for a group ────────────────────────────────
   // GET /meta-leads/automation-reset-group?groupId=5
   @Get('automation-reset-group')
+  @UseGuards(SessionGuard)
   async resetGroupAutomation(@Req() req: any, @Query('groupId') groupId: string) {
     try {
       const { tenantId, dbUrl } = await this.getTenantContext(req);
       if (!groupId) return { ok: false, error: 'groupId query param is required' };
 
-      const client = await (this.automationCronService as any).tenantPrisma
-        .getTenantClientReady(tenantId, dbUrl);
+      const client = await this.tenantPrisma.getTenantClientReady(tenantId, dbUrl);
 
       const gid = parseInt(groupId);
       if (isNaN(gid)) return { ok: false, error: 'groupId must be a number' };
@@ -595,9 +614,6 @@ export class MetaLeadsController {
       const before = await client.contact.count({ where: { groupId: gid } });
 
       // Reset step counter and clear sent timestamp.
-      // We MUST also update `createdAt: new Date()` because:
-      // 1. It bypasses the `createdAt >= earliestCreatedAt` historical filter.
-      // 2. The delay timer is absolute from `createdAt`, so bumping it makes the delays run properly from NOW.
       const updated = await client.contact.updateMany({
         where: { groupId: gid },
         data: { lastAutomationStep: 0, isAutomationSent: false, automationSentAt: null, createdAt: new Date() },
@@ -622,21 +638,19 @@ export class MetaLeadsController {
         contactsAfterReset: contacts,
         message: `Reset ${updated.count} contact(s). Run automation-run-now to fire immediately.`,
       };
-    } catch (error) {
-      return { ok: false, error: error.message || String(error) };
+    } catch (error: any) {
+      return { ok: false, error: error?.message || String(error) };
     }
   }
 
   // ── Clean up duplicate chats caused by + prefix phone mismatch ──────────
   // GET /meta-leads/automation-cleanup-chats
-  // Normalizes all WhatsAppMessage.from values to digits-only format,
-  // eliminating duplicate chat entries caused by mixed phone formats.
   @Get('automation-cleanup-chats')
+  @UseGuards(SessionGuard)
   async cleanupDuplicateChats(@Req() req: any) {
     try {
       const { tenantId, dbUrl } = await this.getTenantContext(req);
-      const client = await (this.automationCronService as any).tenantPrisma
-        .getTenantClientReady(tenantId, dbUrl);
+      const client = await this.tenantPrisma.getTenantClientReady(tenantId, dbUrl);
 
       // 1. Delete messages where "from" starts with "+" (duplicates from old automation)
       const withPlus = await client.whatsAppMessage.findMany({

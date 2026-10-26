@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { PrismaClient as CentralPrismaClient } from '@prisma/client-central';
+import { CentralPrismaService } from '../central-prisma.service';
 import { TenantPrismaService } from '../tenant-prisma.service';
 import { MetaLeadsService } from './meta-leads.service';
 import { MetaConfigService } from './meta-config.service';
@@ -8,9 +8,10 @@ import { MetaConfigService } from './meta-config.service';
 @Injectable()
 export class MetaLeadsCronService {
   private readonly logger = new Logger(MetaLeadsCronService.name);
-  private centralPrisma = new CentralPrismaClient();
+  private isRunning = false;
 
   constructor(
+    private centralPrisma: CentralPrismaService,
     private tenantPrisma: TenantPrismaService,
     private metaLeadsService: MetaLeadsService,
     private metaConfigService: MetaConfigService,
@@ -18,6 +19,12 @@ export class MetaLeadsCronService {
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { timeZone: 'Asia/Kolkata' })
   async handleDailyMetaSync() {
+    if (this.isRunning) {
+      this.logger.warn('Daily Meta Leads sync is already running, skipping...');
+      return;
+    }
+
+    this.isRunning = true;
     this.logger.log('Starting daily Meta Leads sync...');
 
     try {
@@ -65,6 +72,8 @@ export class MetaLeadsCronService {
       this.logger.log('Finished daily Meta Leads sync for all active tenants.');
     } catch (error) {
       this.logger.error('Error during daily Meta Leads sync cron job:', error);
+    } finally {
+      this.isRunning = false;
     }
   }
 }

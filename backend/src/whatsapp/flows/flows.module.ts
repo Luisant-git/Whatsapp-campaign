@@ -5,8 +5,6 @@ import { FeedbackFlowHandler } from './feedback.flow';
 import { LeadFlowHandler } from './lead.flow';
 import { CustomerDetailsFlowHandler } from './customer-details.flow';
 import { FlowAppointmentModule } from '../../flow-appointment/flow-appointment.module';
-import { TenantPrismaService } from '../../tenant-prisma.service';
-import { CentralPrismaService } from '../../central-prisma.service';
 
 @Module({
   imports: [FlowAppointmentModule],
@@ -16,8 +14,6 @@ import { CentralPrismaService } from '../../central-prisma.service';
     FeedbackFlowHandler,
     LeadFlowHandler,
     CustomerDetailsFlowHandler,
-    TenantPrismaService,
-    CentralPrismaService,
   ],
   exports: [
     FlowManagerService,

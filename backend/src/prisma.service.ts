@@ -17,7 +17,7 @@ export class PrismaService {
   }
 
   private initializeClient() {
-    const tenantContext = this.request.tenantContext;
+    const tenantContext = this.request?.tenantContext;
 
     if (tenantContext) {
       // Use tenant-specific database from middleware
@@ -27,7 +27,7 @@ export class PrismaService {
       );
       console.log(`PrismaService initialized for tenant: ${tenantContext.tenantId}`);
     } else {
-      console.warn('PrismaService initialized without tenant context. Session:', this.request.session?.userId);
+      console.warn('PrismaService initialized without tenant context. Session:', this.request?.session?.userId);
     }
   }
 

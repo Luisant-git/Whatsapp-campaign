@@ -19,7 +19,10 @@ describe('MetaCredentialService', () => {
     return iv.toString('hex') + ':' + encrypted.toString('hex');
   }
 
+  const oldMetaSource = process.env.META_CREDENTIAL_SOURCE;
+
   beforeEach(async () => {
+    process.env.META_CREDENTIAL_SOURCE = 'CENTRAL';
     prismaService = {
       tenant: { findUnique: jest.fn() },
       metaConnection: { findMany: jest.fn() }
@@ -44,6 +47,7 @@ describe('MetaCredentialService', () => {
   });
 
   afterEach(() => {
+    process.env.META_CREDENTIAL_SOURCE = oldMetaSource;
     jest.clearAllMocks();
   });
 

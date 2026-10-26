@@ -4,8 +4,8 @@ import { CreateAdminDto } from './dto/create-admin.dto';
 import { LoginAdminDto } from './dto/login-admin.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { CreateUserDto } from 'src/user/dto/create-user.dto';
-import { UpdateUserDto } from 'src/user/dto/update-user.dto';
+import { CreateUserDto } from '../user/dto/create-user.dto';
+import { UpdateUserDto } from '../user/dto/update-user.dto';
 import { CreateSubUserDto } from './dto/create-subuser.dto';
 
 @ApiTags('Admin')

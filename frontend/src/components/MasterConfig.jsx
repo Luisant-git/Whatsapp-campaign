@@ -643,7 +643,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
   };
 
   const submitSetWebhook = async () => {
-    const DEFAULT_URL = 'https://whatsapp.api.luisant.cloud/whatsapp/webhook';
+    const DEFAULT_URL = `${API_BASE_URL}/whatsapp/webhook`;
     const cleanUrl = callbackUrl ? callbackUrl.trim() : '';
     const finalUrl = cleanUrl || DEFAULT_URL;
 
@@ -2113,7 +2113,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                     <div style={{ padding: '10px 12px', background: '#f0f7ff', borderRadius: '6px', fontSize: '12px', color: '#475569', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ color: '#94a3b8' }}>Default URL:</span>
                       <code style={{ color: '#1877F2', fontWeight: '600' }}>
-                        https://whatsapp.api.luisant.cloud/whatsapp/webhook
+                        {`${API_BASE_URL}/whatsapp/webhook`}
                       </code>
                     </div>
                   </div>
@@ -2172,7 +2172,7 @@ const MasterConfig = ({ tenantId: propTenantId }) => {
                       <Facebook size={16} />
                       {settingWebhook
                         ? 'Saving...'
-                        : (callbackUrl && callbackUrl.trim() && callbackUrl.trim() !== 'https://whatsapp.api.luisant.cloud/whatsapp/webhook'
+                        : (callbackUrl && callbackUrl.trim() && callbackUrl.trim() !== `${API_BASE_URL}/whatsapp/webhook`
                             ? 'Set Custom Meta Webhook'
                             : 'Save Meta Webhook (Use Main URL)')}
                     </button>

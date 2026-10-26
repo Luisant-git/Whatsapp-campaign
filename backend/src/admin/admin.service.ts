@@ -728,7 +728,7 @@ async getSubUserById(id: number) {
 
     return {
       tenants,
-      primaryDomain: 'whatsapp.luisant.cloud',
+      primaryDomain: process.env.PRIMARY_DOMAIN || 'app.whasuite360.in',
     };
   }
 

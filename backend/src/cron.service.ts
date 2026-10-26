@@ -18,7 +18,7 @@ export class CronService {
   constructor(
     private centralPrisma: CentralPrismaService,
     private tenantPrisma: TenantPrismaService,
-  ) {}
+  ) { }
 
   @Cron('*/30 * * * * *', { timeZone: 'Asia/Kolkata' })
   async handleCron() {

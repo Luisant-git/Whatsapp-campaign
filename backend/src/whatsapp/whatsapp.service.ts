@@ -11,6 +11,13 @@ import { PhoneRouterService } from './phone-router.service';
 import { FlowTriggerService } from '../flow-message/flow-trigger.service';
 import { MetaCredentialService, isCentralMetaCredentialEnabled } from '../meta-credential/meta-credential.service';
 import { isWithinAllowedSendingHours } from '../utils/campaign-window.util';
+import {
+  groupAutomationRules,
+  getAutomationSequenceKey,
+  getMetaLeadTargetSequenceKey,
+  isMetaLeadEligibleForSequence,
+} from '../utils/automation-sequence.util';
+import { acquireAutomationTenantLock } from '../utils/automation-sequence-lock.util';
 
 const globalGrievanceSessions = new Map<string, { step: string; type: string; location?: string; description?: string; photos: string[]; timestamp: number }>();
 
@@ -1561,6 +1568,7 @@ export class WhatsappService {
     const messageId = message.id;
     let text = message.text?.body;
     let buttonClicked: string | null = null;
+    let isProceedNextClick = false;
 
     // 🔥 CRITICAL: Handle button clicks from templates FIRST (before any other processing)
     if (message.type === 'button' && message.button) {
@@ -1568,14 +1576,17 @@ export class WhatsappService {
       const buttonText = message.button.text;
       text = buttonText || buttonPayload; // Use button text or payload
       buttonClicked = `🔘 Button: ${buttonText}`;
+      isProceedNextClick = this.isProceedNextButton(buttonText, buttonPayload);
       this.logger.log(`🔘 Template button clicked: ${buttonText} (Payload: ${buttonPayload})`);
     }
 
     // Handle interactive button clicks
     if (message.type === 'interactive' && message.interactive?.type === 'button_reply') {
       const buttonTitle = message.interactive.button_reply.title;
+      const buttonPayload = message.interactive.button_reply.id;
       text = buttonTitle;
       buttonClicked = `🔘 Button: ${buttonTitle}`;
+      isProceedNextClick = this.isProceedNextButton(buttonTitle, buttonPayload);
       this.logger.log(`🔘 Interactive button clicked: ${buttonTitle}`);
     }
 
@@ -1749,6 +1760,28 @@ export class WhatsappService {
       username
     );
     this.logger.log(`✓ Message stored successfully`);
+
+    if (isProceedNextClick) {
+      let handled = false;
+      try {
+        handled = await this.handleProceedNextClick(
+          tenantId,
+          tenantClient,
+          dbUrl,
+          from,
+          message.context?.id,
+        );
+      } catch (error: any) {
+        this.logger.error(
+          `Proceed Next handling failed for ${from}: ${error?.message || error}`,
+        );
+      }
+      if (handled) {
+        // This click belongs to a Campaign Automation sequence; do not let it
+        // fall through to the quick-reply/chatbot handlers.
+        return;
+      }
+    }
 
     // ---------------- GRIEVANCE CHATBOT LOGIC ----------------
     const grievanceTypes = [
@@ -3280,6 +3313,691 @@ export class WhatsappService {
     }
 
     return null;
+  }
+
+  // The initial acknowledgement template intentionally has no "Proceed Next"
+  // button. Clicks that still arrive from it are ignored.
+  private static readonly PROCEED_NEXT_EXCLUDED_TEMPLATES = new Set([
+    'instant_acknowledgement_v1',
+  ]);
+  private static readonly inFlightProceedNext = new Set<string>();
+
+  private isProceedNextButton(
+    text?: string | null,
+    payload?: string | null,
+  ): boolean {
+    const normalize = (value?: string | null) =>
+      String(value || '')
+        .toLowerCase()
+        .replace(/[_-]+/g, ' ')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const candidates = [normalize(text), normalize(payload)].filter(Boolean);
+    return candidates.some(
+      (value) =>
+        value === 'proceed next' ||
+        value.replace(/\s+/g, '') === 'proceednext' ||
+        value === 'proceed further' ||
+        value.replace(/\s+/g, '') === 'proceedfurther',
+    );
+  }
+
+  private buildAutomationPhoneVariants(rawPhone: string): string[] {
+    const raw = String(rawPhone || '').trim();
+    const digits = raw.replace(/[^0-9]/g, '');
+    const formatted = this.formatPhoneNumber(raw);
+    const variants = new Set<string>();
+
+    if (raw) variants.add(raw);
+    if (digits) {
+      variants.add(digits);
+      variants.add(`+${digits}`);
+      if (digits.length > 10) {
+        const lastTen = digits.slice(-10);
+        variants.add(lastTen);
+        variants.add(`+${lastTen}`);
+      }
+      if (digits.length === 12 && digits.startsWith('91')) {
+        variants.add(digits.slice(2));
+      }
+    }
+    if (formatted) variants.add(formatted);
+
+    return Array.from(variants).filter(Boolean);
+  }
+
+  private getSequenceEarliestCreatedAt(rules: any[]): number {
+    const times = rules
+      .map((rule) => new Date(rule?.createdAt).getTime())
+      .filter((time) => Number.isFinite(time));
+    return times.length ? Math.min(...times) : 0;
+  }
+
+  private async getAutomationStopPhones(
+    tenantClient: any,
+  ): Promise<Set<string>> {
+    try {
+      const stopLabels = await tenantClient.chatLabel.findMany({
+        where: { labels: { hasSome: ['Stop', 'stop'] } },
+        select: { phone: true },
+      });
+      return new Set(
+        stopLabels
+          .map((label: any) =>
+            String(label.phone || '').replace(/[^0-9]/g, ''),
+          )
+          .filter(Boolean),
+      );
+    } catch (error: any) {
+      this.logger.warn(
+        `Proceed Next: could not query STOP labels: ${error?.message || error}`,
+      );
+      return new Set();
+    }
+  }
+
+  /**
+   * Pick the one automation sequence that is currently active for this phone.
+   *
+   * The most recent successfully sent template is used as the anchor so a
+   * customer with multiple Meta leads (different campaigns) only continues the
+   * sequence that actually sent the message whose button was clicked.
+   */
+  private async findActiveAutomationSequence(
+    tenantClient: any,
+    rawPhone: string,
+    contextMessageId?: string | null,
+  ): Promise<{
+    recordType: 'contact' | 'metaLead';
+    record: any;
+    rules: any[];
+    sequenceKey: string;
+  } | null> {
+    let clickedTemplateName: string | null = null;
+    if (contextMessageId) {
+      try {
+        const clickedMsg = await tenantClient.whatsAppMessage.findUnique({
+          where: { messageId: contextMessageId },
+          select: { message: true },
+        });
+        if (clickedMsg?.message) {
+          const match =
+            clickedMsg.message.match(/^Template\s+([^\s:]+)\s+sent/i) ||
+            clickedMsg.message.match(/^Template\s+sent:\s*([^\s\n:]+)/i);
+          if (match?.[1]) {
+            clickedTemplateName = match[1].trim();
+          }
+        }
+      } catch (lookupErr: any) {
+        this.logger.warn(
+          `Proceed Next: could not look up clicked message ${contextMessageId}: ${lookupErr?.message || lookupErr}`,
+        );
+      }
+    }
+
+    const activeRules = await tenantClient.metaLeadAutomation.findMany({
+      where: { isActive: true },
+      orderBy: [{ delayMinutes: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+    });
+    if (!activeRules.length) {
+      return null;
+    }
+
+    const sequences = groupAutomationRules(activeRules);
+    const phoneVariants = this.buildAutomationPhoneVariants(rawPhone);
+    const digits = String(rawPhone || '').replace(/[^0-9]/g, '');
+    const lastTenDigits = digits.length >= 10 ? digits.slice(-10) : '';
+    const stopPhones = await this.getAutomationStopPhones(tenantClient);
+
+    const candidates: Array<{
+      recordType: 'contact' | 'metaLead';
+      record: any;
+      rules: any[];
+      sequenceKey: string;
+      latestSentAt: number;
+      stepConsistency: number;
+      specificity: number;
+    }> = [];
+
+    let contacts = await tenantClient.contact.findMany({
+      where: { phone: { in: phoneVariants } },
+    });
+    if (!contacts.length && lastTenDigits) {
+      // Fallback for imported phones stored with spaces or other formatting.
+      contacts = await tenantClient.contact.findMany({
+        where: { phone: { contains: lastTenDigits } },
+      });
+    }
+
+    for (const contact of contacts) {
+      if (contact.groupId == null) continue;
+      if (
+        stopPhones.has(String(contact.phone || '').replace(/[^0-9]/g, ''))
+      ) {
+        continue;
+      }
+
+      const sequenceKey = getAutomationSequenceKey({
+        targetType: 'contact_group',
+        campaignName: null,
+        groupId: contact.groupId,
+      });
+      const rules = sequences.get(sequenceKey);
+      if (!rules?.length) continue;
+
+      const earliestCreatedAt = this.getSequenceEarliestCreatedAt(rules);
+      if (
+        earliestCreatedAt > 0 &&
+        new Date(contact.createdAt).getTime() < earliestCreatedAt
+      ) {
+        continue;
+      }
+
+      const completed = Number(contact.lastAutomationStep || 0);
+      if (completed <= 0 || completed >= rules.length) continue;
+
+      const latestSent = await tenantClient.contactAutomationLog.findFirst({
+        where: { contactId: contact.id, status: 'sent' },
+        orderBy: [{ sentAt: 'desc' }, { id: 'desc' }],
+      });
+      if (!latestSent) continue;
+      if (
+        WhatsappService.PROCEED_NEXT_EXCLUDED_TEMPLATES.has(
+          String(latestSent.templateName || '').trim().toLowerCase(),
+        )
+      ) {
+        continue;
+      }
+
+      const sentStepNumber = Number(latestSent.stepIndex);
+      const ruleAtSentStep = rules[sentStepNumber - 1];
+      if (!ruleAtSentStep || ruleAtSentStep.templateName !== latestSent.templateName) {
+        continue;
+      }
+
+      candidates.push({
+        recordType: 'contact',
+        record: contact,
+        rules,
+        sequenceKey,
+        latestSentAt: new Date(latestSent.sentAt).getTime(),
+        stepConsistency: sentStepNumber === completed ? 1 : 0,
+        specificity: 2,
+      });
+    }
+
+    let leads = await tenantClient.metaLead.findMany({
+      where: { phone: { in: phoneVariants } },
+    });
+    if (!leads.length && lastTenDigits) {
+      // Fallback for imported phones stored with spaces or other formatting.
+      leads = await tenantClient.metaLead.findMany({
+        where: { phone: { contains: lastTenDigits } },
+      });
+    }
+
+    for (const lead of leads) {
+      if (stopPhones.has(String(lead.phone || '').replace(/[^0-9]/g, ''))) {
+        continue;
+      }
+
+      const completed = Number(lead.lastAutomationStep || 0);
+      if (completed <= 0) continue;
+
+      // Mutually exclusive sequence partition: if lead has an active meta_campaign, it belongs
+      // exclusively to that sequence; otherwise it falls back to 'all'.
+      const targetSequenceKey = getMetaLeadTargetSequenceKey(lead, activeRules);
+      const rules = sequences.get(targetSequenceKey);
+      if (!rules?.length) continue;
+      if (completed >= rules.length) continue;
+
+      const earliestCreatedAt = this.getSequenceEarliestCreatedAt(rules);
+      if (
+        earliestCreatedAt > 0 &&
+        new Date(lead.createdAt).getTime() < earliestCreatedAt
+      ) {
+        continue;
+      }
+
+      const latestSent = await tenantClient.metaLeadAutomationLog.findFirst({
+        where: { metaLeadId: lead.id, status: 'sent' },
+        orderBy: [{ sentAt: 'desc' }, { id: 'desc' }],
+      });
+      if (!latestSent) continue;
+      if (
+        WhatsappService.PROCEED_NEXT_EXCLUDED_TEMPLATES.has(
+          String(latestSent.templateName || '').trim().toLowerCase(),
+        )
+      ) {
+        continue;
+      }
+
+      const sentStepNumber = Number(latestSent.stepIndex);
+      const ruleAtSentStep = rules[sentStepNumber - 1];
+      if (!ruleAtSentStep || ruleAtSentStep.templateName !== latestSent.templateName) {
+        continue;
+      }
+
+      candidates.push({
+        recordType: 'metaLead',
+        record: lead,
+        rules,
+        sequenceKey: targetSequenceKey,
+        latestSentAt: new Date(latestSent.sentAt).getTime(),
+        stepConsistency: sentStepNumber === completed ? 1 : 0,
+        specificity: targetSequenceKey.startsWith('meta_campaign') ? 2 : 1,
+      });
+    }
+
+    if (!candidates.length) {
+      return null;
+    }
+
+    // 1. If message.context.id was provided and we matched the clicked outbound template:
+    if (clickedTemplateName) {
+      const correlated = candidates.filter((c) => {
+        const completedStep = Number(c.record.lastAutomationStep || 0);
+        const ruleAtStep = c.rules[completedStep - 1];
+        return ruleAtStep && ruleAtStep.templateName === clickedTemplateName;
+      });
+
+      if (correlated.length === 1) {
+        const match = correlated[0];
+        this.logger.log(
+          `Proceed Next: correlated context ${contextMessageId} to ${match.recordType} id=${match.record.id} template=${clickedTemplateName}`,
+        );
+        return {
+          recordType: match.recordType,
+          record: match.record,
+          rules: match.rules,
+          sequenceKey: match.sequenceKey,
+        };
+      }
+
+      if (correlated.length > 1) {
+        this.logger.warn(
+          `Proceed Next: multiple sequences matched clicked template "${clickedTemplateName}" for ${rawPhone}; refusing to guess.`,
+        );
+        return null;
+      }
+
+      this.logger.warn(
+        `Proceed Next: clicked template "${clickedTemplateName}" (${contextMessageId}) does not match any current active step for ${rawPhone}; ignoring click.`,
+      );
+      return null;
+    }
+
+    // 2. If message.context.id was not provided:
+    // If exactly one candidate sequence exists, it is unambiguous.
+    if (candidates.length === 1) {
+      const selected = candidates[0];
+      return {
+        recordType: selected.recordType,
+        record: selected.record,
+        rules: selected.rules,
+        sequenceKey: selected.sequenceKey,
+      };
+    }
+
+    // If multiple candidate sequences exist and no context.id is available,
+    // NEVER guess between different campaigns based only on latest sent timestamp!
+    this.logger.warn(
+      `Proceed Next: ambiguous click from ${rawPhone} with ${candidates.length} active sequences and no message.context.id; refusing to guess.`,
+    );
+    return null;
+  }
+
+  private async handleProceedNextClick(
+    tenantId: number,
+    tenantClient: any,
+    dbUrl: string,
+    from: string,
+    contextMessageId?: string | null,
+  ): Promise<boolean> {
+    const inFlightKey = `${tenantId}:${from}`;
+    if (WhatsappService.inFlightProceedNext.has(inFlightKey)) {
+      this.logger.warn(
+        `Proceed Next: click already in flight for ${from} (tenant ${tenantId}); skipping duplicate.`,
+      );
+      return true;
+    }
+    WhatsappService.inFlightProceedNext.add(inFlightKey);
+
+    try {
+      // Only consume the click when it belongs to a Campaign Automation
+      // sequence. Otherwise let other WhatsApp flows handle the message.
+      let preSelection;
+      try {
+        preSelection = await this.findActiveAutomationSequence(tenantClient, from, contextMessageId);
+      } catch (error: any) {
+        this.logger.error(
+          `Proceed Next: could not inspect Campaign Automation sequences for ${from}: ${error?.message || error}`,
+        );
+        return false;
+      }
+      if (!preSelection) {
+        this.logger.log(
+          `Proceed Next: no active Campaign Automation sequence found for ${from}`,
+        );
+        return false;
+      }
+
+      // Serialize with the scheduler (and other webhook instances) at the
+      // database level. The cron skips the tenant when this lock is held.
+      const lock = await acquireAutomationTenantLock(dbUrl, tenantId, {
+        waitMs: 120000,
+        logger: this.logger,
+      });
+      if (!lock.acquired) {
+        if (lock.unavailable) {
+          this.logger.error(
+            `Proceed Next: distributed advisory lock is unavailable for tenant ${tenantId}; aborting immediate send to prevent duplicate sends across processes. Normal scheduled delivery will continue via cron.`,
+          );
+        } else {
+          this.logger.warn(
+            `Proceed Next: automation is busy for tenant ${tenantId}; skipping click from ${from}`,
+          );
+        }
+        // This is a Campaign Automation click; do not let it fall through to
+        // unrelated chatbot/quick-reply handlers.
+        return true;
+      }
+
+      try {
+        // Re-read under the lock so the latest completed step is used.
+        const selection = await this.findActiveAutomationSequence(tenantClient, from, contextMessageId);
+        if (!selection) {
+          this.logger.log(
+            `Proceed Next: sequence already completed for ${from}`,
+          );
+          return true;
+        }
+
+        this.logger.log(
+          `Proceed Next: tenant=${tenantId} ${selection.recordType} id=${selection.record.id} sequence=${selection.sequenceKey} completed=${selection.record.lastAutomationStep}/${selection.rules.length}`,
+        );
+
+        await this.sendRemainingAutomationSteps(tenantId, tenantClient, selection);
+        return true;
+      } catch (error: any) {
+        this.logger.error(
+          `Proceed Next handling failed for ${from}: ${error?.message || error}`,
+        );
+        return true;
+      } finally {
+        await lock.release();
+      }
+    } finally {
+      WhatsappService.inFlightProceedNext.delete(inFlightKey);
+    }
+  }
+
+  private async recordAutomationFailure(
+    logModel: any,
+    foreignKey: string,
+    recordId: number,
+    templateName: string,
+    stepIndex: number,
+    error: string,
+  ): Promise<void> {
+    try {
+      await logModel.create({
+        data: {
+          [foreignKey]: recordId,
+          templateName,
+          status: 'failed',
+          error: String(error || 'Failed to send template'),
+          stepIndex,
+        },
+      });
+    } catch (logError: any) {
+      this.logger.error(
+        `Failed to write automation failure log for ${foreignKey}=${recordId}, step=${stepIndex}: ${logError?.message || logError}`,
+      );
+    }
+  }
+
+  /**
+   * Send every step starting at the record's completed-step count.
+   *
+   * `lastAutomationStep` is the number of completed steps (0-based start for
+   * the next rule); automation log `stepIndex` is 1-based. Successful steps are
+   * logged before the record advances, so a retry skips them. On failure the
+   * record is left on the failed step and the sequence is not marked complete.
+   */
+  private async sendRemainingAutomationSteps(
+    tenantId: number,
+    tenantClient: any,
+    selection: {
+      recordType: 'contact' | 'metaLead';
+      record: any;
+      rules: any[];
+      sequenceKey: string;
+    },
+  ): Promise<void> {
+    const isContact = selection.recordType === 'contact';
+    const recordModel = isContact ? tenantClient.contact : tenantClient.metaLead;
+    const logModel = isContact
+      ? tenantClient.contactAutomationLog
+      : tenantClient.metaLeadAutomationLog;
+    const foreignKey = isContact ? 'contactId' : 'metaLeadId';
+
+    const freshRecord = await recordModel.findUnique({
+      where: { id: selection.record.id },
+    });
+    if (!freshRecord) return;
+
+    // Re-read the rules under the lock, keeping the exact cron ordering.
+    const activeRules = await tenantClient.metaLeadAutomation.findMany({
+      where: { isActive: true },
+      orderBy: [{ delayMinutes: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+    });
+    const rules = groupAutomationRules(activeRules).get(selection.sequenceKey);
+    if (!rules?.length) return;
+
+    // Make sure the record still belongs to the selected sequence.
+    if (isContact) {
+      if (freshRecord.groupId == null) return;
+      const stillInSequence =
+        getAutomationSequenceKey({
+          targetType: 'contact_group',
+          campaignName: null,
+          groupId: freshRecord.groupId,
+        }) === selection.sequenceKey;
+      if (!stillInSequence) return;
+    } else {
+      const isStillEligible = isMetaLeadEligibleForSequence(
+        freshRecord,
+        selection.sequenceKey,
+        activeRules,
+      );
+      if (!isStillEligible) return;
+    }
+
+    const earliestCreatedAt = this.getSequenceEarliestCreatedAt(rules);
+    if (
+      earliestCreatedAt > 0 &&
+      new Date(freshRecord.createdAt).getTime() < earliestCreatedAt
+    ) {
+      return;
+    }
+
+    const stopPhones = await this.getAutomationStopPhones(tenantClient);
+    if (
+      stopPhones.has(String(freshRecord.phone || '').replace(/[^0-9]/g, ''))
+    ) {
+      this.logger.log(
+        `Proceed Next: ${selection.recordType} id=${freshRecord.id} has a STOP label; skipping`,
+      );
+      return;
+    }
+
+    const masterConfig = await tenantClient.masterConfig.findFirst({
+      where: { isActive: true },
+    });
+
+    let completed = Math.max(0, Number(freshRecord.lastAutomationStep || 0));
+
+    while (completed < rules.length) {
+      const current = await recordModel.findUnique({
+        where: { id: freshRecord.id },
+      });
+      if (!current) return;
+
+      const currentCompleted = Math.max(
+        0,
+        Number(current.lastAutomationStep || 0),
+      );
+      if (currentCompleted >= rules.length) return;
+      if (currentCompleted > completed) {
+        completed = currentCompleted;
+        continue;
+      }
+      if (currentCompleted < completed) return;
+
+      const stepIndex = completed + 1;
+      const rule = rules[completed];
+      const templateName = String(rule?.templateName || '').trim();
+      if (!templateName) {
+        this.logger.warn(
+          `Proceed Next: sequence ${selection.sequenceKey} step ${stepIndex} has no template name`,
+        );
+        return;
+      }
+
+      const alreadySent = await logModel.findFirst({
+        where: {
+          [foreignKey]: current.id,
+          stepIndex,
+          templateName,
+          status: 'sent',
+        },
+      });
+      if (alreadySent) {
+        await recordModel.update({
+          where: { id: current.id },
+          data: { lastAutomationStep: stepIndex, isAutomationSent: true },
+        });
+        completed = stepIndex;
+        continue;
+      }
+
+      if (!masterConfig) {
+        await this.recordAutomationFailure(
+          logModel,
+          foreignKey,
+          current.id,
+          templateName,
+          stepIndex,
+          'No active MasterConfig found for tenant',
+        );
+        return;
+      }
+
+      const settings = await tenantClient.whatsAppSettings.findFirst({
+        where: { templateName },
+      });
+      const headerImageUrl = settings?.headerImageUrl?.trim()
+        ? settings.headerImageUrl.trim()
+        : undefined;
+      const phone = String(current.phone || '').trim();
+      if (!phone) {
+        await this.recordAutomationFailure(
+          logModel,
+          foreignKey,
+          current.id,
+          templateName,
+          stepIndex,
+          'Record has no phone number',
+        );
+        return;
+      }
+
+      // A failed step may be retried. Keep only the latest result for it.
+      try {
+        await logModel.deleteMany({
+          where: {
+            [foreignKey]: current.id,
+            stepIndex,
+            status: 'failed',
+          },
+        });
+      } catch (cleanupError: any) {
+        this.logger.warn(
+          `Proceed Next: could not clear old failed logs for ${foreignKey}=${current.id}, step=${stepIndex}: ${cleanupError?.message || cleanupError}`,
+        );
+      }
+
+      let results: any[] = [];
+      try {
+        results = await this.sendBulkTemplateMessageWithNames(
+          [{ name: current.name || '', phone }],
+          templateName,
+          tenantId,
+          settings?.id,
+          headerImageUrl,
+        );
+      } catch (sendError: any) {
+        await this.recordAutomationFailure(
+          logModel,
+          foreignKey,
+          current.id,
+          templateName,
+          stepIndex,
+          sendError?.message || String(sendError),
+        );
+        return;
+      }
+
+      const result = results?.[0];
+      if (!result?.success) {
+        await this.recordAutomationFailure(
+          logModel,
+          foreignKey,
+          current.id,
+          templateName,
+          stepIndex,
+          result?.error || 'Failed to send template',
+        );
+        return;
+      }
+
+      // Atomic database write: commit the automation sent log and advance the record
+      // step counter in a single Prisma transaction to prevent internal DB desynchronization.
+      // NOTE: This prevents log/step desynchronization within the database, but does NOT
+      // guarantee exactly-once WhatsApp delivery if Meta accepts the HTTP POST and the server
+      // process crashes before this transaction commits (due to provider limitation: Meta's
+      // /messages endpoint does not support caller-provided idempotency keys).
+      await tenantClient.$transaction([
+        logModel.create({
+          data: {
+            [foreignKey]: current.id,
+            templateName,
+            status: 'sent',
+            stepIndex,
+          },
+        }),
+        recordModel.update({
+          where: { id: current.id },
+          data: {
+            lastAutomationStep: stepIndex,
+            isAutomationSent: true,
+            automationSentAt: new Date(),
+          },
+        }),
+      ]);
+
+      completed = stepIndex;
+      this.logger.log(
+        `Proceed Next: ${selection.recordType} id=${current.id} sent step ${stepIndex}/${rules.length} (${templateName})`,
+      );
+    }
+
+    this.logger.log(
+      `Proceed Next: sequence ${selection.sequenceKey} complete for ${selection.recordType} id=${freshRecord.id}`,
+    );
   }
 
   private formatPhoneNumber(phone: string): string {

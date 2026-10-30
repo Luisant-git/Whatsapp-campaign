@@ -23,6 +23,7 @@ const BulkWhatsApp = () => {
   const [scheduledDays, setScheduledDays] = useState([]);
   const [scheduledTime, setScheduledTime] = useState("09:00");
   const [scheduledDate, setScheduledDate] = useState("");
+  const [quickPick, setQuickPick] = useState(""); // tracks which quick-pick chip is selected
   const [campaignName, setCampaignName] = useState("");
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState("");
@@ -128,6 +129,55 @@ const BulkWhatsApp = () => {
     if (type === 'ampm') ampm = val;
     let h24 = (h % 12) + (ampm === 'PM' ? 12 : 0);
     setScheduledTime(`${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+  };
+
+  // Returns quick-pick options relative to now (IST)
+  const getQuickPickOptions = () => {
+    const now = new Date();
+    // IST = UTC+5:30
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istNow = new Date(now.getTime() + istOffset);
+
+    const makeLocal = (istDate) => {
+      // Convert IST datetime back to a local datetime-local string
+      // by subtracting the IST offset and adding local offset
+      const utc = istDate.getTime() - istOffset;
+      const local = new Date(utc);
+      return local.toISOString().slice(0, 16);
+    };
+
+    const setHour = (baseIst, hour, minute = 0) => {
+      const d = new Date(baseIst);
+      d.setUTCHours(hour, minute, 0, 0);
+      return d;
+    };
+
+    const tomorrow = new Date(istNow);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+
+    const dayAfter = new Date(istNow);
+    dayAfter.setUTCDate(dayAfter.getUTCDate() + 2);
+
+    const opts = [];
+
+    // Today Evening 6 PM — only show if it's before 5 PM IST
+    if (istNow.getUTCHours() < 17) {
+      opts.push({ label: 'Today Evening', sublabel: '6:00 PM', id: 'today-eve', value: makeLocal(setHour(istNow, 12, 30)) }); // 18:00 IST = 12:30 UTC
+    }
+
+    // Tomorrow Morning 9 AM
+    opts.push({ label: 'Tomorrow', sublabel: '9:00 AM', id: 'tom-morn', value: makeLocal(setHour(tomorrow, 3, 30)) }); // 9 IST = 3:30 UTC
+
+    // Tomorrow Afternoon 2 PM
+    opts.push({ label: 'Tomorrow', sublabel: '2:00 PM', id: 'tom-noon', value: makeLocal(setHour(tomorrow, 8, 30)) }); // 14 IST = 8:30 UTC
+
+    // Tomorrow Evening 6 PM
+    opts.push({ label: 'Tomorrow', sublabel: '6:00 PM', id: 'tom-eve', value: makeLocal(setHour(tomorrow, 12, 30)) }); // 18 IST = 12:30 UTC
+
+    // Day After 9 AM
+    opts.push({ label: 'Day After', sublabel: '9:00 AM', id: 'dayafter', value: makeLocal(setHour(dayAfter, 3, 30)) });
+
+    return opts;
   };
 
   const handleCampaignExcelUpload = (e) => {
@@ -386,6 +436,7 @@ const BulkWhatsApp = () => {
         setScheduledDays([]);
         setScheduledTime("09:00");
         setScheduledDate("");
+        setQuickPick("");
         setScheduleType("one-time");
       } else {
         throw new Error(response.message || "Failed to start campaign");
@@ -453,57 +504,117 @@ const BulkWhatsApp = () => {
           <div className="form-group">
             <label className="form-label">When to Send</label>
 
-            {/* 3 option cards */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
 
               {/* Send Now */}
-              <label style={{
+              <label onClick={() => setScheduleType('one-time')} style={{
                 display: 'flex', alignItems: 'center', gap: '14px',
-                padding: '14px 16px', borderRadius: '10px', cursor: 'pointer',
+                padding: '13px 16px', borderRadius: '12px', cursor: 'pointer',
                 border: `2px solid ${scheduleType === 'one-time' ? '#25d366' : '#e5e7eb'}`,
                 background: scheduleType === 'one-time' ? '#f0fff7' : '#fff',
                 transition: 'all 0.15s',
               }}>
-                <input type="radio" value="one-time" checked={scheduleType === 'one-time'}
-                  onChange={(e) => setScheduleType(e.target.value)}
-                  style={{ accentColor: '#25d366', width: 18, height: 18, cursor: 'pointer' }} />
-                <div>
-                  <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827' }}>⚡ Send Now</div>
-                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>Campaign starts immediately in the background</div>
+                {/* Lightning bolt icon */}
+                <div style={{
+                  width: 38, height: 38, borderRadius: '10px', flexShrink: 0,
+                  background: scheduleType === 'one-time' ? '#25d366' : '#f3f4f6',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all 0.15s',
+                }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M13 2L4.5 13.5H12L11 22L19.5 10.5H12L13 2Z"
+                      fill={scheduleType === 'one-time' ? '#fff' : '#9ca3af'}
+                      stroke={scheduleType === 'one-time' ? '#fff' : '#9ca3af'}
+                      strokeWidth="1.5" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827' }}>Send Now</div>
+                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '1px' }}>Campaign starts immediately in the background</div>
+                </div>
+                <div style={{
+                  width: 18, height: 18, borderRadius: '50%', border: `2px solid ${scheduleType === 'one-time' ? '#25d366' : '#d1d5db'}`,
+                  background: scheduleType === 'one-time' ? '#25d366' : '#fff', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {scheduleType === 'one-time' && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
                 </div>
               </label>
 
               {/* Schedule for Later */}
-              <label style={{
+              <label onClick={() => setScheduleType('scheduled')} style={{
                 display: 'flex', alignItems: 'center', gap: '14px',
-                padding: '14px 16px', borderRadius: '10px', cursor: 'pointer',
+                padding: '13px 16px', borderRadius: '12px', cursor: 'pointer',
                 border: `2px solid ${scheduleType === 'scheduled' ? '#1877f2' : '#e5e7eb'}`,
                 background: scheduleType === 'scheduled' ? '#eff6ff' : '#fff',
                 transition: 'all 0.15s',
               }}>
-                <input type="radio" value="scheduled" checked={scheduleType === 'scheduled'}
-                  onChange={(e) => setScheduleType(e.target.value)}
-                  style={{ accentColor: '#1877f2', width: 18, height: 18, cursor: 'pointer' }} />
-                <div>
-                  <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827' }}>📅 Schedule for Later</div>
-                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>Pick a specific date &amp; time — sent once automatically</div>
+                {/* Calendar icon */}
+                <div style={{
+                  width: 38, height: 38, borderRadius: '10px', flexShrink: 0,
+                  background: scheduleType === 'scheduled' ? '#1877f2' : '#f3f4f6',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all 0.15s',
+                }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <rect x="3" y="4" width="18" height="17" rx="3"
+                      stroke={scheduleType === 'scheduled' ? '#fff' : '#9ca3af'} strokeWidth="1.8"/>
+                    <path d="M3 9H21" stroke={scheduleType === 'scheduled' ? '#fff' : '#9ca3af'} strokeWidth="1.8"/>
+                    <path d="M8 2V5M16 2V5" stroke={scheduleType === 'scheduled' ? '#fff' : '#9ca3af'} strokeWidth="1.8" strokeLinecap="round"/>
+                    <circle cx="12" cy="15" r="1.2" fill={scheduleType === 'scheduled' ? '#fff' : '#9ca3af'}/>
+                    <circle cx="7.5" cy="15" r="1.2" fill={scheduleType === 'scheduled' ? '#fff' : '#9ca3af'}/>
+                    <circle cx="16.5" cy="15" r="1.2" fill={scheduleType === 'scheduled' ? '#fff' : '#9ca3af'}/>
+                  </svg>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827' }}>Schedule for Later</div>
+                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '1px' }}>Pick a date &amp; time — sent once automatically</div>
+                </div>
+                <div style={{
+                  width: 18, height: 18, borderRadius: '50%', border: `2px solid ${scheduleType === 'scheduled' ? '#1877f2' : '#d1d5db'}`,
+                  background: scheduleType === 'scheduled' ? '#1877f2' : '#fff', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {scheduleType === 'scheduled' && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
                 </div>
               </label>
 
               {/* Weekly Recurring */}
-              <label style={{
+              <label onClick={() => setScheduleType('time-based')} style={{
                 display: 'flex', alignItems: 'center', gap: '14px',
-                padding: '14px 16px', borderRadius: '10px', cursor: 'pointer',
+                padding: '13px 16px', borderRadius: '12px', cursor: 'pointer',
                 border: `2px solid ${scheduleType === 'time-based' ? '#7c3aed' : '#e5e7eb'}`,
                 background: scheduleType === 'time-based' ? '#f5f3ff' : '#fff',
                 transition: 'all 0.15s',
               }}>
-                <input type="radio" value="time-based" checked={scheduleType === 'time-based'}
-                  onChange={(e) => setScheduleType(e.target.value)}
-                  style={{ accentColor: '#7c3aed', width: 18, height: 18, cursor: 'pointer' }} />
-                <div>
-                  <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827' }}>🔁 Weekly Recurring</div>
-                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>Repeat every week on selected days at a fixed time</div>
+                {/* Repeat / cycle icon */}
+                <div style={{
+                  width: 38, height: 38, borderRadius: '10px', flexShrink: 0,
+                  background: scheduleType === 'time-based' ? '#7c3aed' : '#f3f4f6',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all 0.15s',
+                }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M4 12C4 7.58 7.58 4 12 4C14.76 4 17.2 5.36 18.7 7.46"
+                      stroke={scheduleType === 'time-based' ? '#fff' : '#9ca3af'} strokeWidth="1.8" strokeLinecap="round"/>
+                    <path d="M20 12C20 16.42 16.42 20 12 20C9.24 20 6.8 18.64 5.3 16.54"
+                      stroke={scheduleType === 'time-based' ? '#fff' : '#9ca3af'} strokeWidth="1.8" strokeLinecap="round"/>
+                    <path d="M16 7L18.7 7.46L19.5 5"
+                      stroke={scheduleType === 'time-based' ? '#fff' : '#9ca3af'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M8 17L5.3 16.54L4.5 19"
+                      stroke={scheduleType === 'time-based' ? '#fff' : '#9ca3af'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827' }}>Weekly Recurring</div>
+                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '1px' }}>Repeat every week on selected days at a fixed time</div>
+                </div>
+                <div style={{
+                  width: 18, height: 18, borderRadius: '50%', border: `2px solid ${scheduleType === 'time-based' ? '#7c3aed' : '#d1d5db'}`,
+                  background: scheduleType === 'time-based' ? '#7c3aed' : '#fff', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {scheduleType === 'time-based' && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
                 </div>
               </label>
             </div>
@@ -512,18 +623,78 @@ const BulkWhatsApp = () => {
           {/* ── Schedule for Later: date-time picker ── */}
           {scheduleType === 'scheduled' && (
             <div className="form-group">
-              <label className="form-label">📅 Date &amp; Time (IST)</label>
-              <input
-                type="datetime-local"
-                className="form-input"
-                value={scheduledDate}
-                min={new Date(Date.now() + 5 * 60000).toISOString().slice(0, 16)}
-                onChange={(e) => setScheduledDate(e.target.value)}
-                style={{ fontSize: '14px', cursor: 'pointer' }}
-              />
-              <small className="form-hint" style={{ marginTop: '6px', display: 'block' }}>
-                ⏰ Your local time shown above — campaign fires at that exact moment (IST). Allowed: 8 AM – 8 PM IST.
-              </small>
+              <label className="form-label">Pick a Date &amp; Time</label>
+
+              {/* Quick-pick chips */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                {getQuickPickOptions().map((opt) => {
+                  const isActive = quickPick === opt.id;
+                  return (
+                    <button key={opt.id} type="button"
+                      onClick={() => { setQuickPick(opt.id); setScheduledDate(opt.value); }}
+                      style={{
+                        padding: '8px 14px', borderRadius: '10px', cursor: 'pointer',
+                        border: `1.5px solid ${isActive ? '#1877f2' : '#e5e7eb'}`,
+                        background: isActive ? '#eff6ff' : '#f9fafb',
+                        color: isActive ? '#1d4ed8' : '#374151',
+                        fontSize: '12px', fontWeight: isActive ? '600' : '500',
+                        transition: 'all 0.15s',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px',
+                        minWidth: '80px',
+                      }}>
+                      <span style={{ fontSize: '13px', fontWeight: '600' }}>{opt.label}</span>
+                      <span style={{ fontSize: '11px', color: isActive ? '#3b82f6' : '#6b7280' }}>{opt.sublabel}</span>
+                    </button>
+                  );
+                })}
+                {/* Custom chip */}
+                <button type="button"
+                  onClick={() => { setQuickPick('custom'); }}
+                  style={{
+                    padding: '8px 14px', borderRadius: '10px', cursor: 'pointer',
+                    border: `1.5px solid ${quickPick === 'custom' ? '#1877f2' : '#e5e7eb'}`,
+                    background: quickPick === 'custom' ? '#eff6ff' : '#f9fafb',
+                    color: quickPick === 'custom' ? '#1d4ed8' : '#374151',
+                    fontSize: '12px', fontWeight: quickPick === 'custom' ? '600' : '500',
+                    transition: 'all 0.15s',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px',
+                    minWidth: '80px',
+                  }}>
+                  <span style={{ fontSize: '13px', fontWeight: '600' }}>Custom</span>
+                  <span style={{ fontSize: '11px', color: quickPick === 'custom' ? '#3b82f6' : '#6b7280' }}>Choose date</span>
+                </button>
+              </div>
+
+              {/* Custom date-time input — shown only when Custom is selected */}
+              {quickPick === 'custom' && (
+                <input
+                  type="datetime-local"
+                  className="form-input"
+                  value={scheduledDate}
+                  min={new Date(Date.now() + 5 * 60000).toISOString().slice(0, 16)}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                  style={{ fontSize: '14px', cursor: 'pointer', marginBottom: '8px' }}
+                  autoFocus
+                />
+              )}
+
+              {/* Preview of selected time */}
+              {scheduledDate && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  padding: '10px 14px', borderRadius: '8px',
+                  background: '#f0f9ff', border: '1px solid #bae6fd',
+                  fontSize: '13px', color: '#0369a1',
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="9" stroke="#0369a1" strokeWidth="1.8"/>
+                    <path d="M12 7V12L15 15" stroke="#0369a1" strokeWidth="1.8" strokeLinecap="round"/>
+                  </svg>
+                  <span>
+                    Sending on <strong>{new Date(scheduledDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</strong> at <strong>{new Date(scheduledDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</strong>
+                  </span>
+                </div>
+              )}
             </div>
           )}
 

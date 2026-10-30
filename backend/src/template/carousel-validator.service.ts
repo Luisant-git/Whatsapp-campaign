@@ -48,8 +48,9 @@ export class CarouselValidatorService {
         throw new BadRequestException(`Card at index ${index} must have a HEADER format of ${header1.format} to match Card 1.`);
       }
 
-      if (!header.example || !header.example.header_handle) {
-        throw new BadRequestException(`Card at index ${index} must have a media handle uploaded.`);
+      const headerHandle = header.example?.header_handle?.[0];
+      if (!headerHandle || typeof headerHandle !== 'string' || !headerHandle.trim()) {
+        throw new BadRequestException(`Card ${index + 1} must have a media sample uploaded or specified.`);
       }
 
       const body = card.components.find((c: any) => c.type === 'BODY');

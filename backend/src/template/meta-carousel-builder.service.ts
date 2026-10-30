@@ -40,15 +40,21 @@ export class MetaCarouselBuilderService {
     const carouselComponent = createTemplateDto.components.find((c: any) => c.type === 'CAROUSEL');
     if (carouselComponent && carouselComponent.cards) {
       const processedCards = await Promise.all(
-        carouselComponent.cards.map(async (card: any) => {
+        carouselComponent.cards.map(async (card: any, cardIndex: number) => {
           const processedCardComponents = await Promise.all(
             card.components.map(async (comp: any) => {
               if (comp.type === 'HEADER' && ['IMAGE', 'VIDEO'].includes(comp.format)) {
                 if (comp.example && comp.example.header_handle && comp.example.header_handle.length > 0 && comp.example.header_handle[0]) {
                   const mediaPath = comp.example.header_handle[0];
                   let assetHandle = mediaPath;
-                  if (!mediaPath.startsWith('h_')) {
-                    assetHandle = await uploadMediaFn(mediaPath);
+                  // If it's already an uploaded Meta asset handle (e.g. "4:..." or "2:..."), keep it
+                  const isAlreadyMetaHandle = /^\d+:[^:]+:/.test(mediaPath) || mediaPath.startsWith('h_');
+                  if (!isAlreadyMetaHandle) {
+                    try {
+                      assetHandle = await uploadMediaFn(mediaPath);
+                    } catch (uploadErr: any) {
+                      throw new BadRequestException(`Card ${cardIndex + 1} media error: ${uploadErr.message}`);
+                    }
                   }
                   return {
                     type: 'HEADER',
@@ -56,8 +62,7 @@ export class MetaCarouselBuilderService {
                     example: { header_handle: [assetHandle] }
                   };
                 }
-                // No media uploaded — return header without example (validator should have caught this)
-                return { type: 'HEADER', format: comp.format };
+                throw new BadRequestException(`Card ${cardIndex + 1} must have a valid media sample (IMAGE or VIDEO).`);
               }
 
               if (comp.type === 'BODY') {

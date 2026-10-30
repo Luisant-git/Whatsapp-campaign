@@ -999,6 +999,12 @@ const TemplateManager = () => {
             case 2388148:
               errorMessage = 'Button configuration is invalid. Please check your button types, URLs, and phone numbers.';
               break;
+            case 2388215: {
+              const match = (err.details?.error_user_msg || err.message || '').match(/index=(\d+)/i);
+              const cardNum = match ? parseInt(match[1], 10) + 1 : 1;
+              errorMessage = `Card ${cardNum} contains an invalid media sample. Meta WhatsApp templates only accept valid JPG or PNG images (or MP4 videos). Please upload a valid file directly using the Upload button or verify the media URL.`;
+              break;
+            }
             default:
               errorMessage = err.details.error_user_msg || err.message || 'Failed to save template';
           }
@@ -1337,7 +1343,7 @@ const TemplateManager = () => {
               <div key={card.id || index} className="wa-bubble" style={{ minWidth: '220px', flexShrink: 0 }}>
                 {card.components.find(c => c.type === 'HEADER')?.example?.header_handle?.[0] ? (
                   <img 
-                    src={card.components.find(c => c.type === 'HEADER').example.header_handle[0]} 
+                    src={getFullMediaUrl(card.components.find(c => c.type === 'HEADER').example.header_handle[0])} 
                     alt={`Card ${index + 1}`}
                     style={{ width: '100%', height: '220px', objectFit: 'cover', borderRadius: '6px 6px 0 0', marginBottom: '8px' }}
                   />
@@ -3682,7 +3688,8 @@ const TemplateManager = () => {
                                   <label className="btn-secondary" style={{fontSize: isCarouselFullscreen ? 14 : 12, padding: isCarouselFullscreen ? '6px 12px' : '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center'}}>
                                     <ImageIcon size={isCarouselFullscreen ? 16 : 14} style={{marginRight: 4}}/>
                                     Upload
-                                    <input type="file" style={{display: 'none'}} accept="image/jpeg,image/png,image/jpg"
+                                    <input type="file" style={{display: 'none'}} 
+                                      accept={card.components.find(c => c.type === 'HEADER')?.format === 'VIDEO' ? "video/mp4,video/3gpp" : "image/jpeg,image/png,image/jpg"}
                                       onChange={async (e) => {
                                         const file = e.target.files[0];
                                         if(!file) return;
@@ -3700,12 +3707,12 @@ const TemplateManager = () => {
                                           });
                                           if (response.ok) {
                                             const result = await response.json();
-                                            const fullUrl = result.fileUrl ? getFullMediaUrl(result.fileUrl) : result.filename;
+                                            const mediaRef = result.fileUrl || result.filename;
                                             
                                             const newCards = [...formData.carouselCards];
                                             const headerComp = newCards[index].components.find(c => c.type === 'HEADER');
                                             if(headerComp) {
-                                              headerComp.example = { header_handle: [fullUrl] };
+                                              headerComp.example = { header_handle: [mediaRef] };
                                             }
                                             setFormData({ ...formData, carouselCards: newCards });
                                           } else {

@@ -910,6 +910,26 @@ export class TemplateService {
         console.log(`Creating new versioned template: ${newTemplateName} (base: ${baseName}, version: ${nextVersion})`);
 
         // Process components for Meta API
+        let sortedComponents: any;
+        let storedComponentsJson: string | null = null;
+        const isCarousel = (createTemplateData.components || []).some((c: any) => c.type === 'CAROUSEL');
+
+        if (isCarousel) {
+          const carouselDto: any = {
+            ...createTemplateData,
+            name: newTemplateName
+          };
+          this.carouselValidator.validate(carouselDto);
+          const carouselMetaPayload = await this.metaCarouselBuilder.buildPayload(
+            carouselDto,
+            async (path: string) => this.uploadTemplateMedia(masterConfig, path)
+          );
+          sortedComponents = carouselMetaPayload.components;
+          storedComponentsJson = JSON.stringify({
+            templateType: 'CAROUSEL',
+            components: createTemplateData.components
+          });
+        } else {
         const processedComponents = await Promise.all(
           createTemplateData.components.map(async (component: any) => {
             // Special handling for Authentication templates
@@ -1040,7 +1060,7 @@ export class TemplateService {
 
         // Reorder components: HEADER, BODY, FOOTER, BUTTONS (Meta requires this order)
         const order = ['HEADER', 'BODY', 'FOOTER', 'BUTTONS'];
-        const sortedComponents = processedComponents.sort(
+        sortedComponents = processedComponents.sort(
           (a, b) => order.indexOf(a.type) - order.indexOf(b.type)
         );
 
@@ -1084,6 +1104,7 @@ export class TemplateService {
               });
             }
           }
+        }
         }
 
         try {
@@ -1144,7 +1165,7 @@ export class TemplateService {
             name: newTemplateName,
             category: createTemplateData.category,
             language: createTemplateData.language,
-            components: JSON.stringify(sortedComponents),
+            components: storedComponentsJson || JSON.stringify(sortedComponents),
             sampleValues: updateTemplateDto.sampleValues ? JSON.stringify(updateTemplateDto.sampleValues) : null,
             status: TemplateStatus.IN_REVIEW, // New template needs approval
             createdAt: new Date(),
@@ -2167,9 +2188,10 @@ export class TemplateService {
   private async uploadTemplateMedia(masterConfig: any, localPath: string): Promise<string> {
     const fs = require('fs');
     const path = require('path');
-    const https = require('https');
-    const http = require('http');
     const os = require('os');
+
+    let fullPath: string | null = null;
+    let tempFile = false;
 
     try {
       console.log('Uploading media for template creation, localPath:', localPath);
@@ -2181,25 +2203,56 @@ export class TemplateService {
         );
       }
 
-      let fullPath: string;
-      let tempFile = false;
+      // 1. Check if localPath refers to an upload file on the local filesystem
+      let uploadFilename: string | null = null;
+      if (localPath.includes('/uploads/') || localPath.startsWith('uploads/')) {
+        try {
+          const parsed = (localPath.startsWith('http://') || localPath.startsWith('https://'))
+            ? new URL(localPath).pathname
+            : localPath;
+          uploadFilename = path.basename(parsed);
+        } catch {
+          uploadFilename = path.basename(localPath);
+        }
+      }
 
-      if (localPath.startsWith('http://') || localPath.startsWith('https://')) {
-        // Download the public URL to a temp file
-        console.log('Detected public URL, downloading to temp file...');
-        const ext = path.extname(new URL(localPath).pathname) || '.jpg';
-        fullPath = path.join(os.tmpdir(), `carousel_upload_${Date.now()}${ext}`);
-        await new Promise<void>((resolve, reject) => {
-          const protocol = localPath.startsWith('https') ? https : http;
-          const file = fs.createWriteStream(fullPath);
-          protocol.get(localPath, (res) => {
-            res.pipe(file);
-            file.on('finish', () => { file.close(); resolve(); });
-          }).on('error', (err) => {
-            fs.unlink(fullPath, () => {});
-            reject(err);
+      const localUploadCandidate = uploadFilename ? path.join(process.cwd(), 'uploads', uploadFilename) : null;
+      if (localUploadCandidate && fs.existsSync(localUploadCandidate)) {
+        fullPath = localUploadCandidate;
+        console.log('Resolved to existing local file in uploads:', fullPath);
+      } else if (localPath.startsWith('http://') || localPath.startsWith('https://')) {
+        // Download remote URL using axios with redirects and proper headers
+        console.log('Detected remote URL, downloading via axios...');
+        let downloadResponse: any;
+        try {
+          downloadResponse = await axios.get(localPath, {
+            responseType: 'arraybuffer',
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+            },
+            timeout: 20000,
+            maxRedirects: 5
           });
-        });
+        } catch (downloadErr: any) {
+          throw new BadRequestException(`Failed to download media from URL (${localPath}): ${downloadErr.message}`);
+        }
+
+        const contentType = (downloadResponse.headers['content-type'] || '').toLowerCase();
+        if (contentType.includes('text/html') || contentType.includes('application/json')) {
+          throw new BadRequestException(`The URL (${localPath}) returned a webpage/HTML response instead of an image or video. Please use a direct image link (JPG/PNG) or upload the file directly.`);
+        }
+
+        let ext = path.extname(new URL(localPath).pathname) || '';
+        if (!ext) {
+          if (contentType.includes('image/png')) ext = '.png';
+          else if (contentType.includes('image/jpeg') || contentType.includes('image/jpg')) ext = '.jpg';
+          else if (contentType.includes('video/mp4')) ext = '.mp4';
+          else ext = '.jpg';
+        }
+
+        fullPath = path.join(os.tmpdir(), `carousel_upload_${Date.now()}${ext}`);
+        fs.writeFileSync(fullPath, Buffer.from(downloadResponse.data));
         tempFile = true;
         console.log('Downloaded to temp file:', fullPath);
       } else {
@@ -2210,14 +2263,26 @@ export class TemplateService {
 
       console.log('Full file path:', fullPath);
 
-      if (!fs.existsSync(fullPath)) {
-        throw new BadRequestException(`Media file not found: ${fullPath}`);
+      if (!fullPath || !fs.existsSync(fullPath)) {
+        throw new BadRequestException(`Media file not found: ${fullPath || localPath}`);
       }
 
       const fileStats = fs.statSync(fullPath);
+      if (fileStats.size === 0) {
+        throw new BadRequestException(`Media file is empty (0 bytes): ${fullPath}`);
+      }
+
       const fileBuffer = fs.readFileSync(fullPath);
       const mimeType = this.getMimeType(fullPath);
       console.log('File size:', fileStats.size, 'bytes, MIME:', mimeType);
+
+      // Validate allowed Meta template header media types
+      const allowedMimes = ['image/jpeg', 'image/png', 'video/mp4', 'video/3gpp'];
+      if (!allowedMimes.includes(mimeType)) {
+        throw new BadRequestException(
+          `Unsupported media format (${mimeType}). Meta WhatsApp templates only accept JPEG (.jpg, .jpeg) and PNG (.png) images, or MP4 (.mp4) videos.`
+        );
+      }
 
       // Step 1: Create upload session
       const sessionResponse = await axios.post(
@@ -2256,14 +2321,14 @@ export class TemplateService {
         throw new BadRequestException('Upload succeeded but no asset handle was returned');
       }
 
-      // Cleanup temp file
-      if (tempFile) fs.unlink(fullPath, () => {});
-
       console.log('Asset handle retrieved:', assetHandle);
       return assetHandle;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Template media upload error:', error.response?.data || error.message);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       const errorMsg = error.response?.data?.error?.message || error.message;
       const errorDetails = error.response?.data?.error?.error_user_title || '';
       throw new BadRequestException(
@@ -2272,6 +2337,14 @@ export class TemplateService {
         `2) Your App ID is correct (find it in Meta Developer Console), ` +
         `3) The access token belongs to the same app as the App ID.`
       );
+    } finally {
+      if (tempFile && fullPath && fs.existsSync(fullPath)) {
+        try {
+          fs.unlinkSync(fullPath);
+        } catch (unlinkErr) {
+          console.warn('Failed to clean up temp file:', fullPath, unlinkErr);
+        }
+      }
     }
   }
 

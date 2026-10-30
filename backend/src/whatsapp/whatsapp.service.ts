@@ -1599,6 +1599,13 @@ export class WhatsappService {
       this.logger.log(`📋 List item selected: ${text}`);
     }
 
+    // Also detect Proceed Next when sent as text or quoted reply
+    if (!isProceedNextClick && text && this.isProceedNextButton(text, null)) {
+      isProceedNextClick = true;
+      buttonClicked = `🔘 Button: ${text}`;
+      this.logger.log(`🔘 Proceed Next detected from text/quote: "${text}"`);
+    }
+
     // Handle interactive nfm_reply (forms, flows, catalog)
     if (message.type === 'interactive' && message.interactive?.type === 'nfm_reply') {
       const nfmReplyName = message.interactive.nfm_reply?.name || 'Form/Catalog';
@@ -3315,11 +3322,7 @@ export class WhatsappService {
     return null;
   }
 
-  // The initial acknowledgement template intentionally has no "Proceed Next"
-  // button. Clicks that still arrive from it are ignored.
-  private static readonly PROCEED_NEXT_EXCLUDED_TEMPLATES = new Set([
-    'instant_acknowledgement_v1',
-  ]);
+  private static readonly PROCEED_NEXT_EXCLUDED_TEMPLATES = new Set<string>();
   private static readonly inFlightProceedNext = new Set<string>();
 
   private isProceedNextButton(
@@ -3339,8 +3342,13 @@ export class WhatsappService {
       (value) =>
         value === 'proceed next' ||
         value.replace(/\s+/g, '') === 'proceednext' ||
+        value.includes('proceed next') ||
+        value.includes('proceednext') ||
         value === 'proceed further' ||
-        value.replace(/\s+/g, '') === 'proceedfurther',
+        value.includes('proceed further') ||
+        value === 'proceed' ||
+        value === 'next' ||
+        value === 'continue',
     );
   }
 
@@ -3487,42 +3495,21 @@ export class WhatsappService {
       const rules = sequences.get(sequenceKey);
       if (!rules?.length) continue;
 
-      const earliestCreatedAt = this.getSequenceEarliestCreatedAt(rules);
-      if (
-        earliestCreatedAt > 0 &&
-        new Date(contact.createdAt).getTime() < earliestCreatedAt
-      ) {
-        continue;
-      }
-
       const completed = Number(contact.lastAutomationStep || 0);
-      if (completed <= 0 || completed >= rules.length) continue;
+      if (completed >= rules.length) continue;
 
       const latestSent = await tenantClient.contactAutomationLog.findFirst({
         where: { contactId: contact.id, status: 'sent' },
         orderBy: [{ sentAt: 'desc' }, { id: 'desc' }],
       });
-      if (!latestSent) continue;
-      if (
-        WhatsappService.PROCEED_NEXT_EXCLUDED_TEMPLATES.has(
-          String(latestSent.templateName || '').trim().toLowerCase(),
-        )
-      ) {
-        continue;
-      }
 
-      const sentStepNumber = Number(latestSent.stepIndex);
-      const ruleAtSentStep = rules[sentStepNumber - 1];
-      if (!ruleAtSentStep || ruleAtSentStep.templateName !== latestSent.templateName) {
-        continue;
-      }
-
+      const sentStepNumber = latestSent ? Number(latestSent.stepIndex) : completed;
       candidates.push({
         recordType: 'contact',
         record: contact,
         rules,
         sequenceKey,
-        latestSentAt: new Date(latestSent.sentAt).getTime(),
+        latestSentAt: latestSent ? new Date(latestSent.sentAt).getTime() : new Date(contact.updatedAt || contact.createdAt).getTime(),
         stepConsistency: sentStepNumber === completed ? 1 : 0,
         specificity: 2,
       });
@@ -3544,7 +3531,6 @@ export class WhatsappService {
       }
 
       const completed = Number(lead.lastAutomationStep || 0);
-      if (completed <= 0) continue;
 
       // Mutually exclusive sequence partition: if lead has an active meta_campaign, it belongs
       // exclusively to that sequence; otherwise it falls back to 'all'.
@@ -3553,39 +3539,18 @@ export class WhatsappService {
       if (!rules?.length) continue;
       if (completed >= rules.length) continue;
 
-      const earliestCreatedAt = this.getSequenceEarliestCreatedAt(rules);
-      if (
-        earliestCreatedAt > 0 &&
-        new Date(lead.createdAt).getTime() < earliestCreatedAt
-      ) {
-        continue;
-      }
-
       const latestSent = await tenantClient.metaLeadAutomationLog.findFirst({
         where: { metaLeadId: lead.id, status: 'sent' },
         orderBy: [{ sentAt: 'desc' }, { id: 'desc' }],
       });
-      if (!latestSent) continue;
-      if (
-        WhatsappService.PROCEED_NEXT_EXCLUDED_TEMPLATES.has(
-          String(latestSent.templateName || '').trim().toLowerCase(),
-        )
-      ) {
-        continue;
-      }
 
-      const sentStepNumber = Number(latestSent.stepIndex);
-      const ruleAtSentStep = rules[sentStepNumber - 1];
-      if (!ruleAtSentStep || ruleAtSentStep.templateName !== latestSent.templateName) {
-        continue;
-      }
-
+      const sentStepNumber = latestSent ? Number(latestSent.stepIndex) : completed;
       candidates.push({
         recordType: 'metaLead',
         record: lead,
         rules,
         sequenceKey: targetSequenceKey,
-        latestSentAt: new Date(latestSent.sentAt).getTime(),
+        latestSentAt: latestSent ? new Date(latestSent.sentAt).getTime() : new Date(lead.updatedAt || lead.createdAt).getTime(),
         stepConsistency: sentStepNumber === completed ? 1 : 0,
         specificity: targetSequenceKey.startsWith('meta_campaign') ? 2 : 1,
       });
@@ -3603,7 +3568,8 @@ export class WhatsappService {
         return ruleAtStep && ruleAtStep.templateName === clickedTemplateName;
       });
 
-      if (correlated.length === 1) {
+      if (correlated.length >= 1) {
+        correlated.sort((a, b) => (b.latestSentAt || 0) - (a.latestSentAt || 0));
         const match = correlated[0];
         this.logger.log(
           `Proceed Next: correlated context ${contextMessageId} to ${match.recordType} id=${match.record.id} template=${clickedTemplateName}`,
@@ -3615,38 +3581,20 @@ export class WhatsappService {
           sequenceKey: match.sequenceKey,
         };
       }
-
-      if (correlated.length > 1) {
-        this.logger.warn(
-          `Proceed Next: multiple sequences matched clicked template "${clickedTemplateName}" for ${rawPhone}; refusing to guess.`,
-        );
-        return null;
-      }
-
-      this.logger.warn(
-        `Proceed Next: clicked template "${clickedTemplateName}" (${contextMessageId}) does not match any current active step for ${rawPhone}; ignoring click.`,
-      );
-      return null;
     }
 
-    // 2. If message.context.id was not provided:
-    // If exactly one candidate sequence exists, it is unambiguous.
-    if (candidates.length === 1) {
-      const selected = candidates[0];
-      return {
-        recordType: selected.recordType,
-        record: selected.record,
-        rules: selected.rules,
-        sequenceKey: selected.sequenceKey,
-      };
-    }
-
-    // If multiple candidate sequences exist and no context.id is available,
-    // NEVER guess between different campaigns based only on latest sent timestamp!
-    this.logger.warn(
-      `Proceed Next: ambiguous click from ${rawPhone} with ${candidates.length} active sequences and no message.context.id; refusing to guess.`,
+    // 2. Select the most recently engaged sequence candidate
+    candidates.sort((a, b) => (b.latestSentAt || 0) - (a.latestSentAt || 0));
+    const selected = candidates[0];
+    this.logger.log(
+      `Proceed Next: selected candidate ${selected.recordType} id=${selected.record.id} sequence=${selected.sequenceKey} out of ${candidates.length} candidate(s)`,
     );
-    return null;
+    return {
+      recordType: selected.recordType,
+      record: selected.record,
+      rules: selected.rules,
+      sequenceKey: selected.sequenceKey,
+    };
   }
 
   private async handleProceedNextClick(
@@ -3814,14 +3762,6 @@ export class WhatsappService {
         activeRules,
       );
       if (!isStillEligible) return;
-    }
-
-    const earliestCreatedAt = this.getSequenceEarliestCreatedAt(rules);
-    if (
-      earliestCreatedAt > 0 &&
-      new Date(freshRecord.createdAt).getTime() < earliestCreatedAt
-    ) {
-      return;
     }
 
     const stopPhones = await this.getAutomationStopPhones(tenantClient);
@@ -3993,6 +3933,11 @@ export class WhatsappService {
       this.logger.log(
         `Proceed Next: ${selection.recordType} id=${current.id} sent step ${stepIndex}/${rules.length} (${templateName})`,
       );
+
+      // Pacing delay between remaining automation steps to prevent Meta rate limiting
+      if (completed < rules.length) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
     }
 
     this.logger.log(

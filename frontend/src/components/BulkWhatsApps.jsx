@@ -691,7 +691,7 @@ const BulkWhatsApp = () => {
                     <path d="M12 7V12L15 15" stroke="#0369a1" strokeWidth="1.8" strokeLinecap="round"/>
                   </svg>
                   <span>
-                    Sending on <strong>{new Date(scheduledDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</strong> at <strong>{new Date(scheduledDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</strong>
+                    Sending on <strong>{new Date(scheduledDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' })}</strong> at <strong>{new Date(scheduledDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' }).toUpperCase()}</strong> IST
                   </span>
                 </div>
               )}

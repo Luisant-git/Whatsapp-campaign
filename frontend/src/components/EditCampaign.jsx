@@ -39,6 +39,23 @@ const EditCampaign = ({ campaignId, onBack }) => {
     fetchCampaignDetails();
   }, [campaignId]);
 
+  // IST = UTC + 5h 30min. datetime-local inputs work in local browser time,
+  // but we always store/display in IST. So we offset the UTC value to IST
+  // before putting it into the input, and reverse when reading it out.
+  const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+  const utcToISTLocal = (isoString) => {
+    if (!isoString) return '';
+    const utcMs = new Date(isoString).getTime();
+    const istMs = utcMs + IST_OFFSET_MS;
+    return new Date(istMs).toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm" in IST
+  };
+  const istLocalToUTC = (localStr) => {
+    if (!localStr) return '';
+    // localStr is the IST time as "YYYY-MM-DDTHH:mm", treat it as IST → convert to UTC ISO
+    const istMs = new Date(localStr + ':00Z').getTime() - IST_OFFSET_MS;
+    return new Date(istMs).toISOString();
+  };
+
   const normalizePhone = (phone) => {
     if (!phone) return '';
     const clean = String(phone).replace(/\D/g, '');
@@ -70,10 +87,8 @@ const EditCampaign = ({ campaignId, onBack }) => {
         scheduleType: data.scheduleType || 'one-time',
         scheduledDays: data.scheduledDays || [],
         scheduledTime: data.scheduledTime || '09:00',
-        // Convert ISO string to datetime-local format (YYYY-MM-DDTHH:mm)
-        scheduledDate: data.scheduledDate
-          ? new Date(data.scheduledDate).toISOString().slice(0, 16)
-          : '',
+        // Store scheduledDate in IST for the datetime-local input
+        scheduledDate: data.scheduledDate ? utcToISTLocal(data.scheduledDate) : '',
       });
       if (data.scheduledDate) setQuickPick('custom');
     } catch (error) {
@@ -279,7 +294,7 @@ const EditCampaign = ({ campaignId, onBack }) => {
       scheduledDays: editData.scheduleType === 'time-based' ? editData.scheduledDays : [],
       scheduledTime: editData.scheduleType === 'time-based' ? editData.scheduledTime : undefined,
       scheduledDate: editData.scheduleType === 'scheduled' && editData.scheduledDate
-        ? new Date(editData.scheduledDate).toISOString()
+        ? istLocalToUTC(editData.scheduledDate)
         : undefined,
       contacts: finalContacts.map(c => ({
         phone: typeof c === 'string' ? normalizePhone(c) : normalizePhone(c.phone),
@@ -479,7 +494,9 @@ const EditCampaign = ({ campaignId, onBack }) => {
                       d.setDate(d.getDate() + (opt.plus || 1));
                       d.setHours(opt.h, 0, 0, 0);
                       setQuickPick(opt.id);
-                      setEditData({...editData, scheduledDate: d.toISOString().slice(0, 16)});
+                      // Store as IST local string for the datetime-local input
+                      const istStr = utcToISTLocal(d.toISOString());
+                      setEditData({...editData, scheduledDate: istStr});
                     }}
                     style={{
                       padding: '8px 14px', borderRadius: '10px', cursor: 'pointer', minWidth: '80px',
@@ -532,9 +549,10 @@ const EditCampaign = ({ campaignId, onBack }) => {
                   <path d="M12 7V12L15 15" stroke="#0369a1" strokeWidth="1.8" strokeLinecap="round"/>
                 </svg>
                 Sending on <strong style={{ marginLeft: 4 }}>
-                  {new Date(editData.scheduledDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+                  {new Date(istLocalToUTC(editData.scheduledDate)).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' })}
                   {' at '}
-                  {new Date(editData.scheduledDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                  {new Date(istLocalToUTC(editData.scheduledDate)).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' }).toUpperCase()}
+                  {' IST'}
                 </strong>
               </div>
             )}

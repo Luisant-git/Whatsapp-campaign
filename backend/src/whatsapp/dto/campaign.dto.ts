@@ -30,7 +30,7 @@ export class CreateCampaignDto {
   @IsString()
   headerImageUrl?: string;
 
-  @ApiPropertyOptional({ description: 'Schedule type', enum: ['one-time', 'time-based'], default: 'one-time' })
+  @ApiPropertyOptional({ description: 'Schedule type', enum: ['one-time', 'scheduled', 'time-based'], default: 'one-time' })
   @IsOptional()
   @IsString()
   scheduleType?: string;
@@ -45,10 +45,15 @@ export class CreateCampaignDto {
   @IsString()
   scheduledTime?: string;
 
+  @ApiPropertyOptional({ description: 'Exact datetime for one-time scheduled send (ISO 8601)', example: '2026-10-18T09:00:00.000Z' })
+  @IsOptional()
+  @IsString()
+  scheduledDate?: string;
+
   @ApiPropertyOptional({ description: 'Campaign group ID', example: 3 })
   @IsOptional()
   @IsInt()
-  groupId?: number;  
+  groupId?: number;
 }
 
 export class UpdateCampaignDto {
@@ -77,7 +82,7 @@ export class UpdateCampaignDto {
   @IsString()
   headerImageUrl?: string;
 
-  @ApiPropertyOptional({ description: 'Schedule type', enum: ['one-time', 'time-based'] })
+  @ApiPropertyOptional({ description: 'Schedule type', enum: ['one-time', 'scheduled', 'time-based'] })
   @IsOptional()
   @IsString()
   scheduleType?: string;
@@ -92,12 +97,17 @@ export class UpdateCampaignDto {
   @IsString()
   scheduledTime?: string;
 
-  @ApiPropertyOptional({ description: 'Campaign group ID', example: 3 })
-@IsOptional()
-@IsInt()
-groupId?: number;
+  @ApiPropertyOptional({ description: 'Exact datetime for one-time scheduled send (ISO 8601)', example: '2026-10-18T09:00:00.000Z' })
+  @IsOptional()
+  @IsString()
+  scheduledDate?: string;
 
- 
+  @ApiPropertyOptional({ description: 'Campaign group ID', example: 3 })
+  @IsOptional()
+  @IsInt()
+  groupId?: number;
+
+
 }
 
 export class CampaignResponseDto {
@@ -136,6 +146,9 @@ export class CampaignResponseDto {
 
   @ApiProperty()
   scheduledTime?: string;
+
+  @ApiProperty()
+  scheduledDate?: Date;
 }
 
 export class CampaignMessageDto {

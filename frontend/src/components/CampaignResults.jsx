@@ -161,15 +161,23 @@ const CampaignResults = ({ campaignId, onBack }) => {
   };
 
   const getRetriableFailedContacts = () => {
-    return results.filter(r => 
-      r.status === 'failed' && 
-      r.error && 
-      r.error.includes('Message blocked to maintain healthy engagement')
-    );
+    return results.filter(r => {
+      if (r.status !== 'failed' || !r.error) return false;
+      const err = r.error.toLowerCase();
+      // Meta code 131049: "In order to maintain a healthy ecosystem engagement,
+      // the message failed to be delivered." — temporary spam/engagement blocks.
+      return err.includes('131049') || (err.includes('healthy') && err.includes('engagement'));
+    });
+  };
+
+  // All failed contacts — used for the "Resend Failed" button so the user can
+  // retry any failure, not just the spam/engagement blocks.
+  const getAllFailedContacts = () => {
+    return results.filter(r => r.status === 'failed');
   };
 
   const handleResendToFailed = () => {
-    const failedContacts = getRetriableFailedContacts();
+    const failedContacts = getAllFailedContacts();
     
     if (failedContacts.length === 0) {
       showError('No failed contacts to resend');
@@ -185,7 +193,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
   };
 
   const handleConfirmResend = async () => {
-    const failedContacts = getRetriableFailedContacts();
+    const failedContacts = getAllFailedContacts();
     
     if (!resendCampaignName.trim()) {
       showError('Please enter a campaign name');
@@ -432,15 +440,15 @@ const CampaignResults = ({ campaignId, onBack }) => {
             </div>
             <button 
               onClick={handleResendToFailed}
-              disabled={getRetriableFailedContacts().length === 0}
+              disabled={getAllFailedContacts().length === 0}
               style={{
                 marginLeft: 'auto',
                 padding: '8px 16px',
-                background: getRetriableFailedContacts().length === 0 ? '#d1d5db' : '#25d366',
+                background: getAllFailedContacts().length === 0 ? '#d1d5db' : '#25d366',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
-                cursor: getRetriableFailedContacts().length === 0 ? 'not-allowed' : 'pointer',
+                cursor: getAllFailedContacts().length === 0 ? 'not-allowed' : 'pointer',
                 fontSize: '14px',
                 fontWeight: '500',
                 display: 'flex',
@@ -449,18 +457,18 @@ const CampaignResults = ({ campaignId, onBack }) => {
                 transition: 'all 0.2s'
               }}
               onMouseEnter={(e) => {
-                if (getRetriableFailedContacts().length > 0) {
+                if (getAllFailedContacts().length > 0) {
                   e.target.style.background = '#22c55e';
                 }
               }}
               onMouseLeave={(e) => {
-                if (getRetriableFailedContacts().length > 0) {
+                if (getAllFailedContacts().length > 0) {
                   e.target.style.background = '#25d366';
                 }
               }}
             >
               <Send size={16} />
-              Resend Failed ({getRetriableFailedContacts().length})
+              Resend Failed ({getAllFailedContacts().length})
             </button>
           </div>
 
@@ -612,7 +620,7 @@ const CampaignResults = ({ campaignId, onBack }) => {
               <div style={{ marginBottom: '12px' }}>
                 <strong style={{ color: '#374151' }}>Failed Contacts:</strong>
                 <span style={{ marginLeft: '8px', color: '#ef4444', fontWeight: '600' }}>
-                  {getRetriableFailedContacts().length}
+                  {getAllFailedContacts().length}
                 </span>
               </div>
             </div>

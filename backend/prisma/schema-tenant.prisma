@@ -93,6 +93,7 @@ model Campaign {
   scheduleType  String            @default("one-time")
   scheduledDays String[]          @default([])
   scheduledTime String?
+  scheduledDate DateTime?
   groupId       Int?
   settingsId    Int
   createdAt     DateTime          @default(now())

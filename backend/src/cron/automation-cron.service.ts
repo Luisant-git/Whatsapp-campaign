@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { CentralPrismaService } from '../central-prisma.service';
 import { TenantPrismaService } from '../tenant-prisma.service';
 import { AutoTemplateSenderService } from './auto-template-sender.service';
+import { CampaignService } from '../whatsapp/campaign.service';
 import { Prisma, PrismaClient as TenantPrismaClient } from '@prisma/client-tenant';
 import { isWithinAllowedSendingHours } from '../utils/campaign-window.util';
 
@@ -31,12 +32,69 @@ export class AutomationCronService {
   private readonly logger = new Logger(AutomationCronService.name);
   private isRunningRunDailyAutomation = false;
   private isRunningDeleteOldCampaigns = false;
+  private isRunningScheduledCampaigns = false;
 
   constructor(
     private centralPrisma: CentralPrismaService,
     private tenantPrisma: TenantPrismaService,
     private sender: AutoTemplateSenderService,
-  ) {}
+    private campaignService: CampaignService,
+  ) { }
+  // Runs every minute — fires scheduled (one-time date-based) campaigns whose
+  // scheduledDate has arrived or passed and haven't been run yet.
+  @Cron('* * * * *', { timeZone: 'Asia/Kolkata' })
+  async runScheduledDateCampaigns() {
+    if (this.isRunningScheduledCampaigns) return;
+    if (!isWithinAllowedSendingHours()) return;
+
+    this.isRunningScheduledCampaigns = true;
+    try {
+      const tenants = await this.centralPrisma.tenant.findMany({
+        where: { isActive: true },
+      });
+
+      for (const tenant of tenants) {
+        try {
+          const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+          const tenantClient = this.tenantPrisma.getTenantClient(tenant.id.toString(), dbUrl);
+
+          // Find campaigns due to fire: status=scheduled, scheduleType=scheduled, scheduledDate<=now
+          const dueCampaigns = await tenantClient.campaign.findMany({
+            where: {
+              status: 'scheduled',
+              scheduleType: 'scheduled',
+              scheduledDate: { lte: new Date() },
+            },
+            select: { id: true, name: true },
+          });
+
+          for (const campaign of dueCampaigns) {
+            this.logger.log(`Tenant ${tenant.id}: firing scheduled campaign "${campaign.name}" (id=${campaign.id})`);
+            try {
+              // Mark as running so we don't double-fire if cron ticks again before completion
+              await tenantClient.campaign.update({
+                where: { id: campaign.id },
+                data: { status: 'running' },
+              });
+              // runCampaign uses userId=0 for non-user-context runs (same as the existing scheduler)
+              await this.campaignService.runCampaignForTenant(campaign.id, tenant.id.toString(), dbUrl);
+            } catch (err: any) {
+              this.logger.error(`Failed to fire scheduled campaign ${campaign.id} for tenant ${tenant.id}:`, err?.message);
+              await tenantClient.campaign.update({
+                where: { id: campaign.id },
+                data: { status: 'failed' },
+              }).catch(() => { });
+            }
+          }
+        } catch (tenantErr: any) {
+          this.logger.error(`Error processing scheduled campaigns for tenant ${tenant.id}:`, tenantErr?.message);
+        }
+      }
+    } finally {
+      this.isRunningScheduledCampaigns = false;
+    }
+  }
+
   //campaign delete cron - every day at midnight IST. TEST: every minute. PROD: '0 0 * * *'
   @Cron(process.env.CAMPAIGN_DELETE_CRON || '0 0 * * *', {
     timeZone: 'Asia/Kolkata',
@@ -54,27 +112,27 @@ export class AutomationCronService {
       const tenants = await this.centralPrisma.tenant.findMany({
         where: { isActive: true },
       });
-  
-    for (const tenant of tenants) {
-      try {
-        const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
-        const tenantClient = this.tenantPrisma.getTenantClient(
-          tenant.id.toString(),
-          dbUrl,
-        );
-  
-        await this.deleteOldCampaignsForTenant(
-          tenantClient,
-          tenant.id,
-          tenant.dbName,
-        );
-      } catch (error: any) {
-        this.logger.error(
-          `Failed deleting old campaigns for tenant ${tenant.id} (${tenant.dbName})`,
-          error?.message || error,
-        );
+
+      for (const tenant of tenants) {
+        try {
+          const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
+          const tenantClient = this.tenantPrisma.getTenantClient(
+            tenant.id.toString(),
+            dbUrl,
+          );
+
+          await this.deleteOldCampaignsForTenant(
+            tenantClient,
+            tenant.id,
+            tenant.dbName,
+          );
+        } catch (error: any) {
+          this.logger.error(
+            `Failed deleting old campaigns for tenant ${tenant.id} (${tenant.dbName})`,
+            error?.message || error,
+          );
+        }
       }
-    }
     } finally {
       this.isRunningDeleteOldCampaigns = false;
     }
@@ -89,7 +147,7 @@ export class AutomationCronService {
       const deleteAfterDays = Number(process.env.CAMPAIGN_DELETE_AFTER_DAYS || 14);
       const oldDate = new Date();
       oldDate.setDate(oldDate.getDate() - deleteAfterDays);
-  
+
       const deleted = await tenantClient.campaign.deleteMany({
         where: {
           createdAt: {
@@ -100,7 +158,7 @@ export class AutomationCronService {
           },
         },
       });
-  
+
       if (deleted.count > 0) {
         this.logger.log(
           `Tenant ${tenantId} (${dbName}): deleted ${deleted.count} campaigns older than ${deleteAfterDays} days`,
@@ -117,7 +175,7 @@ export class AutomationCronService {
       );
     }
   }
-  
+
   // TEST: every minute. PROD: '0 9 * * *'
   @Cron(process.env.AUTOMATION_CRON || '* * * * *', {
     timeZone: 'Asia/Kolkata',
@@ -139,7 +197,7 @@ export class AutomationCronService {
       const tenants = await this.centralPrisma.tenant.findMany({
         where: { isActive: true },
       });
-  
+
       for (const tenant of tenants) {
         try {
           const dbUrl = `postgresql://${tenant.dbUser}:${tenant.dbPassword}@${tenant.dbHost}:${tenant.dbPort}/${tenant.dbName}`;
@@ -183,7 +241,7 @@ export class AutomationCronService {
 
     if (!any) return;
 
-    
+
 
     const stop = await tenantClient.chatLabel.findMany({
       where: { labels: { hasSome: ['Stop', 'stop'] } },

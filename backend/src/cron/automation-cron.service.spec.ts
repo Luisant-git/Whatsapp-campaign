@@ -26,6 +26,7 @@ describe('AutomationCronService', () => {
       mockCentralPrisma as unknown as CentralPrismaService,
       mockTenantPrisma as unknown as TenantPrismaService,
       mockSender as unknown as AutoTemplateSenderService,
+      {} as any, // CampaignService mock
     );
   });
 

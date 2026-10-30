@@ -22,6 +22,7 @@ const BulkWhatsApp = () => {
   const [scheduleType, setScheduleType] = useState("one-time");
   const [scheduledDays, setScheduledDays] = useState([]);
   const [scheduledTime, setScheduledTime] = useState("09:00");
+  const [scheduledDate, setScheduledDate] = useState("");
   const [campaignName, setCampaignName] = useState("");
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState("");
@@ -322,14 +323,29 @@ const BulkWhatsApp = () => {
       showError("Please select at least one day for time-based scheduling");
       return;
     }
+    if (scheduleType === "scheduled" && !scheduledDate) {
+      showError("Please pick a date and time to schedule the campaign");
+      return;
+    }
+    if (scheduleType === "scheduled" && new Date(scheduledDate) <= new Date()) {
+      showError("Scheduled date must be in the future");
+      return;
+    }
 
     // Show confirmation popup after all validations
-    let confirmMsg = `Campaign will run in the background and send to ${dataToSend.length} contact${dataToSend.length > 1 ? 's' : ''}. You can check progress in the Campaigns Reports. Continue?`;
-    
+    let confirmMsg = `Campaign will run in the background and send to ${dataToSend.length} contact${dataToSend.length > 1 ? 's' : ''}.`;
+    if (scheduleType === "scheduled") {
+      const dt = new Date(scheduledDate);
+      confirmMsg = `Campaign will be scheduled and sent automatically on ${dt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST to ${dataToSend.length} contact${dataToSend.length > 1 ? 's' : ''}.`;
+    } else if (scheduleType === "time-based") {
+      confirmMsg = `Recurring campaign will send every week on selected days to ${dataToSend.length} contact${dataToSend.length > 1 ? 's' : ''}.`;
+    } else {
+      confirmMsg += ` You can check progress in the Campaigns Reports. Continue?`;
+    }
     if (dataToSend.length > 2000) {
-      confirmMsg = `⚠️ WARNING: You are sending to ${dataToSend.length} contacts. It is highly recommended to keep campaigns below 2000 contacts at a time to prevent delivery issues. Are you sure you want to continue?`;
-    } else if (dataToSend.length > 200) {
-      confirmMsg = `You are about to send to ${dataToSend.length} contacts. (Note: keeping batches below 200-2000 at a time is recommended for best results). Campaign will run in the background. Continue?`;
+      confirmMsg = `⚠️ WARNING: You are sending to ${dataToSend.length} contacts. Keeping campaigns below 2000 contacts at a time is recommended. ${confirmMsg}`;
+    } else if (scheduleType === "one-time" && dataToSend.length > 200) {
+      confirmMsg = `You are about to send to ${dataToSend.length} contacts. (Note: keeping batches below 200-2000 at a time is recommended). ${confirmMsg}`;
     }
 
     const confirmed = await showConfirm(confirmMsg);
@@ -345,6 +361,9 @@ const BulkWhatsApp = () => {
       ...(scheduleType === "time-based" && {
         scheduledDays,
         scheduledTime,
+      }),
+      ...(scheduleType === "scheduled" && {
+        scheduledDate: new Date(scheduledDate).toISOString(),
       }),
     };
 
@@ -366,6 +385,7 @@ const BulkWhatsApp = () => {
         setTemplateName("");
         setScheduledDays([]);
         setScheduledTime("09:00");
+        setScheduledDate("");
         setScheduleType("one-time");
       } else {
         throw new Error(response.message || "Failed to start campaign");
@@ -429,66 +449,105 @@ const BulkWhatsApp = () => {
             </select>
           </div>
 
-          {/* Schedule Type */}
+          {/* ── Scheduling ── */}
           <div className="form-group">
-            <label className="form-label">Scheduling Type</label>
-            <div className="schedule-type-selector">
-              <label className="radio-option">
-                <input
-                  type="radio"
-                  value="one-time"
-                  checked={scheduleType === "one-time"}
+            <label className="form-label">When to Send</label>
+
+            {/* 3 option cards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+              {/* Send Now */}
+              <label style={{
+                display: 'flex', alignItems: 'center', gap: '14px',
+                padding: '14px 16px', borderRadius: '10px', cursor: 'pointer',
+                border: `2px solid ${scheduleType === 'one-time' ? '#25d366' : '#e5e7eb'}`,
+                background: scheduleType === 'one-time' ? '#f0fff7' : '#fff',
+                transition: 'all 0.15s',
+              }}>
+                <input type="radio" value="one-time" checked={scheduleType === 'one-time'}
                   onChange={(e) => setScheduleType(e.target.value)}
-                />
-                <span>Send Now (One-time)</span>
+                  style={{ accentColor: '#25d366', width: 18, height: 18, cursor: 'pointer' }} />
+                <div>
+                  <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827' }}>⚡ Send Now</div>
+                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>Campaign starts immediately in the background</div>
+                </div>
               </label>
-              <label className="radio-option">
-                <input
-                  type="radio"
-                  value="time-based"
-                  checked={scheduleType === "time-based"}
+
+              {/* Schedule for Later */}
+              <label style={{
+                display: 'flex', alignItems: 'center', gap: '14px',
+                padding: '14px 16px', borderRadius: '10px', cursor: 'pointer',
+                border: `2px solid ${scheduleType === 'scheduled' ? '#1877f2' : '#e5e7eb'}`,
+                background: scheduleType === 'scheduled' ? '#eff6ff' : '#fff',
+                transition: 'all 0.15s',
+              }}>
+                <input type="radio" value="scheduled" checked={scheduleType === 'scheduled'}
                   onChange={(e) => setScheduleType(e.target.value)}
-                />
-                <span>Time-based Scheduling</span>
+                  style={{ accentColor: '#1877f2', width: 18, height: 18, cursor: 'pointer' }} />
+                <div>
+                  <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827' }}>📅 Schedule for Later</div>
+                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>Pick a specific date &amp; time — sent once automatically</div>
+                </div>
+              </label>
+
+              {/* Weekly Recurring */}
+              <label style={{
+                display: 'flex', alignItems: 'center', gap: '14px',
+                padding: '14px 16px', borderRadius: '10px', cursor: 'pointer',
+                border: `2px solid ${scheduleType === 'time-based' ? '#7c3aed' : '#e5e7eb'}`,
+                background: scheduleType === 'time-based' ? '#f5f3ff' : '#fff',
+                transition: 'all 0.15s',
+              }}>
+                <input type="radio" value="time-based" checked={scheduleType === 'time-based'}
+                  onChange={(e) => setScheduleType(e.target.value)}
+                  style={{ accentColor: '#7c3aed', width: 18, height: 18, cursor: 'pointer' }} />
+                <div>
+                  <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827' }}>🔁 Weekly Recurring</div>
+                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>Repeat every week on selected days at a fixed time</div>
+                </div>
               </label>
             </div>
           </div>
 
-          {/* If Time-Based */}
-          {scheduleType === "time-based" && (
+          {/* ── Schedule for Later: date-time picker ── */}
+          {scheduleType === 'scheduled' && (
+            <div className="form-group">
+              <label className="form-label">📅 Date &amp; Time (IST)</label>
+              <input
+                type="datetime-local"
+                className="form-input"
+                value={scheduledDate}
+                min={new Date(Date.now() + 5 * 60000).toISOString().slice(0, 16)}
+                onChange={(e) => setScheduledDate(e.target.value)}
+                style={{ fontSize: '14px', cursor: 'pointer' }}
+              />
+              <small className="form-hint" style={{ marginTop: '6px', display: 'block' }}>
+                ⏰ Your local time shown above — campaign fires at that exact moment (IST). Allowed: 8 AM – 8 PM IST.
+              </small>
+            </div>
+          )}
+
+          {/* ── Weekly Recurring: day + time pickers ── */}
+          {scheduleType === 'time-based' && (
             <>
               <div className="form-group">
                 <label className="form-label">Select Days</label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {daysOfWeek.map((day) => {
-                    const isSelected = scheduledDays.includes(day.value);
+                    const isSel = scheduledDays.includes(day.value);
                     return (
-                      <label 
-                        key={day.value} 
-                        style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: '8px', 
-                          cursor: 'pointer', 
-                          fontSize: '13px',
-                          padding: '8px 14px',
-                          border: `1px solid ${isSelected ? '#1877f2' : '#ced0d4'}`,
-                          borderRadius: '8px',
-                          backgroundColor: isSelected ? '#e7f3ff' : 'white',
-                          color: isSelected ? '#1877f2' : '#1c1e21',
-                          fontWeight: isSelected ? '600' : '500',
-                          transition: 'all 0.2s ease',
-                          userSelect: 'none'
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleDayToggle(day.value)}
-                          style={{ accentColor: '#1877f2', margin: 0, width: '16px', height: '16px', cursor: 'pointer' }}
-                        />
+                      <button key={day.value} type="button"
+                        onClick={() => handleDayToggle(day.value)}
+                        style={{
+                          padding: '8px 14px', borderRadius: '8px', fontSize: '13px',
+                          fontWeight: isSel ? '600' : '500', cursor: 'pointer',
+                          border: `1.5px solid ${isSel ? '#7c3aed' : '#d1d5db'}`,
+                          background: isSel ? '#ede9fe' : '#fff',
+                          color: isSel ? '#6d28d9' : '#374151',
+                          transition: 'all 0.15s',
+                        }}>
                         {day.label}
-                      </label>
+                      </button>
                     );
                   })}
                 </div>
@@ -501,69 +560,38 @@ const BulkWhatsApp = () => {
                     const { h, m, ampm } = parseScheduledTime(scheduledTime);
                     return (
                       <>
-                        <select 
-                          value={h} 
-                          onChange={(e) => handleTimeChange('h', Number(e.target.value))}
-                          style={{ width: 'auto', padding: '8px 12px', border: '1px solid #ced0d4', borderRadius: '6px', outline: 'none', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px' }}
-                        >
-                          {Array.from({length: 12}, (_, i) => i + 1).map(hour => (
-                            <option key={hour} value={hour}>{String(hour).padStart(2, '0')}</option>
+                        <select value={h} onChange={(e) => handleTimeChange('h', Number(e.target.value))}
+                          style={{ padding: '8px 12px', border: '1.5px solid #d1d5db', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', outline: 'none' }}>
+                          {Array.from({ length: 12 }, (_, i) => i + 1).map(hr => (
+                            <option key={hr} value={hr}>{String(hr).padStart(2, '0')}</option>
                           ))}
                         </select>
-                        <span style={{ fontWeight: '600', color: '#1c1e21' }}>:</span>
-                        <select 
-                          value={m} 
-                          onChange={(e) => handleTimeChange('m', Number(e.target.value))}
-                          style={{ width: 'auto', padding: '8px 12px', border: '1px solid #ced0d4', borderRadius: '6px', outline: 'none', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px' }}
-                        >
-                          {Array.from({length: 60}, (_, i) => i).map(minute => (
-                            <option key={minute} value={minute}>{String(minute).padStart(2, '0')}</option>
+                        <span style={{ fontWeight: '700', color: '#374151' }}>:</span>
+                        <select value={m} onChange={(e) => handleTimeChange('m', Number(e.target.value))}
+                          style={{ padding: '8px 12px', border: '1.5px solid #d1d5db', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', outline: 'none' }}>
+                          {[0, 15, 30, 45].map(min => (
+                            <option key={min} value={min}>{String(min).padStart(2, '0')}</option>
                           ))}
                         </select>
-                        
-                        <div style={{ display: 'flex', gap: '4px', marginLeft: '8px', background: '#f0f2f5', padding: '4px', borderRadius: '8px' }}>
-                          <button 
-                            onClick={(e) => { e.preventDefault(); handleTimeChange('ampm', 'AM'); }}
-                            style={{ 
-                              padding: '6px 12px', 
-                              border: 'none', 
-                              borderRadius: '6px', 
-                              cursor: 'pointer',
-                              fontSize: '13px',
-                              fontWeight: '600',
-                              backgroundColor: ampm === 'AM' ? 'white' : 'transparent',
-                              color: ampm === 'AM' ? '#1877f2' : '#65676b',
-                              boxShadow: ampm === 'AM' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                              transition: 'all 0.2s'
-                            }}
-                          >
-                            AM
-                          </button>
-                          <button 
-                            onClick={(e) => { e.preventDefault(); handleTimeChange('ampm', 'PM'); }}
-                            style={{ 
-                              padding: '6px 12px', 
-                              border: 'none', 
-                              borderRadius: '6px', 
-                              cursor: 'pointer',
-                              fontSize: '13px',
-                              fontWeight: '600',
-                              backgroundColor: ampm === 'PM' ? 'white' : 'transparent',
-                              color: ampm === 'PM' ? '#1877f2' : '#65676b',
-                              boxShadow: ampm === 'PM' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                              transition: 'all 0.2s'
-                            }}
-                          >
-                            PM
-                          </button>
+                        <div style={{ display: 'flex', gap: '4px', background: '#f3f4f6', padding: '4px', borderRadius: '8px' }}>
+                          {['AM', 'PM'].map(ap => (
+                            <button key={ap} type="button"
+                              onClick={(e) => { e.preventDefault(); handleTimeChange('ampm', ap); }}
+                              style={{
+                                padding: '6px 14px', border: 'none', borderRadius: '6px', cursor: 'pointer',
+                                fontSize: '13px', fontWeight: '600',
+                                background: ampm === ap ? '#fff' : 'transparent',
+                                color: ampm === ap ? '#7c3aed' : '#6b7280',
+                                boxShadow: ampm === ap ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                transition: 'all 0.15s',
+                              }}>{ap}</button>
+                          ))}
                         </div>
                       </>
                     );
                   })()}
                 </div>
-                <small className="form-hint" style={{ marginTop: '8px', display: 'block' }}>
-                  Time will be in Indian Standard Time (IST)
-                </small>
+                <small className="form-hint" style={{ marginTop: '6px', display: 'block' }}>Indian Standard Time (IST) · 8 AM – 8 PM window</small>
               </div>
             </>
           )}
@@ -688,7 +716,8 @@ const BulkWhatsApp = () => {
                 </>
               ) : (
                 <>
-                  <IoSendSharp size={20} /> Send Campaign Messages
+                  <IoSendSharp size={20} />
+                  {scheduleType === 'scheduled' ? '📅 Schedule Campaign' : scheduleType === 'time-based' ? '🔁 Save Recurring Campaign' : '⚡ Send Campaign Now'}
                 </>
               )}
             </button>

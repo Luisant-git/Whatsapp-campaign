@@ -113,7 +113,7 @@ export class ContactService {
         dob: data.dob ? new Date(data.dob) : null,
         anniversary: data.anniversary ? new Date(data.anniversary) : null,
         phoneNumberId: data.phoneNumberId || null,
-        
+
         variable2: data.variable2 !== undefined && data.variable2 !== null ? String(data.variable2) : null,
         variable3: data.variable3 !== undefined && data.variable3 !== null ? String(data.variable3) : null,
         variable4: data.variable4 !== undefined && data.variable4 !== null ? String(data.variable4) : null,
@@ -149,7 +149,9 @@ export class ContactService {
 
     for (const c of contacts) {
       const rawPhone = String(c.phone || '').replace(/\D/g, '');
-      if (!/^[6-9]\d{9}$/.test(rawPhone) && rawPhone.length !== 12) {
+      // Accept Indian 10-digit mobiles (6-9 prefix) OR any international
+      // number with a country code (11-15 digits, not starting with 0).
+      if (!/^[6-9]\d{9}$/.test(rawPhone) && (rawPhone.length < 11 || rawPhone.length > 15 || /^0/.test(rawPhone))) {
         invalidCount++;
         continue;
       }
@@ -452,30 +454,30 @@ export class ContactService {
     phoneNumberId?: string,
   ) {
     const prisma = this.getPrisma(tenantContext);
-  
+
     const formattedPhone = this.formatPhoneNumber(phone);
-  
+
     const normalizedIncomingName =
       name &&
-      !['null', 'undefined', 'unknown'].includes(name.trim().toLowerCase())
+        !['null', 'undefined', 'unknown'].includes(name.trim().toLowerCase())
         ? name.trim()
         : '';
-  
+
     const fallbackName = normalizedIncomingName || formattedPhone;
-  
+
     const existingContact = await prisma.contact.findFirst({
       where: { phone: formattedPhone },
     });
-  
+
     if (existingContact) {
       const existingName =
         existingContact.name &&
-        !['null', 'undefined', 'unknown'].includes(
-          existingContact.name.trim().toLowerCase(),
-        )
+          !['null', 'undefined', 'unknown'].includes(
+            existingContact.name.trim().toLowerCase(),
+          )
           ? existingContact.name.trim()
           : '';
-  
+
       await prisma.contact.update({
         where: { id: existingContact.id },
         data: {
@@ -484,10 +486,10 @@ export class ContactService {
           isActive: true,
         },
       });
-  
+
       return { success: true, message: 'Contact updated' };
     }
-  
+
     await prisma.contact.create({
       data: {
         name: fallbackName,
@@ -498,7 +500,7 @@ export class ContactService {
         isActive: true,
       },
     });
-  
+
     return { success: true, message: 'Contact created' };
   }
   async getLabels(tenantContext: TenantContext) {

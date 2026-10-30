@@ -551,7 +551,7 @@ export default function Contact({ onNavigate }) {
       }
 
       if (invalid > 0) {
-        showError(`${invalid} invalid phone number${invalid !== 1 ? 's' : ''} (not 10 digits) skipped.`);
+        showError(`${invalid} invalid phone number${invalid !== 1 ? 's' : ''} skipped.`);
       }
 
       if (selectedGroupIdForImport) {

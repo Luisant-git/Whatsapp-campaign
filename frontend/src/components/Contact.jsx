@@ -76,6 +76,7 @@ export default function Contact({ onNavigate }) {
   const [selectedGroupIdForImport, setSelectedGroupIdForImport] = useState("");
   const [importing, setImporting] = useState(false);
   const [importUpsertMode, setImportUpsertMode] = useState(true);
+  const [bulkPreviewSearch, setBulkPreviewSearch] = useState("");
 
   const { showSuccess, showError, showInfo } = useToast();
 
@@ -564,6 +565,7 @@ export default function Contact({ onNavigate }) {
       setImporting(false);
       setUploadedData([]);
       setFileName("");
+      setBulkPreviewSearch("");
       setShowBulkModal(false);
       setTab("active");
       setPage(1);
@@ -1354,15 +1356,8 @@ export default function Contact({ onNavigate }) {
             </div>
 
             <div className="bulk-import-content">
-              <p>Upload a CSV or Excel file with the following columns:</p>
-              <ul>
-                <li>Name (required)</li>
-                <li>Phone (required)</li>
-                <li>Group (optional)</li>
-                <li>Email, Place, DOB, Anniversary, Variable2, Variable3, Variable4, Variable5 , Variable6  (optional)</li>
-              </ul>
 
-              {/* Premium upload area */}
+              {/* ── Upload zone ── */}
               <div className="file-upload-container">
                 <input
                   type="file"
@@ -1372,46 +1367,131 @@ export default function Contact({ onNavigate }) {
                   className="file-input"
                   disabled={importing}
                 />
-
-                <label htmlFor="contact-upload" className="file-upload-card">
-                  <div className="file-upload-icon">
-                    <IoCloudUploadOutline size={26} />
+                <label htmlFor="contact-upload" className="file-upload-card" style={{
+                  border: `2px dashed ${uploadedData.length > 0 ? '#10b981' : '#cbd5e1'}`,
+                  background: uploadedData.length > 0 ? '#f0fdf4' : '#f8fafc',
+                  borderRadius: '10px', padding: '18px 16px',
+                  display: 'flex', alignItems: 'center', gap: '12px', cursor: importing ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.15s',
+                }}>
+                  <div style={{
+                    width: 40, height: 40, borderRadius: '10px', flexShrink: 0,
+                    background: uploadedData.length > 0 ? '#10b981' : '#e2e8f0',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {uploadedData.length > 0 ? (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M20 6L9 17L4 12" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    ) : (
+                      <IoCloudUploadOutline size={22} color="#64748b" />
+                    )}
                   </div>
-                  <div className="file-upload-texts">
-                    <span className="file-upload-title">
-                      {fileName || "Click to upload or drag & drop"}
-                    </span>
-                    <span className="file-upload-subtitle">
-                      Excel / CSV • .xlsx, .xls, .csv
-                    </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: '600', fontSize: '14px', color: uploadedData.length > 0 ? '#065f46' : '#334155' }}>
+                      {uploadedData.length > 0
+                        ? `${uploadedData.length} contacts loaded from "${fileName}"`
+                        : fileName || 'Click to upload or drag & drop'}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                      {uploadedData.length > 0
+                        ? 'Click to replace with a different file'
+                        : 'Excel / CSV  •  .xlsx, .xls, .csv'}
+                    </div>
                   </div>
-                </label>
-
-                {uploadedData.length > 0 && (
-                  <div className="file-success">
-                    <IoCheckmarkDoneCircleOutline
-                      size={18}
-                      className="file-success-icon"
-                    />
-                    <span>{uploadedData.length} contacts ready to import</span>
+                  {uploadedData.length > 0 && (
                     <button
                       type="button"
-                      className="file-clear-btn"
-                      onClick={() => {
-                        if (importing) return;
-                        setUploadedData([]);
-                        setFileName("");
-                      }}
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!importing) { setUploadedData([]); setFileName(""); setBulkPreviewSearch(""); } }}
                       disabled={importing}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '4px' }}
                     >
-                      <IoCloseCircleOutline size={18} />
+                      <IoCloseCircleOutline size={20} />
                     </button>
-                  </div>
-                )}
+                  )}
+                </label>
               </div>
 
-              <div className="form-group">
-                <label>Select Group (optional)</label>
+              {/* ── Column legend (only before upload) ── */}
+              {uploadedData.length === 0 && (
+                <div style={{ marginTop: '10px', padding: '10px 14px', background: '#f1f5f9', borderRadius: '8px', fontSize: '12px', color: '#475569', lineHeight: '1.7' }}>
+                  <strong style={{ color: '#1e293b' }}>Required columns:</strong> Name, Phone<br/>
+                  <strong style={{ color: '#1e293b' }}>Optional:</strong> Group, Email, Place, DOB, Anniversary, Variable2–Variable6
+                </div>
+              )}
+
+              {/* ── Contact preview table ── */}
+              {uploadedData.length > 0 && (
+                <div style={{ marginTop: '12px' }}>
+                  {/* Search bar */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <div style={{ flex: 1, position: 'relative' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>
+                        <circle cx="11" cy="11" r="7" stroke="#94a3b8" strokeWidth="2"/>
+                        <path d="M21 21L16.65 16.65" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round"/>
+                      </svg>
+                      <input
+                        type="text"
+                        placeholder={`Search ${uploadedData.length} contacts...`}
+                        value={bulkPreviewSearch}
+                        onChange={(e) => setBulkPreviewSearch(e.target.value)}
+                        style={{
+                          width: '100%', padding: '7px 10px 7px 32px',
+                          border: '1px solid #e2e8f0', borderRadius: '7px',
+                          fontSize: '13px', outline: 'none', boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                    <span style={{ fontSize: '12px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                      {bulkPreviewSearch
+                        ? `${uploadedData.filter(c => (c.name + c.phone).toLowerCase().includes(bulkPreviewSearch.toLowerCase())).length} found`
+                        : `${uploadedData.length} total`}
+                    </span>
+                  </div>
+
+                  {/* Table */}
+                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', maxHeight: '220px', overflowY: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                      <thead style={{ background: '#f8fafc', position: 'sticky', top: 0, zIndex: 1 }}>
+                        <tr>
+                          <th style={{ padding: '8px 12px', textAlign: 'left', color: '#64748b', fontWeight: '600', borderBottom: '1px solid #e2e8f0', width: 32 }}>#</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'left', color: '#64748b', fontWeight: '600', borderBottom: '1px solid #e2e8f0' }}>Name</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'left', color: '#64748b', fontWeight: '600', borderBottom: '1px solid #e2e8f0' }}>Phone</th>
+                          {uploadedData.some(c => c.group) && (
+                            <th style={{ padding: '8px 12px', textAlign: 'left', color: '#64748b', fontWeight: '600', borderBottom: '1px solid #e2e8f0' }}>Group</th>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {uploadedData
+                          .filter(c => !bulkPreviewSearch || (c.name + ' ' + c.phone).toLowerCase().includes(bulkPreviewSearch.toLowerCase()))
+                          .slice(0, 200)
+                          .map((c, i) => (
+                            <tr key={i} style={{ borderBottom: '1px solid #f1f5f9', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                              <td style={{ padding: '7px 12px', color: '#94a3b8', fontSize: '11px' }}>{i + 1}</td>
+                              <td style={{ padding: '7px 12px', fontWeight: '500', color: c.name ? '#0f172a' : '#94a3b8' }}>
+                                {c.name || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>—</span>}
+                              </td>
+                              <td style={{ padding: '7px 12px', fontFamily: 'monospace', color: '#0369a1', fontWeight: '600' }}>{c.phone}</td>
+                              {uploadedData.some(r => r.group) && (
+                                <td style={{ padding: '7px 12px', color: '#475569', fontSize: '12px' }}>{c.group || '—'}</td>
+                              )}
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                    {uploadedData.length > 200 && (
+                      <div style={{ padding: '8px 12px', textAlign: 'center', fontSize: '12px', color: '#64748b', background: '#f8fafc' }}>
+                        Showing first 200 of {uploadedData.length} contacts
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Group selector ── */}
+              <div className="form-group" style={{ marginTop: '14px' }}>
+                <label>Select Group <span style={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</span></label>
                 <select
                   className="form-input"
                   value={selectedGroupIdForImport}
@@ -1420,58 +1500,36 @@ export default function Contact({ onNavigate }) {
                 >
                   <option value="">No Group</option>
                   {groups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name}
-                    </option>
+                    <option key={g.id} value={g.id}>{g.name}</option>
                   ))}
                 </select>
               </div>
 
-              {/* Duplicate Handling Mode for Campaign Targeting */}
-              <div style={{ marginTop: '14px', marginBottom: '14px', background: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              {/* ── Duplicate handling ── */}
+              <div style={{ marginTop: '10px', background: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                 <label style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b', marginBottom: '8px', display: 'block' }}>
                   If contact already exists in database:
                 </label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', cursor: 'pointer', color: '#0f172a' }}>
-                    <input
-                      type="radio"
-                      name="importUpsertMode"
-                      checked={importUpsertMode}
-                      onChange={() => setImportUpsertMode(true)}
-                      style={{ marginTop: '3px', accentColor: '#10b981' }}
-                    />
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                    <input type="radio" name="importUpsertMode" checked={importUpsertMode} onChange={() => setImportUpsertMode(true)} style={{ marginTop: '3px', accentColor: '#10b981' }} />
                     <span>
                       <strong style={{ color: '#047857' }}>Update details &amp; assign to selected group</strong>
-                      <div style={{ fontSize: '12px', color: '#64748b' }}>
-                        Recommended for campaigns: moves existing customers into this group without duplicate errors.
-                      </div>
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>Recommended for campaigns: moves existing customers into this group without duplicate errors.</div>
                     </span>
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', cursor: 'pointer', color: '#475569' }}>
-                    <input
-                      type="radio"
-                      name="importUpsertMode"
-                      checked={!importUpsertMode}
-                      onChange={() => setImportUpsertMode(false)}
-                      style={{ marginTop: '3px', accentColor: '#10b981' }}
-                    />
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                    <input type="radio" name="importUpsertMode" checked={!importUpsertMode} onChange={() => setImportUpsertMode(false)} style={{ marginTop: '3px', accentColor: '#10b981' }} />
                     <span>
                       <strong>Skip duplicates</strong>
-                      <div style={{ fontSize: '12px', color: '#64748b' }}>
-                        Keep existing contacts unchanged; only import new phone numbers.
-                      </div>
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>Keep existing contacts unchanged; only import new phone numbers.</div>
                     </span>
                   </label>
                 </div>
               </div>
 
               <div className="modal-actions">
-                <button
-                  className="btn-secondary"
-                  onClick={() => setShowBulkModal(false)}
-                  disabled={importing}
-                >
+                <button className="btn-secondary" onClick={() => { setShowBulkModal(false); setBulkPreviewSearch(""); }} disabled={importing}>
                   Cancel
                 </button>
                 <button
@@ -1479,7 +1537,7 @@ export default function Contact({ onNavigate }) {
                   onClick={handleBulkImportSubmit}
                   disabled={importing || uploadedData.length === 0}
                 >
-                  {importing ? "Importing..." : "Import Contacts"}
+                  {importing ? "Importing..." : `Import ${uploadedData.length > 0 ? uploadedData.length + ' ' : ''}Contacts`}
                 </button>
               </div>
             </div>

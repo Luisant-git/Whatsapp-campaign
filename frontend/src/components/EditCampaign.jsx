@@ -15,8 +15,10 @@ const EditCampaign = ({ campaignId, onBack }) => {
     contacts: [],
     scheduleType: 'one-time',
     scheduledDays: [],
-    scheduledTime: '09:00'
+    scheduledTime: '09:00',
+    scheduledDate: '',
   });
+  const [quickPick, setQuickPick] = useState('');
 
   const [newContact, setNewContact] = useState({ phone: '', name: '' });
   const [contactSearch, setContactSearch] = useState('');
@@ -67,8 +69,13 @@ const EditCampaign = ({ campaignId, onBack }) => {
         contacts: loadedContacts,
         scheduleType: data.scheduleType || 'one-time',
         scheduledDays: data.scheduledDays || [],
-        scheduledTime: data.scheduledTime || '09:00'
+        scheduledTime: data.scheduledTime || '09:00',
+        // Convert ISO string to datetime-local format (YYYY-MM-DDTHH:mm)
+        scheduledDate: data.scheduledDate
+          ? new Date(data.scheduledDate).toISOString().slice(0, 16)
+          : '',
       });
+      if (data.scheduledDate) setQuickPick('custom');
     } catch (error) {
       console.error('Error fetching campaign details:', error);
       showError('Failed to load campaign details');
@@ -271,6 +278,9 @@ const EditCampaign = ({ campaignId, onBack }) => {
       scheduleType: editData.scheduleType,
       scheduledDays: editData.scheduleType === 'time-based' ? editData.scheduledDays : [],
       scheduledTime: editData.scheduleType === 'time-based' ? editData.scheduledTime : undefined,
+      scheduledDate: editData.scheduleType === 'scheduled' && editData.scheduledDate
+        ? new Date(editData.scheduledDate).toISOString()
+        : undefined,
       contacts: finalContacts.map(c => ({
         phone: typeof c === 'string' ? normalizePhone(c) : normalizePhone(c.phone),
         name: (typeof c === 'string' ? c : (c.name || c.phone || '')).trim()
@@ -340,28 +350,196 @@ const EditCampaign = ({ campaignId, onBack }) => {
         </div>
 
         <div className="form-group">
-          <label>Scheduling Type</label>
-          <div className="schedule-type-selector">
-            <label className="radio-option">
-              <input
-                type="radio"
-                value="one-time"
-                checked={editData.scheduleType === 'one-time'}
-                onChange={(e) => setEditData({...editData, scheduleType: e.target.value})}
-              />
-              <span>Send Now (One Time)</span>
-            </label>
-            <label className="radio-option">
-              <input
-                type="radio"
-                value="time-based"
-                checked={editData.scheduleType === 'time-based'}
-                onChange={(e) => setEditData({...editData, scheduleType: e.target.value})}
-              />
-              <span>Time-Based Scheduling</span>
-            </label>
+          <label>When to Send</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+
+            {/* Send Now */}
+            <div onClick={() => setEditData({...editData, scheduleType: 'one-time'})} style={{
+              display: 'flex', alignItems: 'center', gap: '14px',
+              padding: '13px 16px', borderRadius: '12px', cursor: 'pointer',
+              border: `2px solid ${editData.scheduleType === 'one-time' ? '#25d366' : '#e5e7eb'}`,
+              background: editData.scheduleType === 'one-time' ? '#f0fff7' : '#fff',
+              transition: 'all 0.15s',
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: '10px', flexShrink: 0,
+                background: editData.scheduleType === 'one-time' ? '#25d366' : '#f3f4f6',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s',
+              }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                  <path d="M13 2L4.5 13.5H12L11 22L19.5 10.5H12L13 2Z"
+                    fill={editData.scheduleType === 'one-time' ? '#fff' : '#9ca3af'}
+                    stroke={editData.scheduleType === 'one-time' ? '#fff' : '#9ca3af'}
+                    strokeWidth="1.5" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827' }}>Send Now</div>
+                <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '1px' }}>Campaign starts immediately in the background</div>
+              </div>
+              <div style={{
+                width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                border: `2px solid ${editData.scheduleType === 'one-time' ? '#25d366' : '#d1d5db'}`,
+                background: editData.scheduleType === 'one-time' ? '#25d366' : '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {editData.scheduleType === 'one-time' && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
+              </div>
+            </div>
+
+            {/* Schedule for Later */}
+            <div onClick={() => setEditData({...editData, scheduleType: 'scheduled'})} style={{
+              display: 'flex', alignItems: 'center', gap: '14px',
+              padding: '13px 16px', borderRadius: '12px', cursor: 'pointer',
+              border: `2px solid ${editData.scheduleType === 'scheduled' ? '#1877f2' : '#e5e7eb'}`,
+              background: editData.scheduleType === 'scheduled' ? '#eff6ff' : '#fff',
+              transition: 'all 0.15s',
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: '10px', flexShrink: 0,
+                background: editData.scheduleType === 'scheduled' ? '#1877f2' : '#f3f4f6',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s',
+              }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                  <rect x="3" y="4" width="18" height="17" rx="3" stroke={editData.scheduleType === 'scheduled' ? '#fff' : '#9ca3af'} strokeWidth="1.8"/>
+                  <path d="M3 9H21" stroke={editData.scheduleType === 'scheduled' ? '#fff' : '#9ca3af'} strokeWidth="1.8"/>
+                  <path d="M8 2V5M16 2V5" stroke={editData.scheduleType === 'scheduled' ? '#fff' : '#9ca3af'} strokeWidth="1.8" strokeLinecap="round"/>
+                  <circle cx="12" cy="15" r="1.2" fill={editData.scheduleType === 'scheduled' ? '#fff' : '#9ca3af'}/>
+                  <circle cx="7.5" cy="15" r="1.2" fill={editData.scheduleType === 'scheduled' ? '#fff' : '#9ca3af'}/>
+                  <circle cx="16.5" cy="15" r="1.2" fill={editData.scheduleType === 'scheduled' ? '#fff' : '#9ca3af'}/>
+                </svg>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827' }}>Schedule for Later</div>
+                <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '1px' }}>Pick a date &amp; time — sent once automatically</div>
+              </div>
+              <div style={{
+                width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                border: `2px solid ${editData.scheduleType === 'scheduled' ? '#1877f2' : '#d1d5db'}`,
+                background: editData.scheduleType === 'scheduled' ? '#1877f2' : '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {editData.scheduleType === 'scheduled' && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
+              </div>
+            </div>
+
+            {/* Weekly Recurring */}
+            <div onClick={() => setEditData({...editData, scheduleType: 'time-based'})} style={{
+              display: 'flex', alignItems: 'center', gap: '14px',
+              padding: '13px 16px', borderRadius: '12px', cursor: 'pointer',
+              border: `2px solid ${editData.scheduleType === 'time-based' ? '#7c3aed' : '#e5e7eb'}`,
+              background: editData.scheduleType === 'time-based' ? '#f5f3ff' : '#fff',
+              transition: 'all 0.15s',
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: '10px', flexShrink: 0,
+                background: editData.scheduleType === 'time-based' ? '#7c3aed' : '#f3f4f6',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s',
+              }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                  <path d="M4 12C4 7.58 7.58 4 12 4C14.76 4 17.2 5.36 18.7 7.46" stroke={editData.scheduleType === 'time-based' ? '#fff' : '#9ca3af'} strokeWidth="1.8" strokeLinecap="round"/>
+                  <path d="M20 12C20 16.42 16.42 20 12 20C9.24 20 6.8 18.64 5.3 16.54" stroke={editData.scheduleType === 'time-based' ? '#fff' : '#9ca3af'} strokeWidth="1.8" strokeLinecap="round"/>
+                  <path d="M16 7L18.7 7.46L19.5 5" stroke={editData.scheduleType === 'time-based' ? '#fff' : '#9ca3af'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M8 17L5.3 16.54L4.5 19" stroke={editData.scheduleType === 'time-based' ? '#fff' : '#9ca3af'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: '600', fontSize: '14px', color: '#111827' }}>Weekly Recurring</div>
+                <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '1px' }}>Repeat every week on selected days at a fixed time</div>
+              </div>
+              <div style={{
+                width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                border: `2px solid ${editData.scheduleType === 'time-based' ? '#7c3aed' : '#d1d5db'}`,
+                background: editData.scheduleType === 'time-based' ? '#7c3aed' : '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {editData.scheduleType === 'time-based' && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Schedule for Later: smart date picker */}
+        {editData.scheduleType === 'scheduled' && (
+          <div className="form-group">
+            <label>Pick a Date &amp; Time</label>
+            {/* Quick-pick chips */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
+              {[
+                { id: 'tom-morn', label: 'Tomorrow', sub: '9:00 AM', h: 9 },
+                { id: 'tom-noon', label: 'Tomorrow', sub: '2:00 PM', h: 14 },
+                { id: 'tom-eve',  label: 'Tomorrow', sub: '6:00 PM', h: 18 },
+                { id: 'dayafter', label: 'Day After', sub: '9:00 AM', h: 9, plus: 2 },
+              ].map(opt => {
+                const isActive = quickPick === opt.id;
+                return (
+                  <button key={opt.id} type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() + (opt.plus || 1));
+                      d.setHours(opt.h, 0, 0, 0);
+                      setQuickPick(opt.id);
+                      setEditData({...editData, scheduledDate: d.toISOString().slice(0, 16)});
+                    }}
+                    style={{
+                      padding: '8px 14px', borderRadius: '10px', cursor: 'pointer', minWidth: '80px',
+                      border: `1.5px solid ${isActive ? '#1877f2' : '#e5e7eb'}`,
+                      background: isActive ? '#eff6ff' : '#f9fafb',
+                      color: isActive ? '#1d4ed8' : '#374151',
+                      fontSize: '12px', fontWeight: isActive ? '600' : '500',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px',
+                      transition: 'all 0.15s',
+                    }}>
+                    <span style={{ fontWeight: '600', fontSize: '13px' }}>{opt.label}</span>
+                    <span style={{ fontSize: '11px', color: isActive ? '#3b82f6' : '#6b7280' }}>{opt.sub}</span>
+                  </button>
+                );
+              })}
+              <button type="button"
+                onClick={() => setQuickPick('custom')}
+                style={{
+                  padding: '8px 14px', borderRadius: '10px', cursor: 'pointer', minWidth: '80px',
+                  border: `1.5px solid ${quickPick === 'custom' ? '#1877f2' : '#e5e7eb'}`,
+                  background: quickPick === 'custom' ? '#eff6ff' : '#f9fafb',
+                  color: quickPick === 'custom' ? '#1d4ed8' : '#374151',
+                  fontSize: '12px', fontWeight: quickPick === 'custom' ? '600' : '500',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px',
+                  transition: 'all 0.15s',
+                }}>
+                <span style={{ fontWeight: '600', fontSize: '13px' }}>Custom</span>
+                <span style={{ fontSize: '11px', color: quickPick === 'custom' ? '#3b82f6' : '#6b7280' }}>Choose date</span>
+              </button>
+            </div>
+            {(quickPick === 'custom' || (!quickPick && editData.scheduledDate)) && (
+              <input
+                type="datetime-local"
+                value={editData.scheduledDate || ''}
+                min={new Date(Date.now() + 5 * 60000).toISOString().slice(0, 16)}
+                onChange={(e) => setEditData({...editData, scheduledDate: e.target.value})}
+                style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #d1d5db', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', marginBottom: '8px' }}
+                autoFocus={quickPick === 'custom'}
+              />
+            )}
+            {editData.scheduledDate && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '10px 14px', borderRadius: '8px',
+                background: '#f0f9ff', border: '1px solid #bae6fd',
+                fontSize: '13px', color: '#0369a1',
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="9" stroke="#0369a1" strokeWidth="1.8"/>
+                  <path d="M12 7V12L15 15" stroke="#0369a1" strokeWidth="1.8" strokeLinecap="round"/>
+                </svg>
+                Sending on <strong style={{ marginLeft: 4 }}>
+                  {new Date(editData.scheduledDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+                  {' at '}
+                  {new Date(editData.scheduledDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                </strong>
+              </div>
+            )}
+          </div>
+        )}
 
         {editData.scheduleType === 'time-based' && (
           <div className="time-based-panel">

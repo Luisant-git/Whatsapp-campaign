@@ -322,6 +322,32 @@ const Campaigns = ({ onResendFailed }) => {
                       (campaign.status ? campaign.status.toUpperCase() : 'UNKNOWN')
                     )}
                   </span>
+                  {/* Show scheduled date/time under the SCHEDULED badge */}
+                  {campaign.status === 'scheduled' && campaign.scheduledDate && (
+                    <div style={{
+                      marginTop: '4px', fontSize: '11px', color: '#1d4ed8',
+                      fontWeight: '500', display: 'flex', alignItems: 'center', gap: '3px',
+                    }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                        <rect x="3" y="4" width="18" height="17" rx="2" stroke="#1d4ed8" strokeWidth="2"/>
+                        <path d="M3 9H21" stroke="#1d4ed8" strokeWidth="2"/>
+                        <path d="M8 2V5M16 2V5" stroke="#1d4ed8" strokeWidth="2" strokeLinecap="round"/>
+                      </svg>
+                      {new Date(campaign.scheduledDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                      {' · '}
+                      {new Date(campaign.scheduledDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}
+                    </div>
+                  )}
+                  {/* Show days/time for weekly recurring */}
+                  {campaign.status === 'scheduled' && campaign.scheduleType === 'time-based' && campaign.scheduledDays?.length > 0 && (
+                    <div style={{
+                      marginTop: '4px', fontSize: '11px', color: '#6d28d9',
+                      fontWeight: '500',
+                    }}>
+                      {campaign.scheduledDays.map(d => d.slice(0,3).toUpperCase()).join(', ')}
+                      {campaign.scheduledTime && ` · ${campaign.scheduledTime}`}
+                    </div>
+                  )}
                 </td>
                 <td className="results" style={{ verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                   <div className="result-row total" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', lineHeight: '1.4' }}>

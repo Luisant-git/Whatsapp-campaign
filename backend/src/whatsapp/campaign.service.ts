@@ -262,7 +262,8 @@ export class CampaignService {
     }
 
     const scheduleType = updateCampaignDto.scheduleType || campaign.scheduleType;
-    const status = scheduleType === 'time-based' ? 'scheduled' : 'draft';
+    // 'scheduled' = one-time future date, 'time-based' = weekly recurring — both stay 'scheduled'
+    const status = (scheduleType === 'time-based' || scheduleType === 'scheduled') ? 'scheduled' : 'draft';
     const totalCount = updateCampaignDto.contacts !== undefined ? sanitizedContacts.length : campaign.totalCount;
 
     await client.campaign.update({
@@ -277,6 +278,9 @@ export class CampaignService {
         scheduleType,
         scheduledDays: updateCampaignDto.scheduledDays !== undefined ? updateCampaignDto.scheduledDays : campaign.scheduledDays,
         scheduledTime: updateCampaignDto.scheduledTime !== undefined ? updateCampaignDto.scheduledTime : campaign.scheduledTime,
+        scheduledDate: updateCampaignDto.scheduledDate !== undefined
+          ? (updateCampaignDto.scheduledDate ? new Date(updateCampaignDto.scheduledDate) : null)
+          : campaign.scheduledDate,
         status,
         ...settingsUpdate,
       }

@@ -304,50 +304,73 @@ const Campaigns = ({ onResendFailed }) => {
                 <td>{campaign.templateName}</td>
                 <td>{campaign.group?.name || '—'}</td>
                 <td>
-                  <span
-                    className={`status-badge ${(campaign.status || '').toLowerCase()}`}
-                    title={
-                      campaign.status === 'paused_night'
-                        ? 'Night pause: Messages held until 8:00 AM IST to respect customer sleeping hours'
-                        : campaign.status === 'paused_outside_hours' || campaign.status === 'PAUSED_OUTSIDE_HOURS'
-                        ? 'Outside sending hours: Messages paused and will automatically resume when sending window opens (8:00 AM - 8:00 PM IST)'
-                        : ''
-                    }
-                  >
-                    {campaign.status === 'paused_night' ? (
-                      '🌙 PAUSED (NIGHT - 8 AM)'
-                    ) : (campaign.status === 'paused_outside_hours' || campaign.status === 'PAUSED_OUTSIDE_HOURS') ? (
-                      '🕒 PAUSED (OUTSIDE HOURS)'
-                    ) : (
-                      (campaign.status ? campaign.status.toUpperCase() : 'UNKNOWN')
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '5px' }}>
+                    <span
+                      className={`status-badge ${(campaign.status || '').toLowerCase()}`}
+                      title={
+                        campaign.status === 'paused_night'
+                          ? 'Night pause: Messages held until 8:00 AM IST'
+                          : campaign.status === 'paused_outside_hours' || campaign.status === 'PAUSED_OUTSIDE_HOURS'
+                          ? 'Outside sending hours: Will resume 8 AM – 8 PM IST'
+                          : ''
+                      }
+                    >
+                      {campaign.status === 'paused_night' ? (
+                        '🌙 PAUSED (NIGHT)'
+                      ) : (campaign.status === 'paused_outside_hours' || campaign.status === 'PAUSED_OUTSIDE_HOURS') ? (
+                        '🕒 PAUSED'
+                      ) : (
+                        campaign.status ? campaign.status.toUpperCase() : 'UNKNOWN'
+                      )}
+                    </span>
+
+                    {/* One-time scheduled: show date + time pill */}
+                    {campaign.status === 'scheduled' && campaign.scheduleType === 'scheduled' && campaign.scheduledDate && (
+                      <div style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '5px',
+                        background: '#eff6ff', border: '1px solid #bfdbfe',
+                        borderRadius: '20px', padding: '3px 10px',
+                        fontSize: '11px', fontWeight: '600', color: '#1d4ed8',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {/* Calendar icon */}
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                          <rect x="3" y="4" width="18" height="17" rx="2.5" stroke="#1d4ed8" strokeWidth="2.2"/>
+                          <path d="M3 9H21" stroke="#1d4ed8" strokeWidth="2.2"/>
+                          <path d="M8 2V5M16 2V5" stroke="#1d4ed8" strokeWidth="2.2" strokeLinecap="round"/>
+                        </svg>
+                        {new Date(campaign.scheduledDate).toLocaleDateString('en-IN', {
+                          day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata'
+                        })}
+                        &nbsp;·&nbsp;
+                        {new Date(campaign.scheduledDate).toLocaleTimeString('en-IN', {
+                          hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata'
+                        }).toUpperCase()}
+                      </div>
                     )}
-                  </span>
-                  {/* Show scheduled date/time under the SCHEDULED badge */}
-                  {campaign.status === 'scheduled' && campaign.scheduledDate && (
-                    <div style={{
-                      marginTop: '4px', fontSize: '11px', color: '#1d4ed8',
-                      fontWeight: '500', display: 'flex', alignItems: 'center', gap: '3px',
-                    }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
-                        <rect x="3" y="4" width="18" height="17" rx="2" stroke="#1d4ed8" strokeWidth="2"/>
-                        <path d="M3 9H21" stroke="#1d4ed8" strokeWidth="2"/>
-                        <path d="M8 2V5M16 2V5" stroke="#1d4ed8" strokeWidth="2" strokeLinecap="round"/>
-                      </svg>
-                      {new Date(campaign.scheduledDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                      {' · '}
-                      {new Date(campaign.scheduledDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}
-                    </div>
-                  )}
-                  {/* Show days/time for weekly recurring */}
-                  {campaign.status === 'scheduled' && campaign.scheduleType === 'time-based' && campaign.scheduledDays?.length > 0 && (
-                    <div style={{
-                      marginTop: '4px', fontSize: '11px', color: '#6d28d9',
-                      fontWeight: '500',
-                    }}>
-                      {campaign.scheduledDays.map(d => d.slice(0,3).toUpperCase()).join(', ')}
-                      {campaign.scheduledTime && ` · ${campaign.scheduledTime}`}
-                    </div>
-                  )}
+
+                    {/* Weekly recurring: show days pill */}
+                    {campaign.status === 'scheduled' && campaign.scheduleType === 'time-based' && campaign.scheduledDays?.length > 0 && (
+                      <div style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '5px',
+                        background: '#f5f3ff', border: '1px solid #ddd6fe',
+                        borderRadius: '20px', padding: '3px 10px',
+                        fontSize: '11px', fontWeight: '600', color: '#6d28d9',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                          <path d="M4 12C4 7.58 7.58 4 12 4C14.76 4 17.2 5.36 18.7 7.46" stroke="#6d28d9" strokeWidth="2.2" strokeLinecap="round"/>
+                          <path d="M20 12C20 16.42 16.42 20 12 20C9.24 20 6.8 18.64 5.3 16.54" stroke="#6d28d9" strokeWidth="2.2" strokeLinecap="round"/>
+                          <path d="M16 7L18.7 7.46L19.5 5" stroke="#6d28d9" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M8 17L5.3 16.54L4.5 19" stroke="#6d28d9" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        {campaign.scheduledDays.map(d => d.slice(0, 3).toUpperCase()).join(' · ')}
+                        {campaign.scheduledTime && (
+                          <>&nbsp;·&nbsp;{campaign.scheduledTime}</>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </td>
                 <td className="results" style={{ verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                   <div className="result-row total" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', lineHeight: '1.4' }}>
